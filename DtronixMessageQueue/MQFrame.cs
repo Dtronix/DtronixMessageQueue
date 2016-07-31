@@ -10,7 +10,6 @@ namespace DtronixMessageQueue {
 	public class MQFrame : IDisposable {
 
 		private byte[] data;
-		private int data_length = -1;
 
 
 		/// <summary>
@@ -21,7 +20,7 @@ namespace DtronixMessageQueue {
 		/// <summary>
 		/// Total bytes that this frame contains.
 		/// </summary>
-		public int DataLength => data_length;
+		public int DataLength { get; } = -1;
 
 		/// <summary>
 		/// True if this frame data has been completely read.
@@ -44,19 +43,15 @@ namespace DtronixMessageQueue {
 
 				}
 
-				return HeaderLength + data_length;
+				return HeaderLength + DataLength;
 			}
 		}
 
 		private const int HeaderLength = 5;
 
-		public MQFrame() {
-			input_stream = new MemoryStream();
-		}
-
 		public MQFrame(byte[] bytes, MQFrameType type) {
 			data = bytes;
-			data_length = bytes.Length;
+			DataLength = bytes.Length;
 			FrameType = type;
 		}
 
@@ -71,24 +66,24 @@ namespace DtronixMessageQueue {
 
 			// If this is an empty frame, return an empty byte which corresponds to MQFrameType.Empty
 			if (FrameType == MQFrameType.Empty) {
-				data_length = 0;
+				DataLength = 0;
 				return new byte[1];
 			}
 
-			byte[] bytes = new byte[HeaderLength + data_length];
+			byte[] bytes = new byte[HeaderLength + DataLength];
 
 			// Type of frame that this is.
 			bytes[0] = (byte) FrameType;
 
 
 
-			byte[] size_bytes = BitConverter.GetBytes(data_length);
+			byte[] size_bytes = BitConverter.GetBytes(DataLength);
 
 			// Copy the length.
 			Buffer.BlockCopy(size_bytes, 0, bytes, 1, 4);
 
 			// Copy the data
-			Buffer.BlockCopy(data, 0, bytes, HeaderLength, data_length);
+			Buffer.BlockCopy(data, 0, bytes, HeaderLength, DataLength);
 
 			return bytes;
 		}

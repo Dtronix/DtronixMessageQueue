@@ -1184,7 +1184,7 @@
         </xs:attribute>
         <xs:attribute name="bufferSize" type="xs:integer">
           <xs:annotation>
-            <xs:documentation>Log file buffer size in buffer.</xs:documentation>
+            <xs:documentation>Log file buffer size in client_bytes.</xs:documentation>
           </xs:annotation>
         </xs:attribute>
         <xs:attribute name="autoFlush" type="xs:boolean">

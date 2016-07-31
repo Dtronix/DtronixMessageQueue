@@ -69,17 +69,12 @@
     </Otherwise>
   </Choose>
   <ItemGroup>
-    <Compile Include="MessageQueueClientTests.cs" />
+    <Compile Include="PerformanceTests.cs" />
+    <None Include="MessageQueueClientTests.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
   </ItemGroup>
   <ItemGroup>
     <None Include="packages.config" />
-  </ItemGroup>
-  <ItemGroup>
-    <ProjectReference Include="..\DtronixMessageQueue\DtronixMessageQueue.csproj">
-      <Project>{060bfeca-a3d2-4871-ae35-28deccb95fe3}</Project>
-      <Name>DtronixMessageQueue</Name>
-    </ProjectReference>
   </ItemGroup>
   <Choose>
     <When Condition="'$(VisualStudioVersion)' == '10.0' And '$(IsCodedUITest)' == 'True'">
