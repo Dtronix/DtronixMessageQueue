@@ -1,16 +1,13 @@
 ﻿using System;
 using System.Collections.Generic;
-using System.Linq;
 using System.Net.Sockets;
-using System.Text;
-using System.Threading.Tasks;
 
 namespace DtronixMessageQueue {
 	/// <summary>
 	/// Represents a collection of reusable SocketAsyncEventArgs objects.  
 	/// </summary>
 	public class SocketAsyncEventArgsPool {
-		Stack<SocketAsyncEventArgs> pool;
+		private readonly Stack<SocketAsyncEventArgs> pool;
 
 		/// <summary>
 		/// Initializes the object pool to the specified size
@@ -25,7 +22,9 @@ namespace DtronixMessageQueue {
 		/// </summary>
 		/// <param name="item">The "item" parameter is the SocketAsyncEventArgs instance to add to the pool</param>
 		public void Push(SocketAsyncEventArgs item) {
-			if (item == null) { throw new ArgumentNullException("Items added to a SocketAsyncEventArgsPool cannot be null"); }
+			if (item == null) {
+				throw new ArgumentNullException(nameof(item), "Items added to a SocketAsyncEventArgsPool cannot be null");
+			}
 			lock (pool) {
 				pool.Push(item);
 			}
@@ -44,9 +43,6 @@ namespace DtronixMessageQueue {
 		/// <summary>
 		/// The number of SocketAsyncEventArgs instances in the pool
 		/// </summary>
-		public int Count {
-			get { return pool.Count; }
-		}
-
+		public int Count => pool.Count;
 	}
 }

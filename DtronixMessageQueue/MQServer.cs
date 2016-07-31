@@ -15,37 +15,11 @@ namespace DtronixMessageQueue {
 	public class MQServer : MQConnector {
 
 		private static readonly Logger logger = LogManager.GetCurrentClassLogger();
-
-		BufferManager buffer_manager;  // represents a large reusable set of buffers for all socket operations
-		Socket listen_socket;            // the socket used to listen for incoming connection requests
-										 // pool of reusable SocketAsyncEventArgs objects for write, read and accept socket operations
-		SocketAsyncEventArgsPool read_write_pool;
-		int num_connected_sockets;      // the total number of clients connected to the server 
-		Semaphore max_number_accepted_clients;
-
-
-
-		public const int ClientBufferSize = 1024 * 16;
-
-		public class Client {
-			public MQFrame Frame;
-			public MQMessage Message;
-			public MQMailbox Mailbox;
-			public Guid Id;
-			public Socket Socket;
-			public byte[] Bytes = new byte[ClientBufferSize];
-			public MQFrameBuilder FrameBuilder = new MQFrameBuilder(ClientBufferSize);
-			public object WriteLock = new object();
-			public SocketAsyncEventArgs SocketAsyncEvent;
-		}
-
-
+		private readonly Semaphore client_semaphore;
 
 		public class Config {
 
-			public int MaxConnections { get; set; } = 256;
-
-			public int MinimumWorkers { get; set; } = 4;
+			public int MaxConnections { get; set; } = 1;
 
 			/// <summary>
 			/// Maximum backlog for pending connections.
@@ -56,38 +30,13 @@ namespace DtronixMessageQueue {
 
 		private readonly Config configurations;
 
-		private bool is_running;
-
-		private readonly ConcurrentDictionary<Guid, Client> connected_clients = new ConcurrentDictionary<Guid, Client>();
+		private readonly ConcurrentDictionary<Guid, Connection> connected_clients = new ConcurrentDictionary<Guid, Connection>();
 
 
-		public MQServer(Config configurations) {
+		public MQServer(Config configurations) : base(configurations.MaxConnections, configurations.MaxConnections) {
 			this.configurations = configurations;
 
-			// allocate buffers such that the maximum number of sockets can have one outstanding read and 
-			//write posted to the socket simultaneously  
-			buffer_manager = new BufferManager(ClientBufferSize * configurations.MaxConnections * 2, ClientBufferSize);
-
-			read_write_pool = new SocketAsyncEventArgsPool(configurations.MaxConnections);
-			max_number_accepted_clients = new Semaphore(configurations.MaxConnections, configurations.MaxConnections);
-
-			// Allocates one large byte buffer which all I/O operations use a piece of.  This guards against memory fragmentation.
-			buffer_manager.InitBuffer();
-
-			// preallocate pool of SocketAsyncEventArgs objects
-			SocketAsyncEventArgs read_write_event_arg;
-
-			for (int i = 0; i < configurations.MaxConnections; i++) {
-				//Pre-allocate a set of reusable SocketAsyncEventArgs
-				read_write_event_arg = new SocketAsyncEventArgs();
-				read_write_event_arg.Completed += IO_Completed;
-
-				// assign a byte buffer from the buffer pool to the SocketAsyncEventArg object
-				buffer_manager.SetBuffer(read_write_event_arg);
-
-				// add SocketAsyncEventArg to the pool
-				read_write_pool.Push(read_write_event_arg);
-			}
+			client_semaphore = new Semaphore(configurations.MaxConnections, configurations.MaxConnections);
 
 		}
 
@@ -98,16 +47,18 @@ namespace DtronixMessageQueue {
 		// <param name="localEndPoint">The endpoint which the server will listening 
 		// for connection requests on</param>
 		public void Start(IPEndPoint local_end_point) {
-			if (is_running) {
+			if (IsRunning) {
 				throw new InvalidOperationException("Server is already running.");
 			}
 
+			IsRunning = true;
+
 			// create the socket which listens for incoming connections
-			listen_socket = new Socket(local_end_point.AddressFamily, SocketType.Stream, ProtocolType.Tcp);
-			listen_socket.Bind(local_end_point);
+			MainSocket = new Socket(local_end_point.AddressFamily, SocketType.Stream, ProtocolType.Tcp);
+			MainSocket.Bind(local_end_point);
 
 			// start the server with a listen backlog of 100 connections
-			listen_socket.Listen(100);
+			MainSocket.Listen(100);
 
 			// post accepts on the listening socket
 			StartAccept(null);
@@ -117,19 +68,18 @@ namespace DtronixMessageQueue {
 		/// Begins an operation to accept a connection request from the client 
 		/// </summary>
 		/// <param name="acceptEventArg">The context object to use when issuing the accept operation on the server's listening socket</param>
-		public void StartAccept(SocketAsyncEventArgs accept_event_arg) {
-			if (accept_event_arg == null) {
-				accept_event_arg = new SocketAsyncEventArgs();
-				accept_event_arg.Completed += new EventHandler<SocketAsyncEventArgs>(AcceptEventArg_Completed);
+		public void StartAccept(SocketAsyncEventArgs e) {
+			if (e == null) {
+				e = new SocketAsyncEventArgs();
+				e.Completed += AcceptEventArg_Completed;
 			} else {
 				// socket must be cleared since the context object is being reused
-				accept_event_arg.AcceptSocket = null;
+				e.AcceptSocket = null;
 			}
 
-			max_number_accepted_clients.WaitOne();
-			bool will_raise_event = listen_socket.AcceptAsync(accept_event_arg);
-			if (!will_raise_event) {
-				ProcessAccept(accept_event_arg);
+			client_semaphore.WaitOne();
+			if (MainSocket.AcceptAsync(e) == false) {
+				AcceptCompleted(e);
 			}
 		}
 
@@ -137,24 +87,24 @@ namespace DtronixMessageQueue {
 		// operations and is invoked when an accept operation is complete
 		//
 		void AcceptEventArg_Completed(object sender, SocketAsyncEventArgs e) {
-			ProcessAccept(e);
+			AcceptCompleted(e);
 		}
 
-		private void ProcessAccept(SocketAsyncEventArgs e) {
-			if (is_running == false) {
+		private void AcceptCompleted(SocketAsyncEventArgs e) {
+			if (IsRunning == false) {
 				return;
 			}
 
-			Interlocked.Increment(ref num_connected_sockets);
+			e.AcceptSocket.NoDelay = true;
 
 			// Get the socket for the accepted client connection and put it into the 
 			//ReadEventArg object user token
-			SocketAsyncEventArgs read_event_args = read_write_pool.Pop();
+			SocketAsyncEventArgs read_event_args = ReadPool.Pop();
 
 
 			var guid = Guid.NewGuid();
 
-			var client = new Client {
+			var client = new Connection {
 				Id = guid,
 				Socket = e.AcceptSocket,
 				Mailbox = new MQMailbox(),
@@ -165,6 +115,9 @@ namespace DtronixMessageQueue {
 
 			connected_clients.TryAdd(guid, client);
 
+			// Invoke the events.
+			OnConnected(e);
+
 			// As soon as the client is connected, post a receive to the connection
 			e.AcceptSocket.ReceiveAsync(read_event_args);
 
@@ -172,20 +125,30 @@ namespace DtronixMessageQueue {
 			StartAccept(e);
 		}
 
+		protected override void CloseClientSocket(SocketAsyncEventArgs e) {
+			var client = e.UserToken as MQServer.Connection;
+			if (client == null) {
+				return;
+			}
+
+			base.CloseClientSocket(e);
+
+			Connection cli;
+			if (connected_clients.TryRemove(client.Id, out cli) == false) {
+				logger.Fatal("Connection {0} was not able to be removed from the list of clients.", client.Id);
+			}
+
+			client_semaphore.Release();
+		}
+
 		public override void Stop() {
 			base.Stop();
 
-			Client[] clients = new Client[connected_clients.Values.Count];
-			connected_clients.Values.CopyTo(clients, 0);
+			Connection[] connections = new Connection[connected_clients.Values.Count];
+			connected_clients.Values.CopyTo(connections, 0);
 
-			foreach (Client client in clients) {
+			foreach (Connection client in connections) {
 				client.Socket.DisconnectAsync(client.SocketAsyncEvent);
-			}
-		}
-
-		public void Dispose() {
-			if (is_running) {
-				Stop();
 			}
 		}
 	}

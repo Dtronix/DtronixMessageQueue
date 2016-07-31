@@ -67,22 +67,20 @@ namespace DtronixMessageQueue {
 			//buffer_stream.Position -= write_position;
 
 			// Reset the internal writer and reader positions.
-			read_position = 0;
 			write_position = write_position - read_position;
+			read_position = 0;
 		}
 
 		public void Write(byte[] client_bytes, int offset, int count) {
 
 
 			// If we are over the byte limitation, then move the client_bytes back to the beginning of the stream and reset the stream.
-			if (count + write_position > client_bytes.Length) {
+			if (count + write_position > buffer.Length) {
 				MoveStreamBytesToBeginning();
 			}
 
 			// Write the incoming bytes to the stream.
 			WriteInternal(client_bytes, offset, count);
-
-			
 
 			// Loop until we require more data
 			while(true) {
@@ -120,6 +118,11 @@ namespace DtronixMessageQueue {
 
 					current_frame_type = MQFrameType.Unset;
 					current_frame_data = null;
+
+					// If we are at the end of the data, complete this loop and wait for more data.
+					if (write_position == read_position) {
+						break;
+					}
 				} else {
 					break;
 				}

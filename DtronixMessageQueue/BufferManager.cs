@@ -1,9 +1,5 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Linq;
+﻿using System.Collections.Generic;
 using System.Net.Sockets;
-using System.Text;
-using System.Threading.Tasks;
 
 namespace DtronixMessageQueue {
 	public class BufferManager {
@@ -11,15 +7,16 @@ namespace DtronixMessageQueue {
 		/// <summary>
 		/// The total number of bytes controlled by the buffer pool
 		/// </summary>
-		int num_bytes;
+		private readonly int num_bytes;
 
 		/// <summary>
 		///  The underlying byte array maintained by the Buffer Manager
 		/// </summary>
 		private byte[] buffer;
-		Stack<int> free_index_pool;
-		int current_index;
-		int buffer_size;
+
+		private readonly Stack<int> free_index_pool;
+		private int current_index;
+		private readonly int buffer_size;
 
 		public BufferManager(int total_bytes, int buffer_size) {
 			num_bytes = total_bytes;
@@ -47,7 +44,7 @@ namespace DtronixMessageQueue {
 			if (free_index_pool.Count > 0) {
 				args.SetBuffer(buffer, free_index_pool.Pop(), buffer_size);
 			} else {
-				if ((num_bytes - buffer_size) < current_index) {
+				if (num_bytes - buffer_size < current_index) {
 					return false;
 				}
 				args.SetBuffer(buffer, current_index, buffer_size);

@@ -1,35 +1,138 @@
 ﻿using System;
-using System.Collections.Generic;
 using System.IO;
-using System.Linq;
 using System.Net.Sockets;
-using System.Text;
-using System.Threading;
-using System.Threading.Tasks;
 
 namespace DtronixMessageQueue {
 	public  abstract class MQConnector : IDisposable {
 
+		public const int ClientBufferSize = 1024 * 16;
+
+		public class Connection {
+			public MQMessage Message;
+			public MQMailbox Mailbox;
+			public Guid Id;
+			public Socket Socket;
+			public MQFrameBuilder FrameBuilder = new MQFrameBuilder(ClientBufferSize);
+			public SocketAsyncEventArgs SocketAsyncEvent;
+		}
+
+		/// <summary>
+		/// This event fires when a connection has been established.
+		/// </summary>
+		public event EventHandler<SocketAsyncEventArgs> Connected;
+
+		/// <summary>
+		/// This event fires when a connection has been shutdown.
+		/// </summary>
+		public event EventHandler<SocketAsyncEventArgs> Disconnected;
+
+		/// <summary>
+		/// This event fires when data is received on the socket.
+		/// </summary>
+		public event EventHandler<SocketAsyncEventArgs> DataReceived;
+
+		/// <summary>
+		/// This event fires when data is finished sending on the socket.
+		/// </summary>
+		public event EventHandler<SocketAsyncEventArgs> DataSent;
+
+		protected Socket MainSocket; 
+		protected bool IsRunning;
+		protected SocketAsyncEventArgsPool WritePool;
+		protected SocketAsyncEventArgsPool ReadPool;
+
+		protected BufferManager BufferManager;  // represents a large reusable set of buffers for all socket operations
+
 		public event EventHandler<IncomingMessageEventArgs> OnIncomingMessage;
+
+		protected void OnConnected(SocketAsyncEventArgs e) {
+			Connected?.Invoke(this, e);
+		}
+
+
+		protected void OnDisconnected(SocketAsyncEventArgs e) {
+			Disconnected?.Invoke(this, e);
+		}
+
+		protected void OnDataReceived(SocketAsyncEventArgs e) {
+			DataReceived?.Invoke(this, e);
+		}
+
+		protected void OnDataSent(SocketAsyncEventArgs e) {
+			DataSent?.Invoke(this, e);
+		}
+
+		protected MQConnector(int concurrent_reads, int concurrent_writes) {
+
+			// allocate buffers such that the maximum number of sockets can have one outstanding read and 
+			//write posted to the socket simultaneously  
+			// Add the plus one per connection to detect if a whole empty buffer is sent to OnReceive.
+			BufferManager = new BufferManager((ClientBufferSize + 1) * concurrent_reads, ClientBufferSize + 1);
+
+			// Allocates one large byte buffer which all I/O operations use a piece of.  This guards against memory fragmentation.
+			BufferManager.InitBuffer();
+
+			// preallocate pool of SocketAsyncEventArgs objects
+			ReadPool = new SocketAsyncEventArgsPool(concurrent_reads);
+
+			for (var i = 0; i < concurrent_reads; i++) {
+				//Pre-allocate a set of reusable SocketAsyncEventArgs
+				var r_event_arg = new SocketAsyncEventArgs();
+
+				// assign a byte buffer from the buffer pool to the SocketAsyncEventArg object
+				BufferManager.SetBuffer(r_event_arg);
+
+				r_event_arg.Completed += IoCompleted;
+
+				// add SocketAsyncEventArg to the pool
+				ReadPool.Push(r_event_arg);
+			}
+
+			// Preallocate the writing pool
+			WritePool = new SocketAsyncEventArgsPool(concurrent_writes);
+
+			for (var i = 0; i < concurrent_writes; i++) {
+				//Pre-allocate a set of reusable SocketAsyncEventArgs
+				var w_event_arg = new SocketAsyncEventArgs();
+				w_event_arg.Completed += IoCompleted;
+
+				// add SocketAsyncEventArg to the pool
+				WritePool.Push(w_event_arg);
+			}
+		}
+
+
 		/// <summary>
 		/// This method is called whenever a receive or send operation is completed on a socket 
 		/// </summary>
 		/// <param name="sender"></param>
 		/// <param name="e">SocketAsyncEventArg associated with the completed receive operation</param>
-		protected void IO_Completed(object sender, SocketAsyncEventArgs e) {
+		protected virtual void IoCompleted(object sender, SocketAsyncEventArgs e) {
 			// determine which type of operation just completed and call the associated handler
 			switch (e.LastOperation) {
+				case SocketAsyncOperation.Connect:
+					Connected?.Invoke(this, e);
+					break;
+
+				case SocketAsyncOperation.Disconnect:
+					Disconnected?.Invoke(this, e);
+					break;
+
 				case SocketAsyncOperation.Receive:
-					ProcessReceive(e);
+					RecieveComplete(e);
+
 					break;
+
 				case SocketAsyncOperation.Send:
-					ProcessSend(e);
+					SendComplete(e);
 					break;
+
 				default:
 					throw new ArgumentException("The last operation completed on the socket was not a receive or send");
 			}
-
 		}
+
+
 
 
 		/// <summary>
@@ -38,55 +141,84 @@ namespace DtronixMessageQueue {
 		/// If data was received then the data is echoed back to the client.
 		/// </summary>
 		/// <param name="e"></param>
-		protected void ProcessReceive(SocketAsyncEventArgs e) {
-			var client = e.UserToken as MQServer.Client;
-			if (client == null) {
+		protected void RecieveComplete(SocketAsyncEventArgs e) {
+			var connection = e.UserToken as Connection;
+			if (connection == null) {
 				return;
 			}
 
-
 			if (e.BytesTransferred > 0 && e.SocketError == SocketError.Success) {
 
-
-				if (client.Message == null) {
-					client.Message = new MQMessage();
+				// If the bytes received is larger than the buffer, ignore this operation.
+				if (e.BytesTransferred <= ClientBufferSize) {
+					HandleRecieve(connection, e);
 				}
-				try {
-					client.FrameBuilder.Write(e.Buffer, e.Offset, e.BytesTransferred);
-				} catch (InvalidDataException ex) {
-					CloseClientSocket(e);
-					return;
+				
+				// Re-setup the receive async call.
+				if (connection.Socket.ReceiveAsync(e) == false) {
+					IoCompleted(this, e);
 				}
-
-				var frame_count = client.FrameBuilder.Frames.Count;
-
-				for (var i = 0; i < frame_count; i++) {
-					var frame = client.FrameBuilder.Frames.Dequeue();
-					client.Message.Add(frame);
-
-					if (frame.FrameType == MQFrameType.EmptyLast || frame.FrameType == MQFrameType.Last) {
-						client.Mailbox.Enqueue(client.Message);
-						client.Message = new MQMessage();
-						OnIncomingMessage?.Invoke(this, new IncomingMessageEventArgs(client.Mailbox, client.Id));
-					}
-				}
-
-				client.Socket.ReceiveAsync(e);
-
-
-				//echo the data received back to the client
-				//e.SetBuffer(e.Offset, e.BytesTransferred);
-
-
-				//bool will_raise_event = client.Socket.SendAsync(e);
-
-				//if (!will_raise_event) {
-				//	ProcessSend(e);
-				//}
 
 			} else {
 				CloseClientSocket(e);
 			}
+		}
+
+		protected virtual void HandleRecieve(Connection connection, SocketAsyncEventArgs e) {
+			if (connection.Message == null) {
+				connection.Message = new MQMessage();
+			}
+			try {
+				connection.FrameBuilder.Write(e.Buffer, e.Offset, e.BytesTransferred);
+			} catch (InvalidDataException) {
+				CloseClientSocket(e);
+				return;
+			}
+
+			var frame_count = connection.FrameBuilder.Frames.Count;
+
+			for (var i = 0; i < frame_count; i++) {
+				var frame = connection.FrameBuilder.Frames.Dequeue();
+				connection.Message.Add(frame);
+
+				if (frame.FrameType == MQFrameType.EmptyLast || frame.FrameType == MQFrameType.Last) {
+					connection.Mailbox.Enqueue(connection.Message);
+					connection.Message = new MQMessage();
+
+					OnIncomingMessage?.Invoke(this, new IncomingMessageEventArgs(connection.Mailbox, connection.Id));
+				}
+			}
+		}
+
+		/// <summary>
+		/// Sends an array of data to the other end of the connection.
+		/// </summary>
+		/// <param name="connection">Connection to send data on.</param>
+		/// <param name="data">Data to send.</param>
+		/// <param name="offset">Starting offset of date in the buffer.</param>
+		/// <param name="length">Amount of data in bytes to send.</param>
+		/// <returns></returns>
+		protected bool Send(Connection connection, byte[] data, int offset, int length) {
+			var status = true;
+
+			if (connection.Socket == null || connection.Socket.Connected == false) {
+				return false;
+			}
+
+			var args = WritePool.Pop();
+			args.UserToken = connection;
+			args.SetBuffer(data, offset, length);
+
+			try {
+				if (connection.Socket.SendAsync(args) == false) {
+					IoCompleted(this, args);
+				}
+			} catch (ObjectDisposedException) {
+				WritePool.Push(args);
+				status = false;
+			}
+
+			return status;
 		}
 
 		/// <summary>
@@ -94,11 +226,14 @@ namespace DtronixMessageQueue {
 		/// The method issues another receive on the socket to read any additional data sent from the client
 		/// </summary>
 		/// <param name="e"></param>
-		protected void ProcessSend(SocketAsyncEventArgs e) {
-			var client = e.UserToken as MQServer.Client;
+		protected void SendComplete(SocketAsyncEventArgs e) {
+			var client = e.UserToken as Connection;
 			if (client == null) {
 				return;
 			}
+
+			// Free this writer back to the pool.
+			WritePool.Push(e);
 
 			if (e.SocketError == SocketError.Success) {
 				// Do nothing at this point.
@@ -107,8 +242,8 @@ namespace DtronixMessageQueue {
 			}
 		}
 
-		protected void CloseClientSocket(SocketAsyncEventArgs e) {
-			var client = e.UserToken as MQServer.Client;
+		protected virtual void CloseClientSocket(SocketAsyncEventArgs e) {
+			var client = e.UserToken as Connection;
 			if (client == null) {
 				return;
 			}
@@ -116,36 +251,31 @@ namespace DtronixMessageQueue {
 			// close the socket associated with the client
 			try {
 				client.Socket.Shutdown(SocketShutdown.Send);
+			} catch (Exception) {
+				// ignored
+				// throws if client process has already closed
 			}
-			// throws if client process has already closed
-			catch (Exception) { }
 			client.Socket.Close();
 
 			client.FrameBuilder.Dispose();
 
-			MQServer.Client cli;
-			if (connected_clients.TryRemove(client.Id, out cli) == false) {
-				logger.Fatal("Client {0} was not able to be removed from the list of clients.", client.Id);
-			}
-
-			// decrement the counter keeping track of the total number of clients connected to the server
-			Interlocked.Decrement(ref num_connected_sockets);
-			max_number_accepted_clients.Release();
-
 			// Free the SocketAsyncEventArg so they can be reused by another client
-			read_write_pool.Push(e);
+			ReadPool.Push(e);
 		}
 
 
 		public virtual void Stop() {
-			if (is_running == false) {
+			if (IsRunning == false) {
 				throw new InvalidOperationException("Server is not running.");
 			}
-			is_running = false;
+			IsRunning = false;
 		}
 
+
 		public void Dispose() {
-			
+			if (IsRunning) {
+				Stop();
+			}
 		}
 	}
 }

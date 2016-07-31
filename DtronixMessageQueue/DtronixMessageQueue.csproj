@@ -45,7 +45,7 @@
   </ItemGroup>
   <ItemGroup>
     <Compile Include="MQConnector.cs" />
-    <Compile Include="Server.cs" />
+    <None Include="Server.cs" />
     <Compile Include="SocketAsyncEventArgsPool.cs" />
     <None Include="CircularBuffer.cs" />
     <None Include="CircularStream.cs" />
