@@ -31,7 +31,16 @@ namespace DtronixMessageQueueTests {
 
 			client.Connect("127.0.0.1");
 			Thread.Sleep(300);
-			client.Send(message);
+
+			for (int i = 0; i < 10000; i++) {
+				client.Send(message);
+			}
+			
+
+
+			client.Dispose();
+
+			Thread.Sleep(10000);
 
 
 		}

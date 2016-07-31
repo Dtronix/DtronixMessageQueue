@@ -35,7 +35,7 @@ namespace DtronixMessageQueue {
 		}
 
 		public void Connect(string address, int port = 2828) {
-			foreach (MQIOWorker worker in workers) {
+			foreach (var worker in workers) {
 				worker.Start();
 			}
 
@@ -58,7 +58,7 @@ namespace DtronixMessageQueue {
 		}
 
 		public void Dispose() {
-			foreach (MQIOWorker worker in workers) {
+			foreach (var worker in workers) {
 				worker.Stop();
 			}
 

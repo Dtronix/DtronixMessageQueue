@@ -15,7 +15,7 @@ namespace DtronixMessageQueue {
 		/// <summary>
 		/// Information about this frame and how it relates to other frames.
 		/// </summary>
-		public MQFrameType FrameType { get; internal set; } = MQFrameType.Empty;
+		public MQFrameType FrameType { get; private set; } = MQFrameType.Empty;
 
 		/// <summary>
 		/// Total bytes that this frame contains.
@@ -47,12 +47,25 @@ namespace DtronixMessageQueue {
 			}
 		}
 
-		private const int HeaderLength = 5;
+		private const int HeaderLength = 3;
 
 		public MQFrame(byte[] bytes, MQFrameType type) {
-			data = bytes;
-			DataLength = bytes.Length;
+			if (type == MQFrameType.EmptyLast || type == MQFrameType.Empty) {
+				DataLength = 0;
+			} else {
+				if (bytes.Length > 1024 * 16) {
+					throw new ArgumentException("Byte array must be less than 16384 bytes", nameof(bytes));
+				}
+
+				DataLength = bytes.Length;
+				data = bytes;
+			}
+
 			FrameType = type;
+		}
+
+		public void SetLast() {
+			FrameType = FrameType == MQFrameType.Empty ? MQFrameType.EmptyLast : MQFrameType.Last;
 		}
 
 		/// <summary>
@@ -65,22 +78,21 @@ namespace DtronixMessageQueue {
 			}
 
 			// If this is an empty frame, return an empty byte which corresponds to MQFrameType.Empty
-			if (FrameType == MQFrameType.Empty) {
-				DataLength = 0;
-				return new byte[1];
+			if (FrameType == MQFrameType.Empty || FrameType == MQFrameType.Empty) {
+				return new[] {(byte) FrameType};
 			}
 
-			byte[] bytes = new byte[HeaderLength + DataLength];
+			var bytes = new byte[HeaderLength + DataLength];
 
 			// Type of frame that this is.
 			bytes[0] = (byte) FrameType;
 
 
 
-			byte[] size_bytes = BitConverter.GetBytes(DataLength);
+			var size_bytes = BitConverter.GetBytes((short)DataLength);
 
 			// Copy the length.
-			Buffer.BlockCopy(size_bytes, 0, bytes, 1, 4);
+			Buffer.BlockCopy(size_bytes, 0, bytes, 1, 2);
 
 			// Copy the data
 			Buffer.BlockCopy(data, 0, bytes, HeaderLength, DataLength);
@@ -93,7 +105,6 @@ namespace DtronixMessageQueue {
 		
 
 		public void Dispose() {
-			input_stream?.Dispose();
 			data = null;
 		}
 	}

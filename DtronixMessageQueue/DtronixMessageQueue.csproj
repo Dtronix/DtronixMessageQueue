@@ -48,8 +48,8 @@
     <Reference Include="System.Xml" />
   </ItemGroup>
   <ItemGroup>
-    <Compile Include="CircularBuffer.cs" />
-    <Compile Include="CircularStream.cs" />
+    <None Include="CircularBuffer.cs" />
+    <None Include="CircularStream.cs" />
     <Compile Include="MQFrameBuilder.cs" />
     <Compile Include="IncomingMessageEventArgs.cs" />
     <Compile Include="MQClient.cs" />

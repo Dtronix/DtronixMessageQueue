@@ -60,7 +60,7 @@ namespace DtronixMessageQueue {
 		public bool Contains(T item) {
 			int bufferIndex = head;
 			var comparer = EqualityComparer<T>.Default;
-			for (int i = 0; i < size; i++, bufferIndex++) {
+			for (var i = 0; i < size; i++, bufferIndex++) {
 				if (bufferIndex == capacity)
 					bufferIndex = 0;
 
@@ -88,8 +88,8 @@ namespace DtronixMessageQueue {
 			if (!AllowOverflow && count > capacity - size)
 				throw new InvalidOperationException(Properties.Resources.MessageBufferOverflow);
 
-			int srcIndex = offset;
-			for (int i = 0; i < count; i++, tail++, srcIndex++) {
+			var srcIndex = offset;
+			for (var i = 0; i < count; i++, tail++, srcIndex++) {
 				if (tail == capacity)
 					tail = 0;
 				buffer[tail] = src[srcIndex];
@@ -126,8 +126,8 @@ namespace DtronixMessageQueue {
 
 		public int Get(T[] dst, int offset, int count) {
 			int realCount = Math.Min(count, size);
-			int dstIndex = offset;
-			for (int i = 0; i < realCount; i++, head++, dstIndex++) {
+			var dstIndex = offset;
+			for (var i = 0; i < realCount; i++, head++, dstIndex++) {
 				if (head == capacity)
 					head = 0;
 				dst[dstIndex] = buffer[head];
@@ -160,7 +160,7 @@ namespace DtronixMessageQueue {
 				throw new ArgumentOutOfRangeException("count", Properties.Resources.MessageReadCountTooLarge);
 
 			int bufferIndex = head;
-			for (int i = 0; i < count; i++, bufferIndex++, arrayIndex++) {
+			for (var i = 0; i < count; i++, bufferIndex++, arrayIndex++) {
 				if (bufferIndex == capacity)
 					bufferIndex = 0;
 				array[arrayIndex] = buffer[bufferIndex];
@@ -169,7 +169,7 @@ namespace DtronixMessageQueue {
 
 		public IEnumerator<T> GetEnumerator() {
 			int bufferIndex = head;
-			for (int i = 0; i < size; i++, bufferIndex++) {
+			for (var i = 0; i < size; i++, bufferIndex++) {
 				if (bufferIndex == capacity)
 					bufferIndex = 0;
 

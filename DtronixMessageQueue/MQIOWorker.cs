@@ -10,7 +10,9 @@ using AsyncIO;
 
 namespace DtronixMessageQueue {
 	public class MQIOWorker : IDisposable {
-		private class StopWorkerEvent { }
+		private class StopWorkerEvent {
+		}
+
 		public class WorkerEventArgs : EventArgs {
 			public MQIOWorker Worker { get; }
 			public CompletionStatus Status { get; }
@@ -18,6 +20,19 @@ namespace DtronixMessageQueue {
 			public WorkerEventArgs(MQIOWorker worker, CompletionStatus status) {
 				Worker = worker;
 				Status = status;
+			}
+
+		}
+
+		public class WorkerDisconnectEventArgs : EventArgs {
+			public MQIOWorker Worker { get; }
+			public CompletionStatus Status { get; }
+			public string Reason { get; }
+
+			public WorkerDisconnectEventArgs(MQIOWorker worker, CompletionStatus status, string reason) {
+				Worker = worker;
+				Status = status;
+				Reason = reason;
 			}
 
 		}
@@ -33,12 +48,12 @@ namespace DtronixMessageQueue {
 		public event EventHandler<WorkerEventArgs> OnSend;
 		public event EventHandler<WorkerEventArgs> OnReceive;
 		public event EventHandler<WorkerEventArgs> OnConnect;
-		public event EventHandler<WorkerEventArgs> OnDisconnect;
+		public event EventHandler<WorkerDisconnectEventArgs> OnDisconnect;
 		public event EventHandler<WorkerEventArgs> OnSignal;
 		public event EventHandler<WorkerEventArgs> OnAccept;
 
 		public MQIOWorker(CompletionPort completion_port) : this(completion_port, "mq-default-worker") {
-			
+
 		}
 
 		public MQIOWorker(CompletionPort completion_port, string thread_name) {
@@ -64,8 +79,8 @@ namespace DtronixMessageQueue {
 		}
 
 		private void ProcessQueue() {
-			bool cancel = false;
-			Stopwatch idle_stopwatch = new Stopwatch();
+			var cancel = false;
+			var idle_stopwatch = new Stopwatch();
 
 			while (!cancel) {
 				CompletionStatus completion_status;
@@ -76,14 +91,24 @@ namespace DtronixMessageQueue {
 					continue;
 				}
 
+				if (completion_status.SocketError != SocketError.Success) {
+					completion_status.AsyncSocket.Dispose();
+					OnDisconnect?.Invoke(this, new WorkerDisconnectEventArgs(this, completion_status, "Socket error"));
+				}
+
+				if (completion_status.BytesTransferred == 0 && completion_status.OperationType == OperationType.Receive) {
+					completion_status.AsyncSocket.Dispose();
+					OnDisconnect?.Invoke(this, new WorkerDisconnectEventArgs(this, completion_status, "Client disconnected"));
+				}
+
 				// If the state is the StopWorkerEvent class, we need to terminate our loop.
 				if (completion_status.State is StopWorkerEvent) {
 					idle_stopwatch.Stop();
 					break;
 				}
 
-					// Check the average time this thread remains idle
-					average_idle_time = average_idle_time == -1
+				// Check the average time this thread remains idle
+				average_idle_time = average_idle_time == -1
 					? idle_stopwatch.ElapsedMilliseconds
 					: (idle_stopwatch.ElapsedMilliseconds + average_idle_time)/2;
 
@@ -103,8 +128,8 @@ namespace DtronixMessageQueue {
 						break;
 
 					case OperationType.Disconnect:
-						OnDisconnect?.Invoke(this, new WorkerEventArgs(this, completion_status));
-						cancel = true;
+						completion_status.AsyncSocket.Dispose();
+						OnDisconnect?.Invoke(this, new WorkerDisconnectEventArgs(this, completion_status, "Client disconnected"));
 						break;
 
 					case OperationType.Signal:

@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.IO;
@@ -16,13 +17,16 @@ namespace DtronixMessageQueue {
 
 		private static readonly Logger logger = LogManager.GetCurrentClassLogger();
 
+		public const int ClientBufferSize = 1024 * 16;
+
 		public class Client {
 			public MQFrame Frame;
 			public MQMessage Message;
 			public MQMailbox Mailbox;
 			public Guid Id;
 			public AsyncSocket Socket;
-			public byte[] Bytes = new byte[1024 * 16];
+			public byte[] Bytes = new byte[ClientBufferSize];
+			public MQFrameBuilder FrameBuilder = new MQFrameBuilder(ClientBufferSize);
 			public object WriteLock = new object();
 
 		}
@@ -50,7 +54,7 @@ namespace DtronixMessageQueue {
 
 		private bool is_running;
 
-		private readonly Dictionary<Guid, Client> connected_clients = new Dictionary<Guid, Client>();
+		private readonly ConcurrentDictionary<Guid, Client> connected_clients = new ConcurrentDictionary<Guid, Client>();
 		private readonly List<MQIOWorker> workers = new List<MQIOWorker>();
 
 
@@ -69,6 +73,7 @@ namespace DtronixMessageQueue {
 			for (var i = 0; i < this.configurations.MinimumWorkers; i++) {
 				var worker = new MQIOWorker(worker_completion_port, "mq-server-worker");
 				worker.OnReceive += Worker_OnReceive;
+				worker.OnDisconnect += Worker_OnDisconnect;
 				workers.Add(worker);
 				
 			}
@@ -83,34 +88,56 @@ namespace DtronixMessageQueue {
 
 		}
 
+		private void Worker_OnDisconnect(object sender, MQIOWorker.WorkerDisconnectEventArgs e) {
+			var client = e.Status.State as Client;
+			if (client == null) {
+				return;
+			}
+
+			client.FrameBuilder.Dispose();
+
+			Client cli;
+			if (connected_clients.TryRemove(client.Id, out cli) == false) {
+				logger.Fatal("Client {0} was not able to be removed from the list of clients.", client.Id);
+			}
+			
+
+
+		}
+
 		private void Worker_OnReceive(object sender, MQIOWorker.WorkerEventArgs e) {
 			var client = e.Status.State as Client;
-			if (client != null) {
-				if (client.Message == null) {
-					client.Message = new MQMessage();
-				}
-				int over_read = e.Status.BytesTransferred;
-				while ((over_read = client.Message.Write(client.Bytes, e.Status.BytesTransferred - over_read, over_read)) > 0) {
-					if (client.Message.Complete == false) {
-						continue;
-					}
-					// We have a complete message.  Send it to the mailbox.
-					client.Mailbox.Enqueue(client.Message);
-					client.Message = new MQMessage();
-				}
+			if (client == null) {
+				return;
+			}
 
-				if (client.Message.Complete) {
+			if (client.Message == null) {
+				client.Message = new MQMessage();
+			}
+			try {
+				client.FrameBuilder.Write(client.Bytes, 0, e.Status.BytesTransferred);
+			} catch (InvalidDataException ex) {
+				client.Socket.Dispose();
+				return;
+			}
+
+			var frame_count = client.FrameBuilder.Frames.Count;
+
+			for (var i = 0; i < frame_count; i++) {
+				var frame = client.FrameBuilder.Frames.Dequeue();
+				client.Message.Add(frame);
+
+				if (frame.FrameType == MQFrameType.EmptyLast || frame.FrameType == MQFrameType.Last) {
 					client.Mailbox.Enqueue(client.Message);
+					client.Message = new MQMessage();
 					OnIncomingMessage?.Invoke(this, new IncomingMessageEventArgs(client.Mailbox, client.Id));
 				}
-
-				e.Status.AsyncSocket.Receive(client.Bytes, 0, client.Bytes.Length, SocketFlags.None);
 			}
 		}
 
 		private void Listen_worker_OnAccept(object sender, MQIOWorker.WorkerEventArgs e) {
 			var socket = e.Status.AsyncSocket.GetAcceptedSocket();
-			var guid = new Guid();
+			var guid = Guid.NewGuid();
 			var client_cl = new Client {
 				Id = guid,
 				Socket = socket,
@@ -118,7 +145,9 @@ namespace DtronixMessageQueue {
 				
 			};
 
-			connected_clients.Add(guid, client_cl);
+			if (connected_clients.TryAdd(guid, client_cl) == false) {
+				logger.Fatal("Client {0} was not able to be added to the list of clients.", guid);
+			}
 
 			// Add the new socket to the worker completion port.
 			worker_completion_port.AssociateSocket(socket, client_cl);
@@ -161,51 +190,6 @@ namespace DtronixMessageQueue {
 
 			is_running = false;
 		}
-
-
-		private void Listen() {
-			is_running = true;
-			var cancel = false;
-
-			while (!cancel) {
-				CompletionStatus completion_status;
-
-				if (listen_completion_port.GetQueuedCompletionStatus(5000, out completion_status) == false) {
-					continue;
-				}
-
-				switch (completion_status.OperationType) {
-					case OperationType.Accept:
-						
-
-						break;
-
-					case OperationType.Connect:
-						break;
-
-					case OperationType.Disconnect:
-						break;
-
-					case OperationType.Signal:
-						var state = completion_status.State as Client;
-						if (state != null) {
-							// If the state is another socket, this is a disconnected client that needs to be removed from the list.
-							var client = state;
-
-							if (connected_clients.Remove(client.Id) == false) {
-								logger.Error("Client {0} was not able to be removed from the list of active clients", client.Id);
-							}
-
-						} else if (completion_status.State == null) {
-							cancel = true;
-							is_running = false;
-						}
-
-						break;
-				}
-			}
-		}
-		
 
 		public void Dispose() {
 			if (is_running) {

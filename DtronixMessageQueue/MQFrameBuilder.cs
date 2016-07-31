@@ -6,9 +6,9 @@ using System.Text;
 using System.Threading.Tasks;
 
 namespace DtronixMessageQueue {
-	public class MQFrameBuilder {
+	public class MQFrameBuilder : IDisposable {
 
-		private readonly byte[] buffer = new byte[1024 * 32];
+		private readonly byte[] buffer;
 
 		private byte[] current_frame_data;
 		private MQFrameType current_frame_type;
@@ -24,7 +24,10 @@ namespace DtronixMessageQueue {
 		public Queue<MQFrame> Frames { get; } = new Queue<MQFrame>();
 
 
-		public MQFrameBuilder(int current_length, int current_offset) {
+		public MQFrameBuilder(int buffer_length) {
+
+			// Double the 
+			buffer = new byte[buffer_length];
 			buffer_stream = new MemoryStream(buffer, 0, buffer.Length, true, true);
 		}
 
@@ -40,7 +43,12 @@ namespace DtronixMessageQueue {
 
 		private void WriteInternal(byte[] client_bytes, int offset, int count) {
 			buffer_stream.Position = write_position;
-			buffer_stream.Write(client_bytes, offset, count);
+			try {
+				buffer_stream.Write(client_bytes, offset, count);
+			} catch (Exception e) {
+				throw new InvalidDataException("FrameBuilder was sent a frame larger than the connector allows.", e);
+			}
+			
 			write_position += count;
 
 			// Update the stream length 
@@ -66,13 +74,15 @@ namespace DtronixMessageQueue {
 		public void Write(byte[] client_bytes, int offset, int count) {
 
 
-			// If we are over 16000 bytes, then move the client_bytes back to the beginning of the stream and reset the stream.
-			if (count + write_position > client_bytes.Length / 2) {
+			// If we are over the byte limitation, then move the client_bytes back to the beginning of the stream and reset the stream.
+			if (count + write_position > client_bytes.Length) {
 				MoveStreamBytesToBeginning();
 			}
 
 			// Write the incoming bytes to the stream.
 			WriteInternal(client_bytes, offset, count);
+
+			
 
 			// Loop until we require more data
 			while(true) {
@@ -85,7 +95,7 @@ namespace DtronixMessageQueue {
 				}
 
 				// Read the length from the stream if there are enough client_bytes.
-				if (stream_length >= 2) {
+				if (current_frame_data == null && stream_length >= 2) {
 					var frame_len = new byte[2];
 
 					ReadInternal(frame_len, 0, frame_len.Length);
@@ -107,65 +117,26 @@ namespace DtronixMessageQueue {
 
 					// Create the frame and enqueue it.
 					Frames.Enqueue(new MQFrame(current_frame_data, current_frame_type));
+
+					current_frame_type = MQFrameType.Unset;
+					current_frame_data = null;
 				} else {
 					break;
 				}
 			}
 		}
 
-		/*/// <summary>
-		/// Reads from the byte queue and tries to return the number of bytes requested.
-		/// </summary>
-		/// <param name="count"></param>
-		/// <returns></returns>
-		private ArraySegment<byte> InternalRead(int count) {
-			var bytes = input_bytes.Peek();
-			var read_length = Math.Min(count, bytes.Length - current_offset);
+		public void Dispose() {
 
-			if (count <= 16 && read_length < count && input_bytes.Count > 1) {
-				// Remove this one off the queue since we have read it completely.
-				input_bytes.Dequeue();
-				var len_read = 0;
+			buffer_stream.Dispose();
 
-				while(input_bytes.Count > 1)
-				bytes = input_bytes.Dequeue();
+			// Delete all the frames.
+			var total_frames = Frames.Count;
+			for (int i = 0; i < total_frames; i++) {
+				var frame = Frames.Dequeue();
 
-				new MemoryStream()
-
-				return new ArraySegment<byte>(bytes, current_offset, read_length);
+				frame.Dispose();
 			}
-
-			var segment = new ArraySegment<byte>(bytes, current_offset, read_length);
-
-			// If our position is at the end of the array, we need to remove these bytes from the queue and reset out offset.
-			if (current_offset + read_length == bytes.Length) {
-				// Remove these bytes
-				input_bytes.Dequeue();
-
-				current_offset = 0;
-			} else {
-				current_offset += read_length;
-			}
-
-			return segment;
 		}
-		*/
-
-		/*private bool ParseFrame(ArraySegment<byte> client_bytes) {
-			IList<byte> buffer_list = client_bytes;
-			int position = 0;
-
-			if (current_frame == null) {
-				current_frame = new MQFrame {
-					FrameType = current_frame_type = (MQFrameType) buffer_list[0]
-				};
-				position += 1;
-
-			}
-
-
-
-			return true;
-		}*/
 	}
 }
