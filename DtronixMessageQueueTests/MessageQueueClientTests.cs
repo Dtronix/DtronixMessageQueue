@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Diagnostics;
 using System.Net;
 using System.Threading;
 using DtronixMessageQueue;
@@ -20,13 +21,23 @@ namespace DtronixMessageQueueTests {
 			var server = new MQServer(new MQServer.Config());
 			server.Start(new IPEndPoint(IPAddress.Any, 2828));
 
+			int runs = 2;
+			Stopwatch sw = new Stopwatch();
+			var wait = new AutoResetEvent(false);
+
+			var client = new MQClient();
 			server.OnIncomingMessage += (sender, args) => {
-				var mb = args.Mailbox;
+				if (args.Mailbox.Count == runs) {
+					sw.Stop();
+					output.WriteLine($"Used {client.WritePool.Count} event args to write.");
+					output.WriteLine($"Sent {runs} messages in {sw.ElapsedMilliseconds}");
+					wait.Set();
+				}
 			};
 
 			Thread.Sleep(300);
 
-			var client = new MQClient();
+
 
 			var message = new MQMessage {
 				new MQFrame(new byte[] {1, 2, 3, 4}, MQFrameType.More),
@@ -35,24 +46,38 @@ namespace DtronixMessageQueueTests {
 			};
 
 			var message2 = new MQMessage {
-				new MQFrame(new byte[] {1, 2, 3, 4}, MQFrameType.Last)
+					new MQFrame(RandomBytes(100), MQFrameType.More),
+				new MQFrame(RandomBytes(1000), MQFrameType.More),
+					new MQFrame(RandomBytes(100), MQFrameType.More),
+				new MQFrame(RandomBytes(12000), MQFrameType.Last)
 			};
 
 			client.Connect("127.0.0.1");
 			Thread.Sleep(300);
+			sw.Start();
 
-			for (int i = 0; i < 1; i++) {
-				client.Send(message);
+			for (int i = 0; i < runs; i++) {
 				client.Send(message2);
 			}
+
 			
+
+			wait.WaitOne(10000);
 
 
 			client.Dispose();
+			server.Dispose();
 
-			Thread.Sleep(10000);
+
+		}
 
 
+		private byte[] RandomBytes(int len) {
+			byte[] val = new byte[len];
+			Random rand = new Random();
+			rand.NextBytes(val);
+
+			return val;
 		}
 	}
 }

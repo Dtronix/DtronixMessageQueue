@@ -11,7 +11,7 @@ namespace DtronixMessageQueue {
 	public class MQClient : MQConnector {
 		private Connection connection;
 
-		public MQClient() : base(1, 12) {
+		public MQClient() : base(1, 1) {
 			connection = new Connection {
 				Mailbox = new MQMailbox()
 			};
@@ -39,8 +39,10 @@ namespace DtronixMessageQueue {
 
 
 		public void Send(MQMessage message) {
-			var bytes = message.ToByteArray();
-			Send(connection, bytes, 0, bytes.Length);
+			foreach (var frame in message.Frames) {
+				var bytes = frame.RawFrame();
+				Send(connection, bytes, 0, bytes.Length);
+			}
 			//client_socket.Send(bytes, 0, bytes.Length, SocketFlags.None);
 		}
 

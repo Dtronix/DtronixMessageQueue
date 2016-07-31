@@ -1,9 +1,13 @@
 ﻿using System;
 using System.IO;
 using System.Net.Sockets;
+using System.Threading;
+using NLog;
 
 namespace DtronixMessageQueue {
 	public  abstract class MQConnector : IDisposable {
+
+		private static readonly Logger logger = LogManager.GetCurrentClassLogger();
 
 		public const int ClientBufferSize = 1024 * 16;
 
@@ -13,6 +17,7 @@ namespace DtronixMessageQueue {
 			public Guid Id;
 			public Socket Socket;
 			public MQFrameBuilder FrameBuilder = new MQFrameBuilder(ClientBufferSize);
+			public Semaphore WriterSemaphore = new Semaphore(1, 1);
 			public SocketAsyncEventArgs SocketAsyncEvent;
 		}
 
@@ -38,8 +43,10 @@ namespace DtronixMessageQueue {
 
 		protected Socket MainSocket; 
 		protected bool IsRunning;
-		protected SocketAsyncEventArgsPool WritePool;
+		public SocketAsyncEventArgsPool WritePool;
 		protected SocketAsyncEventArgsPool ReadPool;
+
+		private readonly Semaphore write_semaphore;
 
 		protected BufferManager BufferManager;  // represents a large reusable set of buffers for all socket operations
 
@@ -63,7 +70,8 @@ namespace DtronixMessageQueue {
 		}
 
 		protected MQConnector(int concurrent_reads, int concurrent_writes) {
-
+			
+			
 			// allocate buffers such that the maximum number of sockets can have one outstanding read and 
 			//write posted to the socket simultaneously  
 			// Add the plus one per connection to detect if a whole empty buffer is sent to OnReceive.
@@ -93,12 +101,20 @@ namespace DtronixMessageQueue {
 
 			for (var i = 0; i < concurrent_writes; i++) {
 				//Pre-allocate a set of reusable SocketAsyncEventArgs
-				var w_event_arg = new SocketAsyncEventArgs();
-				w_event_arg.Completed += IoCompleted;
+				var w_event_arg = CreateWriterEventArgs();
 
 				// add SocketAsyncEventArg to the pool
 				WritePool.Push(w_event_arg);
 			}
+
+			logger.Debug("MQConnector started with {0} readers and {1} writers", concurrent_reads, concurrent_writes);
+		}
+
+		protected SocketAsyncEventArgs CreateWriterEventArgs() {
+			var w_event_arg = new SocketAsyncEventArgs();
+			w_event_arg.Completed += IoCompleted;
+
+			return w_event_arg;
 		}
 
 
@@ -108,6 +124,10 @@ namespace DtronixMessageQueue {
 		/// <param name="sender"></param>
 		/// <param name="e">SocketAsyncEventArg associated with the completed receive operation</param>
 		protected virtual void IoCompleted(object sender, SocketAsyncEventArgs e) {
+			var connection = e.UserToken as Connection;
+			if (connection != null) {
+				logger.Debug("Connector {0}: Completed {1} Operation.", connection.Id, e.LastOperation);
+			}
 			// determine which type of operation just completed and call the associated handler
 			switch (e.LastOperation) {
 				case SocketAsyncOperation.Connect:
@@ -176,12 +196,14 @@ namespace DtronixMessageQueue {
 			}
 
 			var frame_count = connection.FrameBuilder.Frames.Count;
+			logger.Debug("Connector {0}: Parsed {1} frames.", connection.Id, frame_count);
 
 			for (var i = 0; i < frame_count; i++) {
 				var frame = connection.FrameBuilder.Frames.Dequeue();
 				connection.Message.Add(frame);
 
 				if (frame.FrameType == MQFrameType.EmptyLast || frame.FrameType == MQFrameType.Last) {
+					
 					connection.Mailbox.Enqueue(connection.Message);
 					connection.Message = new MQMessage();
 
@@ -199,13 +221,25 @@ namespace DtronixMessageQueue {
 		/// <param name="length">Amount of data in bytes to send.</param>
 		/// <returns></returns>
 		protected bool Send(Connection connection, byte[] data, int offset, int length) {
+			connection.WriterSemaphore.WaitOne();
 			var status = true;
 
 			if (connection.Socket == null || connection.Socket.Connected == false) {
 				return false;
 			}
 
-			var args = WritePool.Pop();
+			SocketAsyncEventArgs args;
+
+			// Try to get a new writer even arg.
+			try {
+				args = WritePool.Count > 0 ? WritePool.Pop() : CreateWriterEventArgs();
+			} catch (Exception) {
+				// The pool ran out of args between the check on the Count and the Pop call.
+				args = CreateWriterEventArgs();
+			}
+			
+			
+			
 			args.UserToken = connection;
 			args.SetBuffer(data, offset, length);
 
@@ -227,14 +261,16 @@ namespace DtronixMessageQueue {
 		/// </summary>
 		/// <param name="e"></param>
 		protected void SendComplete(SocketAsyncEventArgs e) {
-			var client = e.UserToken as Connection;
-			if (client == null) {
+			var connection = e.UserToken as Connection;
+			if (connection == null) {
 				return;
 			}
 
 			// Free this writer back to the pool.
 			WritePool.Push(e);
 
+			// Reset the waiter.
+			connection.WriterSemaphore.Release(1);
 			if (e.SocketError == SocketError.Success) {
 				// Do nothing at this point.
 			} else {

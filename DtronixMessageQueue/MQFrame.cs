@@ -13,7 +13,7 @@ namespace DtronixMessageQueue {
 
 
 		/// <summary>
-		/// Information about this frame and how it relates to other frames.
+		/// Information about this frame and how it relates to other Frames.
 		/// </summary>
 		public MQFrameType FrameType { get; private set; } = MQFrameType.Empty;
 

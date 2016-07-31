@@ -133,7 +133,7 @@ namespace DtronixMessageQueue {
 
 			buffer_stream.Dispose();
 
-			// Delete all the frames.
+			// Delete all the Frames.
 			var total_frames = Frames.Count;
 			for (int i = 0; i < total_frames; i++) {
 				var frame = Frames.Dequeue();

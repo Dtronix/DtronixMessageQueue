@@ -13,18 +13,7 @@ namespace DtronixMessageQueueTests {
 			this.output = output;
 		}
 
-		[Fact]
-		public void Client_sends_data_to_server() {
 
-		}
-
-		private byte[] RandomBytes(int len) {
-			byte[] val = new byte[len];
-			Random rand = new Random();
-			rand.NextBytes(val);
-
-			return val;
-		}
 
 
 	}
