@@ -9,13 +9,21 @@ using System.Net.Sockets;
 using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
-using AsyncIO;
 using NLog;
 
 namespace DtronixMessageQueue {
-	public class MQServer : IDisposable {
+	public class MQServer : MQConnector {
 
 		private static readonly Logger logger = LogManager.GetCurrentClassLogger();
+
+		BufferManager buffer_manager;  // represents a large reusable set of buffers for all socket operations
+		Socket listen_socket;            // the socket used to listen for incoming connection requests
+										 // pool of reusable SocketAsyncEventArgs objects for write, read and accept socket operations
+		SocketAsyncEventArgsPool read_write_pool;
+		int num_connected_sockets;      // the total number of clients connected to the server 
+		Semaphore max_number_accepted_clients;
+
+
 
 		public const int ClientBufferSize = 1024 * 16;
 
@@ -24,17 +32,19 @@ namespace DtronixMessageQueue {
 			public MQMessage Message;
 			public MQMailbox Mailbox;
 			public Guid Id;
-			public AsyncSocket Socket;
+			public Socket Socket;
 			public byte[] Bytes = new byte[ClientBufferSize];
 			public MQFrameBuilder FrameBuilder = new MQFrameBuilder(ClientBufferSize);
 			public object WriteLock = new object();
-
+			public SocketAsyncEventArgs SocketAsyncEvent;
 		}
 
-		public event EventHandler<IncomingMessageEventArgs> OnIncomingMessage;
 
 
 		public class Config {
+
+			public int MaxConnections { get; set; } = 256;
+
 			public int MinimumWorkers { get; set; } = 4;
 
 			/// <summary>
@@ -46,162 +56,136 @@ namespace DtronixMessageQueue {
 
 		private readonly Config configurations;
 
-		private readonly CompletionPort listen_completion_port;
-		private readonly CompletionPort worker_completion_port;
-		private readonly AsyncSocket listener;
-		private readonly MQIOWorker listen_worker;
-
-
 		private bool is_running;
 
 		private readonly ConcurrentDictionary<Guid, Client> connected_clients = new ConcurrentDictionary<Guid, Client>();
-		private readonly List<MQIOWorker> workers = new List<MQIOWorker>();
 
 
 		public MQServer(Config configurations) {
 			this.configurations = configurations;
-			listen_completion_port = CompletionPort.Create();
-			worker_completion_port = CompletionPort.Create();
 
-			listener = AsyncSocket.Create(AddressFamily.InterNetwork,
-				SocketType.Stream, ProtocolType.Tcp);
+			// allocate buffers such that the maximum number of sockets can have one outstanding read and 
+			//write posted to the socket simultaneously  
+			buffer_manager = new BufferManager(ClientBufferSize * configurations.MaxConnections * 2, ClientBufferSize);
 
-			listen_completion_port.AssociateSocket(listener, listener);
+			read_write_pool = new SocketAsyncEventArgsPool(configurations.MaxConnections);
+			max_number_accepted_clients = new Semaphore(configurations.MaxConnections, configurations.MaxConnections);
 
-			listen_worker = new MQIOWorker(listen_completion_port, "mq-server-listener");
+			// Allocates one large byte buffer which all I/O operations use a piece of.  This guards against memory fragmentation.
+			buffer_manager.InitBuffer();
 
-			for (var i = 0; i < this.configurations.MinimumWorkers; i++) {
-				var worker = new MQIOWorker(worker_completion_port, "mq-server-worker");
-				worker.OnReceive += Worker_OnReceive;
-				worker.OnDisconnect += Worker_OnDisconnect;
-				workers.Add(worker);
-				
+			// preallocate pool of SocketAsyncEventArgs objects
+			SocketAsyncEventArgs read_write_event_arg;
+
+			for (int i = 0; i < configurations.MaxConnections; i++) {
+				//Pre-allocate a set of reusable SocketAsyncEventArgs
+				read_write_event_arg = new SocketAsyncEventArgs();
+				read_write_event_arg.Completed += IO_Completed;
+
+				// assign a byte buffer from the buffer pool to the SocketAsyncEventArg object
+				buffer_manager.SetBuffer(read_write_event_arg);
+
+				// add SocketAsyncEventArg to the pool
+				read_write_pool.Push(read_write_event_arg);
 			}
-
-			listen_worker.OnAccept += Listen_worker_OnAccept;
-
-			
-
-			listener.Bind(new IPEndPoint(IPAddress.Any, 2828));
-
-			
 
 		}
 
-		private void Worker_OnDisconnect(object sender, MQIOWorker.WorkerDisconnectEventArgs e) {
-			var client = e.Status.State as Client;
-			if (client == null) {
-				return;
-			}
 
-			client.FrameBuilder.Dispose();
-
-			Client cli;
-			if (connected_clients.TryRemove(client.Id, out cli) == false) {
-				logger.Fatal("Client {0} was not able to be removed from the list of clients.", client.Id);
-			}
-			
-
-
-		}
-
-		private void Worker_OnReceive(object sender, MQIOWorker.WorkerEventArgs e) {
-			var client = e.Status.State as Client;
-			if (client == null) {
-				return;
-			}
-
-			if (client.Message == null) {
-				client.Message = new MQMessage();
-			}
-			try {
-				client.FrameBuilder.Write(client.Bytes, 0, e.Status.BytesTransferred);
-			} catch (InvalidDataException ex) {
-				client.Socket.Dispose();
-				return;
-			}
-
-			var frame_count = client.FrameBuilder.Frames.Count;
-
-			for (var i = 0; i < frame_count; i++) {
-				var frame = client.FrameBuilder.Frames.Dequeue();
-				client.Message.Add(frame);
-
-				if (frame.FrameType == MQFrameType.EmptyLast || frame.FrameType == MQFrameType.Last) {
-					client.Mailbox.Enqueue(client.Message);
-					client.Message = new MQMessage();
-					OnIncomingMessage?.Invoke(this, new IncomingMessageEventArgs(client.Mailbox, client.Id));
-				}
-			}
-		}
-
-		private void Listen_worker_OnAccept(object sender, MQIOWorker.WorkerEventArgs e) {
-			var socket = e.Status.AsyncSocket.GetAcceptedSocket();
-			var guid = Guid.NewGuid();
-			var client_cl = new Client {
-				Id = guid,
-				Socket = socket,
-				Mailbox = new MQMailbox()
-				
-			};
-
-			if (connected_clients.TryAdd(guid, client_cl) == false) {
-				logger.Fatal("Client {0} was not able to be added to the list of clients.", guid);
-			}
-
-			// Add the new socket to the worker completion port.
-			worker_completion_port.AssociateSocket(socket, client_cl);
-
-			// Signal a worker that the new client has connected and to handle the work.
-			worker_completion_port.Signal(client_cl);
-
-			// Set the first receive.
-			socket.Receive(client_cl.Bytes, 0, client_cl.Bytes.Length, SocketFlags.None);
-		}
-
-
-		public void Start() {
+		// Starts the server such that it is listening for 
+		// incoming connection requests.    
+		//
+		// <param name="localEndPoint">The endpoint which the server will listening 
+		// for connection requests on</param>
+		public void Start(IPEndPoint local_end_point) {
 			if (is_running) {
 				throw new InvalidOperationException("Server is already running.");
 			}
 
-			// Start all the workers.
-			for (var i = 0; i < configurations.MinimumWorkers; i++) {
-				workers[i].Start();
-			}
+			// create the socket which listens for incoming connections
+			listen_socket = new Socket(local_end_point.AddressFamily, SocketType.Stream, ProtocolType.Tcp);
+			listen_socket.Bind(local_end_point);
 
-			listener.Listen(configurations.ListenerBacklog);
-			listen_worker.Start();
+			// start the server with a listen backlog of 100 connections
+			listen_socket.Listen(100);
 
-			listener.Accept();
+			// post accepts on the listening socket
+			StartAccept(null);
 		}
 
-		public void Stop() {
+		/// <summary>
+		/// Begins an operation to accept a connection request from the client 
+		/// </summary>
+		/// <param name="acceptEventArg">The context object to use when issuing the accept operation on the server's listening socket</param>
+		public void StartAccept(SocketAsyncEventArgs accept_event_arg) {
+			if (accept_event_arg == null) {
+				accept_event_arg = new SocketAsyncEventArgs();
+				accept_event_arg.Completed += new EventHandler<SocketAsyncEventArgs>(AcceptEventArg_Completed);
+			} else {
+				// socket must be cleared since the context object is being reused
+				accept_event_arg.AcceptSocket = null;
+			}
+
+			max_number_accepted_clients.WaitOne();
+			bool will_raise_event = listen_socket.AcceptAsync(accept_event_arg);
+			if (!will_raise_event) {
+				ProcessAccept(accept_event_arg);
+			}
+		}
+
+		// This method is the callback method associated with Socket.AcceptAsync 
+		// operations and is invoked when an accept operation is complete
+		//
+		void AcceptEventArg_Completed(object sender, SocketAsyncEventArgs e) {
+			ProcessAccept(e);
+		}
+
+		private void ProcessAccept(SocketAsyncEventArgs e) {
 			if (is_running == false) {
-				throw new InvalidOperationException("Server is not running.");
+				return;
 			}
 
-			// Stop all the workers.
-			for (var i = 0; i < configurations.MinimumWorkers; i++) {
-				workers[i].Stop();
+			Interlocked.Increment(ref num_connected_sockets);
+
+			// Get the socket for the accepted client connection and put it into the 
+			//ReadEventArg object user token
+			SocketAsyncEventArgs read_event_args = read_write_pool.Pop();
+
+
+			var guid = Guid.NewGuid();
+
+			var client = new Client {
+				Id = guid,
+				Socket = e.AcceptSocket,
+				Mailbox = new MQMailbox(),
+				SocketAsyncEvent = e
+			};
+
+			read_event_args.UserToken = client;
+
+			connected_clients.TryAdd(guid, client);
+
+			// As soon as the client is connected, post a receive to the connection
+			e.AcceptSocket.ReceiveAsync(read_event_args);
+
+			// Accept the next connection request
+			StartAccept(e);
+		}
+
+		public override void Stop() {
+			base.Stop();
+
+			Client[] clients = new Client[connected_clients.Values.Count];
+			connected_clients.Values.CopyTo(clients, 0);
+
+			foreach (Client client in clients) {
+				client.Socket.DisconnectAsync(client.SocketAsyncEvent);
 			}
-
-			listen_completion_port.Signal(null);
-
-			is_running = false;
 		}
 
 		public void Dispose() {
 			if (is_running) {
 				Stop();
-			}
-
-			listen_completion_port.Dispose();
-			worker_completion_port.Dispose();
-
-
-			foreach (var worker in workers) {
-				worker.Dispose();
 			}
 		}
 	}

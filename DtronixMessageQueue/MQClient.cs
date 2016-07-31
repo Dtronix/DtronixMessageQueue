@@ -11,13 +11,6 @@ using NLog;
 namespace DtronixMessageQueue {
 	public class MQClient : IDisposable {
 
-		private readonly List<MQIOWorker> workers = new List<MQIOWorker>();
-
-		private CompletionPort worker_completion_port;
-		private AsyncSocket client_socket;
-
-
-
 		public MQClient() {
 
 			worker_completion_port = CompletionPort.Create();
