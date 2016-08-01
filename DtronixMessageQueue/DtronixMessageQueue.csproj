@@ -46,6 +46,7 @@
   <ItemGroup>
     <Compile Include="MQConnector.cs" />
     <None Include="Server.cs" />
+    <Compile Include="MQMailboxWorker.cs" />
     <Compile Include="SocketAsyncEventArgsPool.cs" />
     <None Include="CircularBuffer.cs" />
     <None Include="CircularStream.cs" />
@@ -63,6 +64,7 @@
   <ItemGroup>
     <Content Include="NLog.config">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+      <SubType>Designer</SubType>
     </Content>
     <None Include="NLog.xsd">
       <SubType>Designer</SubType>

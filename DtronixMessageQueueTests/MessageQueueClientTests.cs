@@ -21,7 +21,7 @@ namespace DtronixMessageQueueTests {
 			var server = new MQServer(new MQServer.Config());
 			server.Start(new IPEndPoint(IPAddress.Any, 2828));
 
-			int runs = 100;
+			int runs = 6;
 			Stopwatch sw = new Stopwatch();
 			var wait = new AutoResetEvent(false);
 
@@ -30,7 +30,7 @@ namespace DtronixMessageQueueTests {
 				if (args.Mailbox.Count == runs) {
 					sw.Stop();
 					output.WriteLine($"Used {client.WritePool.Count} event args to write.");
-					output.WriteLine($"Sent {runs} messages in {sw.ElapsedMilliseconds}");
+					output.WriteLine($"Sent {runs} messages in {sw.ElapsedMilliseconds}. {(double)runs/ sw.ElapsedMilliseconds*1000}");
 					wait.Set();
 				}
 			};
@@ -46,10 +46,10 @@ namespace DtronixMessageQueueTests {
 			};
 
 			var message2 = new MQMessage {
-					new MQFrame(RandomBytes(100), MQFrameType.More),
-				new MQFrame(RandomBytes(100), MQFrameType.More),
-					new MQFrame(RandomBytes(100), MQFrameType.More),
-				new MQFrame(RandomBytes(120), MQFrameType.Last)
+					new MQFrame(RandomBytes(997), MQFrameType.More),
+				new MQFrame(RandomBytes(997), MQFrameType.More),
+					new MQFrame(RandomBytes(997), MQFrameType.More),
+				new MQFrame(RandomBytes(997), MQFrameType.Last)
 			};
 
 			client.Connect("127.0.0.1");
@@ -73,9 +73,19 @@ namespace DtronixMessageQueueTests {
 
 
 		private byte[] RandomBytes(int len) {
+			var number = 0;
 			byte[] val = new byte[len];
-			Random rand = new Random();
-			rand.NextBytes(val);
+
+			for (int i = 0; i < len; i++) {
+				val[i] = (byte)number++;
+				if (number > 255) {
+					number = 0;
+				}
+			}
+
+			
+			//Random rand = new Random();
+			//rand.NextBytes(val);
 
 			return val;
 		}

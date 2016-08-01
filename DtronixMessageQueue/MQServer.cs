@@ -79,6 +79,7 @@ namespace DtronixMessageQueue {
 
 			client_semaphore.WaitOne();
 			if (MainSocket.AcceptAsync(e) == false) {
+				logger.Warn("Server: Client accepted synchronously.");
 				AcceptCompleted(e);
 			}
 		}
@@ -104,16 +105,18 @@ namespace DtronixMessageQueue {
 
 			var guid = Guid.NewGuid();
 
-			var client = new Connection {
+			var connection = new Connection {
 				Id = guid,
 				Socket = e.AcceptSocket,
-				Mailbox = new MQMailbox(),
-				SocketAsyncEvent = e
+				SocketAsyncEvent = e,
+				Connector = this
 			};
 
-			read_event_args.UserToken = client;
+			connection.Mailbox = new MQMailbox(connection);
 
-			connected_clients.TryAdd(guid, client);
+			read_event_args.UserToken = connection;
+
+			connected_clients.TryAdd(guid, connection);
 
 			// Invoke the events.
 			OnConnected(e);
@@ -125,17 +128,22 @@ namespace DtronixMessageQueue {
 			StartAccept(e);
 		}
 
-		protected override void CloseClientSocket(SocketAsyncEventArgs e) {
-			var client = e.UserToken as MQServer.Connection;
-			if (client == null) {
+		public void CloseConnection(Connection connection) {
+			CloseConnection(connection.SocketAsyncEvent);
+		}
+
+
+		protected override void CloseConnection(SocketAsyncEventArgs e) {
+			var connection = e.UserToken as Connection;
+			if (connection == null) {
 				return;
 			}
 
-			base.CloseClientSocket(e);
+			base.CloseConnection(e);
 
 			Connection cli;
-			if (connected_clients.TryRemove(client.Id, out cli) == false) {
-				logger.Fatal("Connection {0} was not able to be removed from the list of clients.", client.Id);
+			if (connected_clients.TryRemove(connection.Id, out cli) == false) {
+				logger.Fatal("Connection {0} was not able to be removed from the list of clients.", connection.Id);
 			}
 
 			client_semaphore.Release();

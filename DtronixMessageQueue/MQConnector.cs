@@ -12,7 +12,7 @@ namespace DtronixMessageQueue {
 		public const int ClientBufferSize = 1024 * 16;
 
 		public class Connection {
-			public MQMessage Message;
+			public MQConnector Connector;
 			public MQMailbox Mailbox;
 			public Guid Id;
 			public Socket Socket;
@@ -43,14 +43,10 @@ namespace DtronixMessageQueue {
 
 		protected Socket MainSocket; 
 		protected bool IsRunning;
-		public SocketAsyncEventArgsPool WritePool;
+		protected SocketAsyncEventArgsPool WritePool;
 		protected SocketAsyncEventArgsPool ReadPool;
 
-		private readonly Semaphore write_semaphore;
-
 		protected BufferManager BufferManager;  // represents a large reusable set of buffers for all socket operations
-
-		public event EventHandler<IncomingMessageEventArgs> OnIncomingMessage;
 
 		protected void OnConnected(SocketAsyncEventArgs e) {
 			Connected?.Invoke(this, e);
@@ -148,7 +144,8 @@ namespace DtronixMessageQueue {
 					break;
 
 				default:
-					throw new ArgumentException("The last operation completed on the socket was not a receive or send");
+					logger.Error("Connector {0}: The last operation completed on the socket was not a receive, send connect or disconnect.", connection?.Id);
+					throw new ArgumentException("The last operation completed on the socket was not a receive, send connect or disconnect.");
 			}
 		}
 
@@ -173,42 +170,22 @@ namespace DtronixMessageQueue {
 				if (e.BytesTransferred <= ClientBufferSize) {
 					HandleRecieve(connection, e);
 				}
-				
-				// Re-setup the receive async call.
-				if (connection.Socket.ReceiveAsync(e) == false) {
-					IoCompleted(this, e);
+
+				try {
+					// Re-setup the receive async call.
+					if (connection.Socket.ReceiveAsync(e) == false) {
+						logger.Warn("Connector {0}: Data received synchronously.", connection.Id);
+						IoCompleted(this, e);
+					}
+				} catch (ObjectDisposedException ex) {
+					logger.Error(ex, "Connector {0}: Exception on SendAsync.", connection.Id);
+					CloseConnection(e);
 				}
+
 
 			} else {
-				CloseClientSocket(e);
-			}
-		}
-
-		protected virtual void HandleRecieve(Connection connection, SocketAsyncEventArgs e) {
-			if (connection.Message == null) {
-				connection.Message = new MQMessage();
-			}
-			try {
-				connection.FrameBuilder.Write(e.Buffer, e.Offset, e.BytesTransferred);
-			} catch (InvalidDataException) {
-				CloseClientSocket(e);
-				return;
-			}
-
-			var frame_count = connection.FrameBuilder.Frames.Count;
-			logger.Debug("Connector {0}: Parsed {1} frames.", connection.Id, frame_count);
-
-			for (var i = 0; i < frame_count; i++) {
-				var frame = connection.FrameBuilder.Frames.Dequeue();
-				connection.Message.Add(frame);
-
-				if (frame.FrameType == MQFrameType.EmptyLast || frame.FrameType == MQFrameType.Last) {
-					
-					connection.Mailbox.Enqueue(connection.Message);
-					connection.Message = new MQMessage();
-
-					OnIncomingMessage?.Invoke(this, new IncomingMessageEventArgs(connection.Mailbox, connection.Id));
-				}
+				logger.Error("Connector {0}: Socket error: {1}", connection?.Id, e.SocketError);
+				CloseConnection(e);
 			}
 		}
 
@@ -234,6 +211,7 @@ namespace DtronixMessageQueue {
 			try {
 				args = WritePool.Count > 0 ? WritePool.Pop() : CreateWriterEventArgs();
 			} catch (Exception) {
+				logger.Warn("Connector {0}: Writer pool ran out of EventArgs between the check on the Count and the Pop call.", connection.Id);
 				// The pool ran out of args between the check on the Count and the Pop call.
 				args = CreateWriterEventArgs();
 			}
@@ -245,9 +223,11 @@ namespace DtronixMessageQueue {
 
 			try {
 				if (connection.Socket.SendAsync(args) == false) {
+					logger.Warn("Connector {0}: Data sent synchronously.", connection.Id);
 					IoCompleted(this, args);
 				}
-			} catch (ObjectDisposedException) {
+			} catch (ObjectDisposedException ex) {
+				logger.Error(ex, "Connector {0}: Exception on SendAsync.", connection.Id);
 				WritePool.Push(args);
 				status = false;
 			}
@@ -274,26 +254,28 @@ namespace DtronixMessageQueue {
 			if (e.SocketError == SocketError.Success) {
 				// Do nothing at this point.
 			} else {
-				CloseClientSocket(e);
+				logger.Error("Connector {0}: Socket error: {1}", connection.Id, e.SocketError);
+				CloseConnection(e);
 			}
 		}
 
-		protected virtual void CloseClientSocket(SocketAsyncEventArgs e) {
-			var client = e.UserToken as Connection;
-			if (client == null) {
+		protected virtual void CloseConnection(SocketAsyncEventArgs e) {
+			var connection = e.UserToken as Connection;
+			if (connection == null) {
 				return;
 			}
 
 			// close the socket associated with the client
 			try {
-				client.Socket.Shutdown(SocketShutdown.Send);
-			} catch (Exception) {
+				connection.Socket.Shutdown(SocketShutdown.Send);
+			} catch (Exception ex) {
+				logger.Error(ex, "Connector {0}: Connection is already closed.", connection.Id);
 				// ignored
 				// throws if client process has already closed
 			}
-			client.Socket.Close();
+			connection.Socket.Close();
 
-			client.FrameBuilder.Dispose();
+			connection.FrameBuilder.Dispose();
 
 			// Free the SocketAsyncEventArg so they can be reused by another client
 			ReadPool.Push(e);

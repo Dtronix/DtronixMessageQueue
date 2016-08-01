@@ -89,7 +89,16 @@ namespace DtronixMessageQueue {
 
 					// This will always return one byte.
 					ReadInternal(frame_type_bytes, 0, 1);
+
+					if (frame_type_bytes[0] > 4) {
+						throw new InvalidDataException($"FrameBuilder was sent a frame with an type.  Type sent: {frame_type_bytes[0]}");
+					}
+
 					current_frame_type = (MQFrameType)frame_type_bytes[0];
+
+					
+
+
 				}
 
 				// Read the length from the stream if there are enough client_bytes.
@@ -99,8 +108,11 @@ namespace DtronixMessageQueue {
 					ReadInternal(frame_len, 0, frame_len.Length);
 					var current_frame_length = BitConverter.ToInt16(frame_len, 0);
 
+					if (current_frame_length < 1) {
+						throw new InvalidDataException($"FrameBuilder was sent a frame with an invalid size of {current_frame_length}");
+					}
 
-					if (current_frame_length > 1024*16) {
+					if (current_frame_length > buffer.Length) {
 						throw new InvalidDataException($"Frame size is {current_frame_length} while the maximum size for frames is 16KB.");
 					}
 					current_frame_data = new byte[current_frame_length];

@@ -13,8 +13,10 @@ namespace DtronixMessageQueue {
 
 		public MQClient() : base(1, 1) {
 			connection = new Connection {
-				Mailbox = new MQMailbox()
+				Connector = this
 			};
+
+			connection.Mailbox = new MQMailbox(connection);
 		}
 
 		public void Connect(string address, int port = 2828) {
@@ -30,6 +32,7 @@ namespace DtronixMessageQueue {
 
 		public void Connect(IPEndPoint end_point) {
 			MainSocket = new Socket(end_point.AddressFamily, SocketType.Stream, ProtocolType.Tcp);
+			MainSocket.NoDelay = true;
 
 			var read_ea = ReadPool.Pop();
 			read_ea.RemoteEndPoint = end_point;
