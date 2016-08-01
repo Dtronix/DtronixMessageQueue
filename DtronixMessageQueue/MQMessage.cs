@@ -15,7 +15,7 @@ namespace DtronixMessageQueue {
 
 		}
 
-		/*public byte[] ToByteArray() {
+		public byte[] ToByteArray() {
 			var total_size = Frames.Sum(frame => frame.FrameLength);
 			var buffer = new byte[total_size];
 			using (var stream = new MemoryStream(buffer)) {
@@ -33,7 +33,7 @@ namespace DtronixMessageQueue {
 
 				return buffer;
 			}
-		}*/
+		}
 
 
 		public IEnumerator<MQFrame> GetEnumerator() {

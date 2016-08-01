@@ -39,9 +39,17 @@ namespace DtronixMessageQueue {
 
 
 		public void Send(MQMessage message) {
-			foreach (var frame in message.Frames) {
-				var bytes = frame.RawFrame();
+
+			var message_size = message.Sum(frame => frame.FrameLength);
+
+			if (message_size <= ClientBufferSize) {
+				var bytes = message.ToByteArray();
 				Send(connection, bytes, 0, bytes.Length);
+			} else {
+				foreach (var frame in message.Frames) {
+					var bytes = frame.RawFrame();
+					Send(connection, bytes, 0, bytes.Length);
+				}
 			}
 			//client_socket.Send(bytes, 0, bytes.Length, SocketFlags.None);
 		}
