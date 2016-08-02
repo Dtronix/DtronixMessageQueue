@@ -105,14 +105,11 @@ namespace DtronixMessageQueue {
 
 			var guid = Guid.NewGuid();
 
-			var connection = new Connection {
+			var connection = new Connection(this) {
 				Id = guid,
 				Socket = e.AcceptSocket,
-				SocketAsyncEvent = e,
-				Connector = this
+				SocketAsyncEvent = e
 			};
-
-			connection.Mailbox = new MQMailbox(connection);
 
 			read_event_args.UserToken = connection;
 

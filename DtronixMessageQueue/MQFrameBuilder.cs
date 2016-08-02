@@ -25,8 +25,6 @@ namespace DtronixMessageQueue {
 
 
 		public MQFrameBuilder(int buffer_length) {
-
-			// Double the 
 			buffer = new byte[buffer_length];
 			buffer_stream = new MemoryStream(buffer, 0, buffer.Length, true, true);
 		}
@@ -95,10 +93,6 @@ namespace DtronixMessageQueue {
 					}
 
 					current_frame_type = (MQFrameType)frame_type_bytes[0];
-
-					
-
-
 				}
 
 				// Read the length from the stream if there are enough client_bytes.

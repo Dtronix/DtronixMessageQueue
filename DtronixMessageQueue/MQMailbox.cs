@@ -38,7 +38,8 @@ namespace DtronixMessageQueue {
 			// Update the total bytes this 
 			Interlocked.Add(ref inbox_byte_count, buffer.Length);
 
-
+			// Signal the workers that work is to be done.
+			connection.Connector.ReadOperations.Enqueue(this);
 		}
 
 		private byte[] DequeueIncomingBuffer() {
@@ -57,36 +58,36 @@ namespace DtronixMessageQueue {
 				message = new MQMessage();
 			}
 
-			//if (e.BytesTransferred != 4000) {
-			//	return;
-			//}
+			byte[] buffer;
+			while (inbox_bytes.TryDequeue(out buffer)) {
 
-			try {
-				connection.FrameBuilder.Write(e.Buffer, e.Offset, e.BytesTransferred);
-			} catch (InvalidDataException ex) {
-				logger.Error(ex, "Connector {0}: Client send invalid data.", connection.Id);
+				try {
+					connection.FrameBuilder.Write(buffer, 0, buffer.Length);
+				} catch (InvalidDataException ex) {
+					logger.Error(ex, "Connector {0}: Client send invalid data.", connection.Id);
 
-				var connection_server = connection.Connector as MQServer;
+					var connection_server = connection.Connector as MQServer;
 
-				if (connection_server != null) {
-					connection_server.CloseConnection(connection);
+					if (connection_server != null) {
+						connection_server.CloseConnection(connection);
+					}
+					return;
 				}
-				return;
-			}
 
-			var frame_count = connection.FrameBuilder.Frames.Count;
-			logger.Debug("Connector {0}: Parsed {1} frames.", connection.Id, frame_count);
+				var frame_count = connection.FrameBuilder.Frames.Count;
+				logger.Debug("Connector {0}: Parsed {1} frames.", connection.Id, frame_count);
 
-			for (var i = 0; i < frame_count; i++) {
-				var frame = connection.FrameBuilder.Frames.Dequeue();
-				message.Add(frame);
+				for (var i = 0; i < frame_count; i++) {
+					var frame = connection.FrameBuilder.Frames.Dequeue();
+					message.Add(frame);
 
-				if (frame.FrameType == MQFrameType.EmptyLast || frame.FrameType == MQFrameType.Last) {
+					if (frame.FrameType == MQFrameType.EmptyLast || frame.FrameType == MQFrameType.Last) {
 
-					inbox.Enqueue(message);
-					message = new MQMessage();
+						inbox.Enqueue(message);
+						message = new MQMessage();
 
-					OnIncomingMessage?.Invoke(this, new IncomingMessageEventArgs(connection.Mailbox, connection.Id));
+						OnIncomingMessage?.Invoke(this, new IncomingMessageEventArgs(connection.Mailbox, connection.Id));
+					}
 				}
 			}
 		}

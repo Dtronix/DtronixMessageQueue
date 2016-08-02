@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Collections.Concurrent;
 using System.IO;
 using System.Net.Sockets;
 using System.Threading;
@@ -9,16 +10,23 @@ namespace DtronixMessageQueue {
 
 		private static readonly Logger logger = LogManager.GetCurrentClassLogger();
 
-		public const int ClientBufferSize = 1024 * 16;
+
+		public int ClientBufferSize { get; } = 1024 * 16;
 
 		public class Connection {
-			public MQConnector Connector;
-			public MQMailbox Mailbox;
+			public readonly MQConnector Connector;
+			public readonly MQMailbox Mailbox;
 			public Guid Id;
 			public Socket Socket;
-			public MQFrameBuilder FrameBuilder = new MQFrameBuilder(ClientBufferSize);
-			public Semaphore WriterSemaphore = new Semaphore(1, 1);
+			public readonly MQFrameBuilder FrameBuilder;
+			public readonly Semaphore WriterSemaphore = new Semaphore(1, 1);
 			public SocketAsyncEventArgs SocketAsyncEvent;
+
+			public Connection(MQConnector connector) {
+				Connector = connector;
+				FrameBuilder = new MQFrameBuilder(Connector.ClientBufferSize);
+				Mailbox = new MQMailbox(this);
+			}
 		}
 
 		/// <summary>
@@ -41,17 +49,21 @@ namespace DtronixMessageQueue {
 		/// </summary>
 		public event EventHandler<SocketAsyncEventArgs> DataSent;
 
+		protected ConcurrentStack<MQMailboxWorker> MailboxWorkers = new ConcurrentStack<MQMailboxWorker>();
+
 		protected Socket MainSocket; 
 		protected bool IsRunning;
 		protected SocketAsyncEventArgsPool WritePool;
+		public ConcurrentQueue<MQMailbox> WriteOperations = new ConcurrentQueue<MQMailbox>();
+
 		protected SocketAsyncEventArgsPool ReadPool;
+		public ConcurrentQueue<MQMailbox> ReadOperations = new ConcurrentQueue<MQMailbox>();
 
 		protected BufferManager BufferManager;  // represents a large reusable set of buffers for all socket operations
 
 		protected void OnConnected(SocketAsyncEventArgs e) {
 			Connected?.Invoke(this, e);
 		}
-
 
 		protected void OnDisconnected(SocketAsyncEventArgs e) {
 			Disconnected?.Invoke(this, e);
@@ -65,9 +77,11 @@ namespace DtronixMessageQueue {
 			DataSent?.Invoke(this, e);
 		}
 
+
+
 		protected MQConnector(int concurrent_reads, int concurrent_writes) {
-			
-			
+
+
 			// allocate buffers such that the maximum number of sockets can have one outstanding read and 
 			//write posted to the socket simultaneously  
 			// Add the plus one per connection to detect if a whole empty buffer is sent to OnReceive.
@@ -168,7 +182,13 @@ namespace DtronixMessageQueue {
 
 				// If the bytes received is larger than the buffer, ignore this operation.
 				if (e.BytesTransferred <= ClientBufferSize) {
-					HandleRecieve(connection, e);
+
+					// Create a copy of these bytes.
+					var buffer = new byte[e.BytesTransferred];
+					Buffer.BlockCopy(buffer, e.Offset, buffer, 0, e.BytesTransferred);
+
+					// Enqueue the buffer to be parsed on another thread.
+					connection.Mailbox.EnqueueIncomingBuffer(buffer);
 				}
 
 				try {
