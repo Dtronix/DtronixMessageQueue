@@ -13,21 +13,8 @@ namespace DtronixMessageQueue {
 
 		public int ClientBufferSize { get; } = 1024 * 16;
 
-		public class Connection {
-			public readonly MQConnector Connector;
-			public readonly MQMailbox Mailbox;
-			public Guid Id;
-			public Socket Socket;
-			public readonly MQFrameBuilder FrameBuilder;
-			public readonly Semaphore WriterSemaphore = new Semaphore(1, 1);
-			public SocketAsyncEventArgs SocketAsyncEvent;
+		public MQPostmaster Postmaster { get; }
 
-			public Connection(MQConnector connector) {
-				Connector = connector;
-				FrameBuilder = new MQFrameBuilder(Connector.ClientBufferSize);
-				Mailbox = new MQMailbox(this);
-			}
-		}
 
 		/// <summary>
 		/// This event fires when a connection has been established.
@@ -49,15 +36,14 @@ namespace DtronixMessageQueue {
 		/// </summary>
 		public event EventHandler<SocketAsyncEventArgs> DataSent;
 
-		protected ConcurrentStack<MQMailboxWorker> MailboxWorkers = new ConcurrentStack<MQMailboxWorker>();
+
+		public event EventHandler<IncomingMessageEventArgs> InboxMessage;
 
 		protected Socket MainSocket; 
 		protected bool IsRunning;
-		protected SocketAsyncEventArgsPool WritePool;
-		public ConcurrentQueue<MQMailbox> WriteOperations = new ConcurrentQueue<MQMailbox>();
 
 		protected SocketAsyncEventArgsPool ReadPool;
-		public ConcurrentQueue<MQMailbox> ReadOperations = new ConcurrentQueue<MQMailbox>();
+		protected SocketAsyncEventArgsPool WritePool;
 
 		protected BufferManager BufferManager;  // represents a large reusable set of buffers for all socket operations
 
@@ -81,6 +67,8 @@ namespace DtronixMessageQueue {
 
 		protected MQConnector(int concurrent_reads, int concurrent_writes) {
 
+			// Setup the postmaster and the threads associated with it.
+			Postmaster = new MQPostmaster(this);
 
 			// allocate buffers such that the maximum number of sockets can have one outstanding read and 
 			//write posted to the socket simultaneously  
@@ -127,6 +115,16 @@ namespace DtronixMessageQueue {
 			return w_event_arg;
 		}
 
+		protected MQConnection CreateConnection() {
+			var guid = Guid.NewGuid();
+
+			var connection = new MQConnection(this);
+
+			Connector = connector;
+			FrameBuilder = new MQFrameBuilder(Connector.ClientBufferSize);
+			Mailbox = new MQMailbox(this);
+		}
+
 
 		/// <summary>
 		/// This method is called whenever a receive or send operation is completed on a socket 
@@ -134,7 +132,7 @@ namespace DtronixMessageQueue {
 		/// <param name="sender"></param>
 		/// <param name="e">SocketAsyncEventArg associated with the completed receive operation</param>
 		protected virtual void IoCompleted(object sender, SocketAsyncEventArgs e) {
-			var connection = e.UserToken as Connection;
+			var connection = e.UserToken as MQConnection;
 			if (connection != null) {
 				logger.Debug("Connector {0}: Completed {1} Operation.", connection.Id, e.LastOperation);
 			}
@@ -173,7 +171,7 @@ namespace DtronixMessageQueue {
 		/// </summary>
 		/// <param name="e"></param>
 		protected void RecieveComplete(SocketAsyncEventArgs e) {
-			var connection = e.UserToken as Connection;
+			var connection = e.UserToken as MQConnection;
 			if (connection == null) {
 				return;
 			}
@@ -212,12 +210,12 @@ namespace DtronixMessageQueue {
 		/// <summary>
 		/// Sends an array of data to the other end of the connection.
 		/// </summary>
-		/// <param name="connection">Connection to send data on.</param>
+		/// <param name="connection">MQConnection to send data on.</param>
 		/// <param name="data">Data to send.</param>
 		/// <param name="offset">Starting offset of date in the buffer.</param>
 		/// <param name="length">Amount of data in bytes to send.</param>
 		/// <returns></returns>
-		protected bool Send(Connection connection, byte[] data, int offset, int length) {
+		public bool Send(MQConnection connection, byte[] data, int offset, int length) {
 			connection.WriterSemaphore.WaitOne();
 			var status = true;
 
@@ -261,7 +259,7 @@ namespace DtronixMessageQueue {
 		/// </summary>
 		/// <param name="e"></param>
 		protected void SendComplete(SocketAsyncEventArgs e) {
-			var connection = e.UserToken as Connection;
+			var connection = e.UserToken as MQConnection;
 			if (connection == null) {
 				return;
 			}
@@ -280,7 +278,7 @@ namespace DtronixMessageQueue {
 		}
 
 		protected virtual void CloseConnection(SocketAsyncEventArgs e) {
-			var connection = e.UserToken as Connection;
+			var connection = e.UserToken as MQConnection;
 			if (connection == null) {
 				return;
 			}
@@ -289,7 +287,7 @@ namespace DtronixMessageQueue {
 			try {
 				connection.Socket.Shutdown(SocketShutdown.Send);
 			} catch (Exception ex) {
-				logger.Error(ex, "Connector {0}: Connection is already closed.", connection.Id);
+				logger.Error(ex, "Connector {0}: MQConnection is already closed.", connection.Id);
 				// ignored
 				// throws if client process has already closed
 			}

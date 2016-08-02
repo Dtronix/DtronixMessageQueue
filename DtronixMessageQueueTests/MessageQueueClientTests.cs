@@ -26,6 +26,7 @@ namespace DtronixMessageQueueTests {
 			var wait = new AutoResetEvent(false);
 
 			var client = new MQClient();
+
 			server.OnIncomingMessage += (sender, args) => {
 				if (args.Mailbox.Count == runs) {
 					sw.Stop();

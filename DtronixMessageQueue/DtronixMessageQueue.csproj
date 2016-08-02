@@ -44,11 +44,13 @@
     <Reference Include="System.Xml" />
   </ItemGroup>
   <ItemGroup>
+    <Compile Include="MQConnection.cs" />
     <Compile Include="MQConnector.cs" />
     <None Include="Server.cs" />
     <Compile Include="MQConnectorConfigs.cs" />
     <Compile Include="MQFrameBuilder.cs" />
-    <Compile Include="MQMailboxWorker.cs" />
+    <Compile Include="MQWorker.cs" />
+    <Compile Include="MQPostmaster.cs" />
     <Compile Include="SocketAsyncEventArgsPool.cs" />
     <Compile Include="BufferManager.cs" />
     <Compile Include="IncomingMessageEventArgs.cs" />

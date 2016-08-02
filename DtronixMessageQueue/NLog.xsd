@@ -370,11 +370,11 @@
           <xs:element name="layout" minOccurs="0" maxOccurs="1" type="Layout" />
           <xs:element name="maxMessageSize" minOccurs="0" maxOccurs="1" type="xs:integer" />
           <xs:element name="newLine" minOccurs="0" maxOccurs="1" type="xs:boolean" />
-          <xs:element name="onConnectionOverflow" minOccurs="0" maxOccurs="1" type="NLog.Targets.NetworkTargetConnectionsOverflowAction" />
+          <xs:element name="onMQConnectionOverflow" minOccurs="0" maxOccurs="1" type="NLog.Targets.NetworkTargetMQConnectionsOverflowAction" />
           <xs:element name="onOverflow" minOccurs="0" maxOccurs="1" type="NLog.Targets.NetworkTargetOverflowAction" />
-          <xs:element name="keepConnection" minOccurs="0" maxOccurs="1" type="xs:boolean" />
+          <xs:element name="keepMQConnection" minOccurs="0" maxOccurs="1" type="xs:boolean" />
           <xs:element name="connectionCacheSize" minOccurs="0" maxOccurs="1" type="xs:integer" />
-          <xs:element name="maxConnections" minOccurs="0" maxOccurs="1" type="xs:integer" />
+          <xs:element name="maxMQConnections" minOccurs="0" maxOccurs="1" type="xs:integer" />
           <xs:element name="address" minOccurs="0" maxOccurs="1" type="Layout" />
           <xs:element name="maxQueueSize" minOccurs="0" maxOccurs="1" type="xs:integer" />
           <xs:element name="includeSourceInfo" minOccurs="0" maxOccurs="1" type="xs:boolean" />
@@ -411,7 +411,7 @@
             <xs:documentation>Indicates whether to append newline at the end of log message.</xs:documentation>
           </xs:annotation>
         </xs:attribute>
-        <xs:attribute name="onConnectionOverflow" type="NLog.Targets.NetworkTargetConnectionsOverflowAction">
+        <xs:attribute name="onMQConnectionOverflow" type="NLog.Targets.NetworkTargetMQConnectionsOverflowAction">
           <xs:annotation>
             <xs:documentation>Action that should be taken if the will be more connections than .</xs:documentation>
           </xs:annotation>
@@ -421,17 +421,17 @@
             <xs:documentation>Action that should be taken if the message is larger than maxMessageSize.</xs:documentation>
           </xs:annotation>
         </xs:attribute>
-        <xs:attribute name="keepConnection" type="xs:boolean">
+        <xs:attribute name="keepMQConnection" type="xs:boolean">
           <xs:annotation>
             <xs:documentation>Indicates whether to keep connection open whenever possible.</xs:documentation>
           </xs:annotation>
         </xs:attribute>
         <xs:attribute name="connectionCacheSize" type="xs:integer">
           <xs:annotation>
-            <xs:documentation>Size of the connection cache (number of connections which are kept alive).</xs:documentation>
+            <xs:documentation>Size of the connection cache (number of MQConnections which are kept alive).</xs:documentation>
           </xs:annotation>
         </xs:attribute>
-        <xs:attribute name="maxConnections" type="xs:integer">
+        <xs:attribute name="maxMQConnections" type="xs:integer">
           <xs:annotation>
             <xs:documentation>Maximum current connections. 0 = no maximum.</xs:documentation>
           </xs:annotation>
@@ -484,7 +484,7 @@
       </xs:extension>
     </xs:complexContent>
   </xs:complexType>
-  <xs:simpleType name="NLog.Targets.NetworkTargetConnectionsOverflowAction">
+  <xs:simpleType name="NLog.Targets.NetworkTargetMQConnectionsOverflowAction">
     <xs:restriction base="xs:string">
       <xs:enumeration value="AllowNewConnnection" />
       <xs:enumeration value="DiscardMessage" />
@@ -711,9 +711,9 @@
           <xs:element name="dbPassword" minOccurs="0" maxOccurs="1" type="Layout" />
           <xs:element name="dbProvider" minOccurs="0" maxOccurs="1" type="xs:string" />
           <xs:element name="dbUserName" minOccurs="0" maxOccurs="1" type="Layout" />
-          <xs:element name="keepConnection" minOccurs="0" maxOccurs="1" type="xs:boolean" />
+          <xs:element name="keepMQConnection" minOccurs="0" maxOccurs="1" type="xs:boolean" />
           <xs:element name="useTransactions" minOccurs="0" maxOccurs="1" type="xs:boolean" />
-          <xs:element name="installConnectionString" minOccurs="0" maxOccurs="1" type="Layout" />
+          <xs:element name="installMQConnectionString" minOccurs="0" maxOccurs="1" type="Layout" />
           <xs:element name="install-command" minOccurs="0" maxOccurs="unbounded" type="NLog.Targets.DatabaseCommandInfo" />
           <xs:element name="uninstall-command" minOccurs="0" maxOccurs="unbounded" type="NLog.Targets.DatabaseCommandInfo" />
           <xs:element name="commandText" minOccurs="0" maxOccurs="1" type="Layout" />
@@ -727,27 +727,27 @@
         </xs:attribute>
         <xs:attribute name="connectionString" type="SimpleLayoutAttribute">
           <xs:annotation>
-            <xs:documentation>Connection string. When provided, it overrides the values specified in DBHost, DBUserName, DBPassword, DBDatabase.</xs:documentation>
+            <xs:documentation>MQConnection string. When provided, it overrides the values specified in DBHost, DBUserName, DBPassword, DBDatabase.</xs:documentation>
           </xs:annotation>
         </xs:attribute>
         <xs:attribute name="connectionStringName" type="xs:string">
           <xs:annotation>
-            <xs:documentation>Name of the connection string (as specified in &lt;connectionStrings&gt; configuration section.</xs:documentation>
+            <xs:documentation>Name of the connection string (as specified in &lt;MQConnectionStrings&gt; configuration section.</xs:documentation>
           </xs:annotation>
         </xs:attribute>
         <xs:attribute name="dbDatabase" type="SimpleLayoutAttribute">
           <xs:annotation>
-            <xs:documentation>Database name. If the ConnectionString is not provided this value will be used to construct the "Database=" part of the connection string.</xs:documentation>
+            <xs:documentation>Database name. If the MQConnectionString is not provided this value will be used to construct the "Database=" part of the MQConnection string.</xs:documentation>
           </xs:annotation>
         </xs:attribute>
         <xs:attribute name="dbHost" type="SimpleLayoutAttribute">
           <xs:annotation>
-            <xs:documentation>Database host name. If the ConnectionString is not provided this value will be used to construct the "Server=" part of the connection string.</xs:documentation>
+            <xs:documentation>Database host name. If the MQConnectionString is not provided this value will be used to construct the "Server=" part of the MQConnection string.</xs:documentation>
           </xs:annotation>
         </xs:attribute>
         <xs:attribute name="dbPassword" type="SimpleLayoutAttribute">
           <xs:annotation>
-            <xs:documentation>Database password. If the ConnectionString is not provided this value will be used to construct the "Password=" part of the connection string.</xs:documentation>
+            <xs:documentation>Database password. If the MQConnectionString is not provided this value will be used to construct the "Password=" part of the MQConnection string.</xs:documentation>
           </xs:annotation>
         </xs:attribute>
         <xs:attribute name="dbProvider" type="xs:string">
@@ -757,10 +757,10 @@
         </xs:attribute>
         <xs:attribute name="dbUserName" type="SimpleLayoutAttribute">
           <xs:annotation>
-            <xs:documentation>Database user name. If the ConnectionString is not provided this value will be used to construct the "User ID=" part of the connection string.</xs:documentation>
+            <xs:documentation>Database user name. If the MQConnectionString is not provided this value will be used to construct the "User ID=" part of the MQConnection string.</xs:documentation>
           </xs:annotation>
         </xs:attribute>
-        <xs:attribute name="keepConnection" type="xs:boolean">
+        <xs:attribute name="keepMQConnection" type="xs:boolean">
           <xs:annotation>
             <xs:documentation>Indicates whether to keep the database connection open between the log events.</xs:documentation>
           </xs:annotation>
@@ -770,9 +770,9 @@
             <xs:documentation>Obsolete - value will be ignored! The logging code always runs outside of transaction. Gets or sets a value indicating whether to use database transactions. Some data providers require this.</xs:documentation>
           </xs:annotation>
         </xs:attribute>
-        <xs:attribute name="installConnectionString" type="SimpleLayoutAttribute">
+        <xs:attribute name="installMQConnectionString" type="SimpleLayoutAttribute">
           <xs:annotation>
-            <xs:documentation>Connection string using for installation and uninstallation. If not provided, regular ConnectionString is being used.</xs:documentation>
+            <xs:documentation>MQConnection string using for installation and uninstallation. If not provided, regular MQConnectionString is being used.</xs:documentation>
           </xs:annotation>
         </xs:attribute>
         <xs:attribute name="commandText" type="SimpleLayoutAttribute">
@@ -810,7 +810,7 @@
     </xs:attribute>
     <xs:attribute name="connectionString" type="SimpleLayoutAttribute">
       <xs:annotation>
-        <xs:documentation>Connection string to run the command against. If not provided, connection string from the target is used.</xs:documentation>
+        <xs:documentation>MQConnection string to run the command against. If not provided, MQConnection string from the target is used.</xs:documentation>
       </xs:annotation>
     </xs:attribute>
     <xs:attribute name="ignoreFailures" type="xs:boolean">
@@ -1705,12 +1705,12 @@
           <xs:element name="encoding" minOccurs="0" maxOccurs="1" type="xs:string" />
           <xs:element name="maxMessageSize" minOccurs="0" maxOccurs="1" type="xs:integer" />
           <xs:element name="newLine" minOccurs="0" maxOccurs="1" type="xs:boolean" />
-          <xs:element name="onConnectionOverflow" minOccurs="0" maxOccurs="1" type="NLog.Targets.NetworkTargetConnectionsOverflowAction" />
+          <xs:element name="onMQConnectionOverflow" minOccurs="0" maxOccurs="1" type="NLog.Targets.NetworkTargetMQConnectionsOverflowAction" />
           <xs:element name="onOverflow" minOccurs="0" maxOccurs="1" type="NLog.Targets.NetworkTargetOverflowAction" />
           <xs:element name="address" minOccurs="0" maxOccurs="1" type="Layout" />
           <xs:element name="connectionCacheSize" minOccurs="0" maxOccurs="1" type="xs:integer" />
-          <xs:element name="keepConnection" minOccurs="0" maxOccurs="1" type="xs:boolean" />
-          <xs:element name="maxConnections" minOccurs="0" maxOccurs="1" type="xs:integer" />
+          <xs:element name="keepMQConnection" minOccurs="0" maxOccurs="1" type="xs:boolean" />
+          <xs:element name="maxMQConnections" minOccurs="0" maxOccurs="1" type="xs:integer" />
           <xs:element name="maxQueueSize" minOccurs="0" maxOccurs="1" type="xs:integer" />
         </xs:choice>
         <xs:attribute name="name" type="xs:string">
@@ -1738,7 +1738,7 @@
             <xs:documentation>Indicates whether to append newline at the end of log message.</xs:documentation>
           </xs:annotation>
         </xs:attribute>
-        <xs:attribute name="onConnectionOverflow" type="NLog.Targets.NetworkTargetConnectionsOverflowAction">
+        <xs:attribute name="onMQConnectionOverflow" type="NLog.Targets.NetworkTargetMQConnectionsOverflowAction">
           <xs:annotation>
             <xs:documentation>Action that should be taken if the will be more connections than .</xs:documentation>
           </xs:annotation>
@@ -1755,15 +1755,15 @@
         </xs:attribute>
         <xs:attribute name="connectionCacheSize" type="xs:integer">
           <xs:annotation>
-            <xs:documentation>Size of the connection cache (number of connections which are kept alive).</xs:documentation>
+            <xs:documentation>Size of the connection cache (number of MQConnections which are kept alive).</xs:documentation>
           </xs:annotation>
         </xs:attribute>
-        <xs:attribute name="keepConnection" type="xs:boolean">
+        <xs:attribute name="keepMQConnection" type="xs:boolean">
           <xs:annotation>
             <xs:documentation>Indicates whether to keep connection open whenever possible.</xs:documentation>
           </xs:annotation>
         </xs:attribute>
-        <xs:attribute name="maxConnections" type="xs:integer">
+        <xs:attribute name="maxMQConnections" type="xs:integer">
           <xs:annotation>
             <xs:documentation>Maximum current connections. 0 = no maximum.</xs:documentation>
           </xs:annotation>
@@ -1785,11 +1785,11 @@
           <xs:element name="layout" minOccurs="0" maxOccurs="1" type="Layout" />
           <xs:element name="maxMessageSize" minOccurs="0" maxOccurs="1" type="xs:integer" />
           <xs:element name="newLine" minOccurs="0" maxOccurs="1" type="xs:boolean" />
-          <xs:element name="onConnectionOverflow" minOccurs="0" maxOccurs="1" type="NLog.Targets.NetworkTargetConnectionsOverflowAction" />
+          <xs:element name="onMQConnectionOverflow" minOccurs="0" maxOccurs="1" type="NLog.Targets.NetworkTargetMQConnectionsOverflowAction" />
           <xs:element name="onOverflow" minOccurs="0" maxOccurs="1" type="NLog.Targets.NetworkTargetOverflowAction" />
-          <xs:element name="keepConnection" minOccurs="0" maxOccurs="1" type="xs:boolean" />
+          <xs:element name="keepMQConnection" minOccurs="0" maxOccurs="1" type="xs:boolean" />
           <xs:element name="connectionCacheSize" minOccurs="0" maxOccurs="1" type="xs:integer" />
-          <xs:element name="maxConnections" minOccurs="0" maxOccurs="1" type="xs:integer" />
+          <xs:element name="maxMQConnections" minOccurs="0" maxOccurs="1" type="xs:integer" />
           <xs:element name="address" minOccurs="0" maxOccurs="1" type="Layout" />
           <xs:element name="maxQueueSize" minOccurs="0" maxOccurs="1" type="xs:integer" />
           <xs:element name="includeSourceInfo" minOccurs="0" maxOccurs="1" type="xs:boolean" />
@@ -1826,7 +1826,7 @@
             <xs:documentation>Indicates whether to append newline at the end of log message.</xs:documentation>
           </xs:annotation>
         </xs:attribute>
-        <xs:attribute name="onConnectionOverflow" type="NLog.Targets.NetworkTargetConnectionsOverflowAction">
+        <xs:attribute name="onMQConnectionOverflow" type="NLog.Targets.NetworkTargetMQConnectionsOverflowAction">
           <xs:annotation>
             <xs:documentation>Action that should be taken if the will be more connections than .</xs:documentation>
           </xs:annotation>
@@ -1836,17 +1836,17 @@
             <xs:documentation>Action that should be taken if the message is larger than maxMessageSize.</xs:documentation>
           </xs:annotation>
         </xs:attribute>
-        <xs:attribute name="keepConnection" type="xs:boolean">
+        <xs:attribute name="keepMQConnection" type="xs:boolean">
           <xs:annotation>
             <xs:documentation>Indicates whether to keep connection open whenever possible.</xs:documentation>
           </xs:annotation>
         </xs:attribute>
         <xs:attribute name="connectionCacheSize" type="xs:integer">
           <xs:annotation>
-            <xs:documentation>Size of the connection cache (number of connections which are kept alive).</xs:documentation>
+            <xs:documentation>Size of the connection cache (number of MQConnections which are kept alive).</xs:documentation>
           </xs:annotation>
         </xs:attribute>
-        <xs:attribute name="maxConnections" type="xs:integer">
+        <xs:attribute name="maxMQConnections" type="xs:integer">
           <xs:annotation>
             <xs:documentation>Maximum current connections. 0 = no maximum.</xs:documentation>
           </xs:annotation>

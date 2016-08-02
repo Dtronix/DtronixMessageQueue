@@ -15,7 +15,7 @@ namespace DtronixMessageQueue {
 	public class MQServer : MQConnector {
 
 		private static readonly Logger logger = LogManager.GetCurrentClassLogger();
-		private readonly Semaphore client_semaphore;
+		private readonly Semaphore connection_limit;
 
 		public class Config {
 
@@ -30,13 +30,13 @@ namespace DtronixMessageQueue {
 
 		private readonly Config configurations;
 
-		private readonly ConcurrentDictionary<Guid, Connection> connected_clients = new ConcurrentDictionary<Guid, Connection>();
+		private readonly ConcurrentDictionary<Guid, MQConnection> connected_clients = new ConcurrentDictionary<Guid, MQConnection>();
 
 
 		public MQServer(Config configurations) : base(configurations.MaxConnections, configurations.MaxConnections) {
 			this.configurations = configurations;
 
-			client_semaphore = new Semaphore(configurations.MaxConnections, configurations.MaxConnections);
+			connection_limit = new Semaphore(configurations.MaxConnections, configurations.MaxConnections);
 
 		}
 
@@ -77,7 +77,7 @@ namespace DtronixMessageQueue {
 				e.AcceptSocket = null;
 			}
 
-			client_semaphore.WaitOne();
+			connection_limit.WaitOne();
 			if (MainSocket.AcceptAsync(e) == false) {
 				logger.Warn("Server: Client accepted synchronously.");
 				AcceptCompleted(e);
@@ -103,14 +103,6 @@ namespace DtronixMessageQueue {
 			SocketAsyncEventArgs read_event_args = ReadPool.Pop();
 
 
-			var guid = Guid.NewGuid();
-
-			var connection = new Connection(this) {
-				Id = guid,
-				Socket = e.AcceptSocket,
-				SocketAsyncEvent = e
-			};
-
 			read_event_args.UserToken = connection;
 
 			connected_clients.TryAdd(guid, connection);
@@ -125,34 +117,34 @@ namespace DtronixMessageQueue {
 			StartAccept(e);
 		}
 
-		public void CloseConnection(Connection connection) {
+		public void CloseConnection(MQConnection connection) {
 			CloseConnection(connection.SocketAsyncEvent);
 		}
 
 
 		protected override void CloseConnection(SocketAsyncEventArgs e) {
-			var connection = e.UserToken as Connection;
+			var connection = e.UserToken as MQConnection;
 			if (connection == null) {
 				return;
 			}
 
 			base.CloseConnection(e);
 
-			Connection cli;
+			MQConnection cli;
 			if (connected_clients.TryRemove(connection.Id, out cli) == false) {
-				logger.Fatal("Connection {0} was not able to be removed from the list of clients.", connection.Id);
+				logger.Fatal("MQConnection {0} was not able to be removed from the list of clients.", connection.Id);
 			}
 
-			client_semaphore.Release();
+			connection_limit.Release();
 		}
 
 		public override void Stop() {
 			base.Stop();
 
-			Connection[] connections = new Connection[connected_clients.Values.Count];
+			MQConnection[] connections = new MQConnection[connected_clients.Values.Count];
 			connected_clients.Values.CopyTo(connections, 0);
 
-			foreach (Connection client in connections) {
+			foreach (MQConnection client in connections) {
 				client.Socket.DisconnectAsync(client.SocketAsyncEvent);
 			}
 		}
