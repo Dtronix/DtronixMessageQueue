@@ -206,7 +206,20 @@ namespace DtronixMessageQueue {
 			}
 		}
 
-		private byte[] previous_bytes;
+		/// <summary>
+		/// Sends an array of data to the other end of the connection.
+		/// </summary>
+		/// <param name="connection">MQConnection to send data on.</param>
+		/// <param name="collection"></param>
+		/// <returns></returns>
+		public bool Send(MQConnection connection, BlockingCollection<byte[]> collection ) {
+			byte[] buffer;
+			while(collection.TryTake(out buffer)) {
+				Send(connection, buffer, 0, buffer.Length);
+			}
+
+			return true;
+		}
 
 		/// <summary>
 		/// Sends an array of data to the other end of the connection.
@@ -216,7 +229,7 @@ namespace DtronixMessageQueue {
 		/// <param name="offset">Starting offset of date in the buffer.</param>
 		/// <param name="length">Amount of data in bytes to send.</param>
 		/// <returns></returns>
-		public bool Send(MQConnection connection, byte[] data, int offset, int length) {
+		protected bool Send(MQConnection connection, byte[] data, int offset, int length) {
 			connection.WriterSemaphore.WaitOne();
 			var status = true;
 

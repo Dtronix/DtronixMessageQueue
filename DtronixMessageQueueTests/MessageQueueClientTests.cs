@@ -21,7 +21,7 @@ namespace DtronixMessageQueueTests {
 			var server = new MQServer(new MQServer.Config());
 			server.Start(new IPEndPoint(IPAddress.Any, 2828));
 
-			int runs = 200;
+			int runs = 2000;
 			Stopwatch sw = new Stopwatch();
 			var wait = new AutoResetEvent(false);
 

@@ -23,6 +23,8 @@ namespace DtronixMessageQueue {
 		public ConcurrentQueue<MQMessage> Inbox { get; } = new ConcurrentQueue<MQMessage>();
 		private readonly ConcurrentQueue<MQMessage> outbox = new ConcurrentQueue<MQMessage>();
 
+		public readonly BlockingCollection<byte[]> OutboxBytes = new BlockingCollection<byte[]>();
+
 		private readonly ConcurrentQueue<byte[]> inbox_bytes = new ConcurrentQueue<byte[]>();
 
 		public event EventHandler<IncomingMessageEventArgs> IncomingMessage;
@@ -67,13 +69,13 @@ namespace DtronixMessageQueue {
 				offset += bytes.Length;
 			}
 
-			Connection.Connector.Send(Connection, buffer, 0, length);
+			OutboxBytes.TryAdd(buffer);
 		}
 
 		private SemaphoreSlim semaphore = new SemaphoreSlim(1, 1);
 
 		internal void ProcessOutbox() {
-			semaphore.Wait();
+			//semaphore.Wait();
 
 			is_outbox_processing = true;
 			MQMessage result;
@@ -101,7 +103,9 @@ namespace DtronixMessageQueue {
 				// Send the last of the buffer queue.
 				SendBufferQueue(buffer_queue, length);
 			}
-			semaphore.Release();
+			//semaphore.Release();
+
+			Connection.Connector.Send(Connection, OutboxBytes);
 		}
 
 		internal void ProcessIncomingQueue() {
