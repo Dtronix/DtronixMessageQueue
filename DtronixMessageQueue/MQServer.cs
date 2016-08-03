@@ -102,10 +102,12 @@ namespace DtronixMessageQueue {
 			//ReadEventArg object user token
 			SocketAsyncEventArgs read_event_args = ReadPool.Pop();
 
-
+			var connection = CreateConnection();
+			connection.Socket = e.AcceptSocket;
+			connection.SocketAsyncEvent = e;
 			read_event_args.UserToken = connection;
 
-			connected_clients.TryAdd(guid, connection);
+			connected_clients.TryAdd(connection.Id, connection);
 
 			// Invoke the events.
 			OnConnected(e);

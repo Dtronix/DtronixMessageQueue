@@ -12,7 +12,7 @@ namespace DtronixMessageQueue {
 		private readonly MQConnection connection;
 
 		public MQClient() : base(1, 1) {
-			connection = new MQConnection(this);
+			connection = CreateConnection();
 		}
 
 		public void Connect(string address, int port = 2828) {
@@ -38,7 +38,11 @@ namespace DtronixMessageQueue {
 		}
 
 		public void Send(MQMessage message) {
+			if (connection.Socket == null) {
+				throw new InvalidOperationException("Can not send messages while disconnected from server.");
+			}
 			connection.Mailbox.EnqueueOutgoingMessage(message);
+			
 		}
 	}
 }

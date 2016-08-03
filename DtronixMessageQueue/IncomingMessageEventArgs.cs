@@ -9,11 +9,11 @@ namespace DtronixMessageQueue {
 
 		public MQMailbox Mailbox { get; set; }
 
-		public Guid Id { get; set; }
+		public MQConnection Connection { get; set; }
 
-		public IncomingMessageEventArgs(MQMailbox mailbox, Guid id) {
-			Id = id;
-			Mailbox = mailbox;
+		public IncomingMessageEventArgs(MQConnection connection) {
+			Connection = connection;
+			Mailbox = connection.Mailbox;
 		}
 	}
 }

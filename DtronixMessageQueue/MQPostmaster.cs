@@ -8,7 +8,7 @@ using System.Threading.Tasks;
 using NLog;
 
 namespace DtronixMessageQueue {
-	public class MQPostmaster {
+	public class MQPostmaster : IDisposable {
 
 		private static readonly Logger logger = LogManager.GetCurrentClassLogger();
 
@@ -27,11 +27,11 @@ namespace DtronixMessageQueue {
 			this.connector = connector;
 
 			// Add a supervisor to review when it is needed to increase or decrease the worker numbers.
-			supervisor = new MQWorker(connector) {
-				Work = SuperviseWorkers
-			};
+			supervisor = new MQWorker(SuperviseWorkers, connector);
 
 			// Create one reader and one writer workers to start off with.
+			CreateWorker(true);
+			CreateWorker(false);
 			CreateWorker(true);
 			CreateWorker(false);
 
@@ -76,38 +76,47 @@ namespace DtronixMessageQueue {
 		private void CreateWorker(bool is_writer) {
 			var mailbox_collection = is_writer ? WriteOperations : ReadOperations;
 
-			var reader_worker = new MQWorker(connector) {
-				Work = o => {
-					var token = (CancellationToken) o;
-					MQMailbox mailbox = null;
+			var reader_worker = new MQWorker(o => {
+				var token = (CancellationToken) o;
+				MQMailbox mailbox = null;
 
-					try {
-						while (mailbox_collection.TryTake(out mailbox, 60000, token)) {
-							if (is_writer) {
-								// If this is a writer worker, process only the outbox.
-								mailbox.ProcessOutbox();
+				try {
+					while (mailbox_collection.TryTake(out mailbox, 60000, token)) {
+						if (is_writer) {
+							// If this is a writer worker, process only the outbox.
+							mailbox.ProcessOutbox();
 
-							} else {
-								// If this is a reader worker, process only the inbox.
-								mailbox.ProcessIncomingQueue();
-							}
-
+						} else {
+							// If this is a reader worker, process only the inbox.
+							mailbox.ProcessIncomingQueue();
 						}
-					} catch (Exception e) {
-						if (mailbox != null) {
-							logger.Error(e,
-								is_writer
-									? "MQConnection {0}: Exception occurred while when writing."
-									: "MQConnection {0}: Exception occurred while when reading.", mailbox.Connection.Id);
-						}
+
+					}
+				} catch (ThreadAbortException e) {
+				} catch (Exception e) {
+					if (mailbox != null) {
+						logger.Error(e,
+							is_writer
+								? "MQConnection {0}: Exception occurred while when writing."
+								: "MQConnection {0}: Exception occurred while when reading.", mailbox.Connection.Id);
 					}
 				}
-			};
+			}, connector);
 
 			reader_worker.Start();
 
 			read_workers.Add(reader_worker);
 		}
 
+		public void Dispose() {
+			supervisor.Stop();
+			foreach (var write_worker in write_workers) {
+				write_worker.Stop();
+			}
+
+			foreach (var read_worker in read_workers) {
+				read_worker.Stop();
+			}
+		}
 	}
 }

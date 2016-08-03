@@ -17,13 +17,11 @@ namespace DtronixMessageQueue {
 		public readonly Semaphore WriterSemaphore = new Semaphore(1, 1);
 		public SocketAsyncEventArgs SocketAsyncEvent;
 
-		private MQConnection(MQConnector connector) {
+		public MQConnection(MQConnector connector) {
 			Id = Guid.NewGuid();
 			Connector = connector;
 			FrameBuilder = new MQFrameBuilder(Connector.ClientBufferSize);
 			Mailbox = new MQMailbox(this);
 		}
-
-		public static MQConnection Create
 	}
 }

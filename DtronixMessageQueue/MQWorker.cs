@@ -21,11 +21,12 @@ namespace DtronixMessageQueue {
 
 		private readonly CancellationTokenSource cancellation_source = new CancellationTokenSource();
 
-		public Action<object> Work { set; get; }
+		private readonly Action<object> work;
 
-		public MQWorker(MQConnector connector) {
+		public MQWorker(Action<object> work, MQConnector connector) {
+			this.work = work;
 			this.connector = connector;
-			worker_task = new Task(Work, cancellation_source.Token, cancellation_source.Token, TaskCreationOptions.LongRunning);
+			worker_task = new Task(this.work, cancellation_source.Token, cancellation_source.Token, TaskCreationOptions.LongRunning);
 		}
 
 		/// <summary>
@@ -55,7 +56,7 @@ namespace DtronixMessageQueue {
 					: (idle_stopwatch.ElapsedMilliseconds + average_idle_time) / 2;
 
 				try {
-					Work?.Invoke(token);
+					work?.Invoke(token);
 				} catch (Exception) {
 					// ignored
 				}

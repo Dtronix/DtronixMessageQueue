@@ -63,8 +63,6 @@ namespace DtronixMessageQueue {
 			DataSent?.Invoke(this, e);
 		}
 
-
-
 		protected MQConnector(int concurrent_reads, int concurrent_writes) {
 
 			// Setup the postmaster and the threads associated with it.
@@ -108,23 +106,21 @@ namespace DtronixMessageQueue {
 			logger.Debug("MQConnector started with {0} readers and {1} writers", concurrent_reads, concurrent_writes);
 		}
 
+		protected MQConnection CreateConnection() {
+			var connection = new MQConnection(this);
+			connection.Mailbox.IncomingMessage += (sender, args) => {
+				InboxMessage?.Invoke(this, new IncomingMessageEventArgs(connection));
+			};
+
+			return connection;
+		}
+
 		protected SocketAsyncEventArgs CreateWriterEventArgs() {
 			var w_event_arg = new SocketAsyncEventArgs();
 			w_event_arg.Completed += IoCompleted;
 
 			return w_event_arg;
 		}
-
-		protected MQConnection CreateConnection() {
-			var guid = Guid.NewGuid();
-
-			var connection = new MQConnection(this);
-
-			Connector = connector;
-			FrameBuilder = new MQFrameBuilder(Connector.ClientBufferSize);
-			Mailbox = new MQMailbox(this);
-		}
-
 
 		/// <summary>
 		/// This method is called whenever a receive or send operation is completed on a socket 
@@ -183,10 +179,12 @@ namespace DtronixMessageQueue {
 
 					// Create a copy of these bytes.
 					var buffer = new byte[e.BytesTransferred];
-					Buffer.BlockCopy(buffer, e.Offset, buffer, 0, e.BytesTransferred);
 
-					// Enqueue the buffer to be parsed on another thread.
+					Buffer.BlockCopy(e.Buffer, e.Offset, buffer, 0, e.BytesTransferred);
+
+		
 					connection.Mailbox.EnqueueIncomingBuffer(buffer);
+					previous_bytes = buffer;
 				}
 
 				try {
@@ -206,6 +204,8 @@ namespace DtronixMessageQueue {
 				CloseConnection(e);
 			}
 		}
+
+		private byte[] previous_bytes;
 
 		/// <summary>
 		/// Sends an array of data to the other end of the connection.

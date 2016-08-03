@@ -21,16 +21,16 @@ namespace DtronixMessageQueueTests {
 			var server = new MQServer(new MQServer.Config());
 			server.Start(new IPEndPoint(IPAddress.Any, 2828));
 
-			int runs = 6;
+			int runs = 2000;
 			Stopwatch sw = new Stopwatch();
 			var wait = new AutoResetEvent(false);
 
 			var client = new MQClient();
 
-			server.OnIncomingMessage += (sender, args) => {
-				if (args.Mailbox.Count == runs) {
+			server.InboxMessage += (sender, args) => {
+				if (args.Mailbox.Inbox.Count == runs) {
 					sw.Stop();
-					output.WriteLine($"Used {client.WritePool.Count} event args to write.");
+					output.WriteLine($"Used {args.Mailbox.Inbox.Count} event args to write.");
 					output.WriteLine($"Sent {runs} messages in {sw.ElapsedMilliseconds}. {(double)runs/ sw.ElapsedMilliseconds*1000}");
 					wait.Set();
 				}
@@ -47,10 +47,10 @@ namespace DtronixMessageQueueTests {
 			};
 
 			var message2 = new MQMessage {
-					new MQFrame(RandomBytes(997), MQFrameType.More),
-				new MQFrame(RandomBytes(997), MQFrameType.More),
-					new MQFrame(RandomBytes(997), MQFrameType.More),
-				new MQFrame(RandomBytes(997), MQFrameType.Last)
+					new MQFrame(RandomBytes(15), MQFrameType.More),
+				new MQFrame(RandomBytes(30), MQFrameType.More),
+					new MQFrame(RandomBytes(72), MQFrameType.More),
+				new MQFrame(RandomBytes(86), MQFrameType.Last)
 			};
 
 			client.Connect("127.0.0.1");
