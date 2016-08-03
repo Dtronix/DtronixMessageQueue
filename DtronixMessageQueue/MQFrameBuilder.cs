@@ -26,19 +26,19 @@ namespace DtronixMessageQueue {
 		public Queue<MQFrame> Frames { get; } = new Queue<MQFrame>();
 
 		// Debug
-		private byte[] previous_buffer;
-		private int previous_write_position;
-		private int previous_read_position;
-		private int previous_i;
-		private int previous_count;
-		private int previous_count2;
-		private int previous_offset;
+		//private byte[] previous_buffer;
+		//private int previous_write_position;
+		//private int previous_read_position;
+		//private int previous_i;
+		//private int previous_count;
+		//private int previous_count2;
+		//private int previous_offset;
 
 		public MQFrameBuilder(int buffer_length) {
 			buffer = new byte[buffer_length];
 
 			// Debug
-			previous_buffer = new byte[buffer_length];
+			//previous_buffer = new byte[buffer_length];
 
 			buffer_stream = new MemoryStream(buffer, 0, buffer.Length, true, true);
 			seaphore = new SemaphoreSlim(1, 1);
@@ -55,9 +55,9 @@ namespace DtronixMessageQueue {
 		}
 
 		private void WriteInternal(byte[] client_bytes, int offset, int count) {
-			previous_count2 = previous_count;
-			previous_count = count;
-			previous_offset = offset;
+			//previous_count2 = previous_count;
+			//previous_count = count;
+			//previous_offset = offset;
 			
 			buffer_stream.Position = write_position;
 			try {
@@ -75,20 +75,20 @@ namespace DtronixMessageQueue {
 
 		
 		private void MoveStreamBytesToBeginning() {
-			previous_write_position = write_position;
-			previous_read_position = read_position;
+			//previous_write_position = write_position;
+			//previous_read_position = read_position;
 
-			for (int j = 0; j < previous_buffer.Length; j++) {
-				previous_buffer[j] = 0;
-			}
+			//for (int j = 0; j < previous_buffer.Length; j++) {
+			//	previous_buffer[j] = 0;
+			//}
 
-			Buffer.BlockCopy(buffer, 0, previous_buffer, 0, previous_buffer.Length);
+			//Buffer.BlockCopy(buffer, 0, previous_buffer, 0, previous_buffer.Length);
 			int i = 0;
 			for (;i < write_position - read_position; i++) {
 				buffer[i] = buffer[i + read_position];
 			}
 
-			previous_i = i;
+			//previous_i = i;
 
 			// Update the length for the new size.
 			buffer_stream.SetLength(i);
@@ -100,7 +100,7 @@ namespace DtronixMessageQueue {
 		}
 
 		public void Write(byte[] client_bytes, int offset, int count) {
-			seaphore.Wait();
+			//seaphore.Wait();
 
 			try {
 
@@ -166,7 +166,7 @@ namespace DtronixMessageQueue {
 					}
 				}
 			} finally {
-				seaphore.Release();
+				//seaphore.Release();
 			}
 
 

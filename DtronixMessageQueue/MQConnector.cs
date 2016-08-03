@@ -148,6 +148,7 @@ namespace DtronixMessageQueue {
 					break;
 
 				case SocketAsyncOperation.Send:
+					DataSent?.Invoke(this, e);
 					SendComplete(e);
 					break;
 
@@ -184,7 +185,7 @@ namespace DtronixMessageQueue {
 
 		
 					connection.Mailbox.EnqueueIncomingBuffer(buffer);
-					previous_bytes = buffer;
+					//previous_bytes = buffer;
 				}
 
 				try {
@@ -233,9 +234,8 @@ namespace DtronixMessageQueue {
 				// The pool ran out of args between the check on the Count and the Pop call.
 				args = CreateWriterEventArgs();
 			}
-			
-			
-			
+
+
 			args.UserToken = connection;
 			args.SetBuffer(data, offset, length);
 
@@ -266,6 +266,10 @@ namespace DtronixMessageQueue {
 
 			// Free this writer back to the pool.
 			WritePool.Push(e);
+
+			if (e.Buffer.Length != e.BytesTransferred) {
+				
+			}
 
 			// Reset the waiter.
 			connection.WriterSemaphore.Release(1);

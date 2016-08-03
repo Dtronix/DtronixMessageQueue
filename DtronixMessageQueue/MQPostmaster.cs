@@ -32,10 +32,10 @@ namespace DtronixMessageQueue {
 			// Create one reader and one writer workers to start off with.
 			CreateWorker(true);
 			CreateWorker(false);
-			CreateWorker(true);
-			CreateWorker(false);
+			//CreateWorker(true);
+			//CreateWorker(false);
 
-			StartSupervisor();
+			//StartSupervisor();
 		}
 
 		private async void StartSupervisor() {
