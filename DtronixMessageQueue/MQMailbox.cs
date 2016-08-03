@@ -75,7 +75,7 @@ namespace DtronixMessageQueue {
 		private SemaphoreSlim semaphore = new SemaphoreSlim(1, 1);
 
 		internal void ProcessOutbox() {
-			//semaphore.Wait();
+			semaphore.Wait();
 
 			is_outbox_processing = true;
 			MQMessage result;
@@ -103,9 +103,10 @@ namespace DtronixMessageQueue {
 				// Send the last of the buffer queue.
 				SendBufferQueue(buffer_queue, length);
 			}
-			//semaphore.Release();
+			
 
 			Connection.Connector.Send(Connection, OutboxBytes);
+			semaphore.Release();
 		}
 
 		internal void ProcessIncomingQueue() {
