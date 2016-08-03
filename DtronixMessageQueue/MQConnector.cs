@@ -148,6 +148,7 @@ namespace DtronixMessageQueue {
 					break;
 
 				case SocketAsyncOperation.Send:
+					semaphore.Release(1);
 					DataSent?.Invoke(this, e);
 					SendComplete(e);
 					break;
@@ -221,6 +222,8 @@ namespace DtronixMessageQueue {
 			return true;
 		}
 
+		private SemaphoreSlim semaphore = new SemaphoreSlim(1, 1);
+
 		/// <summary>
 		/// Sends an array of data to the other end of the connection.
 		/// </summary>
@@ -230,7 +233,7 @@ namespace DtronixMessageQueue {
 		/// <param name="length">Amount of data in bytes to send.</param>
 		/// <returns></returns>
 		protected bool Send(MQConnection connection, byte[] data, int offset, int length) {
-			connection.WriterSemaphore.WaitOne();
+			semaphore.Wait();
 			var status = true;
 
 			if (connection.Socket == null || connection.Socket.Connected == false) {
@@ -247,7 +250,7 @@ namespace DtronixMessageQueue {
 				// The pool ran out of args between the check on the Count and the Pop call.
 				args = CreateWriterEventArgs();
 			}
-
+			
 
 			args.UserToken = connection;
 			args.SetBuffer(data, offset, length);
@@ -277,6 +280,7 @@ namespace DtronixMessageQueue {
 				return;
 			}
 
+
 			// Free this writer back to the pool.
 			WritePool.Push(e);
 
@@ -285,7 +289,7 @@ namespace DtronixMessageQueue {
 			}
 
 			// Reset the waiter.
-			connection.WriterSemaphore.Release(1);
+			
 			if (e.SocketError == SocketError.Success) {
 				// Do nothing at this point.
 			} else {

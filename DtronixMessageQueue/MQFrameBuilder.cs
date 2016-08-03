@@ -121,7 +121,7 @@ namespace DtronixMessageQueue {
 						ReadInternal(frame_type_bytes, 0, 1);
 
 						if (frame_type_bytes[0] > 4) {
-							throw new InvalidDataException($"FrameBuilder was sent a frame with an type.  Type sent: {frame_type_bytes[0]}");
+							throw new InvalidDataException($"FrameBuilder was sent a frame with an invalid type.  Type sent: {frame_type_bytes[0]}");
 						}
 
 						current_frame_type = (MQFrameType) frame_type_bytes[0];

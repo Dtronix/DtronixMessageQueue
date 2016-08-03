@@ -21,6 +21,8 @@ namespace DtronixMessageQueue {
 			// Once the client is connected, store the information.
 			Connected += (sender, args) => {
 				connection.Socket = args.ConnectSocket;
+				connection.Socket.SendBufferSize = 0;
+				connection.Socket.NoDelay = true;
 				connection.SocketAsyncEvent = args;
 			};
 
