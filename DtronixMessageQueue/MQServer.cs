@@ -35,7 +35,7 @@ namespace DtronixMessageQueue {
 
 		public MQServer(Config configurations) : base(configurations.MaxConnections, configurations.MaxConnections) {
 			this.configurations = configurations;
-
+			Postmaster.CreateWorker(false);
 			connection_limit = new Semaphore(configurations.MaxConnections, configurations.MaxConnections);
 
 		}

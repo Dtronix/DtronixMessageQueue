@@ -9,7 +9,7 @@ using System.Threading.Tasks;
 
 namespace DtronixMessageQueue {
 	public class MQWorker : IDisposable {
-		private readonly MQConnector connector;
+		private readonly MQSession connector;
 		private readonly Task worker_task;
 		private long average_idle_time = 2000;
 
@@ -23,7 +23,7 @@ namespace DtronixMessageQueue {
 
 		private readonly Action<object> work;
 
-		public MQWorker(Action<object> work, MQConnector connector) {
+		public MQWorker(Action<object> work, MQSession connector) {
 			this.work = work;
 			this.connector = connector;
 			worker_task = new Task(this.work, cancellation_source.Token, cancellation_source.Token, TaskCreationOptions.LongRunning);

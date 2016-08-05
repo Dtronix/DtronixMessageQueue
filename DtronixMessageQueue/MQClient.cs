@@ -5,14 +5,15 @@ using System.Net;
 using System.Net.Sockets;
 using System.Text;
 using System.Threading.Tasks;
-using NLog;
+using SuperSocket.ClientEngine;
+using SuperSocket.ProtoBase;
 
 namespace DtronixMessageQueue {
 	public class MQClient : MQConnector {
-		private readonly MQConnection connection;
+		private readonly EasyClient<BufferedPackageInfo> connection;
 
 		public MQClient() : base(1, 1) {
-			connection = CreateConnection();
+			connection = new EasyClient<BufferedPackageInfo>();
 		}
 
 		public void Connect(string address, int port = 2828) {
@@ -45,6 +46,10 @@ namespace DtronixMessageQueue {
 			}
 			connection.Mailbox.EnqueueOutgoingMessage(message);
 			
+		}
+
+		public void ProcessSend() {
+			connection.Mailbox.ProcessOutbox();
 		}
 	}
 }

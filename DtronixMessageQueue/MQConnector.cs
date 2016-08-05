@@ -13,7 +13,7 @@ namespace DtronixMessageQueue {
 
 		public int ClientBufferSize { get; } = 1024 * 16;
 
-		public MQPostmaster Postmaster { get; }
+		public MQPostmaster Postmaster { get; protected set; }
 
 
 		/// <summary>

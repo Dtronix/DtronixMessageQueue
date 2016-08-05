@@ -27,11 +27,9 @@ namespace DtronixMessageQueue {
 			this.connector = connector;
 
 			// Add a supervisor to review when it is needed to increase or decrease the worker numbers.
-			supervisor = new MQWorker(SuperviseWorkers, connector);
+			//supervisor = new MQWorker(SuperviseWorkers, connector);
 
 			// Create one reader and one writer workers to start off with.
-			CreateWorker(true);
-			CreateWorker(false);
 			//CreateWorker(true);
 			//CreateWorker(false);
 
@@ -73,7 +71,7 @@ namespace DtronixMessageQueue {
 		/// Creates a worker in either a reader or writer state.
 		/// </summary>
 		/// <param name="is_writer">True if this is a writer worker, false if this is a reader worker.</param>
-		private void CreateWorker(bool is_writer) {
+		public void CreateWorker(bool is_writer) {
 			var mailbox_collection = is_writer ? WriteOperations : ReadOperations;
 
 			var reader_worker = new MQWorker(o => {
