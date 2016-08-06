@@ -1,17 +1,15 @@
 ﻿using System;
 using System.Collections.Concurrent;
+using System.Collections.Generic;
 using System.IO;
 using System.Net.Sockets;
 using System.Threading;
 //using NLog;
 
 namespace DtronixMessageQueue {
-	public  abstract class MqConnector : IDisposable {
+	public abstract class MqConnector : IDisposable {
 
-		/// <summary>
-		/// This event fires when a connection has been established.
-		/// </summary>
-		public event EventHandler<SocketAsyncEventArgs> Connected;
+
 
 		/// <summary>
 		/// This event fires when a connection has been shutdown.
@@ -23,24 +21,29 @@ namespace DtronixMessageQueue {
 		/// </summary>
 		public event EventHandler<SocketAsyncEventArgs> DataReceived;
 
-		public bool IsRunning { get; protected set; }
-
-		public int ClientBufferSize { get; } = 1024 * 16;
-
-		public MqPostmaster Postmaster { get; protected set; }
-
+		/// <summary>
+		/// This event fires when the inbox has a message to read.
+		/// </summary>
 		public event EventHandler<IncomingMessageEventArgs> InboxMessage;
 
-		protected MqConnector(int concurrent_reads, int concurrent_writes) {
+		/// <summary>
+		/// This event fires when a connection has been established.
+		/// </summary>
+		public event EventHandler Connected;
 
+		public bool IsRunning { get; protected set; }
+
+		
+
+		
+
+		protected MqConnector() {
 			// Setup the postmaster and the threads associated with it.
-			Postmaster = new MqPostmaster(this);
-
-			//logger.Debug("MqConnector started with {0} readers and {1} writers", concurrent_reads, concurrent_writes);
+			//Postmaster = new MqPostmaster(this);
 		}
 
-		protected void OnConnected(SocketAsyncEventArgs e) {
-			Connected?.Invoke(this, e);
+		protected void OnConnected() {
+			Connected?.Invoke(this, new EventArgs());
 		}
 
 		protected void OnDisconnected(SocketAsyncEventArgs e) {
@@ -58,7 +61,10 @@ namespace DtronixMessageQueue {
 			IsRunning = false;
 		}
 
-		
+		public void Send(MqSession session, byte[] buffer, int offset, int count) {
+			session.SocketSession.TrySend(new ArraySegment<byte>(buffer, offset, count));
+		}
+
 
 
 		public void Dispose() {

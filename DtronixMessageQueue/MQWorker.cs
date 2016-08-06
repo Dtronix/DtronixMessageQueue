@@ -9,7 +9,6 @@ using System.Threading.Tasks;
 
 namespace DtronixMessageQueue {
 	public class MqWorker : IDisposable {
-		private readonly MqSession session;
 		private readonly Task worker_task;
 		private long average_idle_time = 2000;
 
@@ -23,9 +22,8 @@ namespace DtronixMessageQueue {
 
 		private readonly Action<CancellationToken> work;
 
-		public MqWorker(Action<CancellationToken> work, MqSession session) {
+		public MqWorker(Action<CancellationToken> work) {
 			this.work = work;
-			this.session = session;
 			worker_task = new Task(ProcessQueue, cancellation_source.Token, cancellation_source.Token, TaskCreationOptions.LongRunning);
 		}
 

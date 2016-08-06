@@ -9,47 +9,39 @@ using SuperSocket.ClientEngine;
 using SuperSocket.ProtoBase;
 
 namespace DtronixMessageQueue {
-	public class MqClient : MqConnector {
-		private readonly EasyClient<BufferedPackageInfo> connection;
 
-		public MqClient() : base(1, 1) {
-			connection = new EasyClient<BufferedPackageInfo>();
+
+	public class MqClient : EasyClientBase {
+
+		public MqPostmaster Postmaster { get; }
+
+		private readonly MqMailbox mailbox;
+
+		public int MaxRequestLength { get; set; } = 1024*16;
+
+		public MqClient() {
+			PipeLineProcessor = new DefaultPipelineProcessor<BufferedPackageInfo>(new MqClientReceiveFilter(), MaxRequestLength);
+
+			Postmaster = new MqPostmaster(MaxRequestLength);
+
+			mailbox = new MqMailbox(Postmaster, this);
 		}
 
-		public void Connect(string address, int port = 2828) {
-			Connect(new IPEndPoint(IPAddress.Parse(address), port));
+		protected override void HandlePackage(IPackageInfo package) {
+			var buff_package = package as BufferedPackageInfo;
 
-			// Once the client is connected, store the information.
-			Connected += (sender, args) => {
-				connection.Socket = args.ConnectSocket;
-				connection.Socket.SendBufferSize = 0;
-				connection.Socket.NoDelay = true;
-				connection.SocketAsyncEvent = args;
-			};
+			if (buff_package == null) {
+				return;
+			}
 
-		}
-
-		public void Connect(IPEndPoint end_point) {
-			MainSocket = new Socket(end_point.AddressFamily, SocketType.Stream, ProtocolType.Tcp) {
-				NoDelay = true
-			};
-
-			var read_ea = ReadPool.Pop();
-			read_ea.RemoteEndPoint = end_point;
-
-			MainSocket.ConnectAsync(read_ea);
 		}
 
 		public void Send(MqMessage message) {
-			if (connection.Socket == null) {
+			if (IsConnected == false) {
 				throw new InvalidOperationException("Can not send messages while disconnected from server.");
 			}
-			connection.Mailbox.EnqueueOutgoingMessage(message);
-			
-		}
 
-		public void ProcessSend() {
-			connection.Mailbox.ProcessOutbox();
+			mailbox.EnqueueOutgoingMessage(message);
 		}
 	}
 }

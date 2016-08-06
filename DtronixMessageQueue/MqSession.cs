@@ -14,10 +14,5 @@ namespace DtronixMessageQueue {
 
 	public class MqSession : AppSession<MqSession, RequestInfo<byte, byte[]>> {
 		public MqMailbox Mailbox { get; set; }
-		public MqFrameBuilder FrameBuilder { get; set; }
-
-		public MqSession() {
-			Mailbox = new MqMailbox();
-		}
 	}
 }

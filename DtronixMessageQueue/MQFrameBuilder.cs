@@ -8,6 +8,7 @@ using System.Threading.Tasks;
 
 namespace DtronixMessageQueue {
 	public class MqFrameBuilder : IDisposable {
+		private readonly MqPostmaster postmaster;
 
 		private readonly byte[] buffer;
 		private SemaphoreSlim seaphore;
@@ -25,17 +26,9 @@ namespace DtronixMessageQueue {
 
 		public Queue<MqFrame> Frames { get; } = new Queue<MqFrame>();
 
-		// Debug
-		//private byte[] previous_buffer;
-		//private int previous_write_position;
-		//private int previous_read_position;
-		//private int previous_i;
-		//private int previous_count;
-		//private int previous_count2;
-		//private int previous_offset;
-
-		public MqFrameBuilder(int buffer_length) {
-			buffer = new byte[buffer_length];
+		public MqFrameBuilder(MqPostmaster postmaster) {
+			this.postmaster = postmaster;
+			buffer = new byte[postmaster.MaxFrameSize];
 
 			// Debug
 			//previous_buffer = new byte[buffer_length];
@@ -55,10 +48,7 @@ namespace DtronixMessageQueue {
 		}
 
 		private void WriteInternal(byte[] client_bytes, int offset, int count) {
-			//previous_count2 = previous_count;
-			//previous_count = count;
-			//previous_offset = offset;
-			
+
 			buffer_stream.Position = write_position;
 			try {
 				buffer_stream.Write(client_bytes, offset, count);
@@ -75,20 +65,10 @@ namespace DtronixMessageQueue {
 
 		
 		private void MoveStreamBytesToBeginning() {
-			//previous_write_position = write_position;
-			//previous_read_position = read_position;
-
-			//for (int j = 0; j < previous_buffer.Length; j++) {
-			//	previous_buffer[j] = 0;
-			//}
-
-			//Buffer.BlockCopy(buffer, 0, previous_buffer, 0, previous_buffer.Length);
-			int i = 0;
+			var i = 0;
 			for (;i < write_position - read_position; i++) {
 				buffer[i] = buffer[i + read_position];
 			}
-
-			//previous_i = i;
 
 			// Update the length for the new size.
 			buffer_stream.SetLength(i);

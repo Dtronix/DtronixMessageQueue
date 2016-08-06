@@ -6,13 +6,16 @@ using System.Linq;
 using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
-using NLog;
+using SuperSocket.SocketBase;
 
 namespace DtronixMessageQueue {
 	public class MqMailbox : IDisposable {
-		private static readonly Logger logger = LogManager.GetCurrentClassLogger();
+		private readonly MqPostmaster postmaster;
+		private readonly MqClient client;
+		private readonly MqSession session;
+		private readonly MqFrameBuilder frame_builder;
 
-		public readonly MqConnection Connection;
+		//private static readonly Logger logger = LogManager.GetCurrentClassLogger();
 		private int inbox_byte_count;
 
 		private MqMessage message;
@@ -20,17 +23,29 @@ namespace DtronixMessageQueue {
 		private bool is_inbox_processing;
 		private bool is_outbox_processing;
 
-		public ConcurrentQueue<MqMessage> Inbox { get; } = new ConcurrentQueue<MqMessage>();
 		private readonly ConcurrentQueue<MqMessage> outbox = new ConcurrentQueue<MqMessage>();
-
-		public readonly BlockingCollection<byte[]> OutboxBytes = new BlockingCollection<byte[]>();
 
 		private readonly ConcurrentQueue<byte[]> inbox_bytes = new ConcurrentQueue<byte[]>();
 
 		public event EventHandler<IncomingMessageEventArgs> IncomingMessage;
 
-		public MqMailbox(MqConnection connection) {
-			Connection = connection;
+		public ConcurrentQueue<MqMessage> Inbox { get; } = new ConcurrentQueue<MqMessage>();
+
+		public MqClient Client => client;
+
+		public MqSession Session => session;
+
+
+		public MqMailbox(MqPostmaster postmaster, MqSession session) {
+			this.postmaster = postmaster;
+			this.session = session;
+			frame_builder = new MqFrameBuilder(postmaster);
+		}
+
+		public MqMailbox(MqPostmaster postmaster, MqClient client) {
+			this.postmaster = postmaster;
+			this.client = client;
+			frame_builder = new MqFrameBuilder(postmaster);
 		}
 
 		public void EnqueueIncomingBuffer(byte[] buffer) {
@@ -41,7 +56,8 @@ namespace DtronixMessageQueue {
 
 			// Signal the workers that work is to be done.
 			if (is_inbox_processing == false) {
-				Connection.Connector.Postmaster.ReadOperations.TryAdd(this);
+				is_inbox_processing = true;
+				postmaster.ReadOperations.TryAdd(this);
 			}
 		}
 
@@ -51,9 +67,9 @@ namespace DtronixMessageQueue {
 
 			// Signal the workers that work is to be done.
 			if (is_outbox_processing == false) {
-				Connection.Connector.Postmaster.WriteOperations.TryAdd(this);
+				is_outbox_processing = true;
+				postmaster.WriteOperations.TryAdd(this);
 			}
-
 		}
 
 
@@ -69,15 +85,13 @@ namespace DtronixMessageQueue {
 				offset += bytes.Length;
 			}
 
-			OutboxBytes.TryAdd(buffer);
+			session.Send(buffer, 0, length);
 		}
 
-		private SemaphoreSlim semaphore = new SemaphoreSlim(1, 1);
+		//private SemaphoreSlim semaphore = new SemaphoreSlim(1, 1);
+
 
 		internal void ProcessOutbox() {
-			semaphore.Wait();
-
-			is_outbox_processing = true;
 			MqMessage result;
 			var length = 0;
 			var buffer_queue = new Queue<byte[]>();
@@ -86,7 +100,7 @@ namespace DtronixMessageQueue {
 				foreach (var frame in result.Frames) {
 					var frame_size = frame.FrameLength;
 					// If this would overflow the max client buffer size, send the full buffer queue.
-					if (length + frame_size > Connection.Connector.ClientBufferSize) {
+					if (length + frame_size > postmaster.MaxFrameSize) {
 						SendBufferQueue(buffer_queue, length);
 
 						// Reset the length to 0;
@@ -103,18 +117,9 @@ namespace DtronixMessageQueue {
 				// Send the last of the buffer queue.
 				SendBufferQueue(buffer_queue, length);
 			}
-			
-
-			Connection.Connector.Send(Connection, OutboxBytes);
-			semaphore.Release();
 		}
 
-		internal void ProcessIncomingQueue() {
-			if (is_inbox_processing) {
-				return;
-			}
-
-			is_inbox_processing = true;
+		internal async void ProcessIncomingQueue() {
 			if (message == null) {
 				message = new MqMessage();
 			}
@@ -125,21 +130,24 @@ namespace DtronixMessageQueue {
 				Interlocked.Add(ref inbox_byte_count, -buffer.Length);
 
 				try {
-					Connection.FrameBuilder.Write(buffer, 0, buffer.Length);
+					frame_builder.Write(buffer, 0, buffer.Length);
 				} catch (InvalidDataException ex) {
-					logger.Error(ex, "Connector {0}: Client send invalid data.", Connection.Id);
+					//logger.Error(ex, "Connector {0}: Client send invalid data.", Connection.Id);
 
-					var connection_server = Connection.Connector as MqServer;
-
-					connection_server?.CloseConnection(Connection);
+					if (client != null) {
+						await client.Close();
+					} else {
+						session.Close(CloseReason.ApplicationError);
+					}
+					
 					break;
 				}
 
-				var frame_count = Connection.FrameBuilder.Frames.Count;
-				logger.Debug("Connector {0}: Parsed {1} frames.", Connection.Id, frame_count);
+				var frame_count = frame_builder.Frames.Count;
+				//logger.Debug("Connector {0}: Parsed {1} frames.", Connection.Id, frame_count);
 
 				for (var i = 0; i < frame_count; i++) {
-					var frame = Connection.FrameBuilder.Frames.Dequeue();
+					var frame = frame_builder.Frames.Dequeue();
 					message.Add(frame);
 
 					if (frame.FrameType != MqFrameType.EmptyLast && frame.FrameType != MqFrameType.Last) {
@@ -148,7 +156,7 @@ namespace DtronixMessageQueue {
 					Inbox.Enqueue(message);
 					message = new MqMessage();
 
-					IncomingMessage?.Invoke(this, new IncomingMessageEventArgs(Connection));
+					IncomingMessage?.Invoke(this, new IncomingMessageEventArgs(this));
 				}
 			}
 

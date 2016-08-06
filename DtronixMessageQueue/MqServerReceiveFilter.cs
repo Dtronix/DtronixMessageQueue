@@ -4,8 +4,8 @@ using SuperSocket.Facility.Protocol;
 using SuperSocket.SocketBase.Protocol;
 
 namespace DtronixMessageQueue {
-	internal class MqReceiveFilter : FixedHeaderReceiveFilter<RequestInfo<byte, byte[]>> {
-		public MqReceiveFilter() : base(3) {
+	internal class MqServerReceiveFilter : FixedHeaderReceiveFilter<RequestInfo<byte, byte[]>> {
+		public MqServerReceiveFilter() : base(3) {
 		}
 
 		protected override int GetBodyLengthFromHeader(byte[] header, int offset, int length) {
@@ -19,4 +19,6 @@ namespace DtronixMessageQueue {
 			return new RequestInfo<byte, byte[]>(null, header.Array[header.Offset], bytes);
 		}
 	}
+
 }
+

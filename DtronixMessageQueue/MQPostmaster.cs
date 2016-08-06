@@ -9,11 +9,7 @@ using System.Threading.Tasks;
 
 namespace DtronixMessageQueue {
 	public class MqPostmaster : IDisposable {
-
-		//private static readonly Logger logger = LogManager.GetCurrentClassLogger();
-
-		private readonly MqConnector session;
-
+		public int MaxFrameSize { get; }
 		private readonly MqWorker supervisor;
 
 		public BlockingCollection<MqMailbox> WriteOperations = new BlockingCollection<MqMailbox>();
@@ -23,18 +19,16 @@ namespace DtronixMessageQueue {
 		public BlockingCollection<MqMailbox> ReadOperations = new BlockingCollection<MqMailbox>();
 		private readonly ConcurrentBag<MqWorker> read_workers = new ConcurrentBag<MqWorker>();
 
-		public MqPostmaster(MqConnector session) {
-			this.session = session;
-
+		public MqPostmaster(int max_frame_size) {
+			MaxFrameSize = max_frame_size;
 			// Add a supervisor to review when it is needed to increase or decrease the worker numbers.
 			//supervisor = new MqWorker(SuperviseWorkers, session);
 
 			// Create one reader and one writer workers to start off with.
 			CreateWorker(true);
 			CreateWorker(false);
-
-			//StartSupervisor();
 		}
+
 
 		private async void StartSupervisor() {
 			await Task.Delay(2000);
@@ -92,13 +86,13 @@ namespace DtronixMessageQueue {
 				} catch (ThreadAbortException) {
 				} catch (Exception e) {
 					if (mailbox != null) {
-						logger.Error(e,
+						/*logger.Error(e,
 							is_writer
 								? "MqConnection {0}: Exception occurred while when writing."
-								: "MqConnection {0}: Exception occurred while when reading.", mailbox.Connection.Id);
+								: "MqConnection {0}: Exception occurred while when reading.", mailbox.Connection.Id);*/
 					}
 				}
-			}, session);
+			});
 
 			reader_worker.Start();
 

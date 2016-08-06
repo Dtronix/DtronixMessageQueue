@@ -9,11 +9,8 @@ namespace DtronixMessageQueue {
 
 		public MqMailbox Mailbox { get; set; }
 
-		public MqSession Connection { get; set; }
-
-		public IncomingMessageEventArgs(MqSession connection) {
-			Connection = connection;
-			Mailbox = connection.Mailbox;
+		public IncomingMessageEventArgs(MqMailbox mailbox) {
+			Mailbox = mailbox;
 		}
 	}
 }
