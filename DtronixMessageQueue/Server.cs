@@ -489,11 +489,11 @@ namespace DtronixMessageQueue {
 		}
 
 		public class Connection {
-			public MQMessage Message;
-			public MQMailbox Mailbox;
+			public MqMessage Message;
+			public MqMailbox Mailbox;
 			public Guid Id;
 			public Socket Socket;
-			public MQFrameBuilder FrameBuilder = new MQFrameBuilder(ClientBufferSize);
+			public MqFrameBuilder FrameBuilder = new MqFrameBuilder(ClientBufferSize);
 			public object WriteLock = new object();
 			public SocketAsyncEventArgs SocketAsyncEvent;
 			private Telnet telnet;

@@ -7,11 +7,11 @@ using System.Threading.Tasks;
 namespace DtronixMessageQueue {
 	public class IncomingMessageEventArgs : EventArgs {
 
-		public MQMailbox Mailbox { get; set; }
+		public MqMailbox Mailbox { get; set; }
 
-		public MQSession Connection { get; set; }
+		public MqSession Connection { get; set; }
 
-		public IncomingMessageEventArgs(MQSession connection) {
+		public IncomingMessageEventArgs(MqSession connection) {
 			Connection = connection;
 			Mailbox = connection.Mailbox;
 		}

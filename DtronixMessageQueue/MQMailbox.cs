@@ -9,19 +9,19 @@ using System.Threading.Tasks;
 using NLog;
 
 namespace DtronixMessageQueue {
-	public class MQMailbox : IDisposable {
+	public class MqMailbox : IDisposable {
 		private static readonly Logger logger = LogManager.GetCurrentClassLogger();
 
-		public readonly MQConnection Connection;
+		public readonly MqConnection Connection;
 		private int inbox_byte_count;
 
-		private MQMessage message;
+		private MqMessage message;
 
 		private bool is_inbox_processing;
 		private bool is_outbox_processing;
 
-		public ConcurrentQueue<MQMessage> Inbox { get; } = new ConcurrentQueue<MQMessage>();
-		private readonly ConcurrentQueue<MQMessage> outbox = new ConcurrentQueue<MQMessage>();
+		public ConcurrentQueue<MqMessage> Inbox { get; } = new ConcurrentQueue<MqMessage>();
+		private readonly ConcurrentQueue<MqMessage> outbox = new ConcurrentQueue<MqMessage>();
 
 		public readonly BlockingCollection<byte[]> OutboxBytes = new BlockingCollection<byte[]>();
 
@@ -29,7 +29,7 @@ namespace DtronixMessageQueue {
 
 		public event EventHandler<IncomingMessageEventArgs> IncomingMessage;
 
-		public MQMailbox(MQConnection connection) {
+		public MqMailbox(MqConnection connection) {
 			Connection = connection;
 		}
 
@@ -46,7 +46,7 @@ namespace DtronixMessageQueue {
 		}
 
 
-		public void EnqueueOutgoingMessage(MQMessage out_message) {
+		public void EnqueueOutgoingMessage(MqMessage out_message) {
 			outbox.Enqueue(out_message);
 
 			// Signal the workers that work is to be done.
@@ -78,7 +78,7 @@ namespace DtronixMessageQueue {
 			semaphore.Wait();
 
 			is_outbox_processing = true;
-			MQMessage result;
+			MqMessage result;
 			var length = 0;
 			var buffer_queue = new Queue<byte[]>();
 
@@ -116,7 +116,7 @@ namespace DtronixMessageQueue {
 
 			is_inbox_processing = true;
 			if (message == null) {
-				message = new MQMessage();
+				message = new MqMessage();
 			}
 
 			byte[] buffer;
@@ -129,7 +129,7 @@ namespace DtronixMessageQueue {
 				} catch (InvalidDataException ex) {
 					logger.Error(ex, "Connector {0}: Client send invalid data.", Connection.Id);
 
-					var connection_server = Connection.Connector as MQServer;
+					var connection_server = Connection.Connector as MqServer;
 
 					connection_server?.CloseConnection(Connection);
 					break;
@@ -142,11 +142,11 @@ namespace DtronixMessageQueue {
 					var frame = Connection.FrameBuilder.Frames.Dequeue();
 					message.Add(frame);
 
-					if (frame.FrameType != MQFrameType.EmptyLast && frame.FrameType != MQFrameType.Last) {
+					if (frame.FrameType != MqFrameType.EmptyLast && frame.FrameType != MqFrameType.Last) {
 						continue;
 					}
 					Inbox.Enqueue(message);
-					message = new MQMessage();
+					message = new MqMessage();
 
 					IncomingMessage?.Invoke(this, new IncomingMessageEventArgs(Connection));
 				}

@@ -1,4 +1,5 @@
 ﻿using System;
+using System.CodeDom;
 using System.Collections.Generic;
 using System.Linq;
 using System.Net.Sockets;
@@ -11,13 +12,12 @@ using SuperSocket.SocketBase.Protocol;
 namespace DtronixMessageQueue {
 
 
-	public class MqSession : AppSession<MqSession, BinaryRequestInfo> {
-		public readonly MQConnector Connector;
-		public readonly MQMailbox Mailbox;
-		public readonly MQFrameBuilder FrameBuilder;
+	public class MqSession : AppSession<MqSession, RequestInfo<byte, byte[]>> {
+		public MqMailbox Mailbox { get; set; }
+		public MqFrameBuilder FrameBuilder { get; set; }
 
 		public MqSession() {
-			
+			Mailbox = new MqMailbox();
 		}
 	}
 }

@@ -18,14 +18,14 @@ namespace DtronixMessageQueueTests {
 		[Fact]
 		public void Client_sends_data_to_server() {
 
-			var server = new MQServer(new MQServer.Config());
+			var server = new MqServer(new MqServer.Config());
 			server.Start(new IPEndPoint(IPAddress.Any, 2828));
 
 			int runs = 1000;
 			Stopwatch sw = new Stopwatch();
 			var wait = new AutoResetEvent(false);
 
-			var client = new MQClient();
+			var client = new MqClient();
 
 			server.InboxMessage += (sender, args) => {
 				if (args.Mailbox.Inbox.Count == runs) {
@@ -40,17 +40,17 @@ namespace DtronixMessageQueueTests {
 
 
 
-			var message = new MQMessage {
-				new MQFrame(new byte[] {1, 2, 3, 4}, MQFrameType.More),
-				new MQFrame(new byte[] {0, 9, 8, 7}, MQFrameType.More),
-				new MQFrame(new byte[] {1, 0, 2, 9}, MQFrameType.Last)
+			var message = new MqMessage {
+				new MqFrame(new byte[] {1, 2, 3, 4}, MqFrameType.More),
+				new MqFrame(new byte[] {0, 9, 8, 7}, MqFrameType.More),
+				new MqFrame(new byte[] {1, 0, 2, 9}, MqFrameType.Last)
 			};
 
-			var message2 = new MQMessage {
-					new MQFrame(RandomBytes(15), MQFrameType.More),
-				new MQFrame(RandomBytes(30), MQFrameType.More),
-					new MQFrame(RandomBytes(72), MQFrameType.More),
-				new MQFrame(RandomBytes(86), MQFrameType.Last)
+			var message2 = new MqMessage {
+					new MqFrame(RandomBytes(15), MqFrameType.More),
+				new MqFrame(RandomBytes(30), MqFrameType.More),
+					new MqFrame(RandomBytes(72), MqFrameType.More),
+				new MqFrame(RandomBytes(86), MqFrameType.Last)
 			};
 
 			client.Connect("127.0.0.1");

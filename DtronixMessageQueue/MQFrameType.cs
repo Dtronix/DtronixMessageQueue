@@ -5,7 +5,7 @@ using System.Text;
 using System.Threading.Tasks;
 
 namespace DtronixMessageQueue {
-	public enum MQFrameType : byte {
+	public enum MqFrameType : byte {
 
 		/// <summary>
 		/// This frame type has not been defined.
