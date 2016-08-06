@@ -6,10 +6,10 @@ using DtronixMessageQueue;
 namespace MqPerformanceTests {
 	class Program {
 		static void Main(string[] args) {
-			MQTest();
+			MqPerformanceTests();
 		}
 
-		private static void MQTest() {
+		private static void MqPerformanceTests() {
 			var server = new MqServer();
 			server.Start();
 
