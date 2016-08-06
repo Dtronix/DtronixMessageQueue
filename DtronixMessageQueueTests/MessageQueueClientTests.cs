@@ -3,6 +3,7 @@ using System.Diagnostics;
 using System.Net;
 using System.Threading;
 using DtronixMessageQueue;
+using SuperSocket.SocketBase.Config;
 using Xunit;
 using Xunit.Abstractions;
 
@@ -16,21 +17,22 @@ namespace DtronixMessageQueueTests {
 		}
 
 		[Fact]
-		public void Client_sends_data_to_server() {
+		public async void Client_sends_data_to_server() {
 
-			var server = new MqServer(new MqServer.Config());
-			server.Start(new IPEndPoint(IPAddress.Any, 2828));
+			var server = new MqServer();
+			server.Start();
 
-			int runs = 1000;
+			int runs = 1000000;
 			Stopwatch sw = new Stopwatch();
 			var wait = new AutoResetEvent(false);
 
 			var client = new MqClient();
 
-			server.InboxMessage += (sender, args) => {
+
+
+			server.IncomingMessage += (sender, args) => {
 				if (args.Mailbox.Inbox.Count == runs) {
 					sw.Stop();
-					output.WriteLine($"Used {args.Mailbox.Inbox.Count} event args to write.");
 					output.WriteLine($"Sent {runs} messages in {sw.ElapsedMilliseconds}. {(double)runs/ sw.ElapsedMilliseconds*1000}");
 					wait.Set();
 				}
@@ -53,20 +55,21 @@ namespace DtronixMessageQueueTests {
 				new MqFrame(RandomBytes(86), MqFrameType.Last)
 			};
 
-			client.Connect("127.0.0.1");
-			Thread.Sleep(300);
-			sw.Start();
-
-			for (int i = 0; i < runs; i++) {
-				client.Send(message2);
-			}
-
 			
+			client.Connected += (sender, args) => {
+				sw.Start();
+				for (int i = 0; i < runs; i++) {
+					client.Send(message2);
+				}
+			};
+
+			await client.ConnectAsync("127.0.0.1");
+
 
 			wait.WaitOne(10000);
 
 
-			client.Dispose();
+			client.Close();
 			server.Dispose();
 
 

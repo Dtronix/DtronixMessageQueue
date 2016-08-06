@@ -22,6 +22,8 @@ namespace DtronixMessageQueue {
 		public MqServer(ServerConfig server_config) : this(null, server_config) { }
 		public MqServer(RootConfig root_config) : this(root_config, null) { }
 
+		public event EventHandler<IncomingMessageEventArgs> IncomingMessage;
+
 		public MqServer(RootConfig root_config, ServerConfig server_config) : base(new MqServerReceiveFilterFactory()) {
 			if (root_config == null) {
 				root_config = new RootConfig {
@@ -41,6 +43,7 @@ namespace DtronixMessageQueue {
 					ClearIdleSession = true,
 					IdleSessionTimeOut = 120,
 					MaxRequestLength = 1024 * 16,
+					ReceiveBufferSize = 1024 * 24,
 					Ip = "127.0.0.1",
 					Port = 2828
 				};
@@ -54,7 +57,21 @@ namespace DtronixMessageQueue {
 		protected override MqSession CreateAppSession(ISocketSession socket_session) {
 			var session = new MqSession();
 			session.Mailbox = new MqMailbox(Postmaster, session);
+
+			// TODO: Review how to do this better.
+			session.Mailbox.IncomingMessage += OnIncomingMessage;
+
 			return session;
+		}
+
+		private void OnIncomingMessage(object sender, IncomingMessageEventArgs e) {
+			IncomingMessage?.Invoke(sender, e);
+		}
+
+		protected override void OnSessionClosed(MqSession session, CloseReason reason) {
+			session.Mailbox.IncomingMessage -= OnIncomingMessage;
+			session.Mailbox.Dispose();
+			base.OnSessionClosed(session, reason);
 		}
 
 		protected override void ExecuteCommand(MqSession session, RequestInfo<byte, byte[]> request_info) {
@@ -73,7 +90,6 @@ namespace DtronixMessageQueue {
 				session.Close(CloseReason.ApplicationError);
 				return;
 			}
-
 			base.ExecuteCommand(session, request_info);
 		}
 	}

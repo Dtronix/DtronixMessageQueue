@@ -36,6 +36,10 @@ namespace DtronixMessageQueue {
 
 		}
 
+		public Task ConnectAsync(string address, int port = 2828) {
+			return ConnectAsync(new IPEndPoint(IPAddress.Parse(address), port));
+		}
+
 		public void Send(MqMessage message) {
 			if (IsConnected == false) {
 				throw new InvalidOperationException("Can not send messages while disconnected from server.");

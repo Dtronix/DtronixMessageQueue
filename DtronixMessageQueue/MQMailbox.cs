@@ -74,8 +74,15 @@ namespace DtronixMessageQueue {
 
 
 		private void SendBufferQueue(Queue<byte[]> buffer_queue, int length) {
-			var buffer = new byte[length];
-			var offset = 0;
+			var buffer = new byte[length + 3];
+
+			// Setup the header for the packet.
+			var length_bytes = BitConverter.GetBytes((ushort) length);
+			buffer[0] = 0;
+			buffer[1] = length_bytes[0];
+			buffer[2] = length_bytes[1];
+
+			var offset = 3;
 
 			while (buffer_queue.Count > 0) {
 				var bytes = buffer_queue.Dequeue();
@@ -85,7 +92,11 @@ namespace DtronixMessageQueue {
 				offset += bytes.Length;
 			}
 
-			session.Send(buffer, 0, length);
+			if (client != null) {
+				client.Send(buffer);
+			} else {
+				session.Send(buffer, 0, length);
+			}
 		}
 
 		//private SemaphoreSlim semaphore = new SemaphoreSlim(1, 1);
@@ -100,7 +111,7 @@ namespace DtronixMessageQueue {
 				foreach (var frame in result.Frames) {
 					var frame_size = frame.FrameLength;
 					// If this would overflow the max client buffer size, send the full buffer queue.
-					if (length + frame_size > postmaster.MaxFrameSize) {
+					if (length + frame_size > postmaster.MaxFrameSize + 3) {
 						SendBufferQueue(buffer_queue, length);
 
 						// Reset the length to 0;

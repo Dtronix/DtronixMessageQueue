@@ -16,7 +16,7 @@ namespace DtronixMessageQueue {
 		protected override RequestInfo<byte, byte[]> ResolveRequestInfo(ArraySegment<byte> header, byte[] body_buffer, int offset, int length) {
 			var bytes = new byte[length];
 			Buffer.BlockCopy(body_buffer, offset, bytes, 0, length);
-			return new RequestInfo<byte, byte[]>(null, header.Array[header.Offset], bytes);
+			return new RequestInfo<byte, byte[]>("", header.Array[header.Offset], bytes);
 		}
 	}
 
