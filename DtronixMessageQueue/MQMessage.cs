@@ -7,11 +7,11 @@ using System.Text;
 using System.Threading.Tasks;
 
 namespace DtronixMessageQueue {
-	public class MQMessage : IList<MQFrame> {
+	public class MqMessage : IList<MqFrame> {
 
-		public readonly List<MQFrame> Frames = new List<MQFrame>();
+		public readonly List<MqFrame> Frames = new List<MqFrame>();
 
-		public MQMessage() {
+		public MqMessage() {
 
 		}
 
@@ -36,15 +36,15 @@ namespace DtronixMessageQueue {
 		}
 
 
-		public IEnumerator<MQFrame> GetEnumerator() {
-			return new List<MQFrame>(Frames).GetEnumerator();
+		public IEnumerator<MqFrame> GetEnumerator() {
+			return new List<MqFrame>(Frames).GetEnumerator();
 		}
 
 		IEnumerator IEnumerable.GetEnumerator() {
-			return new List<MQFrame>(Frames).GetEnumerator();
+			return new List<MqFrame>(Frames).GetEnumerator();
 		}
 
-		public void Add(MQFrame item) {
+		public void Add(MqFrame item) {
 			Frames.Add(item);
 		}
 
@@ -52,25 +52,25 @@ namespace DtronixMessageQueue {
 			Frames.Clear();
 		}
 
-		public bool Contains(MQFrame item) {
+		public bool Contains(MqFrame item) {
 			return Frames.Contains(item);
 		}
 
-		public void CopyTo(MQFrame[] array, int array_index) {
+		public void CopyTo(MqFrame[] array, int array_index) {
 			Frames.CopyTo(array, array_index);
 		}
 
-		public bool Remove(MQFrame item) {
+		public bool Remove(MqFrame item) {
 			return Frames.Remove(item);
 		}
 
 		public int Count => Frames.Count;
 		public bool IsReadOnly => false;
-		public int IndexOf(MQFrame item) {
+		public int IndexOf(MqFrame item) {
 			return Frames.IndexOf(item);
 		}
 
-		public void Insert(int index, MQFrame item) {
+		public void Insert(int index, MqFrame item) {
 			Frames.Insert(index, item);
 		}
 
@@ -78,7 +78,7 @@ namespace DtronixMessageQueue {
 			Frames.RemoveAt(index);
 		}
 
-		public MQFrame this[int index] {
+		public MqFrame this[int index] {
 			get { return Frames[index]; }
 			set { Frames[index] = value; }
 		}

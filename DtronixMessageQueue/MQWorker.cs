@@ -8,8 +8,8 @@ using System.Threading;
 using System.Threading.Tasks;
 
 namespace DtronixMessageQueue {
-	public class MQWorker : IDisposable {
-		private readonly MQSession connector;
+	public class MqWorker : IDisposable {
+		private readonly MqSession session;
 		private readonly Task worker_task;
 		private long average_idle_time = 2000;
 
@@ -21,12 +21,12 @@ namespace DtronixMessageQueue {
 
 		private readonly CancellationTokenSource cancellation_source = new CancellationTokenSource();
 
-		private readonly Action<object> work;
+		private readonly Action<CancellationToken> work;
 
-		public MQWorker(Action<object> work, MQSession connector) {
+		public MqWorker(Action<CancellationToken> work, MqSession session) {
 			this.work = work;
-			this.connector = connector;
-			worker_task = new Task(this.work, cancellation_source.Token, cancellation_source.Token, TaskCreationOptions.LongRunning);
+			this.session = session;
+			worker_task = new Task(ProcessQueue, cancellation_source.Token, cancellation_source.Token, TaskCreationOptions.LongRunning);
 		}
 
 		/// <summary>

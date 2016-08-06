@@ -7,13 +7,13 @@ using System.Threading;
 using System.Threading.Tasks;
 
 namespace DtronixMessageQueue {
-	public class MQFrameBuilder : IDisposable {
+	public class MqFrameBuilder : IDisposable {
 
 		private readonly byte[] buffer;
 		private SemaphoreSlim seaphore;
 
 		private byte[] current_frame_data;
-		private MQFrameType current_frame_type;
+		private MqFrameType current_frame_type;
 
 		private int read_position;
 		private int write_position;
@@ -23,7 +23,7 @@ namespace DtronixMessageQueue {
 
 		public const int HeaderLength = 3;
 
-		public Queue<MQFrame> Frames { get; } = new Queue<MQFrame>();
+		public Queue<MqFrame> Frames { get; } = new Queue<MqFrame>();
 
 		// Debug
 		//private byte[] previous_buffer;
@@ -34,7 +34,7 @@ namespace DtronixMessageQueue {
 		//private int previous_count2;
 		//private int previous_offset;
 
-		public MQFrameBuilder(int buffer_length) {
+		public MqFrameBuilder(int buffer_length) {
 			buffer = new byte[buffer_length];
 
 			// Debug
@@ -63,7 +63,7 @@ namespace DtronixMessageQueue {
 			try {
 				buffer_stream.Write(client_bytes, offset, count);
 			} catch (Exception e) {
-				throw new InvalidDataException("FrameBuilder was sent a frame larger than the connector allows.", e);
+				throw new InvalidDataException("FrameBuilder was sent a frame larger than the session allows.", e);
 			}
 			
 			write_position += count;
@@ -114,7 +114,7 @@ namespace DtronixMessageQueue {
 
 				// Loop until we require more data
 				while (true) {
-					if (current_frame_type == MQFrameType.Unset) {
+					if (current_frame_type == MqFrameType.Unset) {
 						var frame_type_bytes = new byte[1];
 
 						// This will always return one byte.
@@ -124,7 +124,7 @@ namespace DtronixMessageQueue {
 							throw new InvalidDataException($"FrameBuilder was sent a frame with an invalid type.  Type sent: {frame_type_bytes[0]}");
 						}
 
-						current_frame_type = (MQFrameType) frame_type_bytes[0];
+						current_frame_type = (MqFrameType) frame_type_bytes[0];
 					}
 
 					// Read the length from the stream if there are enough client_bytes.
@@ -152,9 +152,9 @@ namespace DtronixMessageQueue {
 						ReadInternal(current_frame_data, 0, current_frame_data.Length);
 
 						// Create the frame and enqueue it.
-						Frames.Enqueue(new MQFrame(current_frame_data, current_frame_type));
+						Frames.Enqueue(new MqFrame(current_frame_data, current_frame_type));
 
-						current_frame_type = MQFrameType.Unset;
+						current_frame_type = MqFrameType.Unset;
 						current_frame_data = null;
 
 						// If we are at the end of the data, complete this loop and wait for more data.

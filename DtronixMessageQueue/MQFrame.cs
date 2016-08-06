@@ -7,7 +7,7 @@ using System.Threading.Tasks;
 
 namespace DtronixMessageQueue {
 	// ReSharper disable once InconsistentNaming
-	public class MQFrame : IDisposable {
+	public class MqFrame : IDisposable {
 
 		private byte[] data;
 
@@ -15,12 +15,12 @@ namespace DtronixMessageQueue {
 		/// <summary>
 		/// Information about this frame and how it relates to other Frames.
 		/// </summary>
-		public MQFrameType FrameType { get; private set; } = MQFrameType.Empty;
+		public MqFrameType FrameType { get; private set; }
 
 		/// <summary>
 		/// Total bytes that this frame contains.
 		/// </summary>
-		public int DataLength { get; } = -1;
+		public int DataLength { get; }
 
 		/// <summary>
 		/// True if this frame data has been completely read.
@@ -38,7 +38,7 @@ namespace DtronixMessageQueue {
 		public int FrameLength {
 			get {
 				// If this frame is empty, then it has a total of one byte.
-				if (FrameType == MQFrameType.Empty) {
+				if (FrameType == MqFrameType.Empty) {
 					return 1;
 
 				}
@@ -49,8 +49,8 @@ namespace DtronixMessageQueue {
 
 		private const int HeaderLength = 3;
 
-		public MQFrame(byte[] bytes, MQFrameType type) {
-			if (type == MQFrameType.EmptyLast || type == MQFrameType.Empty) {
+		public MqFrame(byte[] bytes, MqFrameType type) {
+			if (type == MqFrameType.EmptyLast || type == MqFrameType.Empty) {
 				DataLength = 0;
 			} else {
 				if (bytes.Length > 1024 * 16) {
@@ -65,7 +65,7 @@ namespace DtronixMessageQueue {
 		}
 
 		public void SetLast() {
-			FrameType = FrameType == MQFrameType.Empty ? MQFrameType.EmptyLast : MQFrameType.Last;
+			FrameType = FrameType == MqFrameType.Empty ? MqFrameType.EmptyLast : MqFrameType.Last;
 		}
 
 		/// <summary>
@@ -77,8 +77,8 @@ namespace DtronixMessageQueue {
 				throw new InvalidOperationException("Can not retrieve frame bytes when frame has not been created.");
 			}
 
-			// If this is an empty frame, return an empty byte which corresponds to MQFrameType.Empty
-			if (FrameType == MQFrameType.Empty || FrameType == MQFrameType.Empty) {
+			// If this is an empty frame, return an empty byte which corresponds to MqFrameType.Empty
+			if (FrameType == MqFrameType.Empty || FrameType == MqFrameType.Empty) {
 				return new[] {(byte) FrameType};
 			}
 

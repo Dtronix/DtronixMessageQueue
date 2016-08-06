@@ -9,10 +9,10 @@ using SuperSocket.ClientEngine;
 using SuperSocket.ProtoBase;
 
 namespace DtronixMessageQueue {
-	public class MQClient : MQConnector {
+	public class MqClient : MqConnector {
 		private readonly EasyClient<BufferedPackageInfo> connection;
 
-		public MQClient() : base(1, 1) {
+		public MqClient() : base(1, 1) {
 			connection = new EasyClient<BufferedPackageInfo>();
 		}
 
@@ -40,7 +40,7 @@ namespace DtronixMessageQueue {
 			MainSocket.ConnectAsync(read_ea);
 		}
 
-		public void Send(MQMessage message) {
+		public void Send(MqMessage message) {
 			if (connection.Socket == null) {
 				throw new InvalidOperationException("Can not send messages while disconnected from server.");
 			}

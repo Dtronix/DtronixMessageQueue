@@ -5,7 +5,7 @@ using System.Text;
 using System.Threading.Tasks;
 
 namespace DtronixMessageQueue {
-	public class MQConnectorConfigs {
+	public class MqConnectorConfigs {
 
 	}
 }

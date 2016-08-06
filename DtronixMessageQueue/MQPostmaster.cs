@@ -5,33 +5,33 @@ using System.Linq;
 using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
-using NLog;
+//using NLog;
 
 namespace DtronixMessageQueue {
-	public class MQPostmaster : IDisposable {
+	public class MqPostmaster : IDisposable {
 
-		private static readonly Logger logger = LogManager.GetCurrentClassLogger();
+		//private static readonly Logger logger = LogManager.GetCurrentClassLogger();
 
-		private readonly MQConnector connector;
+		private readonly MqConnector session;
 
-		private readonly MQWorker supervisor;
+		private readonly MqWorker supervisor;
 
-		public BlockingCollection<MQMailbox> WriteOperations = new BlockingCollection<MQMailbox>();
-		private readonly ConcurrentBag<MQWorker> write_workers = new ConcurrentBag<MQWorker>();
+		public BlockingCollection<MqMailbox> WriteOperations = new BlockingCollection<MqMailbox>();
+		private readonly ConcurrentBag<MqWorker> write_workers = new ConcurrentBag<MqWorker>();
 
 
-		public BlockingCollection<MQMailbox> ReadOperations = new BlockingCollection<MQMailbox>();
-		private readonly ConcurrentBag<MQWorker> read_workers = new ConcurrentBag<MQWorker>();
+		public BlockingCollection<MqMailbox> ReadOperations = new BlockingCollection<MqMailbox>();
+		private readonly ConcurrentBag<MqWorker> read_workers = new ConcurrentBag<MqWorker>();
 
-		public MQPostmaster(MQConnector connector) {
-			this.connector = connector;
+		public MqPostmaster(MqConnector session) {
+			this.session = session;
 
 			// Add a supervisor to review when it is needed to increase or decrease the worker numbers.
-			//supervisor = new MQWorker(SuperviseWorkers, connector);
+			//supervisor = new MqWorker(SuperviseWorkers, session);
 
 			// Create one reader and one writer workers to start off with.
-			//CreateWorker(true);
-			//CreateWorker(false);
+			CreateWorker(true);
+			CreateWorker(false);
 
 			//StartSupervisor();
 		}
@@ -74,9 +74,8 @@ namespace DtronixMessageQueue {
 		public void CreateWorker(bool is_writer) {
 			var mailbox_collection = is_writer ? WriteOperations : ReadOperations;
 
-			var reader_worker = new MQWorker(o => {
-				var token = (CancellationToken) o;
-				MQMailbox mailbox = null;
+			var reader_worker = new MqWorker(token => {
+				MqMailbox mailbox = null;
 
 				try {
 					while (mailbox_collection.TryTake(out mailbox, 60000, token)) {
@@ -90,16 +89,16 @@ namespace DtronixMessageQueue {
 						}
 
 					}
-				} catch (ThreadAbortException e) {
+				} catch (ThreadAbortException) {
 				} catch (Exception e) {
 					if (mailbox != null) {
 						logger.Error(e,
 							is_writer
-								? "MQConnection {0}: Exception occurred while when writing."
-								: "MQConnection {0}: Exception occurred while when reading.", mailbox.Connection.Id);
+								? "MqConnection {0}: Exception occurred while when writing."
+								: "MqConnection {0}: Exception occurred while when reading.", mailbox.Connection.Id);
 					}
 				}
-			}, connector);
+			}, session);
 
 			reader_worker.Start();
 

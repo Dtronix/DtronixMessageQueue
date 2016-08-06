@@ -73,6 +73,7 @@
     <Reference Include="System.Xml" />
   </ItemGroup>
   <ItemGroup>
+    <Compile Include="MqReceiveFilterFactory.cs" />
     <Compile Include="MqSession.cs" />
     <Compile Include="MqConnector.cs" />
     <None Include="Config\log4net.config" />
