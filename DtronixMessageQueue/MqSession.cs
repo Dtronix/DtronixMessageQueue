@@ -14,5 +14,9 @@ namespace DtronixMessageQueue {
 
 	public class MqSession : AppSession<MqSession, RequestInfo<byte, byte[]>> {
 		public MqMailbox Mailbox { get; set; }
+		/// <summary>
+		/// User supplied token used to pass a related object around with this session.
+		/// </summary>
+		public object Token { get; set; }
 	}
 }

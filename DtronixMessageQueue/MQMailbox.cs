@@ -48,7 +48,7 @@ namespace DtronixMessageQueue {
 			frame_builder = new MqFrameBuilder(postmaster);
 		}
 
-		public void EnqueueIncomingBuffer(byte[] buffer) {
+		internal void EnqueueIncomingBuffer(byte[] buffer) {
 			inbox_bytes.Enqueue(buffer);
 
 			// Update the total bytes this 
@@ -62,7 +62,7 @@ namespace DtronixMessageQueue {
 		}
 
 
-		public void EnqueueOutgoingMessage(MqMessage out_message) {
+		internal void EnqueueOutgoingMessage(MqMessage out_message) {
 			outbox.Enqueue(out_message);
 
 			// Signal the workers that work is to be done.
@@ -128,6 +128,8 @@ namespace DtronixMessageQueue {
 				// Send the last of the buffer queue.
 				SendBufferQueue(buffer_queue, length);
 			}
+
+			is_outbox_processing = false;
 		}
 
 		internal async void ProcessIncomingQueue() {
@@ -135,6 +137,7 @@ namespace DtronixMessageQueue {
 				message = new MqMessage();
 			}
 
+			bool new_message = false;
 			byte[] buffer;
 			while (inbox_bytes.TryDequeue(out buffer)) {
 				// Update the total bytes this 
@@ -166,11 +169,12 @@ namespace DtronixMessageQueue {
 					}
 					Inbox.Enqueue(message);
 					message = new MqMessage();
-
-					IncomingMessage?.Invoke(this, new IncomingMessageEventArgs(this));
+					new_message = true;
 				}
 			}
-
+			if (new_message) {
+				IncomingMessage?.Invoke(this, new IncomingMessageEventArgs(this));
+			}
 			is_inbox_processing = false;
 		}
 
