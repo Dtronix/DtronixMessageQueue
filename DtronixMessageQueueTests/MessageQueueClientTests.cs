@@ -16,83 +16,39 @@ namespace DtronixMessageQueueTests {
 
 		}
 
-		[Fact]
-		public void Client_sends_message_to_server() {
-			var message_source = GenerateRandomMessage();
-
+		[Theory]
+		[InlineData(1, false)]
+		[InlineData(1, true)]
+		[InlineData(50, true)]
+		[InlineData(1000, true)]
+		public void Client_should_send_data_to_server(int number, bool validate) {
+			var message_source = GenerateRandomMessage(4, 10000);
+			int received_messages = 0;
 			Client.Connected += (sender, args) => {
-				Client.Send(message_source);
+				for (int i = 0; i < number; i++) {
+					Client.Send(message_source);
+				}
+
 			};
 
 			Server.IncomingMessage += (sender, args) => {
 				MqMessage message;
-				args.Mailbox.Inbox.TryDequeue(out message);
-				TestStatus.Set();
+
+				while (args.Mailbox.Inbox.TryDequeue(out message)) {
+					received_messages++;
+					if (validate) {
+						CompareMessages(message_source, message);
+					}
+				}
+
+
+				if (received_messages == number) {
+					TestStatus.Set();
+				}
 			};
 
 			StartAndWait();
 		}
-
-		[Fact]
-		public void Client_sends_valid_message_to_server() {
-			var message_source = GenerateRandomMessage();
-
-			Client.Connected += (sender, args) => {
-				Client.Send(message_source);
-			};
-
-			Server.IncomingMessage += (sender, args) => {
-				MqMessage message;
-				args.Mailbox.Inbox.TryDequeue(out message);
-
-				CompareMessages(message_source, message);
-
-				TestStatus.Set();
-			};
-
-			StartAndWait();
-		}
-
-		[Fact]
-		public void Client_receives_message_from_server() {
-			var message_source = new MqMessage {
-				new MqFrame(new byte[1], MqFrameType.Last)
-			};
-
-			Server.NewSessionConnected += session => {
-				session.Send(message_source);
-			};
-
-			Client.IncomingMessage += (sender, args) => {
-				MqMessage message;
-				args.Mailbox.Inbox.TryDequeue(out message);
-				TestStatus.Set();
-			};
-
-			StartAndWait();
-		}
-
-		[Fact]
-		public void Client_receives_valid_message_from_server() {
-			var message_source = GenerateRandomMessage();
-
-			Server.NewSessionConnected += session => {
-				session.Send(message_source);
-			};
-
-			Client.IncomingMessage += (sender, args) => {
-				MqMessage message;
-				args.Mailbox.Inbox.TryDequeue(out message);
-
-				CompareMessages(message_source, message);
-
-				TestStatus.Set();
-			};
-
-			StartAndWait();
-		}
-
-
 
 
 		[Fact]
@@ -120,6 +76,16 @@ namespace DtronixMessageQueueTests {
 		public void Client_notified_server_stopping() {
 
 			Server.NewSessionConnected += session => Server.Stop();
+
+			Client.Closed += (sender, args) => TestStatus.Set();
+
+			StartAndWait();
+		}
+
+		[Fact]
+		public void Client_closes_self() {
+
+			Client.Connected += (sender, args) => Client.Close();
 
 			Client.Closed += (sender, args) => TestStatus.Set();
 

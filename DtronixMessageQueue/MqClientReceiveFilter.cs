@@ -7,7 +7,7 @@ using SuperSocket.Common;
 using SuperSocket.ProtoBase;
 
 namespace DtronixMessageQueue {
-	class MqClientReceiveFilter : FixedHeaderReceiveFilter<BufferedPackageInfo> {
+	internal class MqClientReceiveFilter : FixedHeaderReceiveFilter<BufferedPackageInfo> {
 		public MqClientReceiveFilter() : base(3) {
 		}
 

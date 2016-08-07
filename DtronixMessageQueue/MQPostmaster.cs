@@ -23,7 +23,7 @@ namespace DtronixMessageQueue {
 		public MqPostmaster(int max_frame_size) {
 			MaxFrameSize = max_frame_size;
 			// Add a supervisor to review when it is needed to increase or decrease the worker numbers.
-			//supervisor = new MqWorker(SuperviseWorkers, session);
+			//supervisor = new MqWorker(SuperviseWorkers);
 
 			// Create one reader and one writer workers to start off with.
 			CreateWorker(true);
@@ -36,10 +36,7 @@ namespace DtronixMessageQueue {
 			supervisor.Start();
 		}
 
-		private async void SuperviseWorkers(object o) {
-			if (!(o is CancellationToken)) return;
-
-			var token = (CancellationToken) o;
+		private async void SuperviseWorkers(CancellationToken token) {
 			while (token.IsCancellationRequested == false) {
 				if (read_workers.IsEmpty == false) {
 					var read_averages = read_workers.Sum(worker => worker.AverageIdleTime)/read_workers.Count;

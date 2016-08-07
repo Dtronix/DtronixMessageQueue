@@ -7,7 +7,7 @@ using System.Threading;
 using System.Threading.Tasks;
 
 namespace DtronixMessageQueue {
-	public class MqFrameBuilder : IDisposable {
+	internal class MqFrameBuilder : IDisposable {
 		private readonly MqPostmaster postmaster;
 
 		private readonly byte[] buffer;

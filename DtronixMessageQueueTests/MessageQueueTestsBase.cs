@@ -21,7 +21,7 @@ namespace DtronixMessageQueueTests {
 
 		public Exception LastException { get; set; }
 
-		public TimeSpan TestTimeout { get; set; } = new TimeSpan(0, 0, 20);
+		public TimeSpan TestTimeout { get; set; } = new TimeSpan(0, 0, 60);
 
 		public ManualResetEventSlim TestStatus { get; set; } = new ManualResetEventSlim(false);
 
@@ -47,14 +47,16 @@ namespace DtronixMessageQueueTests {
 			Server.Started += async (sender, args) => {
 				if (Server.State == ServerState.Running) {
 					await Client.ConnectAsync("127.0.0.1", Port);
-				} else {
-					throw new TimeoutException("Server did not start in a timely manner.");
 				}
 				
 			};
 			Server.Start();
 			
 			TestStatus.Wait(TestTimeout);
+
+			if (TestStatus.IsSet == false) {
+				throw new TimeoutException("Test timed out.");
+			}
 
 			if (LastException != null) {
 				throw LastException;
@@ -79,11 +81,19 @@ namespace DtronixMessageQueueTests {
 			}
 		}
 
-		public MqMessage GenerateRandomMessage() {
-			var frame_count = random.Next(8, 16);
+		public MqMessage GenerateRandomMessage(int frames = -1, int frame_length = -1) {
+			var frame_count = frames == -1 ? random.Next(8, 16) : frames;
 			var message = new MqMessage();
 			for (int i = 0; i < frame_count; i++) {
-				var frame = new MqFrame(SequentialBytes(random.Next(50, 1024 * 16 - 3)), (i + 1 < frame_count)? MqFrameType.More : MqFrameType.Last);
+				MqFrame frame;
+
+				if (frame_length == -1) {
+					frame = new MqFrame(SequentialBytes(random.Next(50, 1024*16 - 3)),
+						(i + 1 < frame_count) ? MqFrameType.More : MqFrameType.Last);
+				} else {
+					frame = new MqFrame(SequentialBytes(frame_length),
+						(i + 1 < frame_count) ? MqFrameType.More : MqFrameType.Last);
+				}
 				message.Add(frame);
 			}
 

@@ -51,14 +51,14 @@ namespace DtronixMessageQueue {
 		internal void EnqueueIncomingBuffer(byte[] buffer) {
 			inbox_bytes.Enqueue(buffer);
 
-			// Update the total bytes this 
-			Interlocked.Add(ref inbox_byte_count, buffer.Length);
-
-			// Signal the workers that work is to be done.
-			if (is_inbox_processing == false) {
-				is_inbox_processing = true;
+			
+			if (inbox_byte_count == 0) {
 				postmaster.ReadOperations.TryAdd(this);
 			}
+			Interlocked.Add(ref inbox_byte_count, buffer.Length);
+
+			// Update the total bytes this 
+
 		}
 
 

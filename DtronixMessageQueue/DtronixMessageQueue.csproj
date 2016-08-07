@@ -77,12 +77,10 @@
     <Compile Include="MqServerReceiveFilter.cs" />
     <Compile Include="MqServerReceiveFilterFactory.cs" />
     <Compile Include="MqSession.cs" />
-    <Compile Include="MqConnector.cs" />
     <None Include="Config\log4net.config" />
     <None Include="Config\log4net.unix.config" />
     <None Include="packages.config" />
     <None Include="Server.cs" />
-    <Compile Include="MqConnectorConfigs.cs" />
     <Compile Include="MqFrameBuilder.cs" />
     <Compile Include="MqWorker.cs" />
     <Compile Include="MqPostmaster.cs" />
