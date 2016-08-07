@@ -24,6 +24,8 @@ namespace DtronixMessageQueue {
 
 		public event EventHandler<IncomingMessageEventArgs> IncomingMessage;
 
+		public event EventHandler Started;
+
 		public MqServer(RootConfig root_config, ServerConfig server_config) : base(new MqServerReceiveFilterFactory()) {
 			if (root_config == null) {
 				root_config = new RootConfig {
@@ -37,17 +39,17 @@ namespace DtronixMessageQueue {
 				};
 			}
 
-			var test = new ServerConfig();
 			if (server_config == null) {
 				server_config = new ServerConfig {
 					ClearIdleSession = true,
 					IdleSessionTimeOut = 120,
-					MaxRequestLength = 1024 * 16,
-					ReceiveBufferSize = 1024 * 24,
 					Ip = "127.0.0.1",
 					Port = 2828
 				};
 			}
+
+			server_config.MaxRequestLength = 1024*16;
+			server_config.ReceiveBufferSize = 1024*24;
 
 			Postmaster = new MqPostmaster(server_config.MaxRequestLength);
 
@@ -62,6 +64,11 @@ namespace DtronixMessageQueue {
 			session.Mailbox.IncomingMessage += OnIncomingMessage;
 
 			return session;
+		}
+
+		protected override void OnStarted() {
+			Started?.Invoke(this, new EventArgs());
+			base.OnStarted();
 		}
 
 		private void OnIncomingMessage(object sender, IncomingMessageEventArgs e) {
