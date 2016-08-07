@@ -13,11 +13,13 @@ namespace DtronixMessageQueue {
 		public int MaxFrameSize { get; }
 		private readonly MqWorker supervisor;
 
-		public BlockingCollection<MqMailbox> WriteOperations = new BlockingCollection<MqMailbox>();
+		private readonly ConcurrentDictionary<MqMailbox, bool> ongoing_write_operations = new ConcurrentDictionary<MqMailbox, bool>();
+		private readonly BlockingCollection<MqMailbox> write_operations = new BlockingCollection<MqMailbox>();
 		private readonly ConcurrentBag<MqWorker> write_workers = new ConcurrentBag<MqWorker>();
 
 
-		public BlockingCollection<MqMailbox> ReadOperations = new BlockingCollection<MqMailbox>();
+		private readonly ConcurrentDictionary<MqMailbox, bool> ongoing_read_operations = new ConcurrentDictionary<MqMailbox, bool>();
+		private readonly BlockingCollection<MqMailbox> read_operations = new BlockingCollection<MqMailbox>();
 		private readonly ConcurrentBag<MqWorker> read_workers = new ConcurrentBag<MqWorker>();
 
 		public MqPostmaster(int max_frame_size) {
@@ -26,8 +28,38 @@ namespace DtronixMessageQueue {
 			//supervisor = new MqWorker(SuperviseWorkers);
 
 			// Create one reader and one writer workers to start off with.
-			CreateWorker(true);
-			CreateWorker(false);
+			CreateReadWorker();
+			CreateWriteWorker();
+		}
+
+
+		public bool SignalWrite(MqMailbox mailbox) {
+			return ongoing_write_operations.TryAdd(mailbox, true) && write_operations.TryAdd(mailbox);
+		}
+
+		private bool TryTakeWrite(out MqMailbox mailbox, int ms_timeout, CancellationToken token) {
+			if (!write_operations.TryTake(out mailbox, ms_timeout, token)) {
+				return false;
+			}
+			bool out_mailbox;
+			return ongoing_write_operations.TryRemove(mailbox, out out_mailbox);
+		}
+
+
+		public bool SignalRead(MqMailbox mailbox) {
+			var result = ongoing_read_operations.TryAdd(mailbox, true);
+			if (!result) {
+				return false;
+			}
+			return read_operations.TryAdd(mailbox);
+		}
+
+		private bool TryTakeRead(out MqMailbox mailbox, int ms_timeout, CancellationToken token) {
+			if (!read_operations.TryTake(out mailbox, ms_timeout, token)) {
+				return false;
+			}
+			bool out_mailbox;
+			return ongoing_read_operations.TryRemove(mailbox, out out_mailbox);
 		}
 
 
@@ -42,7 +74,7 @@ namespace DtronixMessageQueue {
 					var read_averages = read_workers.Sum(worker => worker.AverageIdleTime)/read_workers.Count;
 
 					if (read_averages < 50) {
-						CreateWorker(false);
+						CreateReadWorker();
 					}
 				}
 
@@ -50,7 +82,7 @@ namespace DtronixMessageQueue {
 					var write_averages = write_workers.Sum(worker => worker.AverageIdleTime)/write_workers.Count;
 
 					if (write_averages < 50) {
-						CreateWorker(true);
+						CreateWriteWorker();
 					}
 				}
 
@@ -60,24 +92,42 @@ namespace DtronixMessageQueue {
 
 
 		/// <summary>
-		/// Creates a worker in either a reader or writer state.
+		/// Creates a worker writer.
 		/// </summary>
-		/// <param name="is_writer">True if this is a writer worker, false if this is a reader worker.</param>
-		public void CreateWorker(bool is_writer) {
-			var mailbox_collection = is_writer ? WriteOperations : ReadOperations;
+		public void CreateWriteWorker() {
+			var writer_worker = new MqWorker(token => {
+				MqMailbox mailbox = null;
 
+				try {
+					while (TryTakeWrite(out mailbox, 60000, token)) {
+						mailbox.ProcessOutbox();
+					}
+				} catch (ThreadAbortException) {
+				} catch (Exception e) {
+					if (mailbox != null) {
+						/*logger.Error(e,
+							is_writer
+								? "MqConnection {0}: Exception occurred while when writing."
+								: "MqConnection {0}: Exception occurred while when reading.", mailbox.Connection.Id);*/
+					}
+				}
+			});
+
+			writer_worker.Start();
+
+			write_workers.Add(writer_worker);
+		}
+
+		/// <summary>
+		/// Creates a worker reader.
+		/// </summary>
+		public void CreateReadWorker() {
 			var reader_worker = new MqWorker(token => {
 				MqMailbox mailbox = null;
 
 				try {
-					while (mailbox_collection.TryTake(out mailbox, 60000, token)) {
-						if (is_writer) {
-							// If this is a writer worker, process only the outbox.
-							mailbox.ProcessOutbox();
-						} else {
-							// If this is a reader worker, process only the inbox.
-							mailbox.ProcessIncomingQueue();
-						}
+					while (TryTakeRead(out mailbox, 60000, token)) {
+						mailbox.ProcessIncomingQueue();
 					}
 				} catch (ThreadAbortException) {
 				} catch (Exception e) {

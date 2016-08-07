@@ -20,9 +20,6 @@ namespace DtronixMessageQueue {
 
 		private MqMessage message;
 
-		private bool is_inbox_processing;
-		private bool is_outbox_processing;
-
 		private readonly ConcurrentQueue<MqMessage> outbox = new ConcurrentQueue<MqMessage>();
 
 		private readonly ConcurrentQueue<byte[]> inbox_bytes = new ConcurrentQueue<byte[]>();
@@ -34,7 +31,6 @@ namespace DtronixMessageQueue {
 		public MqClient Client => client;
 
 		public MqSession Session => session;
-
 
 		public MqMailbox(MqPostmaster postmaster, MqSession session) {
 			this.postmaster = postmaster;
@@ -51,14 +47,9 @@ namespace DtronixMessageQueue {
 		internal void EnqueueIncomingBuffer(byte[] buffer) {
 			inbox_bytes.Enqueue(buffer);
 
-			
-			if (inbox_byte_count == 0) {
-				postmaster.ReadOperations.TryAdd(this);
-			}
+			postmaster.SignalRead(this);
+
 			Interlocked.Add(ref inbox_byte_count, buffer.Length);
-
-			// Update the total bytes this 
-
 		}
 
 
@@ -66,10 +57,7 @@ namespace DtronixMessageQueue {
 			outbox.Enqueue(out_message);
 
 			// Signal the workers that work is to be done.
-			if (is_outbox_processing == false) {
-				is_outbox_processing = true;
-				postmaster.WriteOperations.TryAdd(this);
-			}
+			postmaster.SignalWrite(this);
 		}
 
 
@@ -128,8 +116,6 @@ namespace DtronixMessageQueue {
 				// Send the last of the buffer queue.
 				SendBufferQueue(buffer_queue, length);
 			}
-
-			is_outbox_processing = false;
 		}
 
 		internal async void ProcessIncomingQueue() {
@@ -175,7 +161,6 @@ namespace DtronixMessageQueue {
 			if (new_message) {
 				IncomingMessage?.Invoke(this, new IncomingMessageEventArgs(this));
 			}
-			is_inbox_processing = false;
 		}
 
 
