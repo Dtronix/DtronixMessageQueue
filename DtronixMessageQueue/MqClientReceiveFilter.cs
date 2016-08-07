@@ -8,12 +8,12 @@ using SuperSocket.ProtoBase;
 
 namespace DtronixMessageQueue {
 	class MqClientReceiveFilter : FixedHeaderReceiveFilter<BufferedPackageInfo> {
-
-		public MqClientReceiveFilter() : base(3) { }
+		public MqClientReceiveFilter() : base(3) {
+		}
 
 
 		protected override int GetBodyLengthFromHeader(IBufferStream buffer_stream, int length) {
-			buffer_stream.Skip(1);
+			buffer_stream.ReadByte();
 			var sz = buffer_stream.ReadUInt16(true);
 			return sz;
 		}
@@ -21,6 +21,5 @@ namespace DtronixMessageQueue {
 		public override BufferedPackageInfo ResolvePackage(IBufferStream buffer_stream) {
 			return new BufferedPackageInfo(null, buffer_stream.Buffers);
 		}
-
 	}
 }

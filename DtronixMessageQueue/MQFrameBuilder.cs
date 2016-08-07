@@ -48,14 +48,13 @@ namespace DtronixMessageQueue {
 		}
 
 		private void WriteInternal(byte[] client_bytes, int offset, int count) {
-
 			buffer_stream.Position = write_position;
 			try {
 				buffer_stream.Write(client_bytes, offset, count);
 			} catch (Exception e) {
 				throw new InvalidDataException("FrameBuilder was sent a frame larger than the session allows.", e);
 			}
-			
+
 			write_position += count;
 
 			// Update the stream length 
@@ -63,10 +62,9 @@ namespace DtronixMessageQueue {
 		}
 
 
-		
 		private void MoveStreamBytesToBeginning() {
 			var i = 0;
-			for (;i < write_position - read_position; i++) {
+			for (; i < write_position - read_position; i++) {
 				buffer[i] = buffer[i + read_position];
 			}
 
@@ -83,7 +81,6 @@ namespace DtronixMessageQueue {
 			//seaphore.Wait();
 
 			try {
-
 				// If we are over the byte limitation, then move the client_bytes back to the beginning of the stream and reset the stream.
 				if (count + write_position > buffer.Length) {
 					MoveStreamBytesToBeginning();
@@ -101,7 +98,8 @@ namespace DtronixMessageQueue {
 						ReadInternal(frame_type_bytes, 0, 1);
 
 						if (frame_type_bytes[0] > 4) {
-							throw new InvalidDataException($"FrameBuilder was sent a frame with an invalid type.  Type sent: {frame_type_bytes[0]}");
+							throw new InvalidDataException(
+								$"FrameBuilder was sent a frame with an invalid type.  Type sent: {frame_type_bytes[0]}");
 						}
 
 						current_frame_type = (MqFrameType) frame_type_bytes[0];
@@ -148,12 +146,9 @@ namespace DtronixMessageQueue {
 			} finally {
 				//seaphore.Release();
 			}
-
-
 		}
 
 		public void Dispose() {
-
 			buffer_stream.Dispose();
 
 			// Delete all the Frames.

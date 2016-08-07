@@ -8,18 +8,15 @@ using System.Threading.Tasks;
 
 namespace DtronixMessageQueue {
 	public class MqMessage : IList<MqFrame> {
-
 		internal readonly List<MqFrame> Frames = new List<MqFrame>();
 
 		public MqMessage() {
-
 		}
 
 		public byte[] ToByteArray() {
 			var total_size = Frames.Sum(frame => frame.FrameLength);
 			var buffer = new byte[total_size];
 			using (var stream = new MemoryStream(buffer)) {
-
 				for (var i = 0; i < Frames.Count; i++) {
 					var frame = Frames[i];
 
@@ -67,6 +64,7 @@ namespace DtronixMessageQueue {
 		public int Count => Frames.Count;
 
 		public bool IsReadOnly => false;
+
 		public int IndexOf(MqFrame item) {
 			return Frames.IndexOf(item);
 		}

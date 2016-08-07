@@ -6,7 +6,6 @@ using System.Threading.Tasks;
 
 namespace DtronixMessageQueue {
 	public class IncomingMessageEventArgs : EventArgs {
-
 		public MqMailbox Mailbox { get; set; }
 
 		public IncomingMessageEventArgs(MqMailbox mailbox) {

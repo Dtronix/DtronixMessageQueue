@@ -9,16 +9,15 @@ namespace DtronixMessageQueue {
 		}
 
 		protected override int GetBodyLengthFromHeader(byte[] header, int offset, int length) {
-			var bytes = new[] {header[offset+1], header[offset + 2]};
+			var bytes = new[] {header[offset + 1], header[offset + 2]};
 			return BitConverter.ToUInt16(bytes, 0);
 		}
 
-		protected override RequestInfo<byte, byte[]> ResolveRequestInfo(ArraySegment<byte> header, byte[] body_buffer, int offset, int length) {
+		protected override RequestInfo<byte, byte[]> ResolveRequestInfo(ArraySegment<byte> header, byte[] body_buffer,
+			int offset, int length) {
 			var bytes = new byte[length];
 			Buffer.BlockCopy(body_buffer, offset, bytes, 0, length);
 			return new RequestInfo<byte, byte[]>("", header.Array[header.Offset], bytes);
 		}
 	}
-
 }
-

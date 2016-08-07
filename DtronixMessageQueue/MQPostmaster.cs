@@ -5,6 +5,7 @@ using System.Linq;
 using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
+
 //using NLog;
 
 namespace DtronixMessageQueue {
@@ -38,7 +39,7 @@ namespace DtronixMessageQueue {
 		private async void SuperviseWorkers(object o) {
 			if (!(o is CancellationToken)) return;
 
-			var token = (CancellationToken)o;
+			var token = (CancellationToken) o;
 			while (token.IsCancellationRequested == false) {
 				if (read_workers.IsEmpty == false) {
 					var read_averages = read_workers.Sum(worker => worker.AverageIdleTime)/read_workers.Count;
@@ -76,12 +77,10 @@ namespace DtronixMessageQueue {
 						if (is_writer) {
 							// If this is a writer worker, process only the outbox.
 							mailbox.ProcessOutbox();
-
 						} else {
 							// If this is a reader worker, process only the inbox.
 							mailbox.ProcessIncomingQueue();
 						}
-
 					}
 				} catch (ThreadAbortException) {
 				} catch (Exception e) {

@@ -4,13 +4,11 @@ using System.Collections.Generic;
 using System.IO;
 using System.Net.Sockets;
 using System.Threading;
+
 //using NLog;
 
 namespace DtronixMessageQueue {
 	public abstract class MqConnector : IDisposable {
-
-
-
 		/// <summary>
 		/// This event fires when a connection has been shutdown.
 		/// </summary>
@@ -33,13 +31,10 @@ namespace DtronixMessageQueue {
 
 		public bool IsRunning { get; protected set; }
 
-		
-
-		
 
 		protected MqConnector() {
 			// Setup the postmaster and the threads associated with it.
-			//Postmaster = new MqPostmaster(this);
+			//postmaster = new MqPostmaster(this);
 		}
 
 		protected void OnConnected() {
@@ -64,7 +59,6 @@ namespace DtronixMessageQueue {
 		public void Send(MqSession session, byte[] buffer, int offset, int count) {
 			session.SocketSession.TrySend(new ArraySegment<byte>(buffer, offset, count));
 		}
-
 
 
 		public void Dispose() {

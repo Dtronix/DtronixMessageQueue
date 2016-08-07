@@ -95,7 +95,7 @@ namespace DtronixMessageQueue {
 			if (client != null) {
 				client.Send(buffer);
 			} else {
-				session.Send(buffer, 0, length);
+				session.Send(buffer, 0, buffer.Length);
 			}
 		}
 
@@ -153,7 +153,7 @@ namespace DtronixMessageQueue {
 					} else {
 						session.Close(CloseReason.ApplicationError);
 					}
-					
+
 					break;
 				}
 
@@ -178,7 +178,6 @@ namespace DtronixMessageQueue {
 			is_inbox_processing = false;
 		}
 
-		
 
 		public void Dispose() {
 			IncomingMessage = null;

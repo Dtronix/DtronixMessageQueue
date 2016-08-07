@@ -8,7 +8,6 @@ using System.Threading.Tasks;
 namespace DtronixMessageQueue {
 	// ReSharper disable once InconsistentNaming
 	public class MqFrame : IDisposable {
-
 		private byte[] data;
 
 		/// <summary>
@@ -34,7 +33,6 @@ namespace DtronixMessageQueue {
 				// If this frame is empty, then it has a total of one byte.
 				if (FrameType == MqFrameType.Empty) {
 					return 1;
-
 				}
 
 				return HeaderLength + DataLength;
@@ -47,7 +45,7 @@ namespace DtronixMessageQueue {
 			if (type == MqFrameType.EmptyLast || type == MqFrameType.Empty) {
 				DataLength = 0;
 			} else {
-				if (bytes.Length > 1024 * 16) {
+				if (bytes.Length > 1024*16) {
 					throw new ArgumentException("Byte array must be less than 16384 bytes", nameof(bytes));
 				}
 
@@ -82,8 +80,7 @@ namespace DtronixMessageQueue {
 			bytes[0] = (byte) FrameType;
 
 
-
-			var size_bytes = BitConverter.GetBytes((short)DataLength);
+			var size_bytes = BitConverter.GetBytes((short) DataLength);
 
 			// Copy the length.
 			Buffer.BlockCopy(size_bytes, 0, bytes, 1, 2);

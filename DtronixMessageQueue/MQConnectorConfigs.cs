@@ -6,6 +6,5 @@ using System.Threading.Tasks;
 
 namespace DtronixMessageQueue {
 	public class MqConnectorConfigs {
-
 	}
 }

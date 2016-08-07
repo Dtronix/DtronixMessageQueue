@@ -24,7 +24,8 @@ namespace DtronixMessageQueue {
 
 		public MqWorker(Action<CancellationToken> work) {
 			this.work = work;
-			worker_task = new Task(ProcessQueue, cancellation_source.Token, cancellation_source.Token, TaskCreationOptions.LongRunning);
+			worker_task = new Task(ProcessQueue, cancellation_source.Token, cancellation_source.Token,
+				TaskCreationOptions.LongRunning);
 		}
 
 		/// <summary>
@@ -47,11 +48,11 @@ namespace DtronixMessageQueue {
 
 			while (token.IsCancellationRequested == false) {
 				idle_stopwatch.Restart();
-				
+
 				// Check the average time this thread remains idle
 				average_idle_time = average_idle_time == -1
 					? idle_stopwatch.ElapsedMilliseconds
-					: (idle_stopwatch.ElapsedMilliseconds + average_idle_time) / 2;
+					: (idle_stopwatch.ElapsedMilliseconds + average_idle_time)/2;
 
 				try {
 					work?.Invoke(token);
