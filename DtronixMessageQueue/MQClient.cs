@@ -45,22 +45,17 @@ namespace DtronixMessageQueue {
 			var data_list = (BufferList) buff_package.Data;
 
 			byte[] buffer = new byte[data_list.Total - 3];
-			bool header_removed = false;
+			int writer_offset = 0;
 
-			foreach (var bytes in data_list) {
+			foreach (var buffer_seg in data_list) {
 				// If the first array is the exact length of our header, ignore it.
-				if (header_removed == false && bytes.Count == 3) {
-					header_removed = true;
+				if (writer_offset == 0 && buffer_seg.Count == 3) {
 					continue;
 				}
 				//TODO: Verify whether or not the "Package" already copies the data or if it is from a large buffer source.
 				// Offset the destination -3 due to the offset containing the header.
-				if (header_removed) {
-					Buffer.BlockCopy(bytes.Array, bytes.Offset, buffer, bytes.Offset - 3, bytes.Count);
-				} else {
-					Buffer.BlockCopy(bytes.Array, bytes.Offset, buffer, bytes.Offset, bytes.Count);
-				}
-				
+				Buffer.BlockCopy(buffer_seg.Array, buffer_seg.Offset, buffer, writer_offset, buffer_seg.Count);
+				writer_offset += buffer_seg.Count;
 			}
 
 			mailbox.EnqueueIncomingBuffer(buffer);

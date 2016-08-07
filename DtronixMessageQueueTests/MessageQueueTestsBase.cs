@@ -19,6 +19,8 @@ namespace DtronixMessageQueueTests {
 		public MqClient Client { get; }
 		public int Port { get; }
 
+		public Exception LastException { get; set; }
+
 		public TimeSpan TestTimeout { get; set; } = new TimeSpan(0, 0, 20);
 
 		public ManualResetEventSlim TestStatus { get; set; } = new ManualResetEventSlim(false);
@@ -53,24 +55,28 @@ namespace DtronixMessageQueueTests {
 			Server.Start();
 			
 			TestStatus.Wait(TestTimeout);
+
+			if (LastException != null) {
+				throw LastException;
+			}
 		}
 
-		public bool CompareMessages(MqMessage expected, MqMessage actual) {
-			// Total frame count comparison.
-			Assert.Equal(expected.Count, actual.Count);
+		public void CompareMessages(MqMessage expected, MqMessage actual) {
+			try {
 
-			for (int i = 0; i < expected.Count; i++) {
-				// Frame length comparison.
-				Assert.Equal(expected[0].DataLength, actual[0].DataLength);
 
-				for (int j = 0; j < expected[0].DataLength; j++) {
+				// Total frame count comparison.
+				Assert.Equal(expected.Count, actual.Count);
 
-					// Each byte.
-					Assert.Equal(expected[0].Data[j], actual[0].Data[j]);
+				for (int i = 0; i < expected.Count; i++) {
+					// Frame length comparison.
+					Assert.Equal(expected[0].DataLength, actual[0].DataLength);
+
+					Assert.Equal(expected[0].Data, actual[0].Data);
 				}
+			} catch (Exception e) {
+				LastException = e;
 			}
-
-			return true;
 		}
 
 		public MqMessage GenerateRandomMessage() {
@@ -101,8 +107,13 @@ namespace DtronixMessageQueueTests {
 
 
 		public void Dispose() {
-			Server.Stop();
-			Client.Close();
+			try {
+				Server.Stop();
+			} catch { }
+			try {
+				Client.Close();
+			} catch { }
+			
 		}
 	}
 }
