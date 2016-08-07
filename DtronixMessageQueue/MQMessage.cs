@@ -9,7 +9,7 @@ using System.Threading.Tasks;
 namespace DtronixMessageQueue {
 	public class MqMessage : IList<MqFrame> {
 
-		public readonly List<MqFrame> Frames = new List<MqFrame>();
+		internal readonly List<MqFrame> Frames = new List<MqFrame>();
 
 		public MqMessage() {
 
@@ -65,6 +65,7 @@ namespace DtronixMessageQueue {
 		}
 
 		public int Count => Frames.Count;
+
 		public bool IsReadOnly => false;
 		public int IndexOf(MqFrame item) {
 			return Frames.IndexOf(item);
@@ -81,6 +82,11 @@ namespace DtronixMessageQueue {
 		public MqFrame this[int index] {
 			get { return Frames[index]; }
 			set { Frames[index] = value; }
+		}
+
+		public override string ToString() {
+			var size = Frames.Sum(frame => frame.DataLength);
+			return $"MqMessage with {Frames.Count} frames totaling {size:N0} bytes.";
 		}
 	}
 }

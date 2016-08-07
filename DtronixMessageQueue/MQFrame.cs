@@ -11,7 +11,6 @@ namespace DtronixMessageQueue {
 
 		private byte[] data;
 
-
 		/// <summary>
 		/// Information about this frame and how it relates to other Frames.
 		/// </summary>
@@ -21,11 +20,6 @@ namespace DtronixMessageQueue {
 		/// Total bytes that this frame contains.
 		/// </summary>
 		public int DataLength { get; }
-
-		/// <summary>
-		/// True if this frame data has been completely read.
-		/// </summary>
-		public bool FrameComplete => data != null;
 
 		/// <summary>
 		/// Bytes this frame contains.
@@ -100,9 +94,10 @@ namespace DtronixMessageQueue {
 			return bytes;
 		}
 
+		public override string ToString() {
+			return $"MqFrame totaling {DataLength:N0} bytes; Type: {FrameType}";
+		}
 
-
-		
 
 		public void Dispose() {
 			data = null;
