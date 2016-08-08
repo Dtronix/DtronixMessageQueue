@@ -42,10 +42,10 @@ namespace MqPerformanceTests {
 				};
 
 			var message2 = new MqMessage {
-					new MqFrame(RandomBytes(15), MqFrameType.More),
-					new MqFrame(RandomBytes(30), MqFrameType.More),
-					new MqFrame(RandomBytes(72), MqFrameType.More),
-					new MqFrame(RandomBytes(86), MqFrameType.Last)
+					new MqFrame(RandomBytes(50), MqFrameType.More),
+					new MqFrame(RandomBytes(50), MqFrameType.More),
+					new MqFrame(RandomBytes(50), MqFrameType.More),
+					new MqFrame(RandomBytes(50), MqFrameType.Last)
 				};
 
 

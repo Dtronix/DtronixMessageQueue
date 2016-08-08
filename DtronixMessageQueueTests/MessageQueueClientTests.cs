@@ -2,6 +2,7 @@
 using System.Diagnostics;
 using System.Net;
 using System.Threading;
+using System.Threading.Tasks;
 using DtronixMessageQueue;
 using SuperSocket.SocketBase;
 using SuperSocket.SocketBase.Config;
@@ -20,15 +21,14 @@ namespace DtronixMessageQueueTests {
 		[InlineData(1, false)]
 		[InlineData(1, true)]
 		[InlineData(50, true)]
-		[InlineData(10000, false)]
+		[InlineData(1000, true)]
 		public void Client_should_send_data_to_server(int number, bool validate) {
-			var message_source = GenerateRandomMessage(4, 10000);
+			var message_source = GenerateRandomMessage(4, 50);
 			int received_messages = 0;
 			Client.Connected += (sender, args) => {
 				for (int i = 0; i < number; i++) {
 					Client.Send(message_source);
 				}
-
 			};
 
 			Server.IncomingMessage += (sender, args) => {

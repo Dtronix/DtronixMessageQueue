@@ -23,9 +23,9 @@ namespace DtronixMessageQueueTests {
 		[InlineData(1, false)]
 		[InlineData(1, true)]
 		[InlineData(100, true)]
-		[InlineData(1000000, true)]
+		[InlineData(1000, true)]
 		public void Server_should_send_data_to_client(int number, bool validate) {
-			var message_source = GenerateRandomMessage();
+			var message_source = GenerateRandomMessage(4, 50);
 
 			Server.NewSessionConnected += session => {
 				for (int i = 0; i < number; i++) {

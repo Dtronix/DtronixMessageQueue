@@ -72,9 +72,9 @@ namespace DtronixMessageQueueTests {
 
 				for (int i = 0; i < expected.Count; i++) {
 					// Frame length comparison.
-					Assert.Equal(expected[0].DataLength, actual[0].DataLength);
+					Assert.Equal(expected[i].DataLength, actual[i].DataLength);
 
-					Assert.Equal(expected[0].Data, actual[0].Data);
+					Assert.Equal(expected[i].Data, actual[i].Data);
 				}
 			} catch (Exception e) {
 				LastException = e;
