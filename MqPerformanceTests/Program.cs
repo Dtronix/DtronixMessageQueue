@@ -6,30 +6,52 @@ using DtronixMessageQueue;
 namespace MqPerformanceTests {
 	class Program {
 		static void Main(string[] args) {
-			MqPerformanceTests();
+
+			var small_message = new MqMessage {
+				new MqFrame(RandomBytes(50), MqFrameType.More),
+				new MqFrame(RandomBytes(50), MqFrameType.More),
+				new MqFrame(RandomBytes(50), MqFrameType.More),
+				new MqFrame(RandomBytes(50), MqFrameType.Last)
+			};
+
+			MqPerformanceTests(1000000, 5, small_message);
+
+			var medimum_message = new MqMessage {
+				new MqFrame(RandomBytes(500), MqFrameType.More),
+				new MqFrame(RandomBytes(500), MqFrameType.More),
+				new MqFrame(RandomBytes(500), MqFrameType.More),
+				new MqFrame(RandomBytes(500), MqFrameType.Last)
+			};
+
+			MqPerformanceTests(100000, 5, medimum_message);
+
+			var large_message = new MqMessage {
+				new MqFrame(RandomBytes(15000), MqFrameType.More),
+				new MqFrame(RandomBytes(15000), MqFrameType.More),
+				new MqFrame(RandomBytes(15000), MqFrameType.More),
+				new MqFrame(RandomBytes(15000), MqFrameType.Last)
+			};
+
+			MqPerformanceTests(10000, 5, large_message);
+
+			Console.ReadLine();
 		}
 
-		private static void MqPerformanceTests() {
+		private static void MqPerformanceTests(int runs, int loops, MqMessage message) {
 			var server = new MqServer();
 			server.Start();
 
-			int runs = 1000000;
-			int count = 0;
-			Stopwatch sw = new Stopwatch();
+			double[] total_values = { 0, 0, 0 };
+
+			var count = 0;
+			var sw = new Stopwatch();
 			var wait = new AutoResetEvent(false);
-			bool running = false;
 
 			var client = new MqClient();
 
-			Console.WriteLine("| Build Type   | Messages     | Miliseconds  | MPS        | MBps     |");
-			Console.WriteLine("|--------------|--------------|--------------|------------|----------|");
+			Console.WriteLine("|   Build |   Messages | Msg Bytes | Milliseconds |        MPS |     MBps |");
+			Console.WriteLine("|---------|------------|-----------|--------------|------------|----------|");
 
-			var message = new MqMessage {
-					new MqFrame(RandomBytes(50), MqFrameType.More),
-					new MqFrame(RandomBytes(50), MqFrameType.More),
-					new MqFrame(RandomBytes(50), MqFrameType.More),
-					new MqFrame(RandomBytes(50), MqFrameType.Last)
-				};
 
 			var message_size = message.Size;
 
@@ -42,17 +64,23 @@ namespace MqPerformanceTests {
 
 				if (count == runs) {
 					sw.Stop();
-					string mode = "Release";
+					var mode = "Release";
 
 #if DEBUG
 					mode = "Debug";
 #endif
 
 					var messages_per_second = (int)((double)runs / sw.ElapsedMilliseconds * 1000);
-					var mbps = runs * (double)(message_size - 12) / sw.ElapsedMilliseconds / 1000;
+					var msg_size_no_header = message_size - 12;
+					var mbps = runs * (double)(msg_size_no_header) / sw.ElapsedMilliseconds / 1000;
 					Console.CursorLeft = 0;
-					Console.WriteLine("| {0,12} | {1,12:N0} | {2,12:N0} | {3,10:N0} | {4,8:N2} |", mode, runs, sw.ElapsedMilliseconds, messages_per_second, mbps);
-					running = false;
+					Console.WriteLine("| {0,7} | {1,10:N0} | {2,9:N0} | {3,12:N0} | {4,10:N0} | {5,8:N2} |", mode, runs, msg_size_no_header, sw.ElapsedMilliseconds, messages_per_second, mbps);
+					total_values[0] += sw.ElapsedMilliseconds;
+					total_values[1] += messages_per_second;
+					total_values[2] += mbps;
+
+
+					wait.Set();
 				}
 
 			};
@@ -60,39 +88,41 @@ namespace MqPerformanceTests {
 
 
 			var send = new Action(() => {
-				if (running) {
-					return;
-				}
-				running = true;
 				Console.WriteLine("Running...");
 				Console.CursorTop -= 1;
 				count = 0;
 				sw.Restart();
-				for (int i = 0; i < runs; i++) {
+				for (var i = 0; i < runs; i++) {
 					client.Send(message);
 				}
-				Console.ReadLine();
-				Console.CursorTop -= 1;
+				wait.WaitOne();
+				wait.Reset();
 
 			});
 
-			client.Connected += (sender, args2) => {
-				//send();
-			};
-
 			client.ConnectAsync("127.0.0.1").Wait();
 
-			while (true) {
+			for (var i = 0; i < loops; i++) {
 				send();
 			}
+
+			Console.WriteLine("|---------|------------|-----------|--------------|------------|----------|");
+			Console.CursorLeft = 0;
+			Console.WriteLine("|------------------------ AVERAGES | {0,12:N0} | {1,10:N0} | {2,8:N2} |", total_values[0] / loops, total_values[1] / loops, total_values[2] / loops);
+			Console.WriteLine("|---------|------------|-----------|--------------|------------|----------|");
+			Console.WriteLine();
+
+			server.Stop();
+			client.Close().Wait();
+
 		}
 
 
 		private static byte[] RandomBytes(int len) {
 			var number = 0;
-			byte[] val = new byte[len];
+			var val = new byte[len];
 
-			for (int i = 0; i < len; i++) {
+			for (var i = 0; i < len; i++) {
 				val[i] = (byte)number++;
 				if (number > 255) {
 					number = 0;
