@@ -6,7 +6,10 @@ using System.Text;
 using System.Threading.Tasks;
 
 namespace DtronixMessageQueue {
-	// ReSharper disable once InconsistentNaming
+	
+	/// <summary>
+	/// Data frame containing raw data to be sent over the transport.
+	/// </summary>
 	public class MqFrame : IDisposable {
 		private byte[] data;
 
@@ -56,12 +59,15 @@ namespace DtronixMessageQueue {
 			FrameType = type;
 		}
 
+		/// <summary>
+		/// Sets this frame to be the last frame of a message.
+		/// </summary>
 		public void SetLast() {
 			FrameType = FrameType == MqFrameType.Empty ? MqFrameType.EmptyLast : MqFrameType.Last;
 		}
 
 		/// <summary>
-		/// Returns this frame as a raw byte array.
+		/// Returns this frame as a raw byte array. (Header + data)
 		/// </summary>
 		/// <returns>Frame bytes.</returns>
 		public byte[] RawFrame() {
@@ -91,11 +97,18 @@ namespace DtronixMessageQueue {
 			return bytes;
 		}
 
+		/// <summary>
+		/// Creates a string representation of this frame.
+		/// </summary>
+		/// <returns>A string representation of this frame.</returns>
 		public override string ToString() {
 			return $"MqFrame totaling {DataLength:N0} bytes; Type: {FrameType}";
 		}
 
 
+		/// <summary>
+		/// Disposes of this object and its resources.
+		/// </summary>
 		public void Dispose() {
 			data = null;
 		}

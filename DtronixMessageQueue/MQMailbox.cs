@@ -9,41 +9,96 @@ using System.Threading.Tasks;
 using SuperSocket.SocketBase;
 
 namespace DtronixMessageQueue {
+
+	/// <summary>
+	/// Mailbox containing inbox, outbox and the logic to process both.
+	/// </summary>
 	public class MqMailbox : IDisposable {
+		
+		/// <summary>
+		/// The postmaster for this client/server.
+		/// </summary>
 		private readonly MqPostmaster postmaster;
+
+
 		private readonly MqClient client;
+
+		/// <summary>
+		/// Client reference.  If this mailbox is run as a server mailbox, this is then null.
+		/// </summary>
+		public MqClient Client => client;
+
+
 		private readonly MqSession session;
+
+		/// <summary>
+		/// Session reference.  If this mailbox is run as a client mailbox, this is then null.
+		/// </summary>
+		public MqSession Session => session;
+
+		/// <summary>
+		/// Internal framebuilder for this instance.
+		/// </summary>
 		private readonly MqFrameBuilder frame_builder;
 
 		//private static readonly Logger logger = LogManager.GetCurrentClassLogger();
+
+		/// <summary>
+		/// Total bytes the inbox has remaining to process.
+		/// </summary>
 		private int inbox_byte_count;
 
+		/// <summary>
+		/// Reference to the current message being processed by the inbox.
+		/// </summary>
 		private MqMessage message;
 
+		/// <summary>
+		/// Outbox message queue.  Internally used to store Messages before being sent to the wire by the postmaster.
+		/// </summary>
 		private readonly ConcurrentQueue<MqMessage> outbox = new ConcurrentQueue<MqMessage>();
 
+		/// <summary>
+		/// Inbox byte queue.  Internally used to store the raw frame bytes before while waiting to be processed by the postmaster.
+		/// </summary>
 		private readonly ConcurrentQueue<byte[]> inbox_bytes = new ConcurrentQueue<byte[]>();
 
+		/// <summary>
+		/// Event fired when a new message has been processed by the postmaster and ready to be read.
+		/// </summary>
 		public event EventHandler<IncomingMessageEventArgs> IncomingMessage;
 
+		/// <summary>
+		/// Inbox to containing new messages received.
+		/// </summary>
 		public ConcurrentQueue<MqMessage> Inbox { get; } = new ConcurrentQueue<MqMessage>();
 
-		public MqClient Client => client;
-
-		public MqSession Session => session;
-
+		/// <summary>
+		/// Initializes a new instance of the MqMailbox class.
+		/// </summary>
+		/// <param name="postmaster">Reference to the postmaster for this instance.</param>
+		/// <param name="session">Session from the server for this instance.</param>
 		public MqMailbox(MqPostmaster postmaster, MqSession session) {
 			this.postmaster = postmaster;
 			this.session = session;
 			frame_builder = new MqFrameBuilder(postmaster);
 		}
 
+		/// <summary>
+		/// Initializes a new instance of the MqMailbox class.
+		/// </summary>
+		/// <param name="postmaster">Reference to the postmaster for this instance.</param>
+		/// <param name="client">Client reference for this instance.</param>
 		public MqMailbox(MqPostmaster postmaster, MqClient client) {
 			this.postmaster = postmaster;
 			this.client = client;
 			frame_builder = new MqFrameBuilder(postmaster);
 		}
 
+		/// <summary>
+		/// Adds bytes from the client/server reading methods to be processed by the postmaster.
+		/// </summary>
+		/// <param name="buffer">Buffer of bytes to read. Does not copy the bytes to the buffer.</param>
 		internal void EnqueueIncomingBuffer(byte[] buffer) {
 			inbox_bytes.Enqueue(buffer);
 
@@ -53,14 +108,23 @@ namespace DtronixMessageQueue {
 		}
 
 
-		internal void EnqueueOutgoingMessage(MqMessage out_message) {
-			outbox.Enqueue(out_message);
+		/// <summary>
+		/// Adds a message to the outbox to be processed by the postmaster.
+		/// </summary>
+		/// <param name="message">Message to send.</param>
+		internal void EnqueueOutgoingMessage(MqMessage message) {
+			outbox.Enqueue(message);
 
 			// Signal the workers that work is to be done.
 			postmaster.SignalWrite(this);
 		}
 
-
+		
+		/// <summary>
+		/// Sends a queue of bytes to the connected client/server.
+		/// </summary>
+		/// <param name="buffer_queue">Queue of bytes to send to the wire.</param>
+		/// <param name="length">Total length of the bytes in the queue to send.</param>
 		private void SendBufferQueue(Queue<byte[]> buffer_queue, int length) {
 			var buffer = new byte[length + 3];
 
@@ -87,9 +151,10 @@ namespace DtronixMessageQueue {
 			}
 		}
 
-		//private SemaphoreSlim semaphore = new SemaphoreSlim(1, 1);
 
-
+		/// <summary>
+		/// Internally called method by the postmaster on a different thread to send all messages in the outbox.
+		/// </summary>
 		internal void ProcessOutbox() {
 			MqMessage result;
 			var length = 0;
@@ -118,6 +183,9 @@ namespace DtronixMessageQueue {
 			}
 		}
 
+		/// <summary>
+		/// Internal method called by the postmaster on a different thread to process all bytes in the inbox.
+		/// </summary>
 		internal async void ProcessIncomingQueue() {
 			if (message == null) {
 				message = new MqMessage();
@@ -163,7 +231,9 @@ namespace DtronixMessageQueue {
 			}
 		}
 
-
+		/// <summary>
+		/// Releases all resources held by this object.
+		/// </summary>
 		public void Dispose() {
 			IncomingMessage = null;
 		}

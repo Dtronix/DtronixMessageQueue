@@ -51,6 +51,32 @@ namespace DtronixMessageQueueTests {
 		}
 
 
+
+		[Fact]
+		public void Client_does_not_send_empty_message() {
+			var message_source = GenerateRandomMessage(4, 50);
+			int received_messages = 0;
+			Client.Connected += (sender, args) => {
+				Client.Send(new MqMessage());
+				Client.Send(message_source);
+			};
+
+			Server.IncomingMessage += (sender, args) => {
+				MqMessage message;
+
+				while (args.Mailbox.Inbox.TryDequeue(out message)) {
+					received_messages++;
+				}
+
+				if (received_messages == 1) {
+					TestStatus.Set();
+				}
+			};
+
+			StartAndWait();
+		}
+
+
 		[Fact]
 		public void Client_connects_to_server() {
 
