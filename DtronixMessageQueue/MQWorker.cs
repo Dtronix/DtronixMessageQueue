@@ -8,7 +8,7 @@ using System.Threading;
 using System.Threading.Tasks;
 
 namespace DtronixMessageQueue {
-	public class MqWorker : IDisposable {
+	internal class MqWorker : IDisposable {
 		private readonly Task worker_task;
 		private long average_idle_time = 2000;
 

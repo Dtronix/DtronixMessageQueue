@@ -80,7 +80,6 @@
     <None Include="Config\log4net.config" />
     <None Include="Config\log4net.unix.config" />
     <None Include="packages.config" />
-    <None Include="Server.cs" />
     <Compile Include="MqFrameBuilder.cs" />
     <Compile Include="MqWorker.cs" />
     <Compile Include="MqPostmaster.cs" />

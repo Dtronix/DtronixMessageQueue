@@ -36,12 +36,6 @@ namespace MqPerformanceTests {
 
 
 			var message = new MqMessage {
-					new MqFrame(new byte[] {1, 2, 3, 4}, MqFrameType.More),
-					new MqFrame(new byte[] {0, 9, 8, 7}, MqFrameType.More),
-					new MqFrame(new byte[] {1, 0, 2, 9}, MqFrameType.Last)
-				};
-
-			var message2 = new MqMessage {
 					new MqFrame(RandomBytes(50), MqFrameType.More),
 					new MqFrame(RandomBytes(50), MqFrameType.More),
 					new MqFrame(RandomBytes(50), MqFrameType.More),
@@ -54,7 +48,7 @@ namespace MqPerformanceTests {
 				count = 0;
 				sw.Restart();
 				for (int i = 0; i < runs; i++) {
-					client.Send(message2);
+					client.Send(message);
 				}
 				Console.ReadLine();
 			});

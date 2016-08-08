@@ -131,7 +131,7 @@ namespace DtronixMessageQueue {
 
 				try {
 					frame_builder.Write(buffer, 0, buffer.Length);
-				} catch (InvalidDataException ex) {
+				} catch (InvalidDataException) {
 					//logger.Error(ex, "Connector {0}: Client send invalid data.", Connection.Id);
 
 					if (client != null) {

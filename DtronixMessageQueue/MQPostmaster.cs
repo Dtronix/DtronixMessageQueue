@@ -103,7 +103,7 @@ namespace DtronixMessageQueue {
 						mailbox.ProcessOutbox();
 					}
 				} catch (ThreadAbortException) {
-				} catch (Exception e) {
+				} catch (Exception) {
 					if (mailbox != null) {
 						/*logger.Error(e,
 							is_writer
@@ -130,7 +130,7 @@ namespace DtronixMessageQueue {
 						mailbox.ProcessIncomingQueue();
 					}
 				} catch (ThreadAbortException) {
-				} catch (Exception e) {
+				} catch (Exception) {
 					if (mailbox != null) {
 						/*logger.Error(e,
 							is_writer
