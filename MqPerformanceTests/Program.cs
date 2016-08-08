@@ -106,10 +106,8 @@ namespace MqPerformanceTests {
 				send();
 			}
 
-			Console.WriteLine("|---------|------------|-----------|--------------|------------|----------|");
 			Console.CursorLeft = 0;
-			Console.WriteLine("|------------------------ AVERAGES | {0,12:N0} | {1,10:N0} | {2,8:N2} |", total_values[0] / loops, total_values[1] / loops, total_values[2] / loops);
-			Console.WriteLine("|---------|------------|-----------|--------------|------------|----------|");
+			Console.WriteLine("|         |            |  AVERAGES | {0,12:N0} | {1,10:N0} | {2,8:N2} |", total_values[0] / loops, total_values[1] / loops, total_values[2] / loops);
 			Console.WriteLine();
 
 			server.Stop();
