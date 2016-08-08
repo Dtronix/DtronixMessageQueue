@@ -34,7 +34,8 @@ Running the MqPerformanceTests.exe on my 3.2GHz Intel i5-3470 with 8 gb ram perf
 | Release |     10,000 |    60,000 |        3,193 |      3,131 |   187.91 |
 |         |            |  AVERAGES |        3,218 |      3,107 |   186.43 |
 
-Messages were 200 bytes long (excluding the 3 bytes header for the packet and excluding the 3 byte header for the frame) and contained 4 frames each.
+Messages sizes exclude the 3 bytes header for the packet and the 3 byte header for each frame.
+Each message is 4 frames long.
 
 ### License
 Released under MIT license
