@@ -17,8 +17,21 @@ namespace MqPerformanceTests {
 			int count = 0;
 			Stopwatch sw = new Stopwatch();
 			var wait = new AutoResetEvent(false);
+			bool running = false;
 
 			var client = new MqClient();
+
+			Console.WriteLine("| Build Type   | Messages     | Miliseconds  | MPS        | MBps     |");
+			Console.WriteLine("|--------------|--------------|--------------|------------|----------|");
+
+			var message = new MqMessage {
+					new MqFrame(RandomBytes(50), MqFrameType.More),
+					new MqFrame(RandomBytes(50), MqFrameType.More),
+					new MqFrame(RandomBytes(50), MqFrameType.More),
+					new MqFrame(RandomBytes(50), MqFrameType.Last)
+				};
+
+			var message_size = message.Size;
 
 			server.IncomingMessage += (sender, args2) => {
 				MqMessage message_out;
@@ -29,28 +42,38 @@ namespace MqPerformanceTests {
 
 				if (count == runs) {
 					sw.Stop();
-					Console.WriteLine($"Sent {runs} messages in {sw.ElapsedMilliseconds}ms. {(int)((double)runs / sw.ElapsedMilliseconds * 1000)} Messages per second.");
-					wait.Set();
+					string mode = "Release";
+
+#if DEBUG
+					mode = "Debug";
+#endif
+
+					var messages_per_second = (int)((double)runs / sw.ElapsedMilliseconds * 1000);
+					var mbps = runs * (double)(message_size - 12) / sw.ElapsedMilliseconds / 1000;
+					Console.CursorLeft = 0;
+					Console.WriteLine("| {0,12} | {1,12:N0} | {2,12:N0} | {3,10:N0} | {4,8:N2} |", mode, runs, sw.ElapsedMilliseconds, messages_per_second, mbps);
+					running = false;
 				}
+
 			};
 
 
-			var message = new MqMessage {
-					new MqFrame(RandomBytes(50), MqFrameType.More),
-					new MqFrame(RandomBytes(50), MqFrameType.More),
-					new MqFrame(RandomBytes(50), MqFrameType.More),
-					new MqFrame(RandomBytes(50), MqFrameType.Last)
-				};
-
 
 			var send = new Action(() => {
+				if (running) {
+					return;
+				}
+				running = true;
 				Console.WriteLine("Running...");
+				Console.CursorTop -= 1;
 				count = 0;
 				sw.Restart();
 				for (int i = 0; i < runs; i++) {
 					client.Send(message);
 				}
 				Console.ReadLine();
+				Console.CursorTop -= 1;
+
 			});
 
 			client.Connected += (sender, args2) => {

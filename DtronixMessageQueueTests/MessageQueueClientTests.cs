@@ -56,6 +56,7 @@ namespace DtronixMessageQueueTests {
 		public void Client_does_not_send_empty_message() {
 			var message_source = GenerateRandomMessage(4, 50);
 			int received_messages = 0;
+
 			Client.Connected += (sender, args) => {
 				Client.Send(new MqMessage());
 				Client.Send(message_source);

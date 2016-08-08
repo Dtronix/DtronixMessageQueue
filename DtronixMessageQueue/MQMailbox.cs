@@ -162,7 +162,7 @@ namespace DtronixMessageQueue {
 
 			while (outbox.TryDequeue(out result)) {
 				foreach (var frame in result.Frames) {
-					var frame_size = frame.FrameLength;
+					var frame_size = frame.FrameSize;
 					// If this would overflow the max client buffer size, send the full buffer queue.
 					if (length + frame_size > postmaster.MaxFrameSize + 3) {
 						SendBufferQueue(buffer_queue, length);

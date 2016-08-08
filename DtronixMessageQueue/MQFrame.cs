@@ -31,7 +31,7 @@ namespace DtronixMessageQueue {
 		/// <summary>
 		/// Total number of bytes that compose this raw frame.
 		/// </summary>
-		public int FrameLength {
+		public int FrameSize {
 			get {
 				// If this frame is empty, then it has a total of one byte.
 				if (FrameType == MqFrameType.Empty) {
