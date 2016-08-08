@@ -19,9 +19,17 @@ namespace DtronixMessageQueue {
 		public object Token { get; set; }
 
 
+		/// <summary>
+		/// Sends a message to the session's client.
+		/// </summary>
+		/// <param name="message">Message to send.</param>
 		public void Send(MqMessage message) {
 			if (Connected == false) {
 				throw new InvalidOperationException("Can not send messages while disconnected from server.");
+			}
+
+			if (message.Count == 0) {
+				return;
 			}
 
 			Mailbox.EnqueueOutgoingMessage(message);
