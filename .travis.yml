@@ -1,2 +1,5 @@
 language: csharp
 solution: DtronixMessageQueue.sln
+script:
+  - xbuild /p:Configuration=Release DtronixMessageQueue.sln
+  - mono ./MqPerformanceTests/bin/Release/MqPerformanceTests.exe
