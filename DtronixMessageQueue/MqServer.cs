@@ -47,8 +47,9 @@ namespace DtronixMessageQueue {
 				server_config = new ServerConfig {
 					ClearIdleSession = true,
 					IdleSessionTimeOut = 120,
-					Ip = "127.0.0.1",
-					Port = 2828
+					Ip = "::1",
+					Port = 2828,
+					
 				};
 			}
 

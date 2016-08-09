@@ -100,7 +100,7 @@ namespace MqPerformanceTests {
 
 			});
 
-			client.ConnectAsync("127.0.0.1").Wait();
+			client.ConnectAsync("::1").Wait();
 
 			for (var i = 0; i < loops; i++) {
 				send();
