@@ -1,4 +1,4 @@
 language: csharp
 solution: DtronixMessageQueue.sln
 install:
-  - nuget DtronixMessageQueue.sln
+  - nuget restore DtronixMessageQueue.sln
