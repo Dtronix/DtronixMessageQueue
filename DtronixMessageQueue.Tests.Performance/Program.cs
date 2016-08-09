@@ -3,7 +3,7 @@ using System.Diagnostics;
 using System.Threading;
 using DtronixMessageQueue;
 
-namespace MqPerformanceTests {
+namespace DtronixMessageQueue.Tests.Performance {
 	class Program {
 		static void Main(string[] args) {
 

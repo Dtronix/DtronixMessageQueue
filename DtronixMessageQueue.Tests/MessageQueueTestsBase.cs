@@ -10,7 +10,7 @@ using SuperSocket.SocketEngine.Configuration;
 using Xunit;
 using Xunit.Abstractions;
 
-namespace DtronixMessageQueueTests {
+namespace DtronixMessageQueue.Tests {
 	public class MessageQueueTestsBase : IDisposable {
 		private Random random = new Random();
 		public ITestOutputHelper Output;

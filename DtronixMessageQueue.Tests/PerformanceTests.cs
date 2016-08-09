@@ -4,7 +4,7 @@ using System.Threading;
 using Xunit;
 using Xunit.Abstractions;
 
-namespace DtronixMessageQueueTests {
+namespace DtronixMessageQueue.Tests {
 
 	public class PerformanceTests {
 		private ITestOutputHelper output;

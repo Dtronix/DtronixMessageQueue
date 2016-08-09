@@ -7,8 +7,8 @@
     <ProjectGuid>{1DF3332E-9B24-45B9-934B-43542793986C}</ProjectGuid>
     <OutputType>Exe</OutputType>
     <AppDesignerFolder>Properties</AppDesignerFolder>
-    <RootNamespace>MqPerformanceTests</RootNamespace>
-    <AssemblyName>MqPerformanceTests</AssemblyName>
+    <RootNamespace>DtronixMessageQueue.Tests.Performance</RootNamespace>
+    <AssemblyName>DtronixMessageQueue.Tests.Performance</AssemblyName>
     <TargetFrameworkVersion>v4.5</TargetFrameworkVersion>
     <FileAlignment>512</FileAlignment>
   </PropertyGroup>

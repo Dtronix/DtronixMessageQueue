@@ -5,9 +5,9 @@ VisualStudioVersion = 14.0.25420.1
 MinimumVisualStudioVersion = 10.0.40219.1
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "DtronixMessageQueue", "DtronixMessageQueue\DtronixMessageQueue.csproj", "{060BFECA-A3D2-4871-AE35-28DECCB95FE3}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "DtronixMessageQueueTests", "DtronixMessageQueueTests\DtronixMessageQueueTests.csproj", "{C51DA0D8-7831-49E0-925F-149C9A5B1625}"
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "DtronixMessageQueue.Tests", "DtronixMessageQueue.Tests\DtronixMessageQueue.Tests.csproj", "{C51DA0D8-7831-49E0-925F-149C9A5B1625}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "MqPerformanceTests", "MqPerformanceTests\MqPerformanceTests.csproj", "{1DF3332E-9B24-45B9-934B-43542793986C}"
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "DtronixMessageQueue.Tests.Performance", "DtronixMessageQueue.Tests.Performance\DtronixMessageQueue.Tests.Performance.csproj", "{1DF3332E-9B24-45B9-934B-43542793986C}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution

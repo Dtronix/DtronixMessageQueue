@@ -7,8 +7,8 @@
     <ProjectGuid>{C51DA0D8-7831-49E0-925F-149C9A5B1625}</ProjectGuid>
     <OutputType>Library</OutputType>
     <AppDesignerFolder>Properties</AppDesignerFolder>
-    <RootNamespace>DtronixMessageQueueTests</RootNamespace>
-    <AssemblyName>DtronixMessageQueueTests</AssemblyName>
+    <RootNamespace>DtronixMessageQueue.Tests</RootNamespace>
+    <AssemblyName>DtronixMessageQueue.Tests</AssemblyName>
     <TargetFrameworkVersion>v4.5</TargetFrameworkVersion>
     <FileAlignment>512</FileAlignment>
     <ProjectTypeGuids>{3AC096D0-A1C2-E12C-1390-A8335801FDAB};{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}</ProjectTypeGuids>
@@ -102,6 +102,7 @@
     </Otherwise>
   </Choose>
   <ItemGroup>
+    <Compile Include="FrameBuilderTests.cs" />
     <Compile Include="MessageQueueServerTests.cs" />
     <Compile Include="MessageQueueTestsBase.cs" />
     <Compile Include="PerformanceTests.cs" />

@@ -9,7 +9,7 @@ using SuperSocket.SocketBase.Config;
 using Xunit;
 using Xunit.Abstractions;
 
-namespace DtronixMessageQueueTests {
+namespace DtronixMessageQueue.Tests {
 
 	public class MessageQueueClientTests : MessageQueueTestsBase {
 
