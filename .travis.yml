@@ -1,5 +1,2 @@
 language: csharp
 solution: DtronixMessageQueue.sln
-script:
-  - xbuild /p:Configuration=Debug DtronixMessageQueue.sln
-  - mono ./packages/xunit.runner.console.*/tools/xunit.console.exe ./DtronixMessageQueueTests/bin/Debug/DtronixMessageQueueTests.dll
