@@ -34,7 +34,7 @@ namespace MqPerformanceTests {
 
 			MqPerformanceTests(10000, 5, large_message);
 
-			Console.ReadLine();
+			Console.WriteLine("Performance complete");
 		}
 
 		private static void MqPerformanceTests(int runs, int loops, MqMessage message) {
@@ -73,7 +73,6 @@ namespace MqPerformanceTests {
 					var messages_per_second = (int)((double)runs / sw.ElapsedMilliseconds * 1000);
 					var msg_size_no_header = message_size - 12;
 					var mbps = runs * (double)(msg_size_no_header) / sw.ElapsedMilliseconds / 1000;
-					Console.CursorLeft = 0;
 					Console.WriteLine("| {0,7} | {1,10:N0} | {2,9:N0} | {3,12:N0} | {4,10:N0} | {5,8:N2} |", mode, runs, msg_size_no_header, sw.ElapsedMilliseconds, messages_per_second, mbps);
 					total_values[0] += sw.ElapsedMilliseconds;
 					total_values[1] += messages_per_second;
@@ -88,8 +87,6 @@ namespace MqPerformanceTests {
 
 
 			var send = new Action(() => {
-				Console.WriteLine("Running...");
-				Console.CursorTop -= 1;
 				count = 0;
 				sw.Restart();
 				for (var i = 0; i < runs; i++) {
@@ -106,7 +103,6 @@ namespace MqPerformanceTests {
 				send();
 			}
 
-			Console.CursorLeft = 0;
 			Console.WriteLine("|         |            |  AVERAGES | {0,12:N0} | {1,10:N0} | {2,8:N2} |", total_values[0] / loops, total_values[1] / loops, total_values[2] / loops);
 			Console.WriteLine();
 
