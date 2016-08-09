@@ -81,7 +81,7 @@ namespace DtronixMessageQueue {
 		public MqMailbox(MqPostmaster postmaster, MqSession session) {
 			this.postmaster = postmaster;
 			this.session = session;
-			frame_builder = new MqFrameBuilder(postmaster);
+			frame_builder = new MqFrameBuilder(postmaster.MaxFrameSize);
 		}
 
 		/// <summary>
@@ -92,7 +92,7 @@ namespace DtronixMessageQueue {
 		public MqMailbox(MqPostmaster postmaster, MqClient client) {
 			this.postmaster = postmaster;
 			this.client = client;
-			frame_builder = new MqFrameBuilder(postmaster);
+			frame_builder = new MqFrameBuilder(postmaster.MaxFrameSize);
 		}
 
 		/// <summary>
