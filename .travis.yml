@@ -1,3 +1,4 @@
 language: csharp
-script:
-  - xbuild DtronixMessageQueue.sln
+solution: DtronixMessageQueue.sln
+install:
+  - nuget DtronixMessageQueue.sln
