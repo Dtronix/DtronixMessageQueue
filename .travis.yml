@@ -2,4 +2,4 @@ language: csharp
 solution: DtronixMessageQueue.sln
 script:
   - xbuild /p:Configuration=Release DtronixMessageQueue.sln
-  - mono ./packages/xunit.runner.console.*/tools/xunit.console.clr4.exe ./DtronixMessageQueueTests/bin/Release/DtronixMessageQueueTests.dll
+  - mono ./packages/xunit.runner.console.*/tools/xunit.console.exe ./DtronixMessageQueueTests/bin/Release/DtronixMessageQueueTests.dll
