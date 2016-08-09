@@ -27,12 +27,7 @@ namespace DtronixMessageQueueTests {
 
 		public MessageQueueTestsBase(ITestOutputHelper output) {
 			this.Output = output;
-
-			using (Socket sock = new Socket(AddressFamily.InterNetwork, SocketType.Stream, ProtocolType.Tcp)) {
-				sock.Bind(new IPEndPoint(IPAddress.Parse("127.0.0.1"), 0)); // Pass 0 here.
-				Port = ((IPEndPoint)sock.LocalEndPoint).Port;
-				sock.Close();
-			}
+			Port = FreeTcpPort();
 
 			var config = new ServerConfig {
 				Ip = "127.0.0.1",
@@ -41,6 +36,14 @@ namespace DtronixMessageQueueTests {
 
 			Server = new MqServer(config);
 			Client = new MqClient();
+		}
+
+		static int FreeTcpPort() {
+			TcpListener l = new TcpListener(IPAddress.Loopback, 0);
+			l.Start();
+			int port = ((IPEndPoint)l.LocalEndpoint).Port;
+			l.Stop();
+			return port;
 		}
 
 		public void StartAndWait() {
