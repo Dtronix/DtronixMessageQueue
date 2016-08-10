@@ -2,6 +2,7 @@
 using System.Diagnostics;
 using System.Threading;
 using DtronixMessageQueue;
+using SuperSocket.SocketBase.Config;
 
 namespace DtronixMessageQueue.Tests.Performance {
 	class Program {
@@ -38,7 +39,10 @@ namespace DtronixMessageQueue.Tests.Performance {
 		}
 
 		private static void MqPerformanceTests(int runs, int loops, MqMessage message) {
-			var server = new MqServer();
+			var server = new MqServer(new ServerConfig() {
+				Ip = "127.0.0.1",
+				Port = 2828
+			});
 			server.Start();
 
 			double[] total_values = { 0, 0, 0 };
@@ -97,7 +101,7 @@ namespace DtronixMessageQueue.Tests.Performance {
 
 			});
 
-			client.ConnectAsync("::1").Wait();
+			client.ConnectAsync("127.0.0.1").Wait();
 
 			for (var i = 0; i < loops; i++) {
 				send();
