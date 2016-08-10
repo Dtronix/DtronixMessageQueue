@@ -23,9 +23,6 @@ namespace DtronixMessageQueue {
 		public MqServer(ServerConfig server_config) : this(null, server_config) {
 		}
 
-		public MqServer(RootConfig root_config) : this(root_config, null) {
-		}
-
 		public event EventHandler<IncomingMessageEventArgs> IncomingMessage;
 
 		public event EventHandler Started;
@@ -44,13 +41,7 @@ namespace DtronixMessageQueue {
 			}
 
 			if (server_config == null) {
-				server_config = new ServerConfig {
-					ClearIdleSession = true,
-					IdleSessionTimeOut = 120,
-					Ip = "::1",
-					Port = 2828,
-					
-				};
+				throw new ArgumentNullException(nameof(server_config));
 			}
 
 			server_config.MaxRequestLength = 1024*16;

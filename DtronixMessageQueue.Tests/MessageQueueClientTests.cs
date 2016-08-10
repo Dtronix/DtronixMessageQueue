@@ -21,7 +21,7 @@ namespace DtronixMessageQueue.Tests {
 		[InlineData(1, false)]
 		[InlineData(1, true)]
 		[InlineData(50, true)]
-		[InlineData(1000, true)]
+		//[InlineData(100, true)]
 		public void Client_should_send_data_to_server(int number, bool validate) {
 			var message_source = GenerateRandomMessage(4, 50);
 			int received_messages = 0;

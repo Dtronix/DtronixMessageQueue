@@ -7,7 +7,7 @@ using System.Threading;
 using System.Threading.Tasks;
 
 namespace DtronixMessageQueue {
-	internal class MqFrameBuilder : IDisposable {
+	public class MqFrameBuilder : IDisposable {
 
 		private readonly byte[] buffer;
 
@@ -95,12 +95,17 @@ namespace DtronixMessageQueue {
 					current_frame_type = (MqFrameType) frame_type_bytes[0];
 				}
 
+				if (current_frame_type == MqFrameType.Empty || current_frame_type == MqFrameType.EmptyLast) {
+					EnqueueAndReset();
+					break;
+				}
+
 				// Read the length from the stream if there are enough client_bytes.
 				if (current_frame_data == null && stream_length >= 2) {
 					var frame_len = new byte[2];
 
 					ReadInternal(frame_len, 0, frame_len.Length);
-					var current_frame_length = BitConverter.ToInt16(frame_len, 0);
+					var current_frame_length = BitConverter.ToUInt16(frame_len, 0);
 
 					if (current_frame_length < 1) {
 						throw new InvalidDataException($"FrameBuilder was sent a frame with an invalid size of {current_frame_length}");
@@ -120,10 +125,7 @@ namespace DtronixMessageQueue {
 					ReadInternal(current_frame_data, 0, current_frame_data.Length);
 
 					// Create the frame and enqueue it.
-					Frames.Enqueue(new MqFrame(current_frame_data, current_frame_type));
-
-					current_frame_type = MqFrameType.Unset;
-					current_frame_data = null;
+					EnqueueAndReset();
 
 					// If we are at the end of the data, complete this loop and wait for more data.
 					if (write_position == read_position) {
@@ -134,6 +136,12 @@ namespace DtronixMessageQueue {
 				}
 			}
 
+		}
+
+		private void EnqueueAndReset() {
+			Frames.Enqueue(new MqFrame(current_frame_data, current_frame_type));
+			current_frame_type = MqFrameType.Unset;
+			current_frame_data = null;
 		}
 
 		public void Dispose() {

@@ -46,12 +46,11 @@ namespace DtronixMessageQueue {
 
 		public MqFrame(byte[] bytes, MqFrameType type) {
 			if (type == MqFrameType.EmptyLast || type == MqFrameType.Empty) {
+				if (bytes != null && bytes.Length != 0) {
+					throw new ArgumentException($"Message frame initialized as {type} but bytes were passed.  Frame must be passed an empty array.");
+				}
 				DataLength = 0;
 			} else {
-				if (bytes.Length > 1024*16) {
-					throw new ArgumentException("Byte array must be less than 16384 bytes", nameof(bytes));
-				}
-
 				DataLength = bytes.Length;
 				data = bytes;
 			}
@@ -71,13 +70,13 @@ namespace DtronixMessageQueue {
 		/// </summary>
 		/// <returns>Frame bytes.</returns>
 		public byte[] RawFrame() {
-			if (data == null) {
-				throw new InvalidOperationException("Can not retrieve frame bytes when frame has not been created.");
+			// If this is an empty frame, return an empty byte which corresponds to MqFrameType.Empty or MqFrameType.EmptyLast
+			if (FrameType == MqFrameType.Empty || FrameType == MqFrameType.EmptyLast) {
+				return new[] { (byte)FrameType };
 			}
 
-			// If this is an empty frame, return an empty byte which corresponds to MqFrameType.Empty
-			if (FrameType == MqFrameType.Empty || FrameType == MqFrameType.Empty) {
-				return new[] {(byte) FrameType};
+			if (data == null) {
+				throw new InvalidOperationException("Can not retrieve frame bytes when frame has not been created.");
 			}
 
 			var bytes = new byte[HeaderLength + DataLength];
