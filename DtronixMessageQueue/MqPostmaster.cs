@@ -40,21 +40,17 @@ namespace DtronixMessageQueue {
 		}
 
 		public bool SignalRead(MqMailbox mailbox) {
-			var result = ongoing_read_operations.TryAdd(mailbox, true);
-			if (!result) {
-				return false;
-			}
-			return read_operations.TryAdd(mailbox);
+			return ongoing_read_operations.TryAdd(mailbox, true) && read_operations.TryAdd(mailbox);
 		}
 
 
-		public void SignalReadComplete(MqMailbox mailbox) {
+		public void SignalWriteComplete(MqMailbox mailbox) {
 			bool out_mailbox;
 			ongoing_write_operations.TryRemove(mailbox, out out_mailbox);
 		}
 
 
-		private bool ReleaseRead(MqMailbox mailbox) {
+		public bool SignalReadComplete(MqMailbox mailbox) {
 			bool out_mailbox;
 			return ongoing_read_operations.TryRemove(mailbox, out out_mailbox);
 		}

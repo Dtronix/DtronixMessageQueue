@@ -149,6 +149,8 @@ namespace DtronixMessageQueue {
 			} else {
 				session.Send(buffer, 0, buffer.Length);
 			}
+
+			postmaster.SignalWriteComplete(this);
 		}
 
 
