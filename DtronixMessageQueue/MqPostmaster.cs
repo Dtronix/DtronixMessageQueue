@@ -39,16 +39,6 @@ namespace DtronixMessageQueue {
 			return ongoing_write_operations.TryAdd(mailbox, true) && write_operations.TryAdd(mailbox);
 		}
 
-		private bool TryTakeWrite(out MqMailbox mailbox, int ms_timeout, CancellationToken token) {
-			return write_operations.TryTake(out mailbox, ms_timeout, token);
-		}
-
-		private bool ReleaseWrite(MqMailbox mailbox) {
-			bool out_mailbox;
-			return ongoing_write_operations.TryRemove(mailbox, out out_mailbox);
-		}
-
-
 		public bool SignalRead(MqMailbox mailbox) {
 			var result = ongoing_read_operations.TryAdd(mailbox, true);
 			if (!result) {
@@ -57,9 +47,12 @@ namespace DtronixMessageQueue {
 			return read_operations.TryAdd(mailbox);
 		}
 
-		private bool TryTakeRead(out MqMailbox mailbox, int ms_timeout, CancellationToken token) {
-			return read_operations.TryTake(out mailbox, ms_timeout, token);
+
+		public void SignalReadComplete(MqMailbox mailbox) {
+			bool out_mailbox;
+			ongoing_write_operations.TryRemove(mailbox, out out_mailbox);
 		}
+
 
 		private bool ReleaseRead(MqMailbox mailbox) {
 			bool out_mailbox;
@@ -103,9 +96,8 @@ namespace DtronixMessageQueue {
 				MqMailbox mailbox = null;
 
 				try {
-					while (TryTakeWrite(out mailbox, 60000, token)) {
+					while (write_operations.TryTake(out mailbox, 60000, token)) {
 						mailbox.ProcessOutbox();
-						ReleaseWrite(mailbox);
 					}
 				} catch (ThreadAbortException) {
 				} catch (Exception) {
@@ -131,9 +123,8 @@ namespace DtronixMessageQueue {
 				MqMailbox mailbox = null;
 
 				try {
-					while (TryTakeRead(out mailbox, 60000, token)) {
+					while (read_operations.TryTake(out mailbox, 60000, token)) {
 						mailbox.ProcessIncomingQueue();
-						ReleaseRead(mailbox);
 					}
 				} catch (ThreadAbortException) {
 				} catch (Exception) {

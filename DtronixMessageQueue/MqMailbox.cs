@@ -226,6 +226,8 @@ namespace DtronixMessageQueue {
 					new_message = true;
 				}
 			}
+			postmaster.SignalReadComplete(this);
+
 			if (new_message) {
 				IncomingMessage?.Invoke(this, new IncomingMessageEventArgs(this));
 			}
