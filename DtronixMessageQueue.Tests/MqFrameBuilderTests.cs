@@ -7,14 +7,14 @@ using System.Threading.Tasks;
 using Xunit;
 
 namespace DtronixMessageQueue.Tests {
-	public class FrameBuilderTests {
+	public class MqFrameBuilderTests {
 		private MqFrame empty_last_frame;
 		private MqFrame empty_frame;
 		private MqFrame last_frame;
 		private MqFrame more_frame;
 		private MqFrameBuilder frame_builder;
 
-		public FrameBuilderTests() {
+		public MqFrameBuilderTests() {
 			frame_builder = new MqFrameBuilder(1024);
 			empty_last_frame = new MqFrame(null, MqFrameType.EmptyLast);
 			empty_frame = new MqFrame(null, MqFrameType.Empty);
@@ -110,7 +110,7 @@ namespace DtronixMessageQueue.Tests {
 			frame_builder.Write(new byte[] { 2, 10, 0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 0 }, 0, 13);
 			var parsed_frame = frame_builder.Frames.Dequeue();
 
-			Assert.Equal(new byte[] {1, 2, 3, 4, 5, 6, 7, 8, 9, 0}, parsed_frame.Data);
+			Assert.Equal(new byte[] {1, 2, 3, 4, 5, 6, 7, 8, 9, 0}, parsed_frame.Buffer);
 		}
 
 	}

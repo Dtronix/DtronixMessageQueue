@@ -102,12 +102,12 @@
     </Otherwise>
   </Choose>
   <ItemGroup>
-    <Compile Include="FrameBuilderTests.cs" />
+    <Compile Include="MqFrameBuilderTests.cs" />
     <Compile Include="FrameTests.cs" />
-    <Compile Include="MessageQueueServerTests.cs" />
+    <Compile Include="MqServerTests.cs" />
     <Compile Include="MessageQueueTestsBase.cs" />
     <Compile Include="PerformanceTests.cs" />
-    <Compile Include="MessageQueueClientTests.cs" />
+    <Compile Include="MqClientTests.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
     <Compile Include="Utilities.cs" />
   </ItemGroup>

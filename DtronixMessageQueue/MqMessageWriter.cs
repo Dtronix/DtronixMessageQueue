@@ -17,26 +17,31 @@ namespace DtronixMessageQueue {
 	public class MqMessageWriter {
 		private int position;
 		private MqMessage message;
-
-		public int Position {
-			get { return position; }
-			set { position = value; }
-		}
+		private int message_index = 0;
+		private int frame_position = 0;
+		private byte[] frame_buffer;
 
 		public MqMessage Message {
 			get { return message; }
 			set { message = value; }
 		}
 
-		public MqMessageWriter(MqMessage message) {
+
+		public MqMessageWriter(int buffer_size) : this(buffer_size, new MqMessage()) {
+			
+		}
+
+		public MqMessageWriter(int buffer_size, MqMessage message) {
 			this.message = message;
+			frame_buffer = new byte[buffer_size];
+
 		}
 
-		public MqMessageWriter() {
-			message = new MqMessage();
-
-			//new BinaryWriter()
+		private byte[] GetCurrentBuffer() {
+			return message_index + 1 > message.Count ? frame_buffer : message[message_index].Buffer;
 		}
+
+
 
 
 	}

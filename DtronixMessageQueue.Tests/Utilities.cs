@@ -13,7 +13,7 @@ namespace DtronixMessageQueue.Tests {
 			if (actual == null) throw new ArgumentNullException(nameof(actual));
 
 			Assert.Equal(expected.FrameType, actual.FrameType);
-			Assert.Equal(expected.Data, actual.Data);
+			Assert.Equal(expected.Buffer, actual.Buffer);
 		}
 	}
 }
