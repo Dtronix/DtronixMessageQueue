@@ -98,7 +98,6 @@ namespace DtronixMessageQueue {
 			// Type of frame that this is.
 			bytes[0] = (byte)FrameType;
 
-
 			var size_bytes = BitConverter.GetBytes((short)DataLength);
 
 			// Copy the length.
@@ -136,7 +135,7 @@ namespace DtronixMessageQueue {
 		/// </summary>
 		/// <param name="index">The zero-based index to write the value to.</param>
 		/// <param name="value">Value to write to the specified index.</param>
-		public virtual void Write(int index, bool value) {
+		public void Write(int index, bool value) {
 			buffer[index] = (byte)(value ? 1 : 0);
 		}
 
@@ -155,7 +154,7 @@ namespace DtronixMessageQueue {
 		/// </summary>
 		/// <param name="index">The zero-based index to write the value to.</param>
 		/// <param name="value">Value to write to the specified index.</param>
-		public virtual void Write(int index, byte value) {
+		public void Write(int index, byte value) {
 			buffer[index] = value;
 		}
 
@@ -175,7 +174,7 @@ namespace DtronixMessageQueue {
 		/// </summary>
 		/// <param name="index">The zero-based index to write the value to.</param>
 		/// <param name="value">Value to write to the specified index.</param>
-		public virtual void Write(int index, sbyte value) {
+		public void Write(int index, sbyte value) {
 			buffer[index] = (byte)value;
 		}
 
@@ -186,6 +185,16 @@ namespace DtronixMessageQueue {
 		/// <param name="index">The zero-based index to read the value from.</param>
 		public char ReadChar(int index) {
 			return (char)buffer[index];
+		}
+
+		/// <summary>
+		/// Writes a char value at the specified index.
+		/// 1 Byte.
+		/// </summary>
+		/// <param name="index">The zero-based index to write the value to.</param>
+		/// <param name="value">Value to write to the specified index.</param>
+		public void Write(int index, char value) {
+			buffer[index] = (byte)value;
 		}
 
 		/// <summary>
@@ -204,7 +213,7 @@ namespace DtronixMessageQueue {
 		/// </summary>
 		/// <param name="index">The zero-based index to write the value to.</param>
 		/// <param name="value">Value to write to the specified index.</param>
-		public virtual void Write(int index, short value) {
+		public void Write(int index, short value) {
 			buffer[index + 0] = (byte) value;
 			buffer[index + 1] = (byte) (value >> 8);
 		}
@@ -225,7 +234,7 @@ namespace DtronixMessageQueue {
 		/// </summary>
 		/// <param name="index">The zero-based index to write the value to.</param>
 		/// <param name="value">Value to write to the specified index.</param>
-		public virtual void Write(int index, ushort value) {
+		public void Write(int index, ushort value) {
 			buffer[index + 0] = (byte)value;
 			buffer[index + 1] = (byte)(value >> 8);
 		}
@@ -249,7 +258,7 @@ namespace DtronixMessageQueue {
 		/// </summary>
 		/// <param name="index">The zero-based index to write the value to.</param>
 		/// <param name="value">Value to write to the specified index.</param>
-		public virtual void Write(int index, int value) {
+		public void Write(int index, int value) {
 			buffer[index + 0] = (byte) value;
 			buffer[index + 1] = (byte) (value >> 8);
 			buffer[index + 2] = (byte) (value >> 16);
@@ -271,7 +280,7 @@ namespace DtronixMessageQueue {
 		/// </summary>
 		/// <param name="index">The zero-based index to write the value to.</param>
 		/// <param name="value">Value to write to the specified index.</param>
-		public virtual void Write(int index, uint value) {
+		public void Write(int index, uint value) {
 			buffer[index + 0] = (byte)value;
 			buffer[index + 1] = (byte)(value >> 8);
 			buffer[index + 2] = (byte)(value >> 16);
@@ -297,7 +306,7 @@ namespace DtronixMessageQueue {
 		/// </summary>
 		/// <param name="index">The zero-based index to write the value to.</param>
 		/// <param name="value">Value to write to the specified index.</param>
-		public virtual void Write(int index, long value) {
+		public void Write(int index, long value) {
 			buffer[index + 0] = (byte) value;
 			buffer[index + 1] = (byte) (value >> 8);
 			buffer[index + 2] = (byte) (value >> 16);
@@ -327,7 +336,7 @@ namespace DtronixMessageQueue {
 		/// </summary>
 		/// <param name="index">The zero-based index to write the value to.</param>
 		/// <param name="value">Value to write to the specified index.</param>
-		public virtual void Write(int index, ulong value) {
+		public void Write(int index, ulong value) {
 			buffer[index + 0] = (byte)value;
 			buffer[index + 1] = (byte)(value >> 8);
 			buffer[index + 2] = (byte)(value >> 16);
@@ -425,7 +434,7 @@ namespace DtronixMessageQueue {
 		/// </summary>
 		/// <param name="index">The zero-based index to write the value to.</param>
 		/// <param name="value">Value to write to the specified index.</param>
-		public virtual void Write(int index, decimal value) {
+		public void Write(int index, decimal value) {
 			var bits = decimal.GetBits(value);
 
 			var lo = bits[0];
@@ -455,7 +464,7 @@ namespace DtronixMessageQueue {
 
 
 
-		public virtual int Read(int frame_index, byte[] byte_buffer, int index, int count) {
+		public int Read(int frame_index, byte[] byte_buffer, int index, int count) {
 			if (byte_buffer == null) {
 				throw new ArgumentNullException(nameof(byte_buffer), "Buffer is null.");
 			}
@@ -479,7 +488,7 @@ namespace DtronixMessageQueue {
 			return count;
 		}
 
-		public virtual void Write(int frame_index, byte[] byte_buffer, int index, int count) {
+		public void Write(int frame_index, byte[] byte_buffer, int index, int count) {
 			System.Buffer.BlockCopy(byte_buffer, index, buffer, frame_index, count);
 		}
 

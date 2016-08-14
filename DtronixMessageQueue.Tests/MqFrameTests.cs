@@ -614,5 +614,47 @@ namespace DtronixMessageQueue.Tests {
 
 			Assert.Equal(value, actual_frame.ReadSByte(1));
 		}
+
+
+		[Fact]
+		public void Frame_writes_char() {
+			expected_bytes = new byte[] { 3, 1, 0, 68 };
+			actual_frame = new MqFrame(new byte[1], MqFrameType.Last);
+			actual_frame.Write(0, (char)'D');
+
+			actual_bytes = actual_frame.RawFrame();
+
+			Assert.Equal(expected_bytes, actual_bytes);
+		}
+
+		[Fact]
+		public void Frame_writes_char_position() {
+			expected_bytes = new byte[] { 3, 2, 0, 0, 68 };
+			actual_frame = new MqFrame(new byte[2], MqFrameType.Last);
+			actual_frame.Write(1, (char)'D');
+
+			actual_bytes = actual_frame.RawFrame();
+
+			Assert.Equal(expected_bytes, actual_bytes);
+		}
+
+		[Fact]
+		public void Frame_reads_char() {
+			var value = (char)'D';
+			actual_frame = new MqFrame(new byte[1], MqFrameType.Last);
+			actual_frame.Write(0, value);
+
+			Assert.Equal(value, actual_frame.ReadChar(0));
+		}
+
+		[Fact]
+		public void Frame_reads_char_position() {
+			var value = (char)'D';
+			actual_frame = new MqFrame(new byte[2], MqFrameType.Last);
+			actual_frame.Write(1, value);
+
+			Assert.Equal(value, actual_frame.ReadChar(1));
+		}
+
 	}
 }
