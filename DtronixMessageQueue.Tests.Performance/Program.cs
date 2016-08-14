@@ -1,12 +1,30 @@
 ﻿using System;
 using System.Diagnostics;
+using System.Management;
+using System.Runtime.InteropServices;
 using System.Threading;
 using DtronixMessageQueue;
 using SuperSocket.SocketBase.Config;
 
 namespace DtronixMessageQueue.Tests.Performance {
 	class Program {
+
+		[DllImport("kernel32.dll")]
+		[return: MarshalAs(UnmanagedType.Bool)]
+		static extern bool GetPhysicallyInstalledSystemMemory(out long total_memory_in_kilobytes);
+
 		static void Main(string[] args) {
+
+			ManagementObjectSearcher mos = new ManagementObjectSearcher("root\\CIMV2", "SELECT * FROM Win32_Processor");
+			foreach (var o in mos.Get()) {
+				var mo = (ManagementObject) o;
+				Console.Write(mo["Name"]);
+			}
+
+
+			long mem_kb;
+			GetPhysicallyInstalledSystemMemory(out mem_kb);
+			Console.WriteLine(" with " +(mem_kb / 1024 / 1024) + " GB of RAM installed.");
 
 			var small_message = new MqMessage {
 				new MqFrame(RandomBytes(50), MqFrameType.More),
@@ -36,10 +54,12 @@ namespace DtronixMessageQueue.Tests.Performance {
 			MqPerformanceTests(10000, 5, large_message);
 
 			Console.WriteLine("Performance complete");
+
+			Console.ReadLine();
 		}
 
 		private static void MqPerformanceTests(int runs, int loops, MqMessage message) {
-			var server = new MqServer(new ServerConfig() {
+			var server = new MqServer(new ServerConfig {
 				Ip = "127.0.0.1",
 				Port = 2828
 			});
