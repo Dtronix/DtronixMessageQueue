@@ -24,7 +24,7 @@ namespace DtronixMessageQueue.Tests.Performance {
 
 			long mem_kb;
 			GetPhysicallyInstalledSystemMemory(out mem_kb);
-			Console.WriteLine(" with " +(mem_kb / 1024 / 1024) + " GB of RAM installed.");
+			Console.WriteLine(" with " +(mem_kb / 1024 / 1024) + " GB of RAM installed.\r\n");
 
 			var small_message = new MqMessage {
 				new MqFrame(RandomBytes(50), MqFrameType.More),
@@ -116,7 +116,7 @@ namespace DtronixMessageQueue.Tests.Performance {
 				for (var i = 0; i < runs; i++) {
 					client.Send(message);
 				}
-				MqServer sv = server;
+				//MqServer sv = server;
 				wait.WaitOne();
 				wait.Reset();
 
