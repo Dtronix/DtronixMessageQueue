@@ -11,7 +11,7 @@ using Xunit;
 using Xunit.Abstractions;
 
 namespace DtronixMessageQueue.Tests {
-	public class MessageQueueTestsBase : IDisposable {
+	public class MqTestsBase : IDisposable {
 		private Random random = new Random();
 		public ITestOutputHelper Output;
 
@@ -25,7 +25,7 @@ namespace DtronixMessageQueue.Tests {
 
 		public ManualResetEventSlim TestStatus { get; set; } = new ManualResetEventSlim(false);
 
-		public MessageQueueTestsBase(ITestOutputHelper output) {
+		public MqTestsBase(ITestOutputHelper output) {
 			this.Output = output;
 			Port = FreeTcpPort();
 

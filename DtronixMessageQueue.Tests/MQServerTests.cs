@@ -12,7 +12,7 @@ using Xunit.Abstractions;
 namespace DtronixMessageQueue.Tests {
 
 
-	public class MqServerTests : MessageQueueTestsBase {
+	public class MqServerTests : MqTestsBase {
 
 		public MqServerTests(ITestOutputHelper output) : base(output) {
 

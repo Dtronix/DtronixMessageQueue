@@ -6,12 +6,12 @@ using System.Threading.Tasks;
 using Xunit;
 
 namespace DtronixMessageQueue.Tests {
-	public class FrameTests {
+	public class MqFrameTests {
 		private MqFrame actual_frame;
 		private byte[] actual_bytes;
 		private byte[] expected_bytes;
 
-		public FrameTests() {
+		public MqFrameTests() {
 
 		}
 

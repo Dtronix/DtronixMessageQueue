@@ -103,9 +103,9 @@
   </Choose>
   <ItemGroup>
     <Compile Include="MqFrameBuilderTests.cs" />
-    <Compile Include="FrameTests.cs" />
+    <Compile Include="MqFrameTests.cs" />
     <Compile Include="MqServerTests.cs" />
-    <Compile Include="MessageQueueTestsBase.cs" />
+    <Compile Include="MqTestsBase.cs" />
     <Compile Include="PerformanceTests.cs" />
     <Compile Include="MqClientTests.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
