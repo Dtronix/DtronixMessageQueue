@@ -76,8 +76,8 @@
   </ItemGroup>
   <ItemGroup>
     <Compile Include="MqClientReceiveFilter.cs" />
-    <Compile Include="MqMessageWriter.cs" />
     <Compile Include="MqMessageReader.cs" />
+    <Compile Include="MqMessageBuilder.cs" />
     <Compile Include="MqServerReceiveFilter.cs" />
     <Compile Include="MqServerReceiveFilterFactory.cs" />
     <Compile Include="MqSession.cs" />

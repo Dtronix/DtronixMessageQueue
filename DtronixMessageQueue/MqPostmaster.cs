@@ -10,7 +10,7 @@ using System.Threading.Tasks;
 
 namespace DtronixMessageQueue {
 	public class MqPostmaster : IDisposable {
-		public int MaxFrameSize { get; }
+		//public int MaxFrameSize { get; }
 		private readonly MqWorker supervisor;
 
 		private readonly ConcurrentDictionary<MqMailbox, bool> ongoing_write_operations = new ConcurrentDictionary<MqMailbox, bool>();
@@ -22,8 +22,7 @@ namespace DtronixMessageQueue {
 		private readonly BlockingCollection<MqMailbox> read_operations = new BlockingCollection<MqMailbox>();
 		private readonly ConcurrentBag<MqWorker> read_workers = new ConcurrentBag<MqWorker>();
 
-		public MqPostmaster(int max_frame_size) {
-			MaxFrameSize = max_frame_size;
+		public MqPostmaster() {
 			// Add a supervisor to review when it is needed to increase or decrease the worker numbers.
 			//supervisor = new MqWorker(SuperviseWorkers);
 

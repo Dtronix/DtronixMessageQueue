@@ -14,12 +14,16 @@ namespace DtronixMessageQueue {
 	/// <remarks>
 	/// https://github.com/dotnet/corefx/blob/master/src/System.IO/src/System/IO/BinaryWriter.cs
 	/// </remarks>
-	public class MqMessageWriter {
+	public class MqMessageBuilder {
 		private int position;
+
 		private MqMessage message;
 		private int message_index = 0;
+
 		private int frame_position = 0;
 		private byte[] frame_buffer;
+
+		private List<MqFrame> Frames = new List<MqFrame>();
 
 		public MqMessage Message {
 			get { return message; }
@@ -27,11 +31,11 @@ namespace DtronixMessageQueue {
 		}
 
 
-		public MqMessageWriter(int buffer_size) : this(buffer_size, new MqMessage()) {
+		public MqMessageBuilder(int buffer_size) : this(buffer_size, new MqMessage()) {
 			
 		}
 
-		public MqMessageWriter(int buffer_size, MqMessage message) {
+		public MqMessageBuilder(int buffer_size, MqMessage message) {
 			this.message = message;
 			frame_buffer = new byte[buffer_size];
 

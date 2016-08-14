@@ -12,11 +12,27 @@ namespace DtronixMessageQueue {
 	/// </summary>
 	public class MqFrame : IDisposable {
 		private byte[] buffer;
+		private MqFrameType frame_type;
 
 		/// <summary>
 		/// Information about this frame and how it relates to other Frames.
 		/// </summary>
-		public MqFrameType FrameType { get; private set; }
+		public MqFrameType FrameType {
+			get { return frame_type; }
+			set {
+				if (value == MqFrameType.EmptyLast || value == MqFrameType.Empty) {
+					if (buffer != null && buffer.Length != 0) {
+						throw new ArgumentException($"Can not set frame to {value} when buffer is not null or empty.");
+					}
+				}
+				frame_type = value; 
+				
+			}
+		}
+
+		public const int MaxFrameSize = 1024*16 - HeaderLength;
+
+		public const int HeaderLength = 3;
 
 		/// <summary>
 		/// Total bytes that this frame contains.
@@ -42,20 +58,56 @@ namespace DtronixMessageQueue {
 			}
 		}
 
-		private const int HeaderLength = 3;
 
 		public MqFrame(byte[] bytes, MqFrameType type) {
-			if (type == MqFrameType.EmptyLast || type == MqFrameType.Empty) {
-				if (bytes != null && bytes.Length != 0) {
-					throw new ArgumentException($"Message frame initialized as {type} but bytes were passed.  Frame must be passed an empty array.");
-				}
-				DataLength = 0;
-			} else {
+			if (bytes != null) {
 				DataLength = bytes.Length;
-				buffer = bytes;
 			}
 
+			if (DataLength > MaxFrameSize) {
+				throw new ArgumentException("Byte array passed is larger than the maximum frame size allowed.  Must be less than " + MaxFrameSize, nameof(bytes));
+			}
+			buffer = bytes;
 			FrameType = type;
+		}
+
+
+		/// <summary>
+		/// Sets this frame to be the last frame of a message.
+		/// </summary>
+		public void SetLast() {
+			FrameType = FrameType == MqFrameType.Empty ? MqFrameType.EmptyLast : MqFrameType.Last;
+		}
+
+		/// <summary>
+		/// Returns this frame as a raw byte array. (Header + byte_buffer)
+		/// </summary>
+		/// <returns>Frame bytes.</returns>
+		public byte[] RawFrame() {
+			// If this is an empty frame, return an empty byte which corresponds to MqFrameType.Empty or MqFrameType.EmptyLast
+			if (FrameType == MqFrameType.Empty || FrameType == MqFrameType.EmptyLast) {
+				return new[] { (byte)FrameType };
+			}
+
+			if (buffer == null) {
+				throw new InvalidOperationException("Can not retrieve frame bytes when frame has not been created.");
+			}
+
+			var bytes = new byte[HeaderLength + DataLength];
+
+			// Type of frame that this is.
+			bytes[0] = (byte)FrameType;
+
+
+			var size_bytes = BitConverter.GetBytes((short)DataLength);
+
+			// Copy the length.
+			System.Buffer.BlockCopy(size_bytes, 0, bytes, 1, 2);
+
+			// Copy the byte_buffer
+			System.Buffer.BlockCopy(buffer, 0, bytes, HeaderLength, DataLength);
+
+			return bytes;
 		}
 
 		/// <summary>
@@ -467,46 +519,6 @@ namespace DtronixMessageQueue {
 				shift += 7;
 			} while ((b & 0x80) != 0);
 			return count;
-		}
-
-
-
-		/// <summary>
-		/// Sets this frame to be the last frame of a message.
-		/// </summary>
-		public void SetLast() {
-			FrameType = FrameType == MqFrameType.Empty ? MqFrameType.EmptyLast : MqFrameType.Last;
-		}
-
-		/// <summary>
-		/// Returns this frame as a raw byte array. (Header + byte_buffer)
-		/// </summary>
-		/// <returns>Frame bytes.</returns>
-		public byte[] RawFrame() {
-			// If this is an empty frame, return an empty byte which corresponds to MqFrameType.Empty or MqFrameType.EmptyLast
-			if (FrameType == MqFrameType.Empty || FrameType == MqFrameType.EmptyLast) {
-				return new[] { (byte)FrameType };
-			}
-
-			if (buffer == null) {
-				throw new InvalidOperationException("Can not retrieve frame bytes when frame has not been created.");
-			}
-
-			var bytes = new byte[HeaderLength + DataLength];
-
-			// Type of frame that this is.
-			bytes[0] = (byte) FrameType;
-
-
-			var size_bytes = BitConverter.GetBytes((short) DataLength);
-
-			// Copy the length.
-			System.Buffer.BlockCopy(size_bytes, 0, bytes, 1, 2);
-
-			// Copy the byte_buffer
-			System.Buffer.BlockCopy(buffer, 0, bytes, HeaderLength, DataLength);
-
-			return bytes;
 		}
 
 		/// <summary>
