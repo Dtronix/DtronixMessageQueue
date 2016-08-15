@@ -84,6 +84,9 @@
     <None Include="app.config" />
     <None Include="Config\log4net.config" />
     <None Include="Config\log4net.unix.config" />
+    <Content Include="DtronixMessageQueue.nuspec">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </Content>
     <None Include="packages.config" />
     <Compile Include="MqFrameBuilder.cs" />
     <Compile Include="MqWorker.cs" />
@@ -98,6 +101,21 @@
     <Compile Include="Properties\AssemblyInfo.cs" />
   </ItemGroup>
   <ItemGroup />
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)' == 'Nuget|AnyCPU'">
+    <OutputPath>bin\Nuget\</OutputPath>
+    <DefineConstants>TRACE</DefineConstants>
+    <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
+    <Optimize>true</Optimize>
+    <DebugType>pdbonly</DebugType>
+    <PlatformTarget>AnyCPU</PlatformTarget>
+    <ErrorReport>prompt</ErrorReport>
+    <CodeAnalysisRuleSet>MinimumRecommendedRules.ruleset</CodeAnalysisRuleSet>
+	<PostBuildEvent>
+	 del $(TargetDir)\*.nupkg
+     $(SolutionDir)packages\NuGet.CommandLine.3.4.3\tools\nuget.exe pack $(SolutionDir)DtronixMessageQueue\DtronixMessageQueue.csproj -Symbols -Prop Configuration=Nuget -Verbosity Detailed
+     copy  "$(SolutionDir)Tools\NugetPush.bat" "$(TargetDir)NugetPush.bat"
+  </PostBuildEvent>
+  </PropertyGroup>
   <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />
   <!-- To modify your build process, add your task inside one of the targets below and uncomment it. 
        Other similar extension points exist, see Microsoft.Common.targets.
