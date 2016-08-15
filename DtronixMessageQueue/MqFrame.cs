@@ -37,7 +37,7 @@ namespace DtronixMessageQueue {
 		/// <summary>
 		/// Total bytes that this frame contains.
 		/// </summary>
-		public int DataLength { get; }
+		public int DataLength => buffer?.Length ?? 0;
 
 		/// <summary>
 		/// Bytes this frame contains.
@@ -58,13 +58,13 @@ namespace DtronixMessageQueue {
 			}
 		}
 
+		public MqFrame(byte[] bytes) : this(bytes, MqFrameType.Unset) {
+
+		}
+
 
 		public MqFrame(byte[] bytes, MqFrameType type) {
-			if (bytes != null) {
-				DataLength = bytes.Length;
-			}
-
-			if (DataLength > MaxFrameSize) {
+			if (bytes?.Length > MaxFrameSize) {
 				throw new ArgumentException("Byte array passed is larger than the maximum frame size allowed.  Must be less than " + MaxFrameSize, nameof(bytes));
 			}
 			buffer = bytes;
@@ -93,18 +93,18 @@ namespace DtronixMessageQueue {
 				throw new InvalidOperationException("Can not retrieve frame bytes when frame has not been created.");
 			}
 
-			var bytes = new byte[HeaderLength + DataLength];
+			var bytes = new byte[HeaderLength + buffer.Length];
 
 			// Type of frame that this is.
 			bytes[0] = (byte)FrameType;
 
-			var size_bytes = BitConverter.GetBytes((short)DataLength);
+			var size_bytes = BitConverter.GetBytes((short)buffer.Length);
 
 			// Copy the length.
 			System.Buffer.BlockCopy(size_bytes, 0, bytes, 1, 2);
 
 			// Copy the byte_buffer
-			System.Buffer.BlockCopy(buffer, 0, bytes, HeaderLength, DataLength);
+			System.Buffer.BlockCopy(buffer, 0, bytes, HeaderLength, buffer.Length);
 
 			return bytes;
 		}
@@ -535,7 +535,7 @@ namespace DtronixMessageQueue {
 		/// </summary>
 		/// <returns>A string representation of this frame.</returns>
 		public override string ToString() {
-			return $"MqFrame totaling {DataLength:N0} bytes; Type: {FrameType}";
+			return $"MqFrame totaling {buffer.Length:N0} bytes; Type: {FrameType}";
 		}
 
 

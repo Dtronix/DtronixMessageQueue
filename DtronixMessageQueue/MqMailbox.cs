@@ -163,6 +163,7 @@ namespace DtronixMessageQueue {
 			var buffer_queue = new Queue<byte[]>();
 
 			while (outbox.TryDequeue(out result)) {
+				result.PrepareSend();
 				foreach (var frame in result.Frames) {
 					var frame_size = frame.FrameSize;
 					// If this would overflow the max client buffer size, send the full buffer queue.

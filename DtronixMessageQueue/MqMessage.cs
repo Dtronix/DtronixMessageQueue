@@ -50,6 +50,21 @@ namespace DtronixMessageQueue {
 		public MqMessage() {
 		}
 
+		/// <summary>
+		/// Fixes any mistakes for the frames' FrameType set.  Called before frames are processed by the outbox.
+		/// </summary>
+		public void PrepareSend() {
+			var mq_frames = Frames.ToArray();
+
+			// Set frame's FrameType appropriately.
+			foreach (var frame in mq_frames) {
+				frame.FrameType = frame.DataLength == 0 ? MqFrameType.Empty : MqFrameType.More;
+			}
+
+			// Set the last frame to the "last frame" FrameType.
+			mq_frames[mq_frames.Length - 1].SetLast();
+		}
+
 
 		/// <summary>
 		/// Returns an enumerator that iterates through the frames.
@@ -73,6 +88,14 @@ namespace DtronixMessageQueue {
 		/// <param name="frame">Frame to add</param>
 		public void Add(MqFrame frame) {
 			Frames.Add(frame);
+		}
+
+		/// <summary>
+		/// Adds a frame to this message.
+		/// </summary>
+		/// <param name="frames">Frames to add</param>
+		public void AddRange(IEnumerable<MqFrame> frames) {
+			Frames.AddRange(Frames);
 		}
 
 		/// <summary>
