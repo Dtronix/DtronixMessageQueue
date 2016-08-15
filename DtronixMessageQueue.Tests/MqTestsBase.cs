@@ -91,10 +91,10 @@ namespace DtronixMessageQueue.Tests {
 				MqFrame frame;
 
 				if (frame_length == -1) {
-					frame = new MqFrame(SequentialBytes(random.Next(50, 1024*16 - 3)),
+					frame = new MqFrame(Utilities.SequentialBytes(random.Next(50, 1024*16 - 3)),
 						(i + 1 < frame_count) ? MqFrameType.More : MqFrameType.Last);
 				} else {
-					frame = new MqFrame(SequentialBytes(frame_length),
+					frame = new MqFrame(Utilities.SequentialBytes(frame_length),
 						(i + 1 < frame_count) ? MqFrameType.More : MqFrameType.Last);
 				}
 				message.Add(frame);
@@ -102,20 +102,6 @@ namespace DtronixMessageQueue.Tests {
 
 			return message;
 
-		}
-
-		protected byte[] SequentialBytes(int len) {
-			var number = 0;
-			byte[] val = new byte[len];
-
-			for (int i = 0; i < len; i++) {
-				val[i] = (byte) number++;
-				if (number > 255) {
-					number = 0;
-				}
-			}
-
-			return val;
 		}
 
 

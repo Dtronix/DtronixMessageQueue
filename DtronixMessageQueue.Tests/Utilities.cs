@@ -15,5 +15,19 @@ namespace DtronixMessageQueue.Tests {
 			Assert.Equal(expected.FrameType, actual.FrameType);
 			Assert.Equal(expected.Buffer, actual.Buffer);
 		}
+
+		public static byte[] SequentialBytes(int len) {
+			var number = 0;
+			byte[] val = new byte[len];
+
+			for (int i = 0; i < len; i++) {
+				val[i] = (byte)number++;
+				if (number > 255) {
+					number = 0;
+				}
+			}
+
+			return val;
+		}
 	}
 }

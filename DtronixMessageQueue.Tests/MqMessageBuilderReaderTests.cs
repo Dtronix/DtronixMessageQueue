@@ -1,15 +1,5 @@
 ﻿using System;
-using System.ComponentModel;
-using System.Diagnostics;
-using System.Net;
-using System.Net.Sockets;
 using System.Text;
-using System.Threading;
-using DtronixMessageQueue;
-using Microsoft.VisualStudio.TestTools.UnitTesting;
-using SuperSocket.SocketBase;
-using SuperSocket.SocketBase.Config;
-using SuperSocket.SocketEngine.Configuration;
 using Xunit;
 using Xunit.Abstractions;
 using Assert = Xunit.Assert;
@@ -340,6 +330,75 @@ namespace DtronixMessageQueue.Tests {
 			Assert.Equal(expected_value, message_reader.ReadString());
 			Assert.True(message_reader.IsAtEnd);
 
+		}
+
+
+		[Fact]
+		public void MessageWriter_multiple_reads_writes() {
+			message_builder.Write(true);
+			message_builder.Write(false);
+
+			message_builder.Write((char)'D');
+
+			message_builder.Write((byte)214);
+			message_builder.Write((sbyte)125);
+			message_builder.Write((sbyte)-125);
+
+			message_builder.Write((short)4513);
+			message_builder.Write((short)-4513);
+			message_builder.Write((ushort)43513);
+
+			message_builder.Write((int)236236231);
+			message_builder.Write((int)-236236231);
+			message_builder.Write((uint)2362326231);
+
+			message_builder.Write((long)2362362312561531);
+			message_builder.Write((long)-2362362312561531);
+			message_builder.Write((ulong)2362362312561531125);
+
+			message_builder.Write((float)1234.56789);
+			message_builder.Write((double)123467.5678912);
+			message_builder.Write((decimal)123456789123456789.123456789123456789);
+
+			var expected_byte_array = Utilities.SequentialBytes(50);
+			message_builder.Write(expected_byte_array, 0, expected_byte_array.Length);
+
+			message_builder.Write(FillerText);
+
+			var message = message_builder.ToMessage();
+
+			message_reader.Message = message;
+
+			Assert.Equal(true, message_reader.ReadBoolean());
+			Assert.Equal(false, message_reader.ReadBoolean());
+
+			Assert.Equal('D', message_reader.ReadChar());
+
+			Assert.Equal((byte)214, message_reader.ReadByte());
+			Assert.Equal((sbyte)125, message_reader.ReadSByte());
+			Assert.Equal((sbyte)-125, message_reader.ReadSByte());
+
+			Assert.Equal((short)4513, message_reader.ReadInt16());
+			Assert.Equal((short)-4513, message_reader.ReadInt16());
+			Assert.Equal((ushort)43513, message_reader.ReadUInt16());
+
+			Assert.Equal((int)236236231, message_reader.ReadInt32());
+			Assert.Equal((int)-236236231, message_reader.ReadInt32());
+			Assert.Equal((uint)2362326231, message_reader.ReadUInt32());
+
+			Assert.Equal((long)2362362312561531, message_reader.ReadInt64());
+			Assert.Equal((long)-2362362312561531, message_reader.ReadInt64());
+			Assert.Equal((ulong)2362362312561531125, message_reader.ReadUInt64());
+
+			Assert.Equal((float)1234.56789, message_reader.ReadSingle());
+			Assert.Equal((double)123467.5678912, message_reader.ReadDouble());
+			Assert.Equal((decimal)123456789123456789.123456789123456789, message_reader.ReadDecimal());
+
+			var read_byte_array = new byte[50];
+			message_reader.Read(read_byte_array, 0, read_byte_array.Length);
+			Assert.Equal(expected_byte_array, read_byte_array);
+
+			Assert.Equal(FillerText, message_reader.ReadString());
 		}
 
 	}
