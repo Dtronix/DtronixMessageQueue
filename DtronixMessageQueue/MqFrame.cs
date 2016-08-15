@@ -464,17 +464,25 @@ namespace DtronixMessageQueue {
 
 
 
-		public int Read(int frame_index, byte[] byte_buffer, int index, int count) {
+		/// <summary>
+		/// Reads the bytes from this frame.
+		/// </summary>
+		/// <param name="frame_index">Bytes to start reading from.</param>
+		/// <param name="byte_buffer">Buffer to copy the frame bytes to.</param>
+		/// <param name="offset">Offset in the byte buffer to copy the frame bytes to.</param>
+		/// <param name="count">Number of bytes to try to copy.</param>
+		/// <returns>Actual number of bytes read.  May be less than the number requested due to being at the end of the frame.</returns>
+		public int Read(int frame_index, byte[] byte_buffer, int offset, int count) {
 			if (byte_buffer == null) {
 				throw new ArgumentNullException(nameof(byte_buffer), "Buffer is null.");
 			}
-			if (index < 0) {
-				throw new ArgumentOutOfRangeException(nameof(index), "Need positive index.");
+			if (offset < 0) {
+				throw new ArgumentOutOfRangeException(nameof(offset), "Need positive offset.");
 			}
 			if (count < 0) {
 				throw new ArgumentOutOfRangeException(nameof(count), "Need positive number");
 			}
-			if (byte_buffer.Length - index < count) {
+			if (byte_buffer.Length - offset < count) {
 				throw new ArgumentException("Invalid offset length.");
 			}
 
@@ -483,52 +491,22 @@ namespace DtronixMessageQueue {
 
 			count = max_len < req_len ? max_len : req_len;
 
-			System.Buffer.BlockCopy(buffer, frame_index, byte_buffer, index, count);
+			System.Buffer.BlockCopy(buffer, frame_index, byte_buffer, offset, count);
 
 			return count;
-		}
-
-		public void Write(int frame_index, byte[] byte_buffer, int index, int count) {
-			System.Buffer.BlockCopy(byte_buffer, index, buffer, frame_index, count);
 		}
 
 		/// <summary>
-		/// Reads a string value at the specified index.
-		/// >2 Bytes.
+		/// Writes a byte buffer to this frame.
 		/// </summary>
-		/// <param name="index">The zero-based index to read the value from.</param>
-		/// <remarks>
-		/// A string consists of a ushort and one or more bytes containing the string.
-		/// The ushort is used to determine how long the string is.
-		/// </remarks>
-		public string ReadString(int index) {
-			// Length of the string in bytes, not chars
-			int string_length = ReadUInt16(index);
-
-			return string_length == 0 ? string.Empty : Encoding.UTF8.GetString(buffer, index + 2, string_length);
+		/// <param name="frame_index">Start position in this frame to write to.</param>
+		/// <param name="byte_buffer">Buffer to write to this frame.</param>
+		/// <param name="offset">Offset in the byte buffer.</param>
+		/// <param name="count">Number of bytes to copy to this frame.</param>
+		public void Write(int frame_index, byte[] byte_buffer, int offset, int count) {
+			System.Buffer.BlockCopy(byte_buffer, offset, buffer, frame_index, count);
 		}
 
-		public int Read7BitEncodedInt(int index) {
-			// Read out an Int32 7 bits at a time.  The high bit
-			// of the byte when on means to continue reading more bytes.
-			var count = 0;
-			var shift = 0;
-			byte b;
-			do {
-				// Check for a corrupted stream.  Read a max of 5 bytes.
-				// In a future version, add a DataFormatException.
-				if (shift == 5 * 7)  // 5 bytes max per Int32, shift += 7
-				{
-					throw new FormatException("Could not parse 7 bit encoded int.");
-				}
-
-				// ReadByte handles end of stream cases for us.
-				b = buffer[index++];
-				count |= (b & 0x7F) << shift;
-				shift += 7;
-			} while ((b & 0x80) != 0);
-			return count;
-		}
 
 		/// <summary>
 		/// Creates a string representation of this frame.
