@@ -50,6 +50,21 @@ namespace DtronixMessageQueue {
 		public MqMessage() {
 		}
 
+		/// <summary>
+		/// Fixes any mistakes for the frames' FrameType set.  Called before frames are processed by the outbox.
+		/// </summary>
+		public void PrepareSend() {
+			var mq_frames = Frames.ToArray();
+
+			// Set frame's FrameType appropriately.
+			foreach (var frame in mq_frames) {
+				frame.FrameType = frame.DataLength == 0 ? MqFrameType.Empty : MqFrameType.More;
+			}
+
+			// Set the last frame to the "last frame" FrameType.
+			mq_frames[mq_frames.Length - 1].SetLast();
+		}
+
 
 		/// <summary>
 		/// Returns an enumerator that iterates through the frames.
@@ -76,6 +91,16 @@ namespace DtronixMessageQueue {
 		}
 
 		/// <summary>
+		/// Adds a frame to this message.
+		/// </summary>
+		/// <param name="frames">Frames to add</param>
+		public void AddRange(IEnumerable<MqFrame> frames) {
+			foreach (var frame in frames) {
+				Frames.Add(frame);
+			}
+		}
+
+		/// <summary>
 		/// Removes all frames from the message.
 		/// </summary>
 		public void Clear() {
@@ -95,10 +120,10 @@ namespace DtronixMessageQueue {
 		/// Copies all message frames to a compatible one-dimensional array, starting at the specified index of the target array.
 		/// </summary>
 		/// <param name="array">The one-dimensional <see cref="T:System.Array" /> that is the destination of the elements copied from <see cref="T:System.Collections.Generic.List`1" />. The <see cref="T:System.Array" /> must have zero-based indexing.</param>
-		/// <param name="arrayIndex">The zero-based index in <paramref name="array" /> at which copying begins.</param>
+		/// <param name="array_index">The zero-based index in <paramref name="array" /> at which copying begins.</param>
 		/// <exception cref="T:System.ArgumentNullException"><paramref name="array" /> is null.</exception>
-		/// <exception cref="T:System.ArgumentOutOfRangeException"><paramref name="arrayIndex" /> is less than 0.</exception>
-		/// <exception cref="T:System.ArgumentException">The number of elements in the source message is greater than the available space from <paramref name="arrayIndex" /> to the end of the destination <paramref name="array" />.</exception>
+		/// <exception cref="T:System.ArgumentOutOfRangeException"><paramref name="array_index" /> is less than 0.</exception>
+		/// <exception cref="T:System.ArgumentException">The number of elements in the source message is greater than the available space from <paramref name="array_index" /> to the end of the destination <paramref name="array" />.</exception>
 		public void CopyTo(MqFrame[] array, int array_index) {
 			Frames.CopyTo(array, array_index);
 		}
@@ -150,5 +175,6 @@ namespace DtronixMessageQueue {
 			var size = Frames.Sum(frame => frame.DataLength);
 			return $"MqMessage with {Frames.Count} frames totaling {size:N0} bytes.";
 		}
+
 	}
 }

@@ -29,7 +29,7 @@ namespace DtronixMessageQueue {
 		/// <summary>
 		/// Represents the maximum size in bytes that a frame can be. (including headers)
 		/// </summary>
-		public int MaxRequestLength { get; set; } = 1024 * 16;
+		//public int MaxRequestLength { get; set; } = 1024 * 16;
 
 		/// <summary>
 		/// Event fired when a new message arrives at the mailbox.
@@ -41,9 +41,9 @@ namespace DtronixMessageQueue {
 		/// Initializes a new instance of a message queue.
 		/// </summary>
 		public MqClient() {
-			PipeLineProcessor = new DefaultPipelineProcessor<BufferedPackageInfo>(new MqClientReceiveFilter(), MaxRequestLength);
+			PipeLineProcessor = new DefaultPipelineProcessor<BufferedPackageInfo>(new MqClientReceiveFilter(), MqFrame.MaxFrameSize);
 
-			postmaster = new MqPostmaster(MaxRequestLength);
+			postmaster = new MqPostmaster();
 
 			mailbox = new MqMailbox(postmaster, this);
 

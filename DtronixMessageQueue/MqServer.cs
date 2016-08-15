@@ -44,10 +44,10 @@ namespace DtronixMessageQueue {
 				throw new ArgumentNullException(nameof(server_config));
 			}
 
-			server_config.MaxRequestLength = 1024*16;
-			server_config.ReceiveBufferSize = 1024*24;
+			server_config.MaxRequestLength = MqFrame.MaxFrameSize + 3;
+			server_config.ReceiveBufferSize = (MqFrame.MaxFrameSize + 3) * 2;
 
-			Postmaster = new MqPostmaster(server_config.MaxRequestLength);
+			Postmaster = new MqPostmaster();
 
 			Setup(root_config, server_config, null);
 		}

@@ -24,8 +24,8 @@ namespace DtronixMessageQueue {
 
 		public Queue<MqFrame> Frames { get; } = new Queue<MqFrame>();
 
-		public MqFrameBuilder(int max_frame_size) {
-			buffer = new byte[max_frame_size];
+		public MqFrameBuilder() {
+			buffer = new byte[MqFrame.MaxFrameSize];
 
 			buffer_stream = new MemoryStream(buffer, 0, buffer.Length, true, true);
 		}

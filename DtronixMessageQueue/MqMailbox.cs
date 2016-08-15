@@ -81,7 +81,7 @@ namespace DtronixMessageQueue {
 		public MqMailbox(MqPostmaster postmaster, MqSession session) {
 			this.postmaster = postmaster;
 			this.session = session;
-			frame_builder = new MqFrameBuilder(postmaster.MaxFrameSize);
+			frame_builder = new MqFrameBuilder();
 		}
 
 		/// <summary>
@@ -92,7 +92,7 @@ namespace DtronixMessageQueue {
 		public MqMailbox(MqPostmaster postmaster, MqClient client) {
 			this.postmaster = postmaster;
 			this.client = client;
-			frame_builder = new MqFrameBuilder(postmaster.MaxFrameSize);
+			frame_builder = new MqFrameBuilder();
 		}
 
 		/// <summary>
@@ -111,9 +111,9 @@ namespace DtronixMessageQueue {
 		/// <summary>
 		/// Adds a message to the outbox to be processed by the postmaster.
 		/// </summary>
-		/// <param name="message">Message to send.</param>
-		internal void EnqueueOutgoingMessage(MqMessage message) {
-			outbox.Enqueue(message);
+		/// <param name="out_message">Message to send.</param>
+		internal void EnqueueOutgoingMessage(MqMessage out_message) {
+			outbox.Enqueue(out_message);
 
 			// Signal the workers that work is to be done.
 			postmaster.SignalWrite(this);
@@ -149,6 +149,8 @@ namespace DtronixMessageQueue {
 			} else {
 				session.Send(buffer, 0, buffer.Length);
 			}
+
+			postmaster.SignalWriteComplete(this);
 		}
 
 
@@ -161,10 +163,11 @@ namespace DtronixMessageQueue {
 			var buffer_queue = new Queue<byte[]>();
 
 			while (outbox.TryDequeue(out result)) {
+				result.PrepareSend();
 				foreach (var frame in result.Frames) {
 					var frame_size = frame.FrameSize;
 					// If this would overflow the max client buffer size, send the full buffer queue.
-					if (length + frame_size > postmaster.MaxFrameSize + 3) {
+					if (length + frame_size > MqFrame.MaxFrameSize + 3) {
 						SendBufferQueue(buffer_queue, length);
 
 						// Reset the length to 0;
@@ -226,6 +229,8 @@ namespace DtronixMessageQueue {
 					new_message = true;
 				}
 			}
+			postmaster.SignalReadComplete(this);
+
 			if (new_message) {
 				IncomingMessage?.Invoke(this, new IncomingMessageEventArgs(this));
 			}

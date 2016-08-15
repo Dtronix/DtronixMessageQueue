@@ -7,15 +7,15 @@ using System.Threading.Tasks;
 using Xunit;
 
 namespace DtronixMessageQueue.Tests {
-	public class FrameBuilderTests {
+	public class MqFrameBuilderTests {
 		private MqFrame empty_last_frame;
 		private MqFrame empty_frame;
 		private MqFrame last_frame;
 		private MqFrame more_frame;
 		private MqFrameBuilder frame_builder;
 
-		public FrameBuilderTests() {
-			frame_builder = new MqFrameBuilder(1024);
+		public MqFrameBuilderTests() {
+			frame_builder = new MqFrameBuilder();
 			empty_last_frame = new MqFrame(null, MqFrameType.EmptyLast);
 			empty_frame = new MqFrame(null, MqFrameType.Empty);
 			last_frame = new MqFrame(new byte[] {1, 2, 3, 4, 5, 6, 7, 8, 9, 0}, MqFrameType.Last);
@@ -80,7 +80,7 @@ namespace DtronixMessageQueue.Tests {
 		[Fact]
 		public void FrameBuilder_throws_passed_buffer_too_large() {
 			Assert.Throws<InvalidDataException>(() => {
-				frame_builder.Write(new byte[1025], 0, 1025);
+				frame_builder.Write(new byte[MqFrame.MaxFrameSize + 1], 0, MqFrame.MaxFrameSize + 1);
 			});
 		}
 
@@ -94,7 +94,7 @@ namespace DtronixMessageQueue.Tests {
 		[Fact]
 		public void FrameBuilder_throws_frame_specified_length_too_large() {
 			Assert.Throws<InvalidDataException>(() => {
-				frame_builder.Write(new byte[] { 2, 1, 4, 1 }, 0, 4);
+				frame_builder.Write(new byte[] { 2, 254, 63, 1 }, 0, 4);
 			});
 		}
 
@@ -110,7 +110,7 @@ namespace DtronixMessageQueue.Tests {
 			frame_builder.Write(new byte[] { 2, 10, 0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 0 }, 0, 13);
 			var parsed_frame = frame_builder.Frames.Dequeue();
 
-			Assert.Equal(new byte[] {1, 2, 3, 4, 5, 6, 7, 8, 9, 0}, parsed_frame.Data);
+			Assert.Equal(new byte[] {1, 2, 3, 4, 5, 6, 7, 8, 9, 0}, parsed_frame.Buffer);
 		}
 
 	}
