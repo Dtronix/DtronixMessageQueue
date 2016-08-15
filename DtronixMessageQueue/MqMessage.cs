@@ -95,7 +95,9 @@ namespace DtronixMessageQueue {
 		/// </summary>
 		/// <param name="frames">Frames to add</param>
 		public void AddRange(IEnumerable<MqFrame> frames) {
-			Frames.AddRange(Frames);
+			foreach (var frame in frames) {
+				Frames.Add(frame);
+			}
 		}
 
 		/// <summary>
