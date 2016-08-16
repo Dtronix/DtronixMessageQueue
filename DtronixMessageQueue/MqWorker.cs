@@ -10,29 +10,71 @@ using System.Threading.Tasks;
 namespace DtronixMessageQueue {
 	internal class MqWorker : IDisposable {
 		private readonly Task worker_task;
-		private long average_idle_time = 2000;
+		private long average_idle_time = 0;
+		private long average_work_time = 0;
+		private readonly Stopwatch idle_stopwatch = new Stopwatch();
+		private readonly Stopwatch work_stopwatch = new Stopwatch();
+
+
+		private readonly CancellationTokenSource cancellation_source = new CancellationTokenSource();
+
+		public CancellationToken Token { get; }
 
 		/// <summary>
 		/// Average time this worker remains idle.
 		/// The smaller the number, the more work being done.
 		/// </summary>
-		public long AverageIdleTime => average_idle_time;
+		public long AverageIdleTime {
+			get {
+				if (idle_stopwatch.IsRunning) {
+					if (average_idle_time == 0) {
+						return idle_stopwatch.ElapsedMilliseconds;
+					}
+					return (idle_stopwatch.ElapsedMilliseconds + average_idle_time) / 2;
+				}
+				return average_idle_time;
+			}
+		}
 
-		private readonly CancellationTokenSource cancellation_source = new CancellationTokenSource();
+		public bool IsIdling => idle_stopwatch.IsRunning;
 
-		private readonly Action<CancellationToken> work;
+		public bool IsWorking => work_stopwatch.IsRunning;
 
-		public MqWorker(Action<CancellationToken> work) {
+		private readonly Action<MqWorker> work;
+
+		public MqWorker(Action<MqWorker> work) {
 			this.work = work;
-			worker_task = new Task(ProcessQueue, cancellation_source.Token, cancellation_source.Token,
-				TaskCreationOptions.LongRunning);
+			Token = cancellation_source.Token;
+			worker_task = new Task(ProcessQueue, Token, Token, TaskCreationOptions.LongRunning);
 		}
 
 		/// <summary>
 		/// Start the worker.
 		/// </summary>
 		public void Start() {
+			idle_stopwatch.Start();
 			worker_task.Start();
+		}
+
+		public void StartIdle() {
+			idle_stopwatch.Restart();
+
+			if (work_stopwatch.IsRunning) {
+				work_stopwatch.Stop();
+
+				average_work_time = average_idle_time == 0
+					? work_stopwatch.ElapsedMilliseconds
+					: (work_stopwatch.ElapsedMilliseconds + average_work_time) / 2;
+			}
+		}
+
+		public void StartWork() {
+			work_stopwatch.Restart();
+			idle_stopwatch.Stop();
+
+			average_idle_time = average_idle_time == 0
+					? idle_stopwatch.ElapsedMilliseconds
+					: (idle_stopwatch.ElapsedMilliseconds + average_idle_time) / 2;
 		}
 
 		/// <summary>
@@ -43,19 +85,11 @@ namespace DtronixMessageQueue {
 		}
 
 		private void ProcessQueue(object o) {
-			var token = (CancellationToken) o;
-			var idle_stopwatch = new Stopwatch();
+			var token = (CancellationToken)o;
 
 			while (token.IsCancellationRequested == false) {
-				idle_stopwatch.Restart();
-
-				// Check the average time this thread remains idle
-				average_idle_time = average_idle_time == -1
-					? idle_stopwatch.ElapsedMilliseconds
-					: (idle_stopwatch.ElapsedMilliseconds + average_idle_time)/2;
-
 				try {
-					work?.Invoke(token);
+					work?.Invoke(this);
 				} catch (Exception) {
 					// ignored
 				}

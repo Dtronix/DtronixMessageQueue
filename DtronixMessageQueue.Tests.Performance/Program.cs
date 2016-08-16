@@ -116,7 +116,7 @@ namespace DtronixMessageQueue.Tests.Performance {
 				for (var i = 0; i < runs; i++) {
 					client.Send(message);
 				}
-				//MqServer sv = server;
+				MqServer sv = server;
 				wait.WaitOne();
 				wait.Reset();
 
