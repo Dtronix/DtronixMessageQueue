@@ -17,9 +17,6 @@ namespace DtronixMessageQueue {
 	public class MqServer : AppServer<MqSession, RequestInfo<byte, byte[]>> {
 		public MqPostmaster Postmaster { get; }
 
-		public MqServer() : this(null, null) {
-		}
-
 		public MqServer(ServerConfig server_config) : this(null, server_config) {
 		}
 
