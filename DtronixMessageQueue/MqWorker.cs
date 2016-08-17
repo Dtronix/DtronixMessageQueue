@@ -9,7 +9,7 @@ using System.Threading.Tasks;
 
 namespace DtronixMessageQueue {
 	internal class MqWorker : IDisposable {
-		private readonly Task worker_task;
+		//private readonly Task worker_task;
 		private long average_idle_time = 0;
 		private long average_work_time = 0;
 		private readonly Stopwatch idle_stopwatch = new Stopwatch();
@@ -26,12 +26,12 @@ namespace DtronixMessageQueue {
 		/// </summary>
 		public long AverageIdleTime {
 			get {
-				if (idle_stopwatch.IsRunning) {
+				/*if (idle_stopwatch.IsRunning) {
 					if (average_idle_time == 0) {
 						return idle_stopwatch.ElapsedMilliseconds;
 					}
 					return (idle_stopwatch.ElapsedMilliseconds + average_idle_time) / 2;
-				}
+				}*/
 				return average_idle_time;
 			}
 		}
@@ -41,11 +41,17 @@ namespace DtronixMessageQueue {
 		public bool IsWorking => work_stopwatch.IsRunning;
 
 		private readonly Action<MqWorker> work;
+		private Thread worker_thread;
 
-		public MqWorker(Action<MqWorker> work) {
+		public MqWorker(Action<MqWorker> work, string name) {
 			this.work = work;
 			Token = cancellation_source.Token;
-			worker_task = new Task(ProcessQueue, Token, Token, TaskCreationOptions.LongRunning);
+			worker_thread = new Thread(ProcessQueue) {
+				Name = name,
+				IsBackground = true,
+				Priority = ThreadPriority.Normal
+			};
+			//worker_task = new Task(ProcessQueue, Token, Token, TaskCreationOptions.LongRunning);
 		}
 
 		/// <summary>
@@ -53,7 +59,8 @@ namespace DtronixMessageQueue {
 		/// </summary>
 		public void Start() {
 			idle_stopwatch.Start();
-			worker_task.Start();
+			worker_thread.Start(this);
+			//worker_task.Start();
 		}
 
 		public void StartIdle() {
@@ -62,7 +69,7 @@ namespace DtronixMessageQueue {
 			if (work_stopwatch.IsRunning) {
 				work_stopwatch.Stop();
 
-				average_work_time = average_idle_time == 0
+				average_work_time = average_work_time == 0
 					? work_stopwatch.ElapsedMilliseconds
 					: (work_stopwatch.ElapsedMilliseconds + average_work_time) / 2;
 			}
@@ -85,11 +92,11 @@ namespace DtronixMessageQueue {
 		}
 
 		private void ProcessQueue(object o) {
-			var token = (CancellationToken)o;
+			
 
-			while (token.IsCancellationRequested == false) {
+			while (Token.IsCancellationRequested == false) {
 				try {
-					work?.Invoke(this);
+					work?.Invoke((MqWorker)o);
 				} catch (Exception) {
 					// ignored
 				}
@@ -97,9 +104,9 @@ namespace DtronixMessageQueue {
 		}
 
 		public void Dispose() {
-			if (worker_task.IsCanceled == false) {
+			/*if (worker_task.IsCanceled == false) {
 				Stop();
-			}
+			}*/
 		}
 	}
 }

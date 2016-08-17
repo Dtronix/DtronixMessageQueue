@@ -150,7 +150,7 @@ namespace DtronixMessageQueue {
 				session.Send(buffer, 0, buffer.Length);
 			}
 
-			//postmaster.SignalWriteComplete(this);
+			postmaster.SignalWriteComplete(this);
 		}
 
 

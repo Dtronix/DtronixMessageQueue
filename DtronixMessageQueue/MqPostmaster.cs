@@ -15,16 +15,30 @@ namespace DtronixMessageQueue {
 
 		private readonly ConcurrentDictionary<MqMailbox, bool> ongoing_write_operations = new ConcurrentDictionary<MqMailbox, bool>();
 		private readonly BlockingCollection<MqMailbox> write_operations = new BlockingCollection<MqMailbox>();
-		private readonly ConcurrentDictionary<MqWorker, bool> write_workers = new ConcurrentDictionary<MqWorker, bool>();
+		private readonly List<MqWorker> write_workers = new List<MqWorker>();
 
 
 		private readonly ConcurrentDictionary<MqMailbox, bool> ongoing_read_operations = new ConcurrentDictionary<MqMailbox, bool>();
 		private readonly BlockingCollection<MqMailbox> read_operations = new BlockingCollection<MqMailbox>();
-		private readonly ConcurrentDictionary<MqWorker, bool> read_workers = new ConcurrentDictionary<MqWorker, bool>();
+		private readonly List<MqWorker> read_workers = new List<MqWorker>();
 
 		public MqPostmaster() {
 			// Add a supervisor to review when it is needed to increase or decrease the worker numbers.
-			supervisor = new MqWorker(SuperviseWorkers);
+			supervisor = new MqWorker(async (worker) => {
+				while (true) {
+
+					if (ProcessWorkers(read_workers)) {
+						CreateReadWorker();
+					}
+
+					if (ProcessWorkers( write_workers)) {
+						//CreateWriteWorker();
+
+					}
+
+					await Task.Delay(500);
+				}
+			}, "postmaster_supervisor");
 
 			// Create one reader and one writer workers to start off with.
 			CreateReadWorker();
@@ -43,36 +57,44 @@ namespace DtronixMessageQueue {
 			return ongoing_read_operations.TryAdd(mailbox, true) && read_operations.TryAdd(mailbox);
 		}
 
+		public void SignalWriteComplete(MqMailbox mailbox) {
+			bool out_mailbox;
+			ongoing_write_operations.TryRemove(mailbox, out out_mailbox);
+		}
+
+
+		public bool SignalReadComplete(MqMailbox mailbox) {
+			bool out_mailbox;
+			return ongoing_read_operations.TryRemove(mailbox, out out_mailbox);
+		}
 
 		private async void SuperviseWorkers(MqWorker worker) {
-			while (worker.Token.IsCancellationRequested == false) {
+			while (true) {
 
-				if (ProcessWorkers(read_workers.Keys.ToArray(), read_workers)) {
-					CreateReadWorker();
-					Console.WriteLine("Created read worker.");
-				}
+				//if (ProcessWorkers(read_workers)) {
+					//CreateReadWorker();
+				//}
 
-				if (ProcessWorkers(write_workers.Keys.ToArray(), write_workers)) {
-					CreateWriteWorker();
+				//if (ProcessWorkers( write_workers)) {
+					//CreateWriteWorker();
 					
-				}
+				//}
 
-				await Task.Delay(500, worker.Token);
+				await Task.Delay(500);
 			}
 		}
 
 
-		private bool ProcessWorkers(MqWorker[] workers, ConcurrentDictionary<MqWorker, bool> worker_dict) {
+		private bool ProcessWorkers(List<MqWorker> worker_list) {
 			MqWorker idle_worker = null;
-			foreach (var worker in workers) {
-				if (worker.IsIdling) {
+			foreach (var worker in worker_list) {
+				if (idle_worker == null && worker.IsIdling) {
 					idle_worker = worker;
 				}
 
 				// If this is not the idle worker and it has been idle for more than 60 seconds, close down this worker.
 				if (worker.IsIdling && worker != idle_worker && worker.AverageIdleTime > 60000) {
-					bool out_worker;
-					worker_dict.TryRemove(worker, out out_worker);
+					worker_list.Remove(worker);
 					worker.Stop();
 				}
 			}
@@ -94,9 +116,10 @@ namespace DtronixMessageQueue {
 					while (write_operations.TryTake(out mailbox, 60000, worker.Token)) {
 						worker.StartWork();
 						mailbox.ProcessOutbox();
-						bool out_mailbox;
-						ongoing_write_operations.TryRemove(mailbox, out out_mailbox);
 						worker.StartIdle();
+						//bool out_mailbox;
+						//ongoing_write_operations.TryRemove(mailbox, out out_mailbox);
+
 					}
 				} catch (ThreadAbortException) {
 				} catch (Exception) {
@@ -107,11 +130,11 @@ namespace DtronixMessageQueue {
 								: "MqConnection {0}: Exception occurred while when reading.", mailbox.Connection.Id);*/
 					}
 				}
-			});
+			}, "mq_write_worker_" + write_workers.Count);
 
 			writer_worker.Start();
 
-			write_workers.TryAdd(writer_worker, true);
+			write_workers.Add(writer_worker);
 		}
 
 		/// <summary>
@@ -127,9 +150,9 @@ namespace DtronixMessageQueue {
 					while (read_operations.TryTake(out mailbox, 60000, worker.Token)) {
 						worker.StartWork();
 						mailbox.ProcessIncomingQueue();
-						
-						ongoing_read_operations.TryRemove(mailbox, out out_mailbox);
 						worker.StartIdle();
+						ongoing_read_operations.TryRemove(mailbox, out out_mailbox);
+
 					}
 				} catch (ThreadAbortException) {
 				} catch (Exception) {
@@ -140,21 +163,21 @@ namespace DtronixMessageQueue {
 								: "MqConnection {0}: Exception occurred while when reading.", mailbox.Connection.Id);*/
 					}
 				}
-			});
+			}, "mq_read_worker_" + read_workers.Count);
 
 			reader_worker.Start();
 
-			read_workers.TryAdd(reader_worker, true);
+			read_workers.Add(reader_worker);
 		}
 
 		public void Dispose() {
 			supervisor.Stop();
 			foreach (var write_worker in write_workers) {
-				write_worker.Key.Stop();
+				write_worker.Stop();
 			}
 
 			foreach (var read_worker in read_workers) {
-				read_worker.Key.Stop();
+				read_worker.Stop();
 			}
 		}
 	}
