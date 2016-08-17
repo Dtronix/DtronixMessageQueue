@@ -44,6 +44,7 @@ namespace DtronixMessageQueue {
 		private Thread worker_thread;
 
 		public MqWorker(Action<MqWorker> work, string name) {
+			idle_stopwatch.Start();
 			this.work = work;
 			Token = cancellation_source.Token;
 			worker_thread = new Thread(ProcessQueue) {
@@ -58,7 +59,6 @@ namespace DtronixMessageQueue {
 		/// Start the worker.
 		/// </summary>
 		public void Start() {
-			idle_stopwatch.Start();
 			worker_thread.Start(this);
 			//worker_task.Start();
 		}
@@ -104,9 +104,9 @@ namespace DtronixMessageQueue {
 		}
 
 		public void Dispose() {
-			/*if (worker_task.IsCanceled == false) {
+			if (worker_thread.IsAlive) {
 				Stop();
-			}*/
+			}
 		}
 	}
 }

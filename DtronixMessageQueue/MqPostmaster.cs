@@ -24,21 +24,7 @@ namespace DtronixMessageQueue {
 
 		public MqPostmaster() {
 			// Add a supervisor to review when it is needed to increase or decrease the worker numbers.
-			supervisor = new MqWorker(async (worker) => {
-				while (true) {
-
-					if (ProcessWorkers(read_workers)) {
-						CreateReadWorker();
-					}
-
-					if (ProcessWorkers( write_workers)) {
-						//CreateWriteWorker();
-
-					}
-
-					await Task.Delay(500);
-				}
-			}, "postmaster_supervisor");
+			supervisor = new MqWorker(SupervisorWork, "postmaster_supervisor");
 
 			// Create one reader and one writer workers to start off with.
 			CreateReadWorker();
@@ -48,6 +34,22 @@ namespace DtronixMessageQueue {
 			supervisor.Start();
 		}
 
+		private void SupervisorWork(MqWorker worker) {
+			while (worker.Token.IsCancellationRequested == false) {
+				if (ProcessWorkers(read_workers)) {
+					CreateReadWorker();
+				}
+
+				if (ProcessWorkers(write_workers)) {
+					CreateWriteWorker();
+				}
+				Thread.Sleep(500);
+			}
+		}
+
+		public MqPostmaster(MqServer server) {
+		}
+
 
 		public bool SignalWrite(MqMailbox mailbox) {
 			return ongoing_write_operations.TryAdd(mailbox, true) && write_operations.TryAdd(mailbox);
@@ -55,33 +57,6 @@ namespace DtronixMessageQueue {
 
 		public bool SignalRead(MqMailbox mailbox) {
 			return ongoing_read_operations.TryAdd(mailbox, true) && read_operations.TryAdd(mailbox);
-		}
-
-		public void SignalWriteComplete(MqMailbox mailbox) {
-			bool out_mailbox;
-			ongoing_write_operations.TryRemove(mailbox, out out_mailbox);
-		}
-
-
-		public bool SignalReadComplete(MqMailbox mailbox) {
-			bool out_mailbox;
-			return ongoing_read_operations.TryRemove(mailbox, out out_mailbox);
-		}
-
-		private async void SuperviseWorkers(MqWorker worker) {
-			while (true) {
-
-				//if (ProcessWorkers(read_workers)) {
-					//CreateReadWorker();
-				//}
-
-				//if (ProcessWorkers( write_workers)) {
-					//CreateWriteWorker();
-					
-				//}
-
-				await Task.Delay(500);
-			}
 		}
 
 
@@ -110,6 +85,7 @@ namespace DtronixMessageQueue {
 			Console.WriteLine("Created write worker.");
 			var writer_worker = new MqWorker(worker => {
 				MqMailbox mailbox = null;
+				bool out_mailbox;
 
 				try {
 					worker.StartIdle();
@@ -117,8 +93,7 @@ namespace DtronixMessageQueue {
 						worker.StartWork();
 						mailbox.ProcessOutbox();
 						worker.StartIdle();
-						//bool out_mailbox;
-						//ongoing_write_operations.TryRemove(mailbox, out out_mailbox);
+						ongoing_write_operations.TryRemove(mailbox, out out_mailbox);
 
 					}
 				} catch (ThreadAbortException) {

@@ -1,8 +1,11 @@
 ﻿using System;
+using System.Collections.Generic;
 using System.Diagnostics;
+using System.Linq;
 using System.Management;
 using System.Runtime.InteropServices;
 using System.Threading;
+using System.Threading.Tasks;
 using DtronixMessageQueue;
 using SuperSocket.SocketBase.Config;
 
@@ -33,6 +36,8 @@ namespace DtronixMessageQueue.Tests.Performance {
 				new MqFrame(RandomBytes(50), MqFrameType.Last)
 			};
 
+			MqPerformanceTests(10000, 1, small_message);
+
 			MqPerformanceTests(1000000, 5, small_message);
 
 			var medimum_message = new MqMessage {
@@ -58,6 +63,117 @@ namespace DtronixMessageQueue.Tests.Performance {
 			Console.ReadLine();
 		}
 
+		private class ClientRunInfo {
+			public MqClient Client { get; set; }
+			public int Runs { get; set; }
+			public WaitHandle WaitHandle { get; set; }
+			public ManualResetEventSlim ManualResetEventSlim { get; set; }
+			public MqSession Session { get; set; }
+			public Stopwatch Stopwatch { get; set; }
+
+		}
+
+		private static void MqMultiClientPerformanceTests(int runs, int clients, MqMessage message) {
+			var server = new MqServer(new ServerConfig {
+				Ip = "127.0.0.1",
+				Port = 2828
+			});
+			server.Start();
+			Dictionary<MqSession, ClientRunInfo> client_infos = new Dictionary<MqSession, ClientRunInfo>();
+
+			var connection_reset = new ManualResetEventSlim();
+			ClientRunInfo current_info = null;
+
+			server.NewSessionConnected += session => {
+				current_info.Session = session;
+				client_infos.Add(session, current_info);
+
+				connection_reset.Set();
+
+				Console.Write(client_infos.Count + " ");
+			};
+
+			Console.Write("Clients connecting to server:");
+			for (int i = 0; i < clients; i++) {
+				var reset = new ManualResetEventSlim();
+				var cl = new MqClient();
+				current_info = new ClientRunInfo() {
+					Client = cl,
+					ManualResetEventSlim = reset,
+					WaitHandle = reset.WaitHandle,
+					Runs = 0,
+					Stopwatch = new Stopwatch()
+
+				};
+
+				
+				cl.ConnectAsync("127.0.0.1").Wait();
+
+				connection_reset.Wait();
+
+			}
+
+			Console.WriteLine("\r\nClients connected to server  Starting tests.");
+
+			Console.WriteLine("|   Build |   Messages | Msg Bytes | Milliseconds |        MPS |     MBps |");
+			Console.WriteLine("|---------|------------|-----------|--------------|------------|----------|");
+
+
+			var message_size = message.Size;
+
+			server.IncomingMessage += (sender, args) => {
+				MqMessage message_out;
+
+				var client_info = client_infos[args.Session];
+				while (args.Mailbox.Inbox.TryDequeue(out message_out)) {
+					client_info.Runs++;
+				}
+
+				if (client_info.Runs == runs) {
+					client_info.Stopwatch.Stop();
+					var mode = "Release";
+
+#if DEBUG
+					mode = "Debug";
+#endif
+
+					var messages_per_second = (int)((double)runs / sw.ElapsedMilliseconds * 1000);
+					var msg_size_no_header = message_size - 12;
+					var mbps = runs * (double)(msg_size_no_header) / sw.ElapsedMilliseconds / 1000;
+					Console.WriteLine("| {0,7} | {1,10:N0} | {2,9:N0} | {3,12:N0} | {4,10:N0} | {5,8:N2} |", mode, runs, msg_size_no_header, sw.ElapsedMilliseconds, messages_per_second, mbps);
+
+					client_info.ManualResetEventSlim.Set();
+				}
+
+			};
+
+			
+			var client = new MqClient();
+
+
+			foreach (var client_run_info in client_infos) {
+				Task.Run(() => {
+					client_run_info.Value.Stopwatch.Restart();
+					for (var i = 0; i < runs; i++) {
+						client.Send(message);
+					}
+					MqServer sv = server;
+					client_run_info.Value.ManualResetEventSlim.Wait();
+					client_run_info.Value.ManualResetEventSlim.Reset();
+				});
+			}
+
+			var resets = client_infos.Values.
+
+
+			ManualResetEvent.WaitAll()
+
+			Console.WriteLine("Complete");
+			server.Stop();
+			client.Close().Wait();*/
+
+		}
+
 		private static void MqPerformanceTests(int runs, int loops, MqMessage message) {
 			var server = new MqServer(new ServerConfig {
 				Ip = "127.0.0.1",
@@ -71,7 +187,6 @@ namespace DtronixMessageQueue.Tests.Performance {
 			var sw = new Stopwatch();
 			var wait = new AutoResetEvent(false);
 
-			var client = new MqClient();
 
 			Console.WriteLine("|   Build |   Messages | Msg Bytes | Milliseconds |        MPS |     MBps |");
 			Console.WriteLine("|---------|------------|-----------|--------------|------------|----------|");
@@ -109,6 +224,7 @@ namespace DtronixMessageQueue.Tests.Performance {
 			};
 
 
+			var client = new MqClient();
 
 			var send = new Action(() => {
 				count = 0;
