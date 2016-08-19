@@ -1,8 +1,11 @@
 ﻿using System;
+using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Diagnostics;
+using System.IO;
 using System.Linq;
 using System.Management;
+using System.Reflection;
 using System.Runtime.InteropServices;
 using System.Threading;
 using System.Threading.Tasks;
@@ -17,61 +20,182 @@ namespace DtronixMessageQueue.Tests.Performance {
 		static extern bool GetPhysicallyInstalledSystemMemory(out long total_memory_in_kilobytes);
 
 		static void Main(string[] args) {
+			string mode = null;
+			int total_loops, total_messages, total_frames, frame_size, total_clients;
+
+			if (args == null || args.Length == 0) {
+				mode = "setup";
+				total_loops = 1;
+				total_messages = 1000000;
+				total_frames = 4;
+				frame_size = 50;
+				total_clients = 1;
+			} else if (args.Length == 5) {
+				mode = args[0];
+				total_loops = int.Parse(args[1]);
+				total_messages = int.Parse(args[2]);
+				total_frames = int.Parse(args[3]);
+				frame_size = int.Parse(args[4]);
+				total_clients = int.Parse(args[5]);
+			} else {
+				Console.WriteLine("Invalid parameters passed to performance tester");
+				return;
+			}
+			Console.ReadLine();
+
+			var exe_path = Assembly.GetExecutingAssembly().Location;
+
+			if (mode == "setup") {
+				Process.Start(exe_path, $"server {total_loops} {total_messages} {total_frames} {frame_size} {total_clients}").WaitForExit();
+				Thread.Sleep(500);
+
+				for (int i = 0; i < total_clients; i++) {
+					Process.Start(exe_path, $"client {total_loops} {total_messages} {total_frames} {frame_size} {total_clients}");
+				}
+				
+
+			} else if (mode == "client") {
+				StartClient(total_loops, total_messages, total_frames, frame_size);
+
+				Console.ReadLine();
+
+			} else if (mode == "server") {
+				StartServer(total_messages);
+
+				Console.ReadLine();
+			}
+			
+		}
+
+		private static void StartClient(int total_loops, int total_messages, int total_frames, int frame_size) {
+			Console.WriteLine("Client starting...");
+
+			var cl = new MqClient();
+			var stopwatch = new Stopwatch();
+			var message_reader = new MqMessageReader();
+			var message_size = total_frames*frame_size;
+			var message = new MqMessage();
+			double[] total_values = { 0, 0, 0 };
 
 			ManagementObjectSearcher mos = new ManagementObjectSearcher("root\\CIMV2", "SELECT * FROM Win32_Processor");
 			foreach (var o in mos.Get()) {
-				var mo = (ManagementObject) o;
+				var mo = (ManagementObject)o;
 				Console.Write(mo["Name"]);
 			}
 
 
 			long mem_kb;
 			GetPhysicallyInstalledSystemMemory(out mem_kb);
-			Console.WriteLine(" with " +(mem_kb / 1024 / 1024) + " GB of RAM installed.\r\n");
+			Console.WriteLine(" with " + (mem_kb / 1024 / 1024) + " GB of RAM installed.\r\n");
 
-			var small_message = new MqMessage {
-				new MqFrame(RandomBytes(50), MqFrameType.More),
-				new MqFrame(RandomBytes(50), MqFrameType.More),
-				new MqFrame(RandomBytes(50), MqFrameType.More),
-				new MqFrame(RandomBytes(50), MqFrameType.Last)
+
+
+
+			Console.WriteLine("|   Messages | Msg Bytes | Milliseconds |        MPS |     MBps |");
+			Console.WriteLine("|------------|-----------|--------------|------------|----------|");
+
+			for (int i = 0; i < total_frames; i++) {
+				message.Add(new MqFrame(RandomBytes(frame_size)));
+			}
+
+
+
+			cl.Connected += (sender, args) => {
+				stopwatch.Start();
+				for (var i = 0; i < total_messages; i++) {
+					cl.Send(message);
+				}
 			};
 
-			MqMultiClientPerformanceTests(10000, 2, small_message);
+			cl.IncomingMessage += (sender, args) => {
+				MqMessage msg;
+				if (args.Mailbox.Inbox.TryDequeue(out msg)) {
+					message_reader.Message = msg;
+					var result = message_reader.ReadString();
 
-			//MqPerformanceTests(1000000, 5, small_message);
+					if (result == "COMPLETE") {
 
-			var medimum_message = new MqMessage {
-				new MqFrame(RandomBytes(500), MqFrameType.More),
-				new MqFrame(RandomBytes(500), MqFrameType.More),
-				new MqFrame(RandomBytes(500), MqFrameType.More),
-				new MqFrame(RandomBytes(500), MqFrameType.Last)
+						stopwatch.Stop();
+
+						var messages_per_second = (int)((double)total_messages / stopwatch.ElapsedMilliseconds * 1000);
+						var msg_size_no_header = message_size - 12;
+						var mbps = total_messages * (double)(msg_size_no_header) / stopwatch.ElapsedMilliseconds / 1000;
+						Console.WriteLine("| {0,10:N0} | {1,9:N0} | {2,12:N0} | {3,10:N0} | {4,8:N2} |", total_messages, msg_size_no_header, stopwatch.ElapsedMilliseconds, messages_per_second, mbps);
+
+						total_values[0] += stopwatch.ElapsedMilliseconds;
+						total_values[1] += messages_per_second;
+						total_values[2] += mbps;
+
+
+						Console.WriteLine("|            |  AVERAGES | {0,12:N0} | {1,10:N0} | {2,8:N2} |", total_values[0] / total_loops, total_values[1] / total_loops, total_values[2] / total_loops);
+						Console.WriteLine();
+						Console.WriteLine("Test complete");
+
+						cl.Close();
+
+
+
+						
+					}
+				}
 			};
 
-			//MqPerformanceTests(100000, 5, medimum_message);
+			cl.ConnectAsync("127.0.0.1").Wait();
 
-			var large_message = new MqMessage {
-				new MqFrame(RandomBytes(15000), MqFrameType.More),
-				new MqFrame(RandomBytes(15000), MqFrameType.More),
-				new MqFrame(RandomBytes(15000), MqFrameType.More),
-				new MqFrame(RandomBytes(15000), MqFrameType.Last)
+		}
+
+		private static void StartServer(int total_messages) {
+			var builder = new MqMessageBuilder();
+			builder.Write("COMPLETE");
+
+			var complete_message = builder.ToMessage(true);
+
+			Console.WriteLine("Server starting");
+			var server = new MqServer(new ServerConfig {
+				Ip = "127.0.0.1",
+				Port = 2828
+			});
+			ConcurrentDictionary<MqSession, ClientRunInfo> client_infos = new ConcurrentDictionary<MqSession, ClientRunInfo>();
+
+
+			server.NewSessionConnected += session => {
+				var current_info = new ClientRunInfo() {
+					Session = session,
+					Runs = 0
+				};
+				client_infos.TryAdd(session, current_info);
 			};
 
-			//MqPerformanceTests(10000, 5, large_message);
+			server.SessionClosed += (session, value) => {
+				ClientRunInfo info;
+				client_infos.TryRemove(session, out info);
+			};
 
-			Console.WriteLine("Performance complete");
+			server.IncomingMessage += (sender, args) => {
+				MqMessage message_out;
 
-			Console.ReadLine();
+				var client_info = client_infos[args.Session];
+				while (args.Mailbox.Inbox.TryDequeue(out message_out)) {
+					client_info.Runs++;
+				}
+
+				if (client_info.Runs == total_messages) {
+					args.Session.Send(complete_message);
+				}
+
+			};
+
+
+			server.Start();
+			Console.WriteLine("Server started.");
 		}
 
 		private class ClientRunInfo {
-			public MqClient Client { get; set; }
 			public int Runs { get; set; }
-			public WaitHandle WaitHandle { get; set; }
-			public ManualResetEventSlim ManualResetEventSlim { get; set; }
 			public MqSession Session { get; set; }
-			public Stopwatch Stopwatch { get; set; }
 
 		}
+		/*
 
 		private static void MqMultiClientPerformanceTests(int runs, int clients, MqMessage message) {
 			var server = new MqServer(new ServerConfig {
@@ -80,6 +204,7 @@ namespace DtronixMessageQueue.Tests.Performance {
 			});
 			server.Start();
 			Dictionary<MqSession, ClientRunInfo> client_infos = new Dictionary<MqSession, ClientRunInfo>();
+
 
 			var connection_reset = new ManualResetEventSlim();
 			ClientRunInfo current_info = null;
@@ -248,7 +373,7 @@ namespace DtronixMessageQueue.Tests.Performance {
 			client.Close().Wait();
 
 		}
-
+		*/
 
 		private static byte[] RandomBytes(int len) {
 			var number = 0;
