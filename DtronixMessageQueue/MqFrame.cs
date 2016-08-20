@@ -463,6 +463,49 @@ namespace DtronixMessageQueue {
 		}
 
 
+		/// <summary>
+		/// Reads a ASCII encoded string value at the specified index.
+		/// (uint16)(string)
+		/// >2 Bytes.
+		/// </summary>
+		/// <param name="index">The zero-based index to read the value from.</param>
+		/// <param name="string_length">Specified length of the ASCII string.  Default of -1 means the string is prepended with the length which should be read first automatically.</param>
+		public string ReadAscii(int index, int string_length = -1) {
+			var prepended_length = string_length == -1;
+			if (prepended_length) {
+				string_length = ReadUInt16(index);
+			}
+
+			var str_buffer = new byte[string_length];
+			Read(index + (prepended_length ? 2 : 0), str_buffer, 0, string_length);
+
+			return Encoding.ASCII.GetString(str_buffer);
+		}
+
+
+		/// <summary>
+		/// Writes a ASCII encoded string.
+		/// (uint16?)(string)
+		/// >2|1 Bytes.
+		/// </summary>
+		/// <param name="index">The zero-based index to write the value to.</param>
+		/// <param name="value">Value to write to the specified index.</param>
+		/// <param name="prepend_size">If set to true, the written string will follow a uint16 of the length of the encoded string.  Otherwise it will be just an encoded string.</param>
+		public void WriteAscii(int index, string value, bool prepend_size = true) {
+			var string_bytes = Encoding.ASCII.GetBytes(value);
+
+			if (prepend_size) {
+				Write(index, (ushort)string_bytes.Length);
+			}
+
+			if (index + string_bytes.Length + (prepend_size ? 2 : 0) > MaxFrameSize) {
+				throw new InvalidOperationException("Length of ASCII string is longer than the frame will allow.");
+			}
+
+			Write(index + (prepend_size ? 2 : 0), string_bytes, 0, string_bytes.Length);
+		}
+
+
 
 		/// <summary>
 		/// Reads the bytes from this frame.
@@ -506,6 +549,7 @@ namespace DtronixMessageQueue {
 		public void Write(int frame_index, byte[] byte_buffer, int offset, int count) {
 			System.Buffer.BlockCopy(byte_buffer, offset, buffer, frame_index, count);
 		}
+
 
 
 		/// <summary>

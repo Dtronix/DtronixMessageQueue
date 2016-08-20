@@ -656,7 +656,104 @@ namespace DtronixMessageQueue.Tests {
 			Assert.Equal(expected_bytes, actual_bytes);
 		}
 
-		
+		[Fact]
+		public void Frame_writes_ascii_text_prepended_with_size() {
+			expected_bytes = new byte[] {
+				3, 28, 0, 
+				26, 0, 
+				97, 98, 99, 100, 101, 102, 103, 104, 105, 106, 107, 108, 109, 110, 111, 112, 113, 114, 115, 116,
+				117, 118, 119, 120, 121, 122
+			};
+			actual_frame = new MqFrame(new byte[28], MqFrameType.Last);
+			actual_frame.WriteAscii(0, "abcdefghijklmnopqrstuvwxyz", true);
+
+			actual_bytes = actual_frame.RawFrame();
+
+			Assert.Equal(expected_bytes, actual_bytes);
+		}
+
+		[Fact]
+		public void Frame_writes_ascii_text_prepended_with_size_position() {
+			expected_bytes = new byte[] {
+				3, 29, 0,
+				0,
+				26, 0,
+				97, 98, 99, 100, 101, 102, 103, 104, 105, 106, 107, 108, 109, 110, 111, 112, 113, 114, 115, 116,
+				117, 118, 119, 120, 121, 122
+			};
+			actual_frame = new MqFrame(new byte[29], MqFrameType.Last);
+			actual_frame.WriteAscii(1, "abcdefghijklmnopqrstuvwxyz", true);
+
+			actual_bytes = actual_frame.RawFrame();
+
+			Assert.Equal(expected_bytes, actual_bytes);
+		}
+
+		[Fact]
+		public void Frame_writes_ascii_text_not_prepended_with_size() {
+			expected_bytes = new byte[] {
+				3, 26, 0,
+				97, 98, 99, 100, 101, 102, 103, 104, 105, 106, 107, 108, 109, 110, 111, 112, 113, 114, 115, 116,
+				117, 118, 119, 120, 121, 122
+			};
+			actual_frame = new MqFrame(new byte[26], MqFrameType.Last);
+			actual_frame.WriteAscii(0, "abcdefghijklmnopqrstuvwxyz", false);
+
+			actual_bytes = actual_frame.RawFrame();
+
+			Assert.Equal(expected_bytes, actual_bytes);
+		}
+
+		[Fact]
+		public void Frame_writes_ascii_text_not_prepended_with_size_position() {
+			expected_bytes = new byte[] {
+				3, 27, 0,
+				0,
+				97, 98, 99, 100, 101, 102, 103, 104, 105, 106, 107, 108, 109, 110, 111, 112, 113, 114, 115, 116,
+				117, 118, 119, 120, 121, 122
+			};
+			actual_frame = new MqFrame(new byte[27], MqFrameType.Last);
+			actual_frame.WriteAscii(1, "abcdefghijklmnopqrstuvwxyz", false);
+
+			actual_bytes = actual_frame.RawFrame();
+
+			Assert.Equal(expected_bytes, actual_bytes);
+		}
+
+		[Fact]
+		public void Frame_reads_ascii_text_prepended_with_size() {
+			var value = "abcdefghijklmnopqrstuvwxyz";
+			actual_frame = new MqFrame(new byte[28], MqFrameType.Last);
+			actual_frame.WriteAscii(0, value, true);
+
+			Assert.Equal(value, actual_frame.ReadAscii(0));
+		}
+
+		[Fact]
+		public void Frame_reads_ascii_text_not_prepended_with_size() {
+			var value = "abcdefghijklmnopqrstuvwxyz";
+			actual_frame = new MqFrame(new byte[26], MqFrameType.Last);
+			actual_frame.WriteAscii(0, value, false);
+
+			Assert.Equal(value, actual_frame.ReadAscii(0, actual_frame.DataLength));
+		}
+
+
+		[Fact]
+		public void Frame_throws_on_ascii_text_write_when_larger_than_frame() {
+			var value = "abcdefghijklmnopqrstuvwxyz";
+
+			for (int i = 0; i < 10; i++) {
+				value += value;
+			}
+			actual_frame = new MqFrame(new byte[MqFrame.MaxFrameSize], MqFrameType.Last);
+			
+			Assert.Throws<InvalidOperationException>(() => actual_frame.WriteAscii(0, value, false));
+		}
+
+
+
+
 
 	}
 }

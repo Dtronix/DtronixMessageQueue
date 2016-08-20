@@ -211,7 +211,7 @@ namespace DtronixMessageQueue {
 		}
 
 		/// <summary>
-		/// Writes a string.
+		/// Reads a string.
 		/// >4 Bytes.
 		/// 1 or more frames.
 		/// </summary>
