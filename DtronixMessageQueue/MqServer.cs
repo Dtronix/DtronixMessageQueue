@@ -50,12 +50,13 @@ namespace DtronixMessageQueue {
 		}
 
 		protected override MqSession CreateAppSession(ISocketSession socket_session) {
+			
 			var session = new MqSession();
 			session.Mailbox = new MqMailbox(Postmaster, session);
 
 			// TODO: Review how to do this better.
 			session.Mailbox.IncomingMessage += OnIncomingMessage;
-
+			base.CreateAppSession(socket_session);
 			return session;
 		}
 

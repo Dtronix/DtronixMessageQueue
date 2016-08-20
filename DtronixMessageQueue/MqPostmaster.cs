@@ -17,6 +17,11 @@ namespace DtronixMessageQueue {
 		private readonly BlockingCollection<MqMailbox> write_operations = new BlockingCollection<MqMailbox>();
 		private readonly List<MqWorker> write_workers = new List<MqWorker>();
 
+		public int TotalWriters => write_workers.Count;
+		public int TotalReaders => read_workers.Count;
+
+		public int MaxWriters { get; set; } = 0;
+		public int MaxReaders { get; set; } = 0;
 
 		private readonly ConcurrentDictionary<MqMailbox, bool> ongoing_read_operations = new ConcurrentDictionary<MqMailbox, bool>();
 		private readonly BlockingCollection<MqMailbox> read_operations = new BlockingCollection<MqMailbox>();
@@ -27,20 +32,22 @@ namespace DtronixMessageQueue {
 			supervisor = new MqWorker(SupervisorWork, "postmaster_supervisor");
 
 			// Create one reader and one writer workers to start off with.
-			CreateReadWorker();
-			CreateWriteWorker();
-
-
+			for (int i = 0; i < 2; i++) {
+				CreateReadWorker();
+				CreateWriteWorker();
+			}
 			supervisor.Start();
 		}
 
 		private void SupervisorWork(MqWorker worker) {
 			while (worker.Token.IsCancellationRequested == false) {
-				if (ProcessWorkers(read_workers)) {
+				if (ProcessWorkers(read_workers, MaxReaders)) {
+					Console.WriteLine("Created read worker.");
 					CreateReadWorker();
 				}
 
-				if (ProcessWorkers(write_workers)) {
+				if (ProcessWorkers(write_workers, MaxWriters)) {
+					Console.WriteLine("Created write worker.");
 					CreateWriteWorker();
 				}
 				Thread.Sleep(500);
@@ -60,7 +67,7 @@ namespace DtronixMessageQueue {
 		}
 
 
-		private bool ProcessWorkers(List<MqWorker> worker_list) {
+		private bool ProcessWorkers(List<MqWorker> worker_list, int max_workers) {
 			MqWorker idle_worker = null;
 			foreach (var worker in worker_list) {
 				if (idle_worker == null && worker.IsIdling) {
@@ -74,6 +81,11 @@ namespace DtronixMessageQueue {
 				}
 			}
 
+
+			if (max_workers != 0 && worker_list.Count >= max_workers) {
+				return false;
+			}
+
 			return idle_worker == null;
 		}
 
@@ -82,7 +94,6 @@ namespace DtronixMessageQueue {
 		/// Creates a worker writer.
 		/// </summary>
 		public void CreateWriteWorker() {
-			Console.WriteLine("Created write worker.");
 			var writer_worker = new MqWorker(worker => {
 				MqMailbox mailbox = null;
 				bool out_mailbox;
