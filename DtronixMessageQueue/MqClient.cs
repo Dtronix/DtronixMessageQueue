@@ -43,7 +43,10 @@ namespace DtronixMessageQueue {
 		public MqClient() {
 			PipeLineProcessor = new DefaultPipelineProcessor<BufferedPackageInfo>(new MqClientReceiveFilter(), MqFrame.MaxFrameSize);
 
-			postmaster = new MqPostmaster();
+			postmaster = new MqPostmaster() {
+				MaxReaders = 2,
+				MaxWriters = 2
+			};
 
 			mailbox = new MqMailbox(postmaster, this);
 

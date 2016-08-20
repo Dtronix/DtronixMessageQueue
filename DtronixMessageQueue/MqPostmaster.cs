@@ -15,22 +15,46 @@ namespace DtronixMessageQueue {
 
 		private readonly ConcurrentDictionary<MqMailbox, bool> ongoing_write_operations = new ConcurrentDictionary<MqMailbox, bool>();
 		private readonly BlockingCollection<MqMailbox> write_operations = new BlockingCollection<MqMailbox>();
-		private readonly ConcurrentBag<MqWorker> write_workers = new ConcurrentBag<MqWorker>();
+		private readonly List<MqWorker> write_workers = new List<MqWorker>();
 
+		public int TotalWriters => write_workers.Count;
+		public int TotalReaders => read_workers.Count;
+
+		public int MaxWriters { get; set; } = 0;
+		public int MaxReaders { get; set; } = 0;
 
 		private readonly ConcurrentDictionary<MqMailbox, bool> ongoing_read_operations = new ConcurrentDictionary<MqMailbox, bool>();
 		private readonly BlockingCollection<MqMailbox> read_operations = new BlockingCollection<MqMailbox>();
-		private readonly ConcurrentBag<MqWorker> read_workers = new ConcurrentBag<MqWorker>();
+		private readonly List<MqWorker> read_workers = new List<MqWorker>();
 
 		public MqPostmaster() {
 			// Add a supervisor to review when it is needed to increase or decrease the worker numbers.
-			//supervisor = new MqWorker(SuperviseWorkers);
+			supervisor = new MqWorker(SupervisorWork, "postmaster_supervisor");
 
 			// Create one reader and one writer workers to start off with.
-			CreateReadWorker();
-			CreateWriteWorker();
+			for (int i = 0; i < 2; i++) {
+				CreateReadWorker();
+				CreateWriteWorker();
+			}
+			supervisor.Start();
+		}
 
-			//CreateWriteWorker();
+		private void SupervisorWork(MqWorker worker) {
+			while (worker.Token.IsCancellationRequested == false) {
+				if (ProcessWorkers(read_workers, MaxReaders)) {
+					Console.WriteLine("Created read worker.");
+					CreateReadWorker();
+				}
+
+				if (ProcessWorkers(write_workers, MaxWriters)) {
+					Console.WriteLine("Created write worker.");
+					CreateWriteWorker();
+				}
+				Thread.Sleep(500);
+			}
+		}
+
+		public MqPostmaster(MqServer server) {
 		}
 
 
@@ -43,43 +67,26 @@ namespace DtronixMessageQueue {
 		}
 
 
-		public void SignalWriteComplete(MqMailbox mailbox) {
-			bool out_mailbox;
-			ongoing_write_operations.TryRemove(mailbox, out out_mailbox);
-		}
-
-
-		public bool SignalReadComplete(MqMailbox mailbox) {
-			bool out_mailbox;
-			return ongoing_read_operations.TryRemove(mailbox, out out_mailbox);
-		}
-
-
-		private async void StartSupervisor() {
-			await Task.Delay(2000);
-			supervisor.Start();
-		}
-
-		private async void SuperviseWorkers(CancellationToken token) {
-			while (token.IsCancellationRequested == false) {
-				if (read_workers.IsEmpty == false) {
-					var read_averages = read_workers.Sum(worker => worker.AverageIdleTime)/read_workers.Count;
-
-					if (read_averages < 50) {
-						CreateReadWorker();
-					}
+		private bool ProcessWorkers(List<MqWorker> worker_list, int max_workers) {
+			MqWorker idle_worker = null;
+			foreach (var worker in worker_list) {
+				if (idle_worker == null && worker.IsIdling) {
+					idle_worker = worker;
 				}
 
-				if (write_workers.IsEmpty == false) {
-					var write_averages = write_workers.Sum(worker => worker.AverageIdleTime)/write_workers.Count;
-
-					if (write_averages < 50) {
-						CreateWriteWorker();
-					}
+				// If this is not the idle worker and it has been idle for more than 60 seconds, close down this worker.
+				if (worker.IsIdling && worker != idle_worker && worker.AverageIdleTime > 60000) {
+					worker_list.Remove(worker);
+					worker.Stop();
 				}
-
-				await Task.Delay(2000, token);
 			}
+
+
+			if (max_workers != 0 && worker_list.Count >= max_workers) {
+				return false;
+			}
+
+			return idle_worker == null;
 		}
 
 
@@ -87,12 +94,18 @@ namespace DtronixMessageQueue {
 		/// Creates a worker writer.
 		/// </summary>
 		public void CreateWriteWorker() {
-			var writer_worker = new MqWorker(token => {
+			var writer_worker = new MqWorker(worker => {
 				MqMailbox mailbox = null;
+				bool out_mailbox;
 
 				try {
-					while (write_operations.TryTake(out mailbox, 60000, token)) {
+					worker.StartIdle();
+					while (write_operations.TryTake(out mailbox, 60000, worker.Token)) {
+						worker.StartWork();
 						mailbox.ProcessOutbox();
+						worker.StartIdle();
+						ongoing_write_operations.TryRemove(mailbox, out out_mailbox);
+
 					}
 				} catch (ThreadAbortException) {
 				} catch (Exception) {
@@ -103,7 +116,7 @@ namespace DtronixMessageQueue {
 								: "MqConnection {0}: Exception occurred while when reading.", mailbox.Connection.Id);*/
 					}
 				}
-			});
+			}, "mq_write_worker_" + write_workers.Count);
 
 			writer_worker.Start();
 
@@ -114,12 +127,18 @@ namespace DtronixMessageQueue {
 		/// Creates a worker reader.
 		/// </summary>
 		public void CreateReadWorker() {
-			var reader_worker = new MqWorker(token => {
+			Console.WriteLine("Created read worker.");
+			var reader_worker = new MqWorker(worker => {
 				MqMailbox mailbox = null;
-
+				bool out_mailbox;
 				try {
-					while (read_operations.TryTake(out mailbox, 60000, token)) {
+					worker.StartIdle();
+					while (read_operations.TryTake(out mailbox, 60000, worker.Token)) {
+						worker.StartWork();
 						mailbox.ProcessIncomingQueue();
+						worker.StartIdle();
+						ongoing_read_operations.TryRemove(mailbox, out out_mailbox);
+
 					}
 				} catch (ThreadAbortException) {
 				} catch (Exception) {
@@ -130,7 +149,7 @@ namespace DtronixMessageQueue {
 								: "MqConnection {0}: Exception occurred while when reading.", mailbox.Connection.Id);*/
 					}
 				}
-			});
+			}, "mq_read_worker_" + read_workers.Count);
 
 			reader_worker.Start();
 

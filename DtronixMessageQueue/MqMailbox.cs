@@ -150,7 +150,7 @@ namespace DtronixMessageQueue {
 				session.Send(buffer, 0, buffer.Length);
 			}
 
-			postmaster.SignalWriteComplete(this);
+			
 		}
 
 
@@ -184,6 +184,7 @@ namespace DtronixMessageQueue {
 				// Send the last of the buffer queue.
 				SendBufferQueue(buffer_queue, length);
 			}
+			//postmaster.SignalWriteComplete(this);
 		}
 
 		/// <summary>
@@ -229,11 +230,15 @@ namespace DtronixMessageQueue {
 					new_message = true;
 				}
 			}
-			postmaster.SignalReadComplete(this);
+			//postmaster.SignalReadComplete(this);
 
 			if (new_message) {
-				IncomingMessage?.Invoke(this, new IncomingMessageEventArgs(this));
+				IncomingMessage?.Invoke(this, new IncomingMessageEventArgs(this, session));
 			}
+		}
+
+		public override string ToString() {
+			return $"Inbox: {Inbox.Count} ({inbox_byte_count} bytes); Outbox: {outbox.Count}";
 		}
 
 		/// <summary>
