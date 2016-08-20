@@ -250,7 +250,6 @@ namespace DtronixMessageQueue {
 
 			// Write the buffer to the message.
 			Write(string_bytes, 0, string_bytes.Length);
-			
 		}
 
 		/// <summary>
