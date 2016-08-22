@@ -112,7 +112,7 @@
     <Compile Include="MqFrameBuilderTests.cs" />
     <Compile Include="MqFrameTests.cs" />
     <Compile Include="MqServerTests.cs" />
-    <Compile Include="MqMessageBuilderReaderTests.cs" />
+    <Compile Include="MqMessageWriterReaderTests.cs" />
     <Compile Include="MqTestsBase.cs" />
     <Compile Include="PerformanceTests.cs" />
     <Compile Include="MqClientTests.cs" />

@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Diagnostics.Contracts;
 using System.IO;
 using System.Linq;
 using System.Text;
@@ -7,6 +8,7 @@ using System.Threading.Tasks;
 
 namespace DtronixMessageQueue {
 	public class MqMessageReader : BinaryReader {
+		private readonly Encoding encoding;
 		private int position;
 		private MqMessage message;
 
@@ -14,6 +16,25 @@ namespace DtronixMessageQueue {
 
 		private int message_position;
 
+		private readonly bool two_bytes_per_char;
+
+		private const int MaxCharBytesSize = 128;
+
+		private byte[] char_bytes;
+
+
+		private readonly Decoder decoder;
+
+		/// <summary>
+		/// Current frame that is being read.
+		/// </summary>
+		public MqFrame CurrentFrame => current_frame;
+
+
+		/// <summary>
+		/// Gets the current message.
+		/// Setting a message resets reading positions to the beginning.
+		/// </summary>
 		public MqMessage Message {
 			get { return message; }
 			set {
@@ -24,21 +45,46 @@ namespace DtronixMessageQueue {
 			}
 		}
 
+		/// <summary>
+		/// Unused. Stream.Null
+		/// </summary>
+		public override Stream BaseStream { get; } = Stream.Null;
+
+		/// <summary>
+		/// True if we are at the end of the last frame of the message.
+		/// </summary>
 		public bool IsAtEnd {
 			get {
 				var last_frame = message.Frames[message.Frames.Count - 1];
 				return current_frame == last_frame && last_frame.DataLength == position;
-
 			}
 		}
 
+
+		/// <summary>
+		/// Creates a new message reader with no message and the default encoding of UTF8.
+		/// </summary>
 		public MqMessageReader() : this(null){
 		}
 
-		public MqMessageReader(MqMessage initial_message) : base(Stream.Null) {
-			Message = initial_message;
+		/// <summary>
+		/// Creates a new message reader with the specified message to read and the default encoding of UTF8.
+		/// </summary>
+		/// <param name="initial_message">Message to read.</param>
+		public MqMessageReader(MqMessage initial_message) : this(initial_message, Encoding.UTF8) {
 		}
 
+		/// <summary>
+		/// Creates a new message reader with the specified message to read and the specified encoding.
+		/// </summary>
+		/// <param name="initial_message">Message to read.</param>
+		/// <param name="encoding">Encoding to use for string interpretation.</param>
+		public MqMessageReader(MqMessage initial_message, Encoding encoding) : base(Stream.Null) {
+			this.encoding = encoding;
+			decoder = this.encoding.GetDecoder();
+			two_bytes_per_char = encoding is UnicodeEncoding;
+			Message = initial_message;
+		}
 
 		private void EnsureBuffer(int length) {
 			
@@ -60,6 +106,15 @@ namespace DtronixMessageQueue {
 
 			current_frame = message_position >= message.Count ? null : message[message_position];
 
+		}
+
+		/// <summary>
+		/// Advances the reader to the next frame and resets reading positions.
+		/// </summary>
+		public void NextFrame() {
+			position = 0;
+			message_position++;
+			current_frame = message[message_position];
 		}
 
 		/// <summary>
@@ -96,33 +151,114 @@ namespace DtronixMessageQueue {
 			return value;
 		}
 
+
 		/// <summary>
 		/// Reads a char value.
-		/// 1 Byte.
+		/// >=1 Byte.
 		/// </summary>
 		public override char ReadChar() {
-			EnsureBuffer(1);
-			var value = current_frame.ReadChar(position);
-			position += 1;
-			return value;
+			var read_char = new char[1];
+			Read(read_char, 0, 1);
+			return read_char[0];
+		}
+
+
+		/// <summary>
+		/// Reads the specified number of chars from the message.
+		/// >1 Byte.
+		/// 1 or more frames.
+		/// </summary>
+		/// <param name="count">Number of chars to read.</param>
+		/// <returns>Char array.</returns>
+		public override char[] ReadChars(int count) {
+			var chars = new char[count];
+			Read(chars, 0, count);
+			return chars;
+		}
+
+
+		/// <summary>
+		/// Reads the specified number of chars from the message into the passed char buffer.
+		/// </summary>
+		/// <param name="buffer">Buffer of chars to copy into.</param>
+		/// <param name="index">Starting index start copying the chars into.</param>
+		/// <param name="count">Number of chars to read.</param>
+		/// <returns>Number of chars read from the message. Can be less than requested if the end of the message is reached.</returns>
+		public override int Read(char[] buffer, int index, int count) {
+			var chars_remaining = count;
+
+			if (char_bytes == null) {
+				char_bytes = new byte[MaxCharBytesSize];
+			}
+
+			while (chars_remaining > 0) {
+				var chars_read = 0;
+				// We really want to know what the minimum number of bytes per char
+				// is for our encoding.  Otherwise for UnicodeEncoding we'd have to
+				// do ~1+log(n) reads to read n characters. 
+				var num_bytes = chars_remaining;
+
+
+				// TODO: special case for UTF8Decoder when there are residual bytes from previous loop 
+				/*UTF8Encoding.UTF8Decoder decoder = m_decoder as UTF8Encoding.UTF8Decoder;
+				if (decoder != null && decoder.HasState && numBytes > 1) {
+					numBytes -= 1;
+				}*/
+
+
+				if (two_bytes_per_char) {
+					num_bytes <<= 1;
+				}
+
+				if (num_bytes > MaxCharBytesSize) {
+					num_bytes = MaxCharBytesSize;
+				}
+
+				var char_position = 0;
+
+				num_bytes = Read(char_bytes, 0, num_bytes);
+				var byte_buffer = char_bytes;
+
+
+				if (num_bytes == 0) {
+					return count - chars_remaining;
+				}
+
+				unsafe
+				{
+					fixed (byte* bytes = byte_buffer)
+					fixed (char* chars = buffer) {
+						chars_read = decoder.GetChars(bytes + char_position, num_bytes, chars + index, chars_remaining, false);
+					}
+				}
+
+				chars_remaining -= chars_read;
+				index += chars_read;
+			}
+
+			// we may have read fewer than the number of characters requested if end of stream reached 
+			// or if the encoding makes the char count too big for the buffer (e.g. fallback sequence)
+			return count - chars_remaining;
 		}
 
 		/// <summary>
 		/// Peeks at the next char value.
-		/// 1 Byte.
+		/// >=1 Byte.
 		/// </summary>
 		public override int PeekChar() {
-			EnsureBuffer(1);
-			var value = current_frame.ReadChar(position);
-			return value;
-		}
+			// Store the temporary state of the reader.
+			var previous_frame = current_frame;
+			var previous_position = position;
+			var previous_message_position = message_position;
 
-		protected override void FillBuffer(int numBytes) {
-			throw new NotImplementedException();
-		}
+			var value = ReadChar();
 
-		public override int Read() {
-			ReadInt32();
+			// Restore the original state of the reader.
+			current_frame = previous_frame;
+			position = previous_position;
+			message_position = previous_message_position;
+
+			return (int) value;
 		}
 
 		/// <summary>
@@ -145,6 +281,15 @@ namespace DtronixMessageQueue {
 			var value = current_frame.ReadUInt16(position);
 			position += 2;
 			return value;
+		}
+
+
+		/// <summary>
+		/// Reads a int value.
+		/// 4 Bytes.
+		/// </summary>
+		public override int Read() {
+			return ReadInt32();
 		}
 
 
@@ -241,8 +386,21 @@ namespace DtronixMessageQueue {
 			var str_buffer = new byte[str_len];
 			Read(str_buffer, 0, str_len);
 
-			return Encoding.UTF8.GetString(str_buffer);
+			return encoding.GetString(str_buffer);
 
+		}
+
+		/// <summary>
+		/// Reads the specified number of bytes from the message.
+		/// >1 Byte.
+		/// 1 or more frames.
+		/// </summary>
+		/// <param name="count">Number of bytes to read.</param>
+		/// <returns>Filled byte array with the data from the message.</returns>
+		public override byte[] ReadBytes(int count) {
+			var bytes = new byte[count];
+			Read(bytes, 0, count);
+			return bytes;
 		}
 
 		/// <summary>
