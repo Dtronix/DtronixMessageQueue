@@ -147,7 +147,7 @@ namespace DtronixMessageQueue.Tests.Performance {
 		}
 
 		private static void StartServer(int total_messages, int total_clients) {
-			var builder = new MqMessageBuilder();
+			var builder = new MqMessageWriter();
 			builder.Write("COMPLETE");
 
 			var complete_message = builder.ToMessage(true);

@@ -10,15 +10,16 @@ namespace DtronixMessageQueue {
 	/// <summary>
 	/// Builder to aid in the creation of messages and their frames.
 	/// </summary>
-	public class MqMessageBuilder {
+	public class MqMessageWriter : BinaryWriter {
 		private int position = 0;
 
 		private readonly List<MqFrame> frames = new List<MqFrame>();
 
 		private readonly MqFrame builder_frame;
 
+		public override Stream BaseStream { get; } = Stream.Null;
 
-		public MqMessageBuilder() { 
+		public MqMessageWriter() { 
 			builder_frame = new MqFrame(new byte[MqFrame.MaxFrameSize], MqFrameType.More);
 		}
 
@@ -56,7 +57,7 @@ namespace DtronixMessageQueue {
 		/// 1 Byte.
 		/// </summary>
 		/// <param name="value">Value to write to the message.</param>
-		public void Write(bool value) {
+		public override void Write(bool value) {
 			EnsureSpace(1);
 			builder_frame.Write(position, value);
 			position += 1;
@@ -67,7 +68,7 @@ namespace DtronixMessageQueue {
 		/// 1 Byte.
 		/// </summary>
 		/// <param name="value">Value to write to the message.</param>
-		public void Write(byte value) {
+		public override void Write(byte value) {
 			EnsureSpace(1);
 			builder_frame.Write(position, value);
 			position += 1;
@@ -79,7 +80,7 @@ namespace DtronixMessageQueue {
 		/// 1 Byte.
 		/// </summary>
 		/// <param name="value">Value to write to the message.</param>
-		public void Write(sbyte value) {
+		public override void Write(sbyte value) {
 			EnsureSpace(1);
 			builder_frame.Write(position, value);
 			position += 1;
@@ -91,7 +92,7 @@ namespace DtronixMessageQueue {
 		/// 2 Bytes.
 		/// </summary>
 		/// <param name="value">Value to write to the message.</param>
-		public void Write(short value) {
+		public override void Write(short value) {
 			EnsureSpace(2);
 			builder_frame.Write(position, value);
 			position += 2;
@@ -103,7 +104,7 @@ namespace DtronixMessageQueue {
 		/// 2 Bytes.
 		/// </summary>
 		/// <param name="value">Value to write to the message.</param>
-		public void Write(ushort value) {
+		public override void Write(ushort value) {
 			EnsureSpace(2);
 			builder_frame.Write(position, value);
 			position += 2;
@@ -117,7 +118,7 @@ namespace DtronixMessageQueue {
 		/// 4 Bytes.
 		/// </summary>
 		/// <param name="value">Value to write to the message.</param>
-		public void Write(int value) {
+		public override void Write(int value) {
 			EnsureSpace(4);
 			builder_frame.Write(position, value);
 			position += 4;
@@ -128,7 +129,7 @@ namespace DtronixMessageQueue {
 		/// 4 Bytes.
 		/// </summary>
 		/// <param name="value">Value to write to the message.</param>
-		public void Write(uint value) {
+		public override void Write(uint value) {
 			EnsureSpace(4);
 			builder_frame.Write(position, value);
 			position += 4;
@@ -140,7 +141,7 @@ namespace DtronixMessageQueue {
 		/// 8 Bytes.
 		/// </summary>
 		/// <param name="value">Value to write to the message.</param>
-		public void Write(long value) {
+		public override void Write(long value) {
 			EnsureSpace(8);
 			builder_frame.Write(position, value);
 			position += 8;
@@ -152,7 +153,7 @@ namespace DtronixMessageQueue {
 		/// 8 Bytes.
 		/// </summary>
 		/// <param name="value">Value to write to the message.</param>
-		public void Write(ulong value) {
+		public override void Write(ulong value) {
 			EnsureSpace(8);
 			builder_frame.Write(position, value);
 			position += 8;
@@ -165,7 +166,7 @@ namespace DtronixMessageQueue {
 		/// 4 Bytes.
 		/// </summary>
 		/// <param name="value">Value to write to the message.</param>
-		public void Write(float value) {
+		public override void Write(float value) {
 			EnsureSpace(4);
 			builder_frame.Write(position, value);
 			position += 4;
@@ -177,7 +178,7 @@ namespace DtronixMessageQueue {
 		/// 8 Byte.
 		/// </summary>
 		/// <param name="value">Value to write to the message.</param>
-		public void Write(double value) {
+		public override void Write(double value) {
 			EnsureSpace(8);
 			builder_frame.Write(position, value);
 			position += 8;
@@ -189,7 +190,7 @@ namespace DtronixMessageQueue {
 		/// 16 Byte.
 		/// </summary>
 		/// <param name="value">Value to write to the message.</param>
-		public void Write(decimal value) {
+		public override void Write(decimal value) {
 			EnsureSpace(16);
 			builder_frame.Write(position, value);
 			position += 16;
@@ -201,7 +202,7 @@ namespace DtronixMessageQueue {
 		/// 1 Byte.
 		/// </summary>
 		/// <param name="value">Value to write to the message.</param>
-		public void Write(char value) {
+		public override void Write(char value) {
 			EnsureSpace(1);
 			builder_frame.Write(position, value);
 			position += 1;
@@ -240,7 +241,7 @@ namespace DtronixMessageQueue {
 		/// 1 or more frames.
 		/// </summary>
 		/// <param name="value">Value to write to the message.</param>
-		public void Write(string value) {
+		public override void Write(string value) {
 			var string_bytes = Encoding.UTF8.GetBytes(value);
 
 			// Write the length prefix
@@ -258,7 +259,7 @@ namespace DtronixMessageQueue {
 		/// <param name="buffer">Buffer to write to the message.</param>
 		/// <param name="offset">Offset in the buffer to write from</param>
 		/// <param name="count">Number of bytes to write to the message from the buffer.</param>
-		public void Write(byte[] buffer, int offset, int count) {
+		public override void Write(byte[] buffer, int offset, int count) {
 			int buffer_left = count;
 			while (buffer_left > 0) {
 				var max_write_length = builder_frame.DataLength - position;
@@ -280,6 +281,41 @@ namespace DtronixMessageQueue {
 		}
 
 
+		/// <summary>
+		/// Writes a whole byte array to this one or more frames.
+		/// </summary>
+		/// <param name="buffer">Buffer to write to the message.</param>
+		public override void Write(byte[] buffer) {
+			Write(buffer, 0, buffer.Length);
+		}
+
+		/// <summary>
+		/// Writes a whole character array to this one or more frames.
+		/// </summary>
+		/// <param name="chars"></param>
+		public override void Write(char[] chars) {
+			Write(new string(chars));
+		}
+
+		/// <summary>
+		/// Writes a character array to this one or more frames.
+		/// </summary>
+		/// <param name="chars">Character array to write to the </param>
+		/// <param name="offset">Offset in the buffer to write from</param>
+		/// <param name="count">Number of bytes to write to the message from the buffer.</param>
+		public override void Write(char[] chars, int offset, int count) {
+			Write(new string(chars, offset, count));
+		}
+
+		/// <summary>
+		/// Seeking is disabled.
+		/// </summary>
+		/// <param name="offset">N/A</param>
+		/// <param name="origin">N/A</param>
+		/// <returns>N/A</returns>
+		public override long Seek(int offset, SeekOrigin origin) {
+			throw new NotImplementedException();
+		}
 
 		/// <summary>
 		/// Collects all the generated frames and outputs them as a single message.

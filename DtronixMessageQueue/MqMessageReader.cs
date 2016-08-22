@@ -1,11 +1,12 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.IO;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 
 namespace DtronixMessageQueue {
-	public class MqMessageReader {
+	public class MqMessageReader : BinaryReader {
 		private int position;
 		private MqMessage message;
 
@@ -34,7 +35,7 @@ namespace DtronixMessageQueue {
 		public MqMessageReader() : this(null){
 		}
 
-		public MqMessageReader(MqMessage initial_message) {
+		public MqMessageReader(MqMessage initial_message) : base(Stream.Null) {
 			Message = initial_message;
 		}
 
@@ -65,7 +66,7 @@ namespace DtronixMessageQueue {
 		/// Reads a boolean value.
 		/// 1 Byte.
 		/// </summary>
-		public bool ReadBoolean() {
+		public override bool ReadBoolean() {
 			EnsureBuffer(1);
 			var value = current_frame.ReadBoolean(position);
 			position += 1;
@@ -77,7 +78,7 @@ namespace DtronixMessageQueue {
 		/// Reads a byte value.
 		/// 1 Byte
 		/// </summary>
-		public byte ReadByte() {
+		public override byte ReadByte() {
 			EnsureBuffer(1);
 			var value = current_frame.ReadByte(position);
 			position += 1;
@@ -88,7 +89,7 @@ namespace DtronixMessageQueue {
 		/// Reads a sbyte value.
 		/// 1 Byte
 		/// </summary>
-		public sbyte ReadSByte() {
+		public override sbyte ReadSByte() {
 			EnsureBuffer(1);
 			var value = current_frame.ReadSByte(position);
 			position += 1;
@@ -99,7 +100,7 @@ namespace DtronixMessageQueue {
 		/// Reads a char value.
 		/// 1 Byte.
 		/// </summary>
-		public char ReadChar() {
+		public override char ReadChar() {
 			EnsureBuffer(1);
 			var value = current_frame.ReadChar(position);
 			position += 1;
@@ -107,10 +108,28 @@ namespace DtronixMessageQueue {
 		}
 
 		/// <summary>
+		/// Peeks at the next char value.
+		/// 1 Byte.
+		/// </summary>
+		public override int PeekChar() {
+			EnsureBuffer(1);
+			var value = current_frame.ReadChar(position);
+			return value;
+		}
+
+		protected override void FillBuffer(int numBytes) {
+			throw new NotImplementedException();
+		}
+
+		public override int Read() {
+			ReadInt32();
+		}
+
+		/// <summary>
 		/// Reads a short value.
 		/// 2 Bytes.
 		/// </summary>
-		public short ReadInt16() {
+		public override short ReadInt16() {
 			EnsureBuffer(2);
 			var value = current_frame.ReadInt16(position);
 			position += 2;
@@ -121,7 +140,7 @@ namespace DtronixMessageQueue {
 		/// Reads a ushort value.
 		/// 2 Bytes.
 		/// </summary>
-		public ushort ReadUInt16() {
+		public override ushort ReadUInt16() {
 			EnsureBuffer(2);
 			var value = current_frame.ReadUInt16(position);
 			position += 2;
@@ -133,7 +152,7 @@ namespace DtronixMessageQueue {
 		/// Reads a int value.
 		/// 4 Bytes.
 		/// </summary>
-		public int ReadInt32() {
+		public override int ReadInt32() {
 			EnsureBuffer(4);
 			var value = current_frame.ReadInt32(position);
 			position += 4;
@@ -145,7 +164,7 @@ namespace DtronixMessageQueue {
 		/// Reads a uint value.
 		/// 4 Bytes.
 		/// </summary>
-		public uint ReadUInt32() {
+		public override uint ReadUInt32() {
 			EnsureBuffer(4);
 			var value = current_frame.ReadUInt32(position);
 			position += 4;
@@ -156,7 +175,7 @@ namespace DtronixMessageQueue {
 		/// Reads a long value.
 		/// 8 Bytes.
 		/// </summary>
-		public long ReadInt64() {
+		public override long ReadInt64() {
 			EnsureBuffer(8);
 			var value = current_frame.ReadInt64(position);
 			position += 8;
@@ -168,7 +187,7 @@ namespace DtronixMessageQueue {
 		/// Reads a ulong value.
 		/// 8 Bytes.
 		/// </summary>
-		public ulong ReadUInt64() {
+		public override ulong ReadUInt64() {
 			EnsureBuffer(8);
 			var value = current_frame.ReadUInt64(position);
 			position += 8;
@@ -180,7 +199,7 @@ namespace DtronixMessageQueue {
 		/// Reads a float value.
 		/// 4 Bytes.
 		/// </summary>
-		public float ReadSingle() {
+		public override float ReadSingle() {
 			EnsureBuffer(4);
 			var value = current_frame.ReadSingle(position);
 			position += 4;
@@ -192,7 +211,7 @@ namespace DtronixMessageQueue {
 		/// Reads a double value.
 		/// 8 Bytes.
 		/// </summary>
-		public double ReadDouble() {
+		public override double ReadDouble() {
 			EnsureBuffer(8);
 			var value = current_frame.ReadDouble(position);
 			position += 8;
@@ -203,7 +222,7 @@ namespace DtronixMessageQueue {
 		/// Reads a decimal value.
 		/// 16 Bytes.
 		/// </summary>
-		public decimal ReadDecimal() {
+		public override decimal ReadDecimal() {
 			EnsureBuffer(16);
 			var value = current_frame.ReadDecimal(position);
 			position += 16;
@@ -215,7 +234,7 @@ namespace DtronixMessageQueue {
 		/// >4 Bytes.
 		/// 1 or more frames.
 		/// </summary>
-		public string ReadString() {
+		public override string ReadString() {
 			// Write the length prefix
 
 			var str_len = ReadInt32();
@@ -233,7 +252,7 @@ namespace DtronixMessageQueue {
 		/// <param name="offset">Offset in the byte buffer to copy the frame bytes to.</param>
 		/// <param name="count">Number of bytes to try to copy.</param>
 		/// <returns>Actual number of bytes read.  May be less than the number requested due to being at the end of the frame.</returns>
-		public int Read(byte[] byte_buffer, int offset, int count) {
+		public override int Read(byte[] byte_buffer, int offset, int count) {
 			var total_read = 0;
 			while (offset < count) {
 				var max_read_length = current_frame.DataLength - position;

@@ -233,7 +233,7 @@ namespace DtronixMessageQueue {
 			//postmaster.SignalReadComplete(this);
 
 			if (new_message) {
-				IncomingMessage?.Invoke(this, new IncomingMessageEventArgs(this, session));
+				IncomingMessage?.Invoke(this, new IncomingMessageEventArgs(this, session, client));
 			}
 		}
 
