@@ -49,8 +49,7 @@ namespace DtronixMessageQueue {
 		protected override MqSession CreateSession(System.Net.Sockets.Socket socket) {
 			var session = base.CreateSession(socket);
 			session.Mailbox = new MqMailbox(postmaster, session);
-
-			Session.Mailbox.IncomingMessage += OnIncomingMessage;
+			session.Mailbox.IncomingMessage += OnIncomingMessage;
 
 			return session;
 		}

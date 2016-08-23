@@ -68,7 +68,7 @@ namespace DtronixMessageQueue.Socket {
 		protected virtual TSession CreateSession(System.Net.Sockets.Socket socket) {
 			var session = new TSession();
 			SocketSession.Setup(session, socket, AsyncPool, Config);
-
+			session.Disconnected += (sender, args) => OnDisconnect(session);
 			return session;
 		}
 	}

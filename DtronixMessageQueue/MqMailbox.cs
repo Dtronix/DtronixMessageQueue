@@ -106,15 +106,14 @@ namespace DtronixMessageQueue {
 		/// <param name="buffer_queue">Queue of bytes to send to the wire.</param>
 		/// <param name="length">Total length of the bytes in the queue to send.</param>
 		private void SendBufferQueue(Queue<byte[]> buffer_queue, int length) {
-			var buffer = new byte[length + 3];
-
+			var buffer = new byte[length];
+			var offset = 0;
 			// Setup the header for the packet.
-			var length_bytes = BitConverter.GetBytes((ushort) length);
+			/*var length_bytes = BitConverter.GetBytes((ushort) length);
 			buffer[0] = 0;
 			buffer[1] = length_bytes[0];
-			buffer[2] = length_bytes[1];
+			buffer[2] = length_bytes[1];*/
 
-			var offset = 3;
 
 			while (buffer_queue.Count > 0) {
 				var bytes = buffer_queue.Dequeue();

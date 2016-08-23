@@ -78,11 +78,11 @@ namespace DtronixMessageQueue.Socket {
 			socket.ReceiveAsync(session.receive_args);
 		}
 
-		protected void OnConnected(SocketAsyncEventArgs e) {
+		protected void OnConnected() {
 			Connected?.Invoke(this, new SessionChangedEventArgs<SocketSession>(this));
 		}
 
-		protected void OnDisconnected(SocketAsyncEventArgs e) {
+		protected void OnDisconnected() {
 			Disconnected?.Invoke(this, new SessionChangedEventArgs<SocketSession>(this));
 		}
 
@@ -92,10 +92,6 @@ namespace DtronixMessageQueue.Socket {
 		/// <param name="sender"></param>
 		/// <param name="e">SocketAsyncEventArg associated with the completed receive operation</param>
 		protected virtual void IoCompleted(object sender, SocketAsyncEventArgs e) {
-			var connection = e.UserToken as SocketSession;
-			if (connection != null) {
-				logger.Debug("Connector {0}: Completed {1} Operation.", connection.Id, e.LastOperation);
-			}
 			// determine which type of operation just completed and call the associated handler
 			switch (e.LastOperation) {
 				case SocketAsyncOperation.Connect:
@@ -116,7 +112,7 @@ namespace DtronixMessageQueue.Socket {
 					break;
 
 				default:
-					logger.Error("Connector {0}: The last operation completed on the socket was not a receive, send connect or disconnect.", connection?.Id);
+					logger.Error("Connector {0}: The last operation completed on the socket was not a receive, send connect or disconnect.", Id);
 					throw new ArgumentException("The last operation completed on the socket was not a receive, send connect or disconnect.");
 			}
 		}
@@ -132,6 +128,8 @@ namespace DtronixMessageQueue.Socket {
 			write_reset.Wait();
 			write_reset.Reset();
 			Buffer.BlockCopy(buffer, offset, send_args.Buffer, send_args.Offset, length);
+
+			send_args.SetBuffer(send_args.Offset, length);
 
 			try {
 				if (Socket.SendAsync(send_args) == false) {
@@ -165,6 +163,10 @@ namespace DtronixMessageQueue.Socket {
 		/// </summary>
 		/// <param name="e"></param>
 		protected void RecieveComplete(SocketAsyncEventArgs e) {
+			if (e.BytesTransferred == 0) {
+				OnDisconnected();
+				return;
+			}
 			if (e.BytesTransferred > 0 && e.SocketError == SocketError.Success) {
 
 				// Update the last time this session was active.
@@ -211,7 +213,8 @@ namespace DtronixMessageQueue.Socket {
 		public void CloseConnection() {
 			// close the socket associated with the client
 			try {
-				Socket.Shutdown(SocketShutdown.Send);
+				Socket.DisconnectAsync(send_args);
+				//Socket.Shutdown(SocketShutdown.Send);
 			} catch (Exception ex) {
 				logger.Error(ex, "Connector {0}: SocketSession is already closed.", Id);
 				// ignored

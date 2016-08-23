@@ -17,5 +17,9 @@ namespace DtronixMessageQueue.Socket {
 		public int SendAndReceiveBufferSize { get; set; } = 1024*4;
 
 		public int SendTimeout { get; set; } = 5000;
+
+		public string Ip { get; set; }
+
+		public int Port { get; set; }
 	}
 }

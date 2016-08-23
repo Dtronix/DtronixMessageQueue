@@ -27,6 +27,10 @@ namespace DtronixMessageQueue.Socket {
 
 		}
 
+		public void Start() {
+			Start(new IPEndPoint(IPAddress.Parse(Config.Ip), Config.Port));
+		}
+
 
 		// Starts the server such that it is listening for 
 		// incoming connection requests.    
@@ -87,10 +91,9 @@ namespace DtronixMessageQueue.Socket {
 
 			// Get the socket for the accepted client connection and put it into the 
 			//ReadEventArg object user token
-			SocketAsyncEventArgs read_event_args = AsyncPool.Pop();
+			//SocketAsyncEventArgs read_event_args = AsyncPool.Pop();
 
 			var session = CreateSession(e.AcceptSocket);
-			read_event_args.UserToken = this;
 
 			connected_clients.TryAdd(session.Id, session);
 
@@ -98,7 +101,7 @@ namespace DtronixMessageQueue.Socket {
 			Task.Run(() => OnConnect(session));
 
 			// As soon as the client is connected, post a receive to the connection
-			e.AcceptSocket.ReceiveAsync(read_event_args);
+			//e.AcceptSocket.ReceiveAsync(read_event_args);
 
 			// Accept the next connection request
 			StartAccept(e);

@@ -4,8 +4,6 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 using DtronixMessageQueue;
-using SuperSocket.SocketBase;
-using SuperSocket.SocketEngine.Configuration;
 using Xunit;
 using Xunit.Abstractions;
 

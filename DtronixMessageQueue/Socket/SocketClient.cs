@@ -11,8 +11,8 @@ namespace DtronixMessageQueue.Socket {
 		public SocketClient(SocketConfig config) : base(config) {
 		}
 
-		public void Connect(string address, int port = 2828) {
-			Connect(new IPEndPoint(IPAddress.Parse(address), port));
+		public void Connect() {
+			Connect(new IPEndPoint(IPAddress.Parse(Config.Ip), Config.Port));
 		}
 
 		public void Connect(IPEndPoint end_point) {
@@ -22,6 +22,7 @@ namespace DtronixMessageQueue.Socket {
 
 			var event_arg = new SocketAsyncEventArgs();
 			Session = CreateSession(MainSocket);
+			event_arg.RemoteEndPoint = end_point;
 
 			event_arg.Completed += (sender, args) => {
 				if (args.LastOperation == SocketAsyncOperation.Connect) {
