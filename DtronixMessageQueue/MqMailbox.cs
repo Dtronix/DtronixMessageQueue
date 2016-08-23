@@ -21,14 +21,6 @@ namespace DtronixMessageQueue {
 		private readonly MqPostmaster postmaster;
 
 
-		private readonly MqClient client;
-
-		/// <summary>
-		/// Client reference.  If this mailbox is run as a server mailbox, this is then null.
-		/// </summary>
-		public MqClient Client => client;
-
-
 		private readonly MqSession session;
 
 		/// <summary>
@@ -85,17 +77,6 @@ namespace DtronixMessageQueue {
 		}
 
 		/// <summary>
-		/// Initializes a new instance of the MqMailbox class.
-		/// </summary>
-		/// <param name="postmaster">Reference to the postmaster for this instance.</param>
-		/// <param name="client">Client reference for this instance.</param>
-		public MqMailbox(MqPostmaster postmaster, MqClient client) {
-			this.postmaster = postmaster;
-			this.client = client;
-			frame_builder = new MqFrameBuilder();
-		}
-
-		/// <summary>
 		/// Adds bytes from the client/server reading methods to be processed by the postmaster.
 		/// </summary>
 		/// <param name="buffer">Buffer of bytes to read. Does not copy the bytes to the buffer.</param>
@@ -144,13 +125,15 @@ namespace DtronixMessageQueue {
 				offset += bytes.Length;
 			}
 
-			if (client != null) {
-				client.Send(buffer);
-			} else {
-				session.Send(buffer, 0, buffer.Length);
-			}
-
 			
+			
+			session.Send(buffer, 0, buffer.Length);
+
+			// Wait for the event args to return a successful send.
+			Session.WriteReset.Wait();
+
+
+
 		}
 
 

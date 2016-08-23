@@ -30,7 +30,7 @@ namespace DtronixMessageQueue {
 			}
 		}
 
-		public const int MaxFrameSize = 1024*16 - HeaderLength;
+		public const int MaxFrameSize = 1024*4 - HeaderLength;
 
 		public const int HeaderLength = 3;
 

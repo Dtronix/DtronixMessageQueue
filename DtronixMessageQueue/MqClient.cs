@@ -5,26 +5,20 @@ using System.Net;
 using System.Net.Sockets;
 using System.Text;
 using System.Threading.Tasks;
-using SuperSocket.ClientEngine;
-using SuperSocket.Common;
-using SuperSocket.ProtoBase;
+using DtronixMessageQueue.Socket;
+
 
 namespace DtronixMessageQueue {
 
 	/// <summary>
 	/// Client used to connect to a remote message queue server.
 	/// </summary>
-	public class MqClient : EasyClientBase, IDisposable {
+	public class MqClient : SocketClient<MqSession> {
 
 		/// <summary>
 		/// Internal postmaster.
 		/// </summary>
 		private readonly MqPostmaster postmaster;
-
-		/// <summary>
-		/// Mailbox for this client.
-		/// </summary>
-		private readonly MqMailbox mailbox;
 
 		/// <summary>
 		/// Represents the maximum size in bytes that a frame can be. (including headers)
@@ -40,17 +34,12 @@ namespace DtronixMessageQueue {
 		/// <summary>
 		/// Initializes a new instance of a message queue.
 		/// </summary>
-		public MqClient() {
-			PipeLineProcessor = new DefaultPipelineProcessor<BufferedPackageInfo>(new MqClientReceiveFilter(), MqFrame.MaxFrameSize);
+		public MqClient(SocketConfig config) : base(config) {
 
-			postmaster = new MqPostmaster() {
+			postmaster = new MqPostmaster {
 				MaxReaders = 2,
 				MaxWriters = 2
 			};
-
-			mailbox = new MqMailbox(postmaster, this);
-
-			mailbox.IncomingMessage += OnIncomingMessage;
 		}
 
 		/// <summary>
@@ -66,7 +55,7 @@ namespace DtronixMessageQueue {
 		/// Internal method to retrieve all the bytes on the wire and enqueue them to be processed by a separate thread.
 		/// </summary>
 		/// <param name="package">Package to process</param>
-		protected override void HandlePackage(IPackageInfo package) {
+		/*protected override void HandlePackage(IPackageInfo package) {
 			var buff_package = package as BufferedPackageInfo;
 
 			if (buff_package == null) {
@@ -91,7 +80,7 @@ namespace DtronixMessageQueue {
 
 			// Enqueue the incoming message to be processed by the postmaster.
 			mailbox.EnqueueIncomingBuffer(buffer);
-		}
+		}*/
 
 		/// <summary>
 		/// Connects to a serve endpoint.
@@ -99,9 +88,9 @@ namespace DtronixMessageQueue {
 		/// <param name="address">Server address to connect to.</param>
 		/// <param name="port">Server port to connect to.  Default is 2828.</param>
 		/// <returns>Awaitable task.</returns>
-		public Task ConnectAsync(string address, int port = 2828) {
+		/*public Task ConnectAsync(string address, int port = 2828) {
 			return ConnectAsync(new IPEndPoint(IPAddress.Parse(address), port));
-		}
+		}*/
 
 		/// <summary>
 		/// Adds a message to the outbox to be processed.
@@ -118,7 +107,7 @@ namespace DtronixMessageQueue {
 			}
 
 			// Enqueue the outgoing message to be processed by the postmaster.
-			mailbox.EnqueueOutgoingMessage(message);
+			Session.Mailbox.EnqueueOutgoingMessage(message);
 		}
 
 		/// <summary>
