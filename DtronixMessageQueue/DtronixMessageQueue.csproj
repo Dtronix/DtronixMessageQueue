@@ -47,11 +47,11 @@
     <Reference Include="System.Xml" />
   </ItemGroup>
   <ItemGroup>
-    <Compile Include="MqClientReceiveFilter.cs" />
+    <None Include="MqClientReceiveFilter.cs" />
     <Compile Include="MqMessageReader.cs" />
     <Compile Include="MqMessageWriter.cs" />
-    <Compile Include="MqServerReceiveFilter.cs" />
-    <Compile Include="MqServerReceiveFilterFactory.cs" />
+    <None Include="MqServerReceiveFilter.cs" />
+    <None Include="MqServerReceiveFilterFactory.cs" />
     <Compile Include="MqSession.cs" />
     <Compile Include="Socket\BufferManager.cs" />
     <Compile Include="Socket\SessionChangedEventArgs.cs" />

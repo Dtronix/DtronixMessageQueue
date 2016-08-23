@@ -44,8 +44,8 @@ namespace DtronixMessageQueue.Socket {
 			MainSocket = new System.Net.Sockets.Socket(local_end_point.AddressFamily, SocketType.Stream, ProtocolType.Tcp);
 			MainSocket.Bind(local_end_point);
 
-			// start the server with a listen backlog of 100 connections
-			MainSocket.Listen(100);
+			// start the server with a listen backlog.
+			MainSocket.Listen(configurations.ListenerBacklog);
 
 			// post accepts on the listening socket
 			StartAccept(null);
@@ -105,9 +105,7 @@ namespace DtronixMessageQueue.Socket {
 		}
 
 
-		public override void Stop() {
-			base.Stop();
-
+		public void Stop() {
 			TSession[] sessions = new TSession[connected_clients.Values.Count];
 			connected_clients.Values.CopyTo(sessions, 0);
 

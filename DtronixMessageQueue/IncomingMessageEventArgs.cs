@@ -22,20 +22,14 @@ namespace DtronixMessageQueue {
 		public MqSession Session { get; set; }
 
 		/// <summary>
-		/// If this message on the client, this will contain the reference to the client.
-		/// </summary>
-		public MqClient Client { get; set; }
-
-		/// <summary>
 		/// Creates an instance of the event args.
 		/// </summary>
 		/// <param name="mailbox">Mailbox with the new message</param>
 		/// <param name="session">Server session.  Null if this is on the client.</param>
 		/// <param name="client">Client.  Null if this is on the server.</param>
-		public IncomingMessageEventArgs(MqMailbox mailbox, MqSession session, MqClient client) {
+		public IncomingMessageEventArgs(MqMailbox mailbox, MqSession session) {
 			Mailbox = mailbox;
 			Session = session;
-			Client = client;
 		}
 	}
 }

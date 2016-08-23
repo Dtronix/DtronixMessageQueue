@@ -73,6 +73,9 @@ namespace DtronixMessageQueue.Socket {
 
 			socket.NoDelay = true;
 			socket.SetSocketOption(SocketOptionLevel.Socket, SocketOptionName.DontLinger, true);
+
+			// Start receiving data.
+			socket.ReceiveAsync(session.receive_args);
 		}
 
 		protected void OnConnected(SocketAsyncEventArgs e) {

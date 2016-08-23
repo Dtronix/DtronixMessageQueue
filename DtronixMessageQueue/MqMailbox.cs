@@ -6,7 +6,6 @@ using System.Linq;
 using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
-using SuperSocket.SocketBase;
 
 namespace DtronixMessageQueue {
 
@@ -126,14 +125,8 @@ namespace DtronixMessageQueue {
 			}
 
 			
-			
+			// This will block 
 			session.Send(buffer, 0, buffer.Length);
-
-			// Wait for the event args to return a successful send.
-			Session.WriteReset.Wait();
-
-
-
 		}
 
 
@@ -173,7 +166,7 @@ namespace DtronixMessageQueue {
 		/// <summary>
 		/// Internal method called by the postmaster on a different thread to process all bytes in the inbox.
 		/// </summary>
-		internal async void ProcessIncomingQueue() {
+		internal void ProcessIncomingQueue() {
 			if (message == null) {
 				message = new MqMessage();
 			}
@@ -189,12 +182,7 @@ namespace DtronixMessageQueue {
 				} catch (InvalidDataException) {
 					//logger.Error(ex, "Connector {0}: Client send invalid data.", Connection.Id);
 
-					if (client != null) {
-						await client.Close();
-					} else {
-						session.Close(CloseReason.ApplicationError);
-					}
-
+					session.CloseConnection();
 					break;
 				}
 
@@ -216,7 +204,7 @@ namespace DtronixMessageQueue {
 			//postmaster.SignalReadComplete(this);
 
 			if (new_message) {
-				IncomingMessage?.Invoke(this, new IncomingMessageEventArgs(this, session, client));
+				IncomingMessage?.Invoke(this, new IncomingMessageEventArgs(this, session));
 			}
 		}
 

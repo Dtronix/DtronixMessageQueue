@@ -9,73 +9,55 @@ using System.Net.Sockets;
 using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
-using SuperSocket.SocketBase;
-using SuperSocket.SocketBase.Config;
-using SuperSocket.SocketBase.Protocol;
+using DtronixMessageQueue.Socket;
 
 namespace DtronixMessageQueue {
-	public class MqServer : AppServer<MqSession, RequestInfo<byte, byte[]>> {
-		public MqPostmaster Postmaster { get; }
+	public class MqServer : SocketServer<MqSession> {
+		private readonly MqPostmaster postmaster;
 
-		public MqServer(ServerConfig server_config) : this(null, server_config) {
-		}
-
+		/// <summary>
+		/// Event fired when a new message arrives at a session's mailbox.
+		/// </summary>
 		public event EventHandler<IncomingMessageEventArgs> IncomingMessage;
 
-		public event EventHandler Started;
+		/// <summary>
+		/// Initializes a new instance of a message queue.
+		/// </summary>
+		public MqServer(SocketConfig config) : base(config) {
 
-		public MqServer(RootConfig root_config, ServerConfig server_config) : base(new MqServerReceiveFilterFactory()) {
-			if (root_config == null) {
-				root_config = new RootConfig {
-					MaxCompletionPortThreads = 100,
-					MaxWorkingThreads = 100,
-					MinCompletionPortThreads = 5,
-					MinWorkingThreads = 5,
-					Isolation = IsolationMode.None,
-					PerformanceDataCollectInterval = 0,
-					DisablePerformanceDataCollector = true
-				};
-			}
-
-			if (server_config == null) {
-				throw new ArgumentNullException(nameof(server_config));
-			}
-
-			server_config.MaxRequestLength = MqFrame.MaxFrameSize + 3;
-			server_config.ReceiveBufferSize = (MqFrame.MaxFrameSize + 3) * 2;
-
-			Postmaster = new MqPostmaster();
-
-			Setup(root_config, server_config, null);
+			postmaster = new MqPostmaster {
+				MaxReaders = config.MaxConnections + 1,
+				MaxWriters = config.MaxConnections + 1
+			};
 		}
 
-		protected override MqSession CreateAppSession(ISocketSession socket_session) {
-			
-			var session = new MqSession();
-			session.Mailbox = new MqMailbox(Postmaster, session);
-
-			// TODO: Review how to do this better.
-			session.Mailbox.IncomingMessage += OnIncomingMessage;
-			base.CreateAppSession(socket_session);
-			return session;
-		}
-
-		protected override void OnStarted() {
-			Started?.Invoke(this, new EventArgs());
-			base.OnStarted();
-		}
-
+		/// <summary>
+		/// Event method invoker
+		/// </summary>
+		/// <param name="sender">The source of the event.</param>
+		/// <param name="e">The event object containing the mailbox to retrieve the message from.</param>
 		private void OnIncomingMessage(object sender, IncomingMessageEventArgs e) {
 			IncomingMessage?.Invoke(sender, e);
 		}
 
-		protected override void OnSessionClosed(MqSession session, CloseReason reason) {
-			session.Mailbox.IncomingMessage -= OnIncomingMessage;
-			session.Mailbox.Dispose();
-			base.OnSessionClosed(session, reason);
+		protected override MqSession CreateSession(System.Net.Sockets.Socket socket) {
+			var session = base.CreateSession(socket);
+			session.Mailbox = new MqMailbox(postmaster, session);
+
+			session.Mailbox.IncomingMessage += OnIncomingMessage;
+
+			return session;
 		}
 
-		protected override void ExecuteCommand(MqSession session, RequestInfo<byte, byte[]> request_info) {
+		protected override void OnDisconnect(MqSession session) {
+			session.Mailbox.IncomingMessage -= OnIncomingMessage;
+			session.Mailbox.Dispose();
+			base.OnDisconnect(session);
+		}
+
+
+
+		/*protected override void ExecuteCommand(MqSession session, RequestInfo<byte, byte[]> request_info) {
 			try {
 				if (request_info.Header == 0) {
 					session.Mailbox.EnqueueIncomingBuffer(request_info.Body);
@@ -91,6 +73,6 @@ namespace DtronixMessageQueue {
 				return;
 			}
 			base.ExecuteCommand(session, request_info);
-		}
+		}*/
 	}
 }

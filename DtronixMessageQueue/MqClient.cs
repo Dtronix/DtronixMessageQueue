@@ -21,11 +21,6 @@ namespace DtronixMessageQueue {
 		private readonly MqPostmaster postmaster;
 
 		/// <summary>
-		/// Represents the maximum size in bytes that a frame can be. (including headers)
-		/// </summary>
-		//public int MaxRequestLength { get; set; } = 1024 * 16;
-
-		/// <summary>
 		/// Event fired when a new message arrives at the mailbox.
 		/// </summary>
 		public event EventHandler<IncomingMessageEventArgs> IncomingMessage;
@@ -50,6 +45,16 @@ namespace DtronixMessageQueue {
 		private void OnIncomingMessage(object sender, IncomingMessageEventArgs e) {
 			IncomingMessage?.Invoke(sender, e);
 		}
+
+		protected override MqSession CreateSession(System.Net.Sockets.Socket socket) {
+			var session = base.CreateSession(socket);
+			session.Mailbox = new MqMailbox(postmaster, session);
+
+			Session.Mailbox.IncomingMessage += OnIncomingMessage;
+
+			return session;
+		}
+
 
 		/// <summary>
 		/// Internal method to retrieve all the bytes on the wire and enqueue them to be processed by a separate thread.
@@ -98,9 +103,9 @@ namespace DtronixMessageQueue {
 		/// </summary>
 		/// <param name="message">Message to send.</param>
 		public void Send(MqMessage message) {
-			if (IsConnected == false) {
+			/*if (IsConnected == false) {
 				throw new InvalidOperationException("Can not send messages while disconnected from server.");
-			}
+			}*/
 
 			if (message.Count == 0) {
 				return;
@@ -110,14 +115,20 @@ namespace DtronixMessageQueue {
 			Session.Mailbox.EnqueueOutgoingMessage(message);
 		}
 
+
+		public void Close() {
+			Session.Mailbox.IncomingMessage -= OnIncomingMessage;
+			Session.CloseConnection();
+			Session.Mailbox.Dispose();
+		}
+
 		/// <summary>
 		/// Disposes of all resources associated with this client.
 		/// </summary>
 		public void Dispose() {
-			mailbox.IncomingMessage -= OnIncomingMessage;
-			Close();
 			postmaster.Dispose();
-			mailbox.Dispose();
+			
 		}
+
 	}
 }

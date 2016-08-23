@@ -5,7 +5,7 @@ using System.Threading;
 using NLog;
 
 namespace DtronixMessageQueue.Socket {
-	public abstract class SocketBase<TSession> : IDisposable
+	public abstract class SocketBase<TSession>
 		where TSession : SocketSession, new() {
 
 		/// <summary>
@@ -30,12 +30,12 @@ namespace DtronixMessageQueue.Socket {
 		protected BufferManager BufferManager;  // represents a large reusable set of buffers for all socket operations
 
 
-		protected void OnConnect(TSession session) {
+		protected virtual void OnConnect(TSession session) {
 			Connected?.Invoke(this, new SessionChangedEventArgs<TSession>(session));
 		}
 
 
-		protected void OnDisconnect(TSession session) {
+		protected virtual void OnDisconnect(TSession session) {
 			Disconnected?.Invoke(this, new SessionChangedEventArgs<TSession>(session));
 		}
 
@@ -65,25 +65,11 @@ namespace DtronixMessageQueue.Socket {
 			logger.Debug("SocketBase started with {0} readers/writers.", config.MaxConnections * 2);
 		}
 
-		protected TSession CreateSession(System.Net.Sockets.Socket socket) {
+		protected virtual TSession CreateSession(System.Net.Sockets.Socket socket) {
 			var session = new TSession();
 			SocketSession.Setup(session, socket, AsyncPool, Config);
 
 			return session;
-		}
-
-		public virtual void Stop() {
-			if (IsRunning == false) {
-				throw new InvalidOperationException("Server is not running.");
-			}
-			IsRunning = false;
-		}
-
-
-		public void Dispose() {
-			if (IsRunning) {
-				Stop();
-			}
 		}
 	}
 }
