@@ -19,7 +19,7 @@ namespace DtronixMessageQueue.Tests {
 		[Theory]
 		[InlineData(1, false)]
 		[InlineData(1, true)]
-		[InlineData(50, true)]
+		//[InlineData(50, true)]
 		//[InlineData(100, true)]
 		public void Client_should_send_data_to_server(int number, bool validate) {
 			var message_source = GenerateRandomMessage(4, 50);
@@ -124,6 +124,16 @@ namespace DtronixMessageQueue.Tests {
 			Server.Connected += (sender, session) => session.Session.CloseConnection(SocketCloseReason.ClientClosing);
 
 			Client.Closed += (sender, args) => TestStatus.Set();
+
+			StartAndWait();
+		}
+
+		[Fact]
+		public void Client_notifies_server_closing_session() {
+
+			Client.Connected += (sender, args) => Client.Close();
+
+			Server.Closed += (sender, args) => TestStatus.Set();
 
 			StartAndWait();
 		}

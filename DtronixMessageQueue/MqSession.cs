@@ -62,7 +62,7 @@ namespace DtronixMessageQueue {
 
 			switch (command_type) {
 				case 0: // Closed
-					var reason = frame.ReadByte(1);
+					CloseConnection((SocketCloseReason)frame.ReadByte(1));
 					break;
 
 			}

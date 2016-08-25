@@ -62,7 +62,9 @@ namespace DtronixMessageQueue {
 
 			// Set frame's FrameType appropriately.
 			foreach (var frame in mq_frames) {
-				frame.FrameType = frame.DataLength == 0 ? MqFrameType.Empty : MqFrameType.More;
+				if (frame.FrameType != MqFrameType.Command) {
+					frame.FrameType = frame.DataLength == 0 ? MqFrameType.Empty : MqFrameType.More;
+				}
 			}
 
 			// Set the last frame to the "last frame" FrameType.

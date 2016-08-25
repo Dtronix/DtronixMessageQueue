@@ -39,7 +39,7 @@ namespace DtronixMessageQueue.Tests {
 		static int FreeTcpPort() {
 			TcpListener l = new TcpListener(IPAddress.Loopback, 0);
 			l.Start();
-			int port = ((IPEndPoint)l.LocalEndpoint).Port;
+			int port = ((IPEndPoint) l.LocalEndpoint).Port;
 			l.Stop();
 			return port;
 		}
@@ -57,6 +57,13 @@ namespace DtronixMessageQueue.Tests {
 
 			if (LastException != null) {
 				throw LastException;
+			}
+
+			try {
+				Server.Stop();
+				Client.Close();
+			} catch {
+				// ignored
 			}
 		}
 

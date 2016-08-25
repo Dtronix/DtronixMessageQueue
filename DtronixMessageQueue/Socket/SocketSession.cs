@@ -153,7 +153,7 @@ namespace DtronixMessageQueue.Socket {
 		private void SendComplete(SocketAsyncEventArgs e) {
 			if (e.SocketError != SocketError.Success) {
 				logger.Error("Connector {0}: Socket error: {1}", Id, e.SocketError);
-				CloseConnection(SocketCloseReason.SocketError);
+				//CloseConnection(SocketCloseReason.SocketError);
 			}
 			write_reset.Set();
 		}
@@ -212,7 +212,7 @@ namespace DtronixMessageQueue.Socket {
 		public virtual void CloseConnection(SocketCloseReason reason) {
 			// close the socket associated with the client
 			try {
-				Socket.Close();
+				Socket.Close(500);
 			} catch (Exception ex) {
 				logger.Error(ex, "Connector {0}: SocketSession is already closed.", Id);
 				// ignored

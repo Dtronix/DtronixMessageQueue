@@ -121,6 +121,7 @@ namespace DtronixMessageQueue {
 			}
 
 			is_running = false;
+
 			MqMessage msg;
 			if (outbox.IsEmpty == false) {
 				while (outbox.TryDequeue(out msg)) { }
@@ -169,7 +170,7 @@ namespace DtronixMessageQueue {
 				foreach (var frame in result.Frames) {
 					var frame_size = frame.FrameSize;
 					// If this would overflow the max client buffer size, send the full buffer queue.
-					if (length + frame_size > MqFrame.MaxFrameSize + 3) {
+					if (length + frame_size > MqFrame.MaxFrameSize + MqFrame.HeaderLength) {
 						SendBufferQueue(buffer_queue, length);
 
 						// Reset the length to 0;

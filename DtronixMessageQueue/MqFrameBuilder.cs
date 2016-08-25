@@ -24,8 +24,15 @@ namespace DtronixMessageQueue {
 
 		public Queue<MqFrame> Frames { get; } = new Queue<MqFrame>();
 
+		private static int max_type_enum = -1;
+
 		public MqFrameBuilder() {
 			buffer = new byte[MqFrame.MaxFrameSize];
+
+			// Determine what our max enum value is for the FrameType
+			if (max_type_enum == -1) {
+				max_type_enum = Enum.GetValues(typeof(MqFrameType)).Cast<byte>().Max();
+			}
 
 			buffer_stream = new MemoryStream(buffer, 0, buffer.Length, true, true);
 		}
@@ -87,7 +94,7 @@ namespace DtronixMessageQueue {
 					// This will always return one byte.
 					ReadInternal(frame_type_bytes, 0, 1);
 
-					if (frame_type_bytes[0] > 4) {
+					if (frame_type_bytes[0] > max_type_enum) {
 						throw new InvalidDataException(
 							$"FrameBuilder was sent a frame with an invalid type.  Type sent: {frame_type_bytes[0]}");
 					}
