@@ -54,16 +54,16 @@
     <None Include="MqServerReceiveFilterFactory.cs" />
     <Compile Include="MqSession.cs" />
     <Compile Include="Socket\BufferManager.cs" />
-    <Compile Include="Socket\SessionChangedEventArgs.cs" />
+    <Compile Include="Socket\SessionConnectedEventArgs.cs" />
+    <Compile Include="Socket\SessionClosedEventArgs.cs" />
     <Compile Include="Socket\SocketAsyncEventArgsPool.cs" />
     <Compile Include="Socket\SocketBase.cs" />
     <Compile Include="Socket\SocketClient.cs" />
+    <Compile Include="Socket\SocketCloseReason.cs" />
     <Compile Include="Socket\SocketConfig.cs" />
     <Compile Include="Socket\SocketServer.cs" />
     <Compile Include="Socket\SocketSession.cs" />
     <None Include="app.config" />
-    <None Include="Config\log4net.config" />
-    <None Include="Config\log4net.unix.config" />
     <Content Include="DtronixMessageQueue.nuspec">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </Content>

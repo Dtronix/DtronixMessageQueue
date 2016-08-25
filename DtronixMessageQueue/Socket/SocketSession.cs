@@ -9,6 +9,7 @@ using NLog;
 
 namespace DtronixMessageQueue.Socket {
 	public abstract class SocketSession : IDisposable {
+
 		private static readonly Logger logger = LogManager.GetCurrentClassLogger();
 
 		private SocketAsyncEventArgsPool args_pool;
@@ -35,12 +36,12 @@ namespace DtronixMessageQueue.Socket {
 		/// <summary>
 		/// This event fires when a connection has been established.
 		/// </summary>
-		public event EventHandler<SessionChangedEventArgs<SocketSession>> Connected;
+		public event EventHandler<SessionConnectedEventArgs<SocketSession>> Connected;
 
 		/// <summary>
 		/// This event fires when a connection has been shutdown.
 		/// </summary>
-		public event EventHandler<SessionChangedEventArgs<SocketSession>> Disconnected;
+		public event EventHandler<SessionClosedEventArgs<SocketSession>> Closed;
 
 		protected SocketSession() {
 			Id = Guid.NewGuid();
@@ -52,6 +53,7 @@ namespace DtronixMessageQueue.Socket {
 			session.send_args.Completed += session.IoCompleted;
 			session.receive_args = args_pool.Pop();
 			session.receive_args.Completed += session.IoCompleted;
+
 
 			session.socket = socket;
 			session.write_reset = new ManualResetEventSlim(true);
@@ -79,11 +81,11 @@ namespace DtronixMessageQueue.Socket {
 		}
 
 		protected void OnConnected() {
-			Connected?.Invoke(this, new SessionChangedEventArgs<SocketSession>(this));
+			Connected?.Invoke(this, new SessionConnectedEventArgs<SocketSession>(this));
 		}
 
-		protected void OnDisconnected() {
-			Disconnected?.Invoke(this, new SessionChangedEventArgs<SocketSession>(this));
+		protected void OnDisconnected(SocketCloseReason reason) {
+			Closed?.Invoke(this, new SessionClosedEventArgs<SocketSession>(this, reason));
 		}
 
 		/// <summary>
@@ -95,11 +97,11 @@ namespace DtronixMessageQueue.Socket {
 			// determine which type of operation just completed and call the associated handler
 			switch (e.LastOperation) {
 				case SocketAsyncOperation.Connect:
-					Connected?.Invoke(this, new SessionChangedEventArgs<SocketSession>(this));
+					OnConnected();
 					break;
 
 				case SocketAsyncOperation.Disconnect:
-					Disconnected?.Invoke(this, new SessionChangedEventArgs<SocketSession>(this));
+					OnDisconnected(SocketCloseReason.ClientClosing);
 					break;
 
 				case SocketAsyncOperation.Receive:
@@ -138,7 +140,7 @@ namespace DtronixMessageQueue.Socket {
 				}
 			} catch (ObjectDisposedException ex) {
 				logger.Error(ex, "Connector {0}: Exception on SendAsync.", Id);
-				CloseConnection();
+				CloseConnection(SocketCloseReason.SocketError);
 			}
 		}
 
@@ -151,7 +153,7 @@ namespace DtronixMessageQueue.Socket {
 		private void SendComplete(SocketAsyncEventArgs e) {
 			if (e.SocketError != SocketError.Success) {
 				logger.Error("Connector {0}: Socket error: {1}", Id, e.SocketError);
-				CloseConnection();
+				CloseConnection(SocketCloseReason.SocketError);
 			}
 			write_reset.Set();
 		}
@@ -164,18 +166,18 @@ namespace DtronixMessageQueue.Socket {
 		/// <param name="e"></param>
 		protected void RecieveComplete(SocketAsyncEventArgs e) {
 			if (e.BytesTransferred == 0) {
-				OnDisconnected();
+				OnDisconnected(SocketCloseReason.ClientClosing);
 				return;
 			}
 			if (e.BytesTransferred > 0 && e.SocketError == SocketError.Success) {
 
 				// Update the last time this session was active.
-				last_received = DateTime.Now;
+				last_received = DateTime.UtcNow;
 
 				// If the bytes received is larger than the buffer, ignore this operation.
 				if (e.BytesTransferred > MqFrame.MaxFrameSize + MqFrame.HeaderLength) {
 					logger.Fatal("Connector {0}: Data received synchronously.", Id);
-					CloseConnection();
+					CloseConnection(SocketCloseReason.SocketError);
 				}
 
 				// Create a copy of these bytes.
@@ -195,33 +197,29 @@ namespace DtronixMessageQueue.Socket {
 					}
 				} catch (ObjectDisposedException ex) {
 					logger.Error(ex, "Connector {0}: Exception on SendAsync.", Id);
-					CloseConnection();
+					CloseConnection(SocketCloseReason.SocketError);
 				}
 
 
 			} else {
 				logger.Error("Connector {0}: Socket error: {1}", Id, e.SocketError);
-				CloseConnection();
+				CloseConnection(SocketCloseReason.SocketError);
 			}
 		}
 
 		protected abstract void HandleIncomingBytes(byte[] buffer);
 
-
-
-
-		public void CloseConnection() {
+		public virtual void CloseConnection(SocketCloseReason reason) {
 			// close the socket associated with the client
 			try {
-				Socket.DisconnectAsync(send_args);
-				//Socket.Shutdown(SocketShutdown.Send);
+				Socket.Close();
 			} catch (Exception ex) {
 				logger.Error(ex, "Connector {0}: SocketSession is already closed.", Id);
 				// ignored
 				// throws if client process has already closed
 			}
 
-			Socket.Close();
+			
 
 			// Free the SocketAsyncEventArg so they can be reused by another client
 			args_pool.Push(send_args);
@@ -232,7 +230,7 @@ namespace DtronixMessageQueue.Socket {
 		}
 
 		public void Dispose() {
-			CloseConnection();
+			CloseConnection(SocketCloseReason.ClientClosing);
 		}
 	}
 }

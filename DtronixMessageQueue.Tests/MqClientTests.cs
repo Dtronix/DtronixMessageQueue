@@ -4,6 +4,7 @@ using System.Net;
 using System.Threading;
 using System.Threading.Tasks;
 using DtronixMessageQueue;
+using DtronixMessageQueue.Socket;
 using Xunit;
 using Xunit.Abstractions;
 
@@ -92,7 +93,7 @@ namespace DtronixMessageQueue.Tests {
 				Client.Close();
 			};
 
-			Client.Disconnected += (sender, args) => TestStatus.Set();
+			Client.Closed += (sender, args) => TestStatus.Set();
 
 			StartAndWait();
 		}
@@ -102,7 +103,7 @@ namespace DtronixMessageQueue.Tests {
 
 			Server.Connected += (sender, session) => Server.Stop();
 
-			Client.Disconnected += (sender, args) => TestStatus.Set();
+			Client.Closed += (sender, args) => TestStatus.Set();
 
 			StartAndWait();
 		}
@@ -112,7 +113,7 @@ namespace DtronixMessageQueue.Tests {
 
 			Client.Connected += (sender, args) => Client.Close();
 
-			Client.Disconnected += (sender, args) => TestStatus.Set();
+			Client.Closed += (sender, args) => TestStatus.Set();
 
 			StartAndWait();
 		}
@@ -120,9 +121,9 @@ namespace DtronixMessageQueue.Tests {
 		[Fact]
 		public void Client_notified_server_session_closed() {
 
-			Server.Connected += (sender, session) => session.Session.CloseConnection();
+			Server.Connected += (sender, session) => session.Session.CloseConnection(SocketCloseReason.ClientClosing);
 
-			Client.Disconnected += (sender, args) => TestStatus.Set();
+			Client.Closed += (sender, args) => TestStatus.Set();
 
 			StartAndWait();
 		}

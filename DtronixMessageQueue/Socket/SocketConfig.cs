@@ -18,6 +18,8 @@ namespace DtronixMessageQueue.Socket {
 
 		public int SendTimeout { get; set; } = 5000;
 
+		public int ConnectionTimeout { get; set; } = 60000;
+
 		public string Ip { get; set; }
 
 		public int Port { get; set; }

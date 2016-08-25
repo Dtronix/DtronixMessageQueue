@@ -5,9 +5,10 @@ using System.Text;
 using System.Threading.Tasks;
 
 namespace DtronixMessageQueue.Socket {
-	public class SessionChangedEventArgs<TSession> : EventArgs
+	public class SessionConnectedEventArgs<TSession> : EventArgs
 	where TSession : SocketSession {
-		public SessionChangedEventArgs(TSession session) {
+
+		public SessionConnectedEventArgs(TSession session) {
 			Session = session;
 		}
 

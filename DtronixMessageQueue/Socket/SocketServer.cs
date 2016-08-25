@@ -113,7 +113,7 @@ namespace DtronixMessageQueue.Socket {
 			connected_clients.Values.CopyTo(sessions, 0);
 
 			foreach (var session in sessions) {
-				session.CloseConnection();
+				session.CloseConnection(SocketCloseReason.ServerClosing);
 			}
 		}
 	}

@@ -10,6 +10,8 @@ using DtronixMessageQueue.Socket;
 using NLog;
 
 namespace DtronixMessageQueue {
+
+
 	public class MqSession : SocketSession {
 
 		private static readonly Logger logger = LogManager.GetCurrentClassLogger();
@@ -25,6 +27,14 @@ namespace DtronixMessageQueue {
 			Mailbox.EnqueueIncomingBuffer(buffer);
 		}
 
+		public override void CloseConnection(SocketCloseReason reason) {
+			var close_frame = new MqFrame(new byte[1]) {FrameType = MqFrameType.Command};
+			close_frame.Write(0, (byte)reason);
+
+			Mailbox.Stop(close_frame);
+
+			base.CloseConnection(reason);
+		}
 
 		/// <summary>
 		/// Sends a message to the session's client.
@@ -40,6 +50,22 @@ namespace DtronixMessageQueue {
 			}
 
 			Mailbox.EnqueueOutgoingMessage(message);
+		}
+
+
+		/// <summary>
+		/// Processes an incoming command frame from the connection.
+		/// </summary>
+		/// <param name="frame">Command frame to process.</param>
+		internal void ProcessCommand(MqFrame frame) {
+			var command_type = frame.ReadByte(0);
+
+			switch (command_type) {
+				case 0: // Closed
+					var reason = frame.ReadByte(1);
+					break;
+
+			}
 		}
 	}
 }

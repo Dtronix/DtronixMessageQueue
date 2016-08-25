@@ -50,6 +50,10 @@ namespace DtronixMessageQueue {
 		public MqMessage() {
 		}
 
+		public MqMessage(MqFrame frame) {
+			Add(frame);
+		}
+
 		/// <summary>
 		/// Fixes any mistakes for the frames' FrameType set.  Called before frames are processed by the outbox.
 		/// </summary>

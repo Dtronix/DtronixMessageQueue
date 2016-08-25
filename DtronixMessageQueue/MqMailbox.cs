@@ -6,14 +6,18 @@ using System.Linq;
 using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
+using DtronixMessageQueue.Socket;
 
 namespace DtronixMessageQueue {
+	
 
 	/// <summary>
 	/// Mailbox containing inbox, outbox and the logic to process both.
 	/// </summary>
 	public class MqMailbox : IDisposable {
-		
+
+		private bool is_running = true;
+
 		/// <summary>
 		/// The postmaster for this client/server.
 		/// </summary>
@@ -80,6 +84,10 @@ namespace DtronixMessageQueue {
 		/// </summary>
 		/// <param name="buffer">Buffer of bytes to read. Does not copy the bytes to the buffer.</param>
 		internal void EnqueueIncomingBuffer(byte[] buffer) {
+			if (is_running == false) {
+				return;
+			}
+
 			inbox_bytes.Enqueue(buffer);
 
 			postmaster.SignalRead(this);
@@ -93,10 +101,35 @@ namespace DtronixMessageQueue {
 		/// </summary>
 		/// <param name="out_message">Message to send.</param>
 		internal void EnqueueOutgoingMessage(MqMessage out_message) {
+			if (is_running == false) {
+				return;
+			}
+
 			outbox.Enqueue(out_message);
 
 			// Signal the workers that work is to be done.
 			postmaster.SignalWrite(this);
+		}
+
+		/// <summary>
+		/// Stops the mailbox from sending and receiving.
+		/// </summary>
+		/// <param name="frame">Last frame to pass over the connection.</param>
+		public void Stop(MqFrame frame) {
+			if (is_running == false) {
+				return;
+			}
+
+			is_running = false;
+			MqMessage msg;
+			if (outbox.IsEmpty == false) {
+				while (outbox.TryDequeue(out msg)) { }
+			}
+
+			msg = new MqMessage(frame);
+			outbox.Enqueue(msg);
+
+			ProcessOutbox();
 		}
 
 		
@@ -108,12 +141,6 @@ namespace DtronixMessageQueue {
 		private void SendBufferQueue(Queue<byte[]> buffer_queue, int length) {
 			var buffer = new byte[length];
 			var offset = 0;
-			// Setup the header for the packet.
-			/*var length_bytes = BitConverter.GetBytes((ushort) length);
-			buffer[0] = 0;
-			buffer[1] = length_bytes[0];
-			buffer[2] = length_bytes[1];*/
-
 
 			while (buffer_queue.Count > 0) {
 				var bytes = buffer_queue.Dequeue();
@@ -181,7 +208,7 @@ namespace DtronixMessageQueue {
 				} catch (InvalidDataException) {
 					//logger.Error(ex, "Connector {0}: Client send invalid data.", Connection.Id);
 
-					session.CloseConnection();
+					session.CloseConnection(SocketCloseReason.ProtocolError);
 					break;
 				}
 
@@ -190,6 +217,13 @@ namespace DtronixMessageQueue {
 
 				for (var i = 0; i < frame_count; i++) {
 					var frame = frame_builder.Frames.Dequeue();
+					
+					// Determine if this frame is a command type.  If it is, process it and don't add it to the message.
+					if (frame.FrameType == MqFrameType.Command) {
+						session.ProcessCommand(frame);
+						continue;
+					}
+
 					message.Add(frame);
 
 					if (frame.FrameType != MqFrameType.EmptyLast && frame.FrameType != MqFrameType.Last) {

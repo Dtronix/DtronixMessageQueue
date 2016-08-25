@@ -49,11 +49,12 @@ namespace DtronixMessageQueue {
 			return session;
 		}
 
-		protected override void OnDisconnect(MqSession session) {
+		protected override void OnClose(MqSession session, SocketCloseReason reason) {
 			session.Mailbox.IncomingMessage -= OnIncomingMessage;
 			session.Mailbox.Dispose();
-			base.OnDisconnect(session);
+			base.OnClose(session, reason);
 		}
+
 
 
 

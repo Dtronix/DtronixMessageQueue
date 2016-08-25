@@ -54,48 +54,6 @@ namespace DtronixMessageQueue {
 			return session;
 		}
 
-
-		/// <summary>
-		/// Internal method to retrieve all the bytes on the wire and enqueue them to be processed by a separate thread.
-		/// </summary>
-		/// <param name="package">Package to process</param>
-		/*protected override void HandlePackage(IPackageInfo package) {
-			var buff_package = package as BufferedPackageInfo;
-
-			if (buff_package == null) {
-				return;
-			}
-
-			var data_list = (BufferList) buff_package.Data;
-
-			byte[] buffer = new byte[data_list.Total - 3];
-			int writer_offset = 0;
-
-			foreach (var buffer_seg in data_list) {
-				// If the first array is the exact length of our header, ignore it.
-				if (writer_offset == 0 && buffer_seg.Count == 3) {
-					continue;
-				}
-				//TODO: Verify whether or not the "Package" already copies the data or if it is from a large buffer source.
-				// Offset the destination -3 due to the offset containing the header.
-				Buffer.BlockCopy(buffer_seg.Array, buffer_seg.Offset, buffer, writer_offset, buffer_seg.Count);
-				writer_offset += buffer_seg.Count;
-			}
-
-			// Enqueue the incoming message to be processed by the postmaster.
-			mailbox.EnqueueIncomingBuffer(buffer);
-		}*/
-
-		/// <summary>
-		/// Connects to a serve endpoint.
-		/// </summary>
-		/// <param name="address">Server address to connect to.</param>
-		/// <param name="port">Server port to connect to.  Default is 2828.</param>
-		/// <returns>Awaitable task.</returns>
-		/*public Task ConnectAsync(string address, int port = 2828) {
-			return ConnectAsync(new IPEndPoint(IPAddress.Parse(address), port));
-		}*/
-
 		/// <summary>
 		/// Adds a message to the outbox to be processed.
 		/// Empty messages will be ignored.
@@ -117,7 +75,7 @@ namespace DtronixMessageQueue {
 
 		public void Close() {
 			Session.Mailbox.IncomingMessage -= OnIncomingMessage;
-			Session.CloseConnection();
+			Session.CloseConnection(SocketCloseReason.ClientClosing);
 			Session.Mailbox.Dispose();
 		}
 

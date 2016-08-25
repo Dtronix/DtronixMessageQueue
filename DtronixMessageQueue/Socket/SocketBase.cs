@@ -11,12 +11,12 @@ namespace DtronixMessageQueue.Socket {
 		/// <summary>
 		/// This event fires when a connection has been established.
 		/// </summary>
-		public event EventHandler<SessionChangedEventArgs<TSession>> Connected;
+		public event EventHandler<SessionConnectedEventArgs<TSession>> Connected;
 
 		/// <summary>
 		/// This event fires when a connection has been closed.
 		/// </summary>
-		public event EventHandler<SessionChangedEventArgs<TSession>> Disconnected;
+		public event EventHandler<SessionClosedEventArgs<TSession>> Closed;
 
 		public SocketConfig Config { get; }
 
@@ -31,12 +31,12 @@ namespace DtronixMessageQueue.Socket {
 
 
 		protected virtual void OnConnect(TSession session) {
-			Connected?.Invoke(this, new SessionChangedEventArgs<TSession>(session));
+			Connected?.Invoke(this, new SessionConnectedEventArgs<TSession>(session));
 		}
 
 
-		protected virtual void OnDisconnect(TSession session) {
-			Disconnected?.Invoke(this, new SessionChangedEventArgs<TSession>(session));
+		protected virtual void OnClose(TSession session, SocketCloseReason reason) {
+			Closed?.Invoke(this, new SessionClosedEventArgs<TSession>(session, reason));
 		}
 
 		protected SocketBase(SocketConfig config) {
@@ -68,7 +68,7 @@ namespace DtronixMessageQueue.Socket {
 		protected virtual TSession CreateSession(System.Net.Sockets.Socket socket) {
 			var session = new TSession();
 			SocketSession.Setup(session, socket, AsyncPool, Config);
-			session.Disconnected += (sender, args) => OnDisconnect(session);
+			session.Closed += (sender, args) => OnClose(session, args.CloseReason);
 			return session;
 		}
 	}
