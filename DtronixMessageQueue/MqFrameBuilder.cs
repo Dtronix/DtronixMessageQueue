@@ -27,7 +27,7 @@ namespace DtronixMessageQueue {
 		private static int max_type_enum = -1;
 
 		public MqFrameBuilder() {
-			buffer = new byte[MqFrame.MaxFrameSize];
+			buffer = new byte[MqFrame.MaxFrameSize + MqFrame.HeaderLength];
 
 			// Determine what our max enum value is for the FrameType
 			if (max_type_enum == -1) {
@@ -77,12 +77,28 @@ namespace DtronixMessageQueue {
 			read_position = 0;
 		}
 
-		public void Write(byte[] client_bytes, int offset, int count) {
-			// If we are over the byte limitation, then move the client_bytes back to the beginning of the stream and reset the stream.
-			if (count + write_position > buffer.Length) {
-				MoveStreamBytesToBeginning();
-			}
 
+
+		public void Write(byte[] client_bytes, int offset, int count) {
+			while (count > 0) {
+				int max_write = Math.Min(Math.Abs(count - write_position), count);
+				// If we are over the byte limitation, then move the client_bytes back to the beginning of the stream and reset the stream.
+				if (count + write_position > buffer.Length) {
+					MoveStreamBytesToBeginning();
+
+					
+				}
+
+
+				WriteInternalPart(client_bytes, offset, max_write);
+				offset += max_write;
+				count -= max_write;
+				//count 
+
+			}
+		}
+
+		private void WriteInternalPart(byte[] client_bytes, int offset, int count) {
 			// Write the incoming bytes to the stream.
 			WriteInternal(client_bytes, offset, count);
 
@@ -99,7 +115,7 @@ namespace DtronixMessageQueue {
 							$"FrameBuilder was sent a frame with an invalid type.  Type sent: {frame_type_bytes[0]}");
 					}
 
-					current_frame_type = (MqFrameType) frame_type_bytes[0];
+					current_frame_type = (MqFrameType)frame_type_bytes[0];
 				}
 
 				if (current_frame_type == MqFrameType.Empty || current_frame_type == MqFrameType.EmptyLast) {
@@ -142,7 +158,6 @@ namespace DtronixMessageQueue {
 					break;
 				}
 			}
-
 		}
 
 		private void EnqueueAndReset() {
