@@ -54,6 +54,7 @@ namespace DtronixMessageQueue.Tests.Performance {
 				
 
 			} else if (mode == "client") {
+				WriteSysInfo();
 				Console.WriteLine("|   Messages | Msg Bytes | Milliseconds |        MPS |     MBps |");
 				Console.WriteLine("|------------|-----------|--------------|------------|----------|");
 
@@ -66,7 +67,7 @@ namespace DtronixMessageQueue.Tests.Performance {
 				Task.Run(() => {
 					StartServer(total_messages, total_clients);
 				});
-
+				WriteSysInfo();
 				Console.WriteLine("|   Messages | Msg Bytes | Milliseconds |        MPS |     MBps |");
 				Console.WriteLine("|------------|-----------|--------------|------------|----------|");
 
@@ -82,20 +83,7 @@ namespace DtronixMessageQueue.Tests.Performance {
 
 		}
 
-		private static void StartClient(int total_loops, int total_messages, int total_frames, int frame_size) {
-			Console.WriteLine("Client starting...");
-
-			var cl = new MqClient(new SocketConfig() {
-				Ip = "127.0.0.1",
-				Port = 2828
-			});
-
-			var stopwatch = new Stopwatch();
-			var message_reader = new MqMessageReader();
-			var message_size = total_frames*frame_size;
-			var message = new MqMessage();
-			double[] total_values = { 0, 0, 0 };
-
+		private static void WriteSysInfo() {
 			ManagementObjectSearcher mos = new ManagementObjectSearcher("root\\CIMV2", "SELECT * FROM Win32_Processor");
 			foreach (var o in mos.Get()) {
 				var mo = (ManagementObject)o;
@@ -106,7 +94,19 @@ namespace DtronixMessageQueue.Tests.Performance {
 			long mem_kb;
 			GetPhysicallyInstalledSystemMemory(out mem_kb);
 			Console.WriteLine(" with " + (mem_kb / 1024 / 1024) + " GB of RAM installed.\r\n");
+		}
 
+		private static void StartClient(int total_loops, int total_messages, int total_frames, int frame_size) {
+			var cl = new MqClient(new SocketConfig() {
+				Ip = "127.0.0.1",
+				Port = 2828
+			});
+
+			var stopwatch = new Stopwatch();
+			var message_reader = new MqMessageReader();
+			var message_size = total_frames*frame_size;
+			var message = new MqMessage();
+			double[] total_values = { 0, 0, 0 };
 
 			for (int i = 0; i < total_frames; i++) {
 				message.Add(new MqFrame(RandomBytes(frame_size)));
@@ -159,7 +159,6 @@ namespace DtronixMessageQueue.Tests.Performance {
 			builder.Write("START");
 			var start_message = builder.ToMessage(true);
 
-			Console.WriteLine("Server starting");
 			var server = new MqServer(new SocketConfig() {
 				Ip = "127.0.0.1",
 				Port = 2828
@@ -203,7 +202,6 @@ namespace DtronixMessageQueue.Tests.Performance {
 
 
 			server.Start();
-			Console.WriteLine("Server started.");
 		}
 
 		private class ClientRunInfo {

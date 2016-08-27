@@ -42,12 +42,10 @@ namespace DtronixMessageQueue {
 		private void SupervisorWork(MqWorker worker) {
 			while (worker.Token.IsCancellationRequested == false) {
 				if (ProcessWorkers(read_workers, MaxReaders)) {
-					Console.WriteLine("Created read worker.");
 					CreateReadWorker();
 				}
 
 				if (ProcessWorkers(write_workers, MaxWriters)) {
-					Console.WriteLine("Created write worker.");
 					CreateWriteWorker();
 				}
 				Thread.Sleep(500);
@@ -127,7 +125,6 @@ namespace DtronixMessageQueue {
 		/// Creates a worker reader.
 		/// </summary>
 		public void CreateReadWorker() {
-			Console.WriteLine("Created read worker.");
 			var reader_worker = new MqWorker(worker => {
 				MqMailbox mailbox = null;
 				bool out_mailbox;

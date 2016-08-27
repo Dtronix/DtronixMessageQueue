@@ -81,12 +81,11 @@ namespace DtronixMessageQueue {
 
 		public void Write(byte[] client_bytes, int offset, int count) {
 			while (count > 0) {
-				int max_write = Math.Min(Math.Abs(count - write_position), count);
+				int max_write = count;
 				// If we are over the byte limitation, then move the client_bytes back to the beginning of the stream and reset the stream.
 				if (count + write_position > buffer.Length) {
 					MoveStreamBytesToBeginning();
-
-					
+					max_write = Math.Min(Math.Abs(count - write_position), count);
 				}
 
 

@@ -47,11 +47,8 @@
     <Reference Include="System.Xml" />
   </ItemGroup>
   <ItemGroup>
-    <None Include="MqClientReceiveFilter.cs" />
     <Compile Include="MqMessageReader.cs" />
     <Compile Include="MqMessageWriter.cs" />
-    <None Include="MqServerReceiveFilter.cs" />
-    <None Include="MqServerReceiveFilterFactory.cs" />
     <Compile Include="MqSession.cs" />
     <Compile Include="Socket\BufferManager.cs" />
     <Compile Include="Socket\SessionConnectedEventArgs.cs" />
