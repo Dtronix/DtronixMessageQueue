@@ -10,7 +10,7 @@ using System.Runtime.InteropServices;
 using System.Threading;
 using System.Threading.Tasks;
 using DtronixMessageQueue;
-using SuperSocket.SocketBase.Config;
+using DtronixMessageQueue.Socket;
 
 namespace DtronixMessageQueue.Tests.Performance {
 	class Program {
@@ -85,7 +85,11 @@ namespace DtronixMessageQueue.Tests.Performance {
 		private static void StartClient(int total_loops, int total_messages, int total_frames, int frame_size) {
 			Console.WriteLine("Client starting...");
 
-			var cl = new MqClient();
+			var cl = new MqClient(new SocketConfig() {
+				Ip = "127.0.0.1",
+				Port = 2828
+			});
+
 			var stopwatch = new Stopwatch();
 			var message_reader = new MqMessageReader();
 			var message_size = total_frames*frame_size;
@@ -142,7 +146,7 @@ namespace DtronixMessageQueue.Tests.Performance {
 				}
 			};
 
-			cl.ConnectAsync("127.0.0.1").Wait();
+			cl.Connect();
 
 		}
 
@@ -156,19 +160,19 @@ namespace DtronixMessageQueue.Tests.Performance {
 			var start_message = builder.ToMessage(true);
 
 			Console.WriteLine("Server starting");
-			var server = new MqServer(new ServerConfig {
+			var server = new MqServer(new SocketConfig() {
 				Ip = "127.0.0.1",
 				Port = 2828
 			});
 			ConcurrentDictionary<MqSession, ClientRunInfo> client_infos = new ConcurrentDictionary<MqSession, ClientRunInfo>();
 
 
-			server.NewSessionConnected += session => {
+			server.Connected += (sender, session) => {
 				var current_info = new ClientRunInfo() {
-					Session = session,
+					Session = session.Session,
 					Runs = 0
 				};
-				client_infos.TryAdd(session, current_info);
+				client_infos.TryAdd(session.Session, current_info);
 
 				if (client_infos.Count == total_clients) {
 
@@ -178,9 +182,9 @@ namespace DtronixMessageQueue.Tests.Performance {
 				}
 			};
 
-			server.SessionClosed += (session, value) => {
+			server.Closed += (session, value) => {
 				ClientRunInfo info;
-				client_infos.TryRemove(session, out info);
+				client_infos.TryRemove(value.Session, out info);
 			};
 
 			server.IncomingMessage += (sender, args) => {
@@ -205,85 +209,6 @@ namespace DtronixMessageQueue.Tests.Performance {
 		private class ClientRunInfo {
 			public int Runs { get; set; }
 			public MqSession Session { get; set; }
-
-		}
-
-
-		private static void MqPerformanceTests(int runs, int loops, MqMessage message) {
-			var server = new MqServer(new ServerConfig {
-				Ip = "127.0.0.1",
-				Port = 2828
-			});
-			server.Start();
-
-			double[] total_values = { 0, 0, 0 };
-
-			var count = 0;
-			var sw = new Stopwatch();
-			var wait = new AutoResetEvent(false);
-
-
-			Console.WriteLine("|   Build |   Messages | Msg Bytes | Milliseconds |        MPS |     MBps |");
-			Console.WriteLine("|---------|------------|-----------|--------------|------------|----------|");
-
-
-			var message_size = message.Size;
-
-			server.IncomingMessage += (sender, args2) => {
-				MqMessage message_out;
-
-				while (args2.Mailbox.Inbox.TryDequeue(out message_out)) {
-					count++;
-				}
-
-				if (count == runs) {
-					sw.Stop();
-					var mode = "Release";
-
-#if DEBUG
-					mode = "Debug";
-#endif
-
-					var messages_per_second = (int)((double)runs / sw.ElapsedMilliseconds * 1000);
-					var msg_size_no_header = message_size - 12;
-					var mbps = runs * (double)(msg_size_no_header) / sw.ElapsedMilliseconds / 1000;
-					Console.WriteLine("| {0,7} | {1,10:N0} | {2,9:N0} | {3,12:N0} | {4,10:N0} | {5,8:N2} |", mode, runs, msg_size_no_header, sw.ElapsedMilliseconds, messages_per_second, mbps);
-					total_values[0] += sw.ElapsedMilliseconds;
-					total_values[1] += messages_per_second;
-					total_values[2] += mbps;
-
-
-					wait.Set();
-				}
-
-			};
-
-
-			var client = new MqClient();
-
-			var send = new Action(() => {
-				count = 0;
-				sw.Restart();
-				for (var i = 0; i < runs; i++) {
-					client.Send(message);
-				}
-				MqServer sv = server;
-				wait.WaitOne();
-				wait.Reset();
-
-			});
-
-			client.ConnectAsync("127.0.0.1").Wait();
-
-			for (var i = 0; i < loops; i++) {
-				send();
-			}
-
-			Console.WriteLine("|         |            |  AVERAGES | {0,12:N0} | {1,10:N0} | {2,8:N2} |", total_values[0] / loops, total_values[1] / loops, total_values[2] / loops);
-			Console.WriteLine();
-
-			server.Stop();
-			client.Close().Wait();
 
 		}
 
