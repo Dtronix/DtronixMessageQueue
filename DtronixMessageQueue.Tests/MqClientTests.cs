@@ -17,9 +17,9 @@ namespace DtronixMessageQueue.Tests {
 		}
 
 		[Theory]
-		[InlineData(1, false)]
-		[InlineData(1, true)]
-		//[InlineData(50, true)]
+		//[InlineData(1, false)]
+		//[InlineData(1, true)]
+		[InlineData(50, true)]
 		//[InlineData(100, true)]
 		public void Client_should_send_data_to_server(int number, bool validate) {
 			var message_source = GenerateRandomMessage(4, 50);
@@ -122,13 +122,17 @@ namespace DtronixMessageQueue.Tests {
 		public void Client_notified_server_session_closed() {
 
 			Server.Connected += (sender, session) => {
-				Thread.Sleep(1000);
-				session.Session.CloseConnection(SocketCloseReason.ClientClosing);
+				//Thread.Sleep(1000);
+				//session.Session.Send(new MqMessage(new MqFrame(new byte[24], MqFrameType.Last)));
+				session.Session.CloseConnection(SocketCloseReason.ApplicationError);
 			};
-			Client.Connected += (sender, args) => {
-				var asfasf = "";
+
+			Client.Closed += (sender, args) => {
+				if (args.CloseReason != SocketCloseReason.ApplicationError) {
+					LastException = new InvalidOperationException("Server did not return proper close reason.");
+				}
+				TestStatus.Set();
 			};
-			Client.Closed += (sender, args) => TestStatus.Set();
 
 			StartAndWait();
 		}

@@ -21,11 +21,11 @@ namespace DtronixMessageQueue.Socket {
 			};
 
 			var event_arg = new SocketAsyncEventArgs();
-			Session = CreateSession(MainSocket);
 			event_arg.RemoteEndPoint = end_point;
 
 			event_arg.Completed += (sender, args) => {
 				if (args.LastOperation == SocketAsyncOperation.Connect) {
+					Session = CreateSession(MainSocket);
 					OnConnect(Session);
 				}
 			};

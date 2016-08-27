@@ -11,6 +11,7 @@ namespace DtronixMessageQueue.Socket {
 	public abstract class SocketSession : IDisposable {
 
 		public enum State : byte {
+			Unknown,
 			Connecting,
 			Connected,
 			Closing,
@@ -179,8 +180,11 @@ namespace DtronixMessageQueue.Socket {
 		/// </summary>
 		/// <param name="e"></param>
 		protected void RecieveComplete(SocketAsyncEventArgs e) {
+			if (CurrentState == State.Closing) {
+				return;
+			}
 			if (e.BytesTransferred == 0 && CurrentState == State.Connected) {
-				CloseConnection(SocketCloseReason.ClientClosing);
+				CurrentState = State.Closing;
 				return;
 			}
 			if (e.BytesTransferred > 0 && e.SocketError == SocketError.Success) {
@@ -230,7 +234,7 @@ namespace DtronixMessageQueue.Socket {
 			}
 			// close the socket associated with the client
 			try {
-				Socket.Close(500);
+				Socket.Close(1000);
 			} catch (Exception ex) {
 				logger.Error(ex, "Connector {0}: SocketSession is already closed.", Id);
 				// ignored

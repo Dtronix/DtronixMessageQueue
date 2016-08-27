@@ -30,11 +30,14 @@ namespace DtronixMessageQueue {
 		/// Initializes a new instance of a message queue.
 		/// </summary>
 		public MqClient(SocketConfig config) : base(config) {
+			config.MaxConnections = 1;
 
 			postmaster = new MqPostmaster {
 				MaxReaders = 2,
 				MaxWriters = 2
 			};
+
+			Setup();
 		}
 
 		/// <summary>

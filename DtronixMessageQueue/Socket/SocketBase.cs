@@ -41,17 +41,20 @@ namespace DtronixMessageQueue.Socket {
 
 		protected SocketBase(SocketConfig config) {
 			Config = config;
+		}
+
+		protected void Setup() {
 			// allocate buffers such that the maximum number of sockets can have one outstanding read and 
 			//write posted to the socket simultaneously  
-			BufferManager = new BufferManager(config.SendAndReceiveBufferSize * config.MaxConnections * 2, config.SendAndReceiveBufferSize);
+			BufferManager = new BufferManager(Config.SendAndReceiveBufferSize * Config.MaxConnections * 2, Config.SendAndReceiveBufferSize);
 
 			// Allocates one large byte buffer which all I/O operations use a piece of.  This guards against memory fragmentation.
 			BufferManager.InitBuffer();
 
 			// preallocate pool of SocketAsyncEventArgs objects
-			AsyncPool = new SocketAsyncEventArgsPool(config.MaxConnections * 2);
+			AsyncPool = new SocketAsyncEventArgsPool(Config.MaxConnections * 2);
 
-			for (var i = 0; i < config.MaxConnections * 2; i++) {
+			for (var i = 0; i < Config.MaxConnections * 2; i++) {
 				//Pre-allocate a set of reusable SocketAsyncEventArgs
 				var event_arg = new SocketAsyncEventArgs();
 
@@ -62,7 +65,7 @@ namespace DtronixMessageQueue.Socket {
 				AsyncPool.Push(event_arg);
 			}
 
-			logger.Debug("SocketBase started with {0} readers/writers.", config.MaxConnections * 2);
+			logger.Debug("SocketBase started with {0} readers/writers.", Config.MaxConnections * 2);
 		}
 
 		protected virtual TSession CreateSession(System.Net.Sockets.Socket socket) {

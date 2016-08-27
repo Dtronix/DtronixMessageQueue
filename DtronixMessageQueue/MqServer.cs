@@ -29,6 +29,8 @@ namespace DtronixMessageQueue {
 				MaxReaders = config.MaxConnections + 1,
 				MaxWriters = config.MaxConnections + 1
 			};
+
+			Setup();
 		}
 
 		/// <summary>

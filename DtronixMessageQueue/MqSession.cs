@@ -30,7 +30,7 @@ namespace DtronixMessageQueue {
 		}
 
 		public override void CloseConnection(SocketCloseReason reason) {
-			if (CurrentState == State.Closing || CurrentState == State.Closed) {
+			if (CurrentState == State.Closed) {
 				return;
 			}
 

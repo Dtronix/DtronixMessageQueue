@@ -87,7 +87,7 @@ namespace DtronixMessageQueue.Socket {
 				return;
 			}
 
-			e.AcceptSocket.NoDelay = true;
+			//e.AcceptSocket.NoDelay = true;
 
 			// Get the socket for the accepted client connection and put it into the 
 			//ReadEventArg object user token
