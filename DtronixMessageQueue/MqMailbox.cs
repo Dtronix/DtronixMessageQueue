@@ -122,15 +122,19 @@ namespace DtronixMessageQueue {
 
 			is_running = false;
 
-			MqMessage msg;
-			if (outbox.IsEmpty == false) {
-				while (outbox.TryDequeue(out msg)) { }
+			// If we are passed a closing frame, then send it to the other connection.
+			if (frame != null) {
+				MqMessage msg;
+				if (outbox.IsEmpty == false) {
+					while (outbox.TryDequeue(out msg)) {
+					}
+				}
+
+				msg = new MqMessage(frame);
+				outbox.Enqueue(msg);
+
+				ProcessOutbox();
 			}
-
-			msg = new MqMessage(frame);
-			outbox.Enqueue(msg);
-
-			ProcessOutbox();
 		}
 
 		

@@ -10,6 +10,15 @@ using NLog;
 namespace DtronixMessageQueue.Socket {
 	public abstract class SocketSession : IDisposable {
 
+		public enum State : byte {
+			Connecting,
+			Connected,
+			Closing,
+			Closed,
+			Error
+		}
+
+
 		private static readonly Logger logger = LogManager.GetCurrentClassLogger();
 
 		private SocketAsyncEventArgsPool args_pool;
@@ -19,6 +28,8 @@ namespace DtronixMessageQueue.Socket {
 		private ManualResetEventSlim read_reset;
 
 		public Guid Id { get; }
+
+		public State CurrentState { get; protected set; }
 
 		public System.Net.Sockets.Socket Socket {
 			get { return socket; }
@@ -45,6 +56,7 @@ namespace DtronixMessageQueue.Socket {
 
 		protected SocketSession() {
 			Id = Guid.NewGuid();
+			CurrentState = State.Connecting;
 		}
 
 		internal static void Setup(SocketSession session, System.Net.Sockets.Socket socket, SocketAsyncEventArgsPool args_pool, SocketConfig configs) {
@@ -78,6 +90,8 @@ namespace DtronixMessageQueue.Socket {
 
 			// Start receiving data.
 			socket.ReceiveAsync(session.receive_args);
+
+			session.CurrentState = State.Connected;
 		}
 
 		protected void OnConnected() {
@@ -101,7 +115,7 @@ namespace DtronixMessageQueue.Socket {
 					break;
 
 				case SocketAsyncOperation.Disconnect:
-					OnDisconnected(SocketCloseReason.ClientClosing);
+					CloseConnection(SocketCloseReason.ClientClosing);
 					break;
 
 				case SocketAsyncOperation.Receive:
@@ -165,8 +179,8 @@ namespace DtronixMessageQueue.Socket {
 		/// </summary>
 		/// <param name="e"></param>
 		protected void RecieveComplete(SocketAsyncEventArgs e) {
-			if (e.BytesTransferred == 0) {
-				OnDisconnected(SocketCloseReason.ClientClosing);
+			if (e.BytesTransferred == 0 && CurrentState == State.Connected) {
+				CloseConnection(SocketCloseReason.ClientClosing);
 				return;
 			}
 			if (e.BytesTransferred > 0 && e.SocketError == SocketError.Success) {
@@ -210,16 +224,17 @@ namespace DtronixMessageQueue.Socket {
 		protected abstract void HandleIncomingBytes(byte[] buffer);
 
 		public virtual void CloseConnection(SocketCloseReason reason) {
+			// If this session has already been closed, nothing more to do.
+			if (CurrentState == State.Closed) {
+				return;
+			}
 			// close the socket associated with the client
 			try {
 				Socket.Close(500);
 			} catch (Exception ex) {
 				logger.Error(ex, "Connector {0}: SocketSession is already closed.", Id);
 				// ignored
-				// throws if client process has already closed
 			}
-
-			
 
 			// Free the SocketAsyncEventArg so they can be reused by another client
 			args_pool.Push(send_args);
@@ -227,10 +242,18 @@ namespace DtronixMessageQueue.Socket {
 
 			send_args.Completed -= IoCompleted;
 			receive_args.Completed -= IoCompleted;
+
+
+			// Notify the session has been closed.
+			OnDisconnected(reason);
+
+			CurrentState = State.Closed;
 		}
 
 		public void Dispose() {
-			CloseConnection(SocketCloseReason.ClientClosing);
+			if (CurrentState == State.Connected) {
+				CloseConnection(SocketCloseReason.ClientClosing);
+			}
 		}
 	}
 }

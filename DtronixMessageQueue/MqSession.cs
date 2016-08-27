@@ -14,6 +14,8 @@ namespace DtronixMessageQueue {
 
 	public class MqSession : SocketSession {
 
+
+
 		private static readonly Logger logger = LogManager.GetCurrentClassLogger();
 
 		public MqMailbox Mailbox { get; set; }
@@ -28,8 +30,17 @@ namespace DtronixMessageQueue {
 		}
 
 		public override void CloseConnection(SocketCloseReason reason) {
-			var close_frame = new MqFrame(new byte[1]) {FrameType = MqFrameType.Command};
-			close_frame.Write(0, (byte)reason);
+			if (CurrentState == State.Closing || CurrentState == State.Closed) {
+				return;
+			}
+
+			MqFrame close_frame = null;
+			if (CurrentState == State.Connected) {
+				CurrentState = State.Closing;
+				close_frame = new MqFrame(new byte[2]) {FrameType = MqFrameType.Command};
+				close_frame.Write(0, (byte) 0);
+				close_frame.Write(1, (byte) reason);
+			}
 
 			Mailbox.Stop(close_frame);
 
@@ -62,6 +73,7 @@ namespace DtronixMessageQueue {
 
 			switch (command_type) {
 				case 0: // Closed
+					CurrentState = State.Closing;
 					CloseConnection((SocketCloseReason)frame.ReadByte(1));
 					break;
 

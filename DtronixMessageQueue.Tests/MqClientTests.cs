@@ -121,8 +121,13 @@ namespace DtronixMessageQueue.Tests {
 		[Fact]
 		public void Client_notified_server_session_closed() {
 
-			Server.Connected += (sender, session) => session.Session.CloseConnection(SocketCloseReason.ClientClosing);
-
+			Server.Connected += (sender, session) => {
+				Thread.Sleep(1000);
+				session.Session.CloseConnection(SocketCloseReason.ClientClosing);
+			};
+			Client.Connected += (sender, args) => {
+				var asfasf = "";
+			};
 			Client.Closed += (sender, args) => TestStatus.Set();
 
 			StartAndWait();

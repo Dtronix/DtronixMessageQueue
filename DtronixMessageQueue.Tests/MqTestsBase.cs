@@ -33,6 +33,8 @@ namespace DtronixMessageQueue.Tests {
 			};
 
 			Server = new MqServer(config);
+
+
 			Client = new MqClient(config);
 		}
 

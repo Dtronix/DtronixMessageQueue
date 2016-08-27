@@ -6,7 +6,7 @@ using System.Threading.Tasks;
 
 namespace DtronixMessageQueue.Socket {
 	public class SocketConfig {
-		public int MaxConnections { get; set; } = 1;
+		public int MaxConnections { get; set; } = 10;
 
 		/// <summary>
 		/// Maximum backlog for pending connections.
