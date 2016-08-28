@@ -2,7 +2,6 @@
 using System.Collections.Concurrent;
 using System.Net.Sockets;
 using System.Threading;
-using NLog;
 
 namespace DtronixMessageQueue.Socket {
 	public abstract class SocketBase<TSession>
@@ -19,8 +18,6 @@ namespace DtronixMessageQueue.Socket {
 		public event EventHandler<SessionClosedEventArgs<TSession>> Closed;
 
 		public SocketConfig Config { get; }
-
-		private static readonly Logger logger = LogManager.GetCurrentClassLogger();
 
 		protected System.Net.Sockets.Socket MainSocket; 
 		protected bool IsRunning;
@@ -54,7 +51,7 @@ namespace DtronixMessageQueue.Socket {
 			// preallocate pool of SocketAsyncEventArgs objects
 			AsyncPool = new SocketAsyncEventArgsPool(Config.MaxConnections * 2);
 
-			for (var i = 0; i < Config.MaxConnections * 2; i++) {
+			for (var i = 0; i < Config.MaxConnections*2; i++) {
 				//Pre-allocate a set of reusable SocketAsyncEventArgs
 				var event_arg = new SocketAsyncEventArgs();
 
@@ -64,8 +61,6 @@ namespace DtronixMessageQueue.Socket {
 				// add SocketAsyncEventArg to the pool
 				AsyncPool.Push(event_arg);
 			}
-
-			logger.Debug("SocketBase started with {0} readers/writers.", Config.MaxConnections * 2);
 		}
 
 		protected virtual TSession CreateSession(System.Net.Sockets.Socket socket) {

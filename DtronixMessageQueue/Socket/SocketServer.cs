@@ -4,13 +4,10 @@ using System.Net;
 using System.Net.Sockets;
 using System.Threading;
 using System.Threading.Tasks;
-using NLog;
 
 namespace DtronixMessageQueue.Socket {
 	public class SocketServer<TSession> : SocketBase<TSession>
 		where TSession : SocketSession, new() {
-
-		private static readonly Logger logger = LogManager.GetCurrentClassLogger();
 
 		private readonly Semaphore connection_limit;
 
@@ -70,7 +67,6 @@ namespace DtronixMessageQueue.Socket {
 
 			connection_limit.WaitOne();
 			if (MainSocket.AcceptAsync(e) == false) {
-				logger.Warn("Server: Client accepted synchronously.");
 				AcceptCompleted(e);
 			}
 		}

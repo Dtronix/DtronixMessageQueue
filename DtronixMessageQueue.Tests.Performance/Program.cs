@@ -19,14 +19,14 @@ namespace DtronixMessageQueue.Tests.Performance {
 		[return: MarshalAs(UnmanagedType.Bool)]
 		static extern bool GetPhysicallyInstalledSystemMemory(out long total_memory_in_kilobytes);
 
-		static void Main(string[] args) {
+		static void Main(string[] args){
 			string mode = null;
 			int total_loops, total_messages, total_frames, frame_size, total_clients;
 
 			if (args == null || args.Length == 0) {
 				mode = "single-process";
-				total_loops = 1;
-				total_messages = 1000000;
+				total_loops = 5;
+				total_messages = 10000;
 				total_frames = 4;
 				frame_size = 50;
 				total_clients = 1;
@@ -114,34 +114,44 @@ namespace DtronixMessageQueue.Tests.Performance {
 
 			cl.IncomingMessage += (sender, args) => {
 				MqMessage msg;
-				if (args.Mailbox.Inbox.TryDequeue(out msg)) {
+				while(args.Mailbox.Inbox.TryDequeue(out msg)) {
 					message_reader.Message = msg;
 					var result = message_reader.ReadString();
 
 					if (result == "COMPLETE") {
 
-						stopwatch.Stop();
+						if (total_loops-- > 0) {
 
-						var messages_per_second = (int)((double)total_messages / stopwatch.ElapsedMilliseconds * 1000);
-						var msg_size_no_header = message_size;
-						var mbps = total_messages * (double)(msg_size_no_header) / stopwatch.ElapsedMilliseconds / 1000;
-						Console.WriteLine("| {0,10:N0} | {1,9:N0} | {2,12:N0} | {3,10:N0} | {4,8:N2} |", total_messages, msg_size_no_header, stopwatch.ElapsedMilliseconds, messages_per_second, mbps);
+							stopwatch.Stop();
 
-						total_values[0] += stopwatch.ElapsedMilliseconds;
-						total_values[1] += messages_per_second;
-						total_values[2] += mbps;
+							var messages_per_second = (int) ((double) total_messages/stopwatch.ElapsedMilliseconds*1000);
+							var msg_size_no_header = message_size;
+							var mbps = total_messages*(double) (msg_size_no_header)/stopwatch.ElapsedMilliseconds/1000;
+							Console.WriteLine("| {0,10:N0} | {1,9:N0} | {2,12:N0} | {3,10:N0} | {4,8:N2} |", total_messages,
+								msg_size_no_header, stopwatch.ElapsedMilliseconds, messages_per_second, mbps);
 
+							total_values[0] += stopwatch.ElapsedMilliseconds;
+							total_values[1] += messages_per_second;
+							total_values[2] += mbps;
+						}
 
-						Console.WriteLine("|            |  AVERAGES | {0,12:N0} | {1,10:N0} | {2,8:N2} |", total_values[0] / total_loops, total_values[1] / total_loops, total_values[2] / total_loops);
-						Console.WriteLine();
-						Console.WriteLine("Test complete");
+						if (total_loops == 0) {
+
+							Console.WriteLine("|            |  AVERAGES | {0,12:N0} | {1,10:N0} | {2,8:N2} |", total_values[0]/total_loops,
+								total_values[1]/total_loops, total_values[2]/total_loops);
+							Console.WriteLine();
+							Console.WriteLine("Test complete");
+						}
+
 
 						cl.Close();
 					}else if (result == "START") {
-						stopwatch.Start();
+						stopwatch.Restart();
 						for (var i = 0; i < total_messages; i++) {
 							cl.Send(message);
 						}
+
+						Thread.Sleep(500);
 					}
 				}
 			};
@@ -196,6 +206,8 @@ namespace DtronixMessageQueue.Tests.Performance {
 
 				if (client_info.Runs == total_messages) {
 					args.Session.Send(complete_message);
+					args.Session.Send(start_message);
+					client_info.Runs = 0;
 				}
 
 			};

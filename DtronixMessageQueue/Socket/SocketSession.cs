@@ -5,7 +5,6 @@ using System.Net.Sockets;
 using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
-using NLog;
 
 namespace DtronixMessageQueue.Socket {
 	public abstract class SocketSession : IDisposable {
@@ -19,22 +18,31 @@ namespace DtronixMessageQueue.Socket {
 			Error
 		}
 
-
-		private static readonly Logger logger = LogManager.GetCurrentClassLogger();
-
 		private SocketAsyncEventArgsPool args_pool;
 
 		private ManualResetEventSlim write_reset;
 
-		private ManualResetEventSlim read_reset;
-
+		/// <summary>
+		/// Id for this session
+		/// </summary>
 		public Guid Id { get; }
 
+		/// <summary>
+		/// State that this socket is in.  Can only perform most operations when the socket is in a Connected state.
+		/// </summary>
 		public State CurrentState { get; protected set; }
 
+		/// <summary>
+		/// Raw socket for this session.
+		/// </summary>
 		public System.Net.Sockets.Socket Socket {
 			get { return socket; }
 		}
+
+		/// <summary>
+		/// Last time the session received anything from the socket.
+		/// </summary>
+		public DateTime LastReceived => last_received;
 
 
 		private SocketAsyncEventArgs send_args;
@@ -42,6 +50,7 @@ namespace DtronixMessageQueue.Socket {
 		private SocketAsyncEventArgs receive_args;
 
 		private DateTime last_received;
+
 
 		private System.Net.Sockets.Socket socket;
 
@@ -54,6 +63,8 @@ namespace DtronixMessageQueue.Socket {
 		/// This event fires when a connection has been shutdown.
 		/// </summary>
 		public event EventHandler<SessionClosedEventArgs<SocketSession>> Closed;
+
+
 
 		protected SocketSession() {
 			Id = Guid.NewGuid();
@@ -70,7 +81,6 @@ namespace DtronixMessageQueue.Socket {
 
 			session.socket = socket;
 			session.write_reset = new ManualResetEventSlim(true);
-			session.read_reset = new ManualResetEventSlim(true);
 
 			if(configs.SendTimeout > 0)
 				socket.SendTimeout = configs.SendTimeout;
@@ -80,11 +90,6 @@ namespace DtronixMessageQueue.Socket {
 
 			if (configs.SendAndReceiveBufferSize > 0)
 				socket.SendBufferSize = configs.SendAndReceiveBufferSize;
-
-			//if (!Platform.SupportSocketIOControlByCodeEnum)
-			//socket.SetSocketOption(SocketOptionLevel.Socket, SocketOptionName.KeepAlive, m_KeepAliveOptionValues);
-			//else
-			//	socket.IOControl(IOControlCode.KeepAliveValues, m_KeepAliveOptionValues, m_KeepAliveOptionOutValues);
 
 			socket.NoDelay = true;
 			socket.SetSocketOption(SocketOptionLevel.Socket, SocketOptionName.DontLinger, true);
@@ -129,7 +134,6 @@ namespace DtronixMessageQueue.Socket {
 					break;
 
 				default:
-					logger.Error("Connector {0}: The last operation completed on the socket was not a receive, send connect or disconnect.", Id);
 					throw new ArgumentException("The last operation completed on the socket was not a receive, send connect or disconnect.");
 			}
 		}
@@ -150,11 +154,9 @@ namespace DtronixMessageQueue.Socket {
 
 			try {
 				if (Socket.SendAsync(send_args) == false) {
-					logger.Warn("Connector {0}: Data sent synchronously.", Id);
 					IoCompleted(this, send_args);
 				}
-			} catch (ObjectDisposedException ex) {
-				logger.Error(ex, "Connector {0}: Exception on SendAsync.", Id);
+			} catch (ObjectDisposedException) {
 				CloseConnection(SocketCloseReason.SocketError);
 			}
 		}
@@ -167,8 +169,7 @@ namespace DtronixMessageQueue.Socket {
 		/// <param name="e"></param>
 		private void SendComplete(SocketAsyncEventArgs e) {
 			if (e.SocketError != SocketError.Success) {
-				logger.Error("Connector {0}: Socket error: {1}", Id, e.SocketError);
-				//CloseConnection(SocketCloseReason.SocketError);
+				CloseConnection(SocketCloseReason.SocketError);
 			}
 			write_reset.Set();
 		}
@@ -194,7 +195,6 @@ namespace DtronixMessageQueue.Socket {
 
 				// If the bytes received is larger than the buffer, ignore this operation.
 				if (e.BytesTransferred > MqFrame.MaxFrameSize + MqFrame.HeaderLength) {
-					logger.Fatal("Connector {0}: Data received synchronously.", Id);
 					CloseConnection(SocketCloseReason.SocketError);
 				}
 
@@ -210,17 +210,14 @@ namespace DtronixMessageQueue.Socket {
 				try {
 					// Re-setup the receive async call.
 					if (Socket.ReceiveAsync(e) == false) {
-						logger.Warn("Connector {0}: Data received synchronously.", Id);
 						IoCompleted(this, e);
 					}
-				} catch (ObjectDisposedException ex) {
-					logger.Error(ex, "Connector {0}: Exception on SendAsync.", Id);
+				} catch (ObjectDisposedException) {
 					CloseConnection(SocketCloseReason.SocketError);
 				}
 
 
 			} else {
-				logger.Error("Connector {0}: Socket error: {1}", Id, e.SocketError);
 				CloseConnection(SocketCloseReason.SocketError);
 			}
 		}
@@ -235,8 +232,7 @@ namespace DtronixMessageQueue.Socket {
 			// close the socket associated with the client
 			try {
 				Socket.Close(1000);
-			} catch (Exception ex) {
-				logger.Error(ex, "Connector {0}: SocketSession is already closed.", Id);
+			} catch (Exception) {
 				// ignored
 			}
 

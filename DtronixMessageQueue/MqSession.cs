@@ -7,16 +7,11 @@ using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
 using DtronixMessageQueue.Socket;
-using NLog;
 
 namespace DtronixMessageQueue {
 
 
 	public class MqSession : SocketSession {
-
-
-
-		private static readonly Logger logger = LogManager.GetCurrentClassLogger();
 
 		public MqMailbox Mailbox { get; set; }
 
