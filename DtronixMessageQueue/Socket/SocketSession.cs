@@ -32,27 +32,25 @@ namespace DtronixMessageQueue.Socket {
 		/// </summary>
 		public State CurrentState { get; protected set; }
 
+
+		protected System.Net.Sockets.Socket socket;
+
 		/// <summary>
 		/// Raw socket for this session.
 		/// </summary>
-		public System.Net.Sockets.Socket Socket {
-			get { return socket; }
-		}
+		public System.Net.Sockets.Socket Socket => socket;
+
+		private DateTime last_received;
 
 		/// <summary>
 		/// Last time the session received anything from the socket.
 		/// </summary>
 		public DateTime LastReceived => last_received;
 
-
 		private SocketAsyncEventArgs send_args;
 
 		private SocketAsyncEventArgs receive_args;
 
-		private DateTime last_received;
-
-
-		private System.Net.Sockets.Socket socket;
 
 		/// <summary>
 		/// This event fires when a connection has been established.
@@ -64,14 +62,12 @@ namespace DtronixMessageQueue.Socket {
 		/// </summary>
 		public event EventHandler<SessionClosedEventArgs<SocketSession>> Closed;
 
-
-
 		protected SocketSession() {
 			Id = Guid.NewGuid();
 			CurrentState = State.Connecting;
 		}
 
-		internal static void Setup(SocketSession session, System.Net.Sockets.Socket socket, SocketAsyncEventArgsPool args_pool, SocketConfig configs) {
+		public static void Setup(SocketSession session, System.Net.Sockets.Socket socket, SocketAsyncEventArgsPool args_pool, SocketConfig configs) {
 			session.args_pool = args_pool;
 			session.send_args = args_pool.Pop();
 			session.send_args.Completed += session.IoCompleted;
@@ -108,6 +104,8 @@ namespace DtronixMessageQueue.Socket {
 			Closed?.Invoke(this, new SessionClosedEventArgs<SocketSession>(this, reason));
 		}
 
+		protected abstract void HandleIncomingBytes(byte[] buffer);
+
 		/// <summary>
 		/// This method is called whenever a receive or send operation is completed on a socket 
 		/// </summary>
@@ -137,8 +135,6 @@ namespace DtronixMessageQueue.Socket {
 					throw new ArgumentException("The last operation completed on the socket was not a receive, send connect or disconnect.");
 			}
 		}
-
-
 
 
 		internal void Send(byte[] buffer, int offset, int length) {
@@ -221,8 +217,6 @@ namespace DtronixMessageQueue.Socket {
 				CloseConnection(SocketCloseReason.SocketError);
 			}
 		}
-
-		protected abstract void HandleIncomingBytes(byte[] buffer);
 
 		public virtual void CloseConnection(SocketCloseReason reason) {
 			// If this session has already been closed, nothing more to do.

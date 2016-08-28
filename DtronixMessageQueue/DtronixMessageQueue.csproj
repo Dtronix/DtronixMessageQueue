@@ -47,7 +47,6 @@
     <Compile Include="MqMessageWriter.cs" />
     <Compile Include="MqSession.cs" />
     <Compile Include="Socket\BufferManager.cs" />
-    <Compile Include="Socket\LogWrapper.cs" />
     <Compile Include="Socket\SessionConnectedEventArgs.cs" />
     <Compile Include="Socket\SessionClosedEventArgs.cs" />
     <Compile Include="Socket\SocketAsyncEventArgsPool.cs" />
@@ -68,7 +67,6 @@
     <Compile Include="MqClient.cs" />
     <Compile Include="MqFrame.cs" />
     <Compile Include="MqFrameType.cs" />
-    <Compile Include="MqMailbox.cs" />
     <Compile Include="MqMessage.cs" />
     <Compile Include="MqServer.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />

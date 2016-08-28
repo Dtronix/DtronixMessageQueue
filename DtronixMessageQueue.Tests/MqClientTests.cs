@@ -19,7 +19,6 @@ namespace DtronixMessageQueue.Tests {
 		[Theory]
 		[InlineData(1, false)]
 		[InlineData(1, true)]
-		//[InlineData(50, true)]
 		public void Client_should_send_data_to_server(int number, bool validate) {
 			var message_source = GenerateRandomMessage(4, 50);
 			int received_messages = 0;
@@ -32,8 +31,9 @@ namespace DtronixMessageQueue.Tests {
 			Server.IncomingMessage += (sender, args) => {
 				MqMessage message;
 
-				while (args.Mailbox.Inbox.TryDequeue(out message)) {
-					received_messages++;
+				while (args.Messages.Count > 0) {
+					message = args.Messages.Dequeue();
+					Interlocked.Increment(ref received_messages);
 					if (validate) {
 						CompareMessages(message_source, message);
 					}
@@ -62,7 +62,8 @@ namespace DtronixMessageQueue.Tests {
 			Server.IncomingMessage += (sender, args) => {
 				MqMessage message;
 
-				while (args.Mailbox.Inbox.TryDequeue(out message)) {
+				while (args.Messages.Count > 0) {
+					message = args.Messages.Dequeue();
 					if (message.Count != 2) {
 						LastException = new Exception("Server received an empty message.");
 					}

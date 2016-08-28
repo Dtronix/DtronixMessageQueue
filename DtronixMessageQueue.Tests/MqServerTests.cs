@@ -20,7 +20,6 @@ namespace DtronixMessageQueue.Tests {
 		[Theory]
 		[InlineData(1, false)]
 		[InlineData(1, true)]
-		[InlineData(50, true)]
 		public void Server_should_send_data_to_client(int number, bool validate) {
 			var message_source = GenerateRandomMessage(4, 50);
 
@@ -31,15 +30,23 @@ namespace DtronixMessageQueue.Tests {
 				
 			};
 
+			int client_message_count = 0;
 			Client.IncomingMessage += (sender, args) => {
 				MqMessage message;
-				args.Mailbox.Inbox.TryDequeue(out message);
 
-				if (validate) {
-					CompareMessages(message_source, message);
+				client_message_count += args.Messages.Count;
+
+				while (args.Messages.Count > 0) {
+					message = args.Messages.Dequeue();
+
+					if (validate) {
+						CompareMessages(message_source, message);
+					}
 				}
 
-				TestStatus.Set();
+				if (client_message_count == number) {
+					TestStatus.Set();
+				}
 			};
 
 			StartAndWait();

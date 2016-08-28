@@ -51,8 +51,8 @@ namespace DtronixMessageQueue {
 
 		protected override MqSession CreateSession(System.Net.Sockets.Socket socket) {
 			var session = base.CreateSession(socket);
-			session.Mailbox = new MqMailbox(postmaster, session);
-			session.Mailbox.IncomingMessage += OnIncomingMessage;
+			session.Postmaster = postmaster;
+			session.IncomingMessage += OnIncomingMessage;
 
 			return session;
 		}
@@ -72,14 +72,14 @@ namespace DtronixMessageQueue {
 			}
 
 			// Enqueue the outgoing message to be processed by the postmaster.
-			Session.Mailbox.EnqueueOutgoingMessage(message);
+			Session.EnqueueOutgoingMessage(message);
 		}
 
 
 		public void Close() {
-			Session.Mailbox.IncomingMessage -= OnIncomingMessage;
+			Session.IncomingMessage -= OnIncomingMessage;
 			Session.CloseConnection(SocketCloseReason.ClientClosing);
-			Session.Mailbox.Dispose();
+			Session.Dispose();
 		}
 
 		/// <summary>

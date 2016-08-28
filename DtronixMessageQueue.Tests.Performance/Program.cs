@@ -25,8 +25,8 @@ namespace DtronixMessageQueue.Tests.Performance {
 
 			if (args == null || args.Length == 0) {
 				mode = "single-process";
-				total_loops = 5;
-				total_messages = 10000;
+				total_loops = 1;
+				total_messages = 1000000;
 				total_frames = 4;
 				frame_size = 50;
 				total_clients = 1;
@@ -114,7 +114,9 @@ namespace DtronixMessageQueue.Tests.Performance {
 
 			cl.IncomingMessage += (sender, args) => {
 				MqMessage msg;
-				while(args.Mailbox.Inbox.TryDequeue(out msg)) {
+				while (args.Messages.Count > 0) {
+					msg = args.Messages.Dequeue();
+
 					message_reader.Message = msg;
 					var result = message_reader.ReadString();
 
@@ -146,12 +148,12 @@ namespace DtronixMessageQueue.Tests.Performance {
 
 						cl.Close();
 					}else if (result == "START") {
-						stopwatch.Restart();
-						for (var i = 0; i < total_messages; i++) {
-							cl.Send(message);
+						if (total_loops > 0) {
+							stopwatch.Restart();
+							for (var i = 0; i < total_messages; i++) {
+								cl.Send(message);
+							}
 						}
-
-						Thread.Sleep(500);
 					}
 				}
 			};
@@ -197,12 +199,10 @@ namespace DtronixMessageQueue.Tests.Performance {
 			};
 
 			server.IncomingMessage += (sender, args) => {
-				MqMessage message_out;
-
 				var client_info = client_infos[args.Session];
-				while (args.Mailbox.Inbox.TryDequeue(out message_out)) {
-					client_info.Runs++;
-				}
+
+				// Count the total messages.
+				client_info.Runs += args.Messages.Count;
 
 				if (client_info.Runs == total_messages) {
 					args.Session.Send(complete_message);

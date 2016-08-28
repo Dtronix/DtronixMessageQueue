@@ -44,16 +44,16 @@ namespace DtronixMessageQueue {
 
 		protected override MqSession CreateSession(System.Net.Sockets.Socket socket) {
 			var session = base.CreateSession(socket);
-			session.Mailbox = new MqMailbox(postmaster, session);
+			session.Postmaster = postmaster;
 
-			session.Mailbox.IncomingMessage += OnIncomingMessage;
+			session.IncomingMessage += OnIncomingMessage;
 
 			return session;
 		}
 
 		protected override void OnClose(MqSession session, SocketCloseReason reason) {
-			session.Mailbox.IncomingMessage -= OnIncomingMessage;
-			session.Mailbox.Dispose();
+			session.IncomingMessage -= OnIncomingMessage;
+			session.Dispose();
 			base.OnClose(session, reason);
 		}
 

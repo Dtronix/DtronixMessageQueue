@@ -29,7 +29,6 @@ namespace DtronixMessageQueue {
 		/// </summary>
 		public bool IsReadOnly => false;
 
-
 		/// <summary>
 		/// Gets or sets the frame at the specified index.
 		/// </summary>
