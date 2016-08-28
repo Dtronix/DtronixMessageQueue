@@ -64,18 +64,8 @@ namespace DtronixMessageQueue.Tests.Performance {
 				StartServer(total_messages, total_clients);
 
 			}else if (mode == "single-process") {
-				Task.Run(() => {
-					StartServer(total_messages, total_clients);
-				});
 				WriteSysInfo();
-				Console.WriteLine("|   Messages | Msg Bytes | Milliseconds |        MPS |     MBps |");
-				Console.WriteLine("|------------|-----------|--------------|------------|----------|");
-
-				for (int i = 0; i < total_clients; i++) {
-					Task.Run(() => {
-						StartClient(total_loops, total_messages, total_frames, frame_size);
-					});
-				}
+				InProcessTest();
 
 			}
 
@@ -239,5 +229,126 @@ namespace DtronixMessageQueue.Tests.Performance {
 
 			return val;
 		}
+
+
+		static void InProcessTest() {
+
+			var small_message = new MqMessage {
+				new MqFrame(RandomBytes(50), MqFrameType.More),
+				new MqFrame(RandomBytes(50), MqFrameType.More),
+				new MqFrame(RandomBytes(50), MqFrameType.More),
+				new MqFrame(RandomBytes(50), MqFrameType.Last)
+			};
+
+			MqInProcessPerformanceTests(1000000, 5, small_message);
+
+			var medimum_message = new MqMessage {
+				new MqFrame(RandomBytes(500), MqFrameType.More),
+				new MqFrame(RandomBytes(500), MqFrameType.More),
+				new MqFrame(RandomBytes(500), MqFrameType.More),
+				new MqFrame(RandomBytes(500), MqFrameType.Last)
+			};
+
+			MqInProcessPerformanceTests(100000, 5, medimum_message);
+
+			var large_message = new MqMessage {
+				new MqFrame(RandomBytes(MqFrame.MaxFrameSize), MqFrameType.More),
+				new MqFrame(RandomBytes(MqFrame.MaxFrameSize), MqFrameType.More),
+				new MqFrame(RandomBytes(MqFrame.MaxFrameSize), MqFrameType.More),
+				new MqFrame(RandomBytes(MqFrame.MaxFrameSize), MqFrameType.Last)
+			};
+
+			MqInProcessPerformanceTests(10000, 5, large_message);
+
+			Console.WriteLine("Performance complete");
+
+			Console.ReadLine();
+		}
+
+		private static void MqInProcessPerformanceTests(int runs, int loops, MqMessage message) {
+			var server = new MqServer(new SocketConfig {
+				Ip = "127.0.0.1",
+				Port = 2828
+			});
+			server.Start();
+
+			double[] total_values = { 0, 0, 0 };
+
+			var count = 0;
+			var sw = new Stopwatch();
+			var wait = new AutoResetEvent(false);
+			var complete_test = new AutoResetEvent(false);
+
+			var client = new MqClient(new SocketConfig() {
+				Ip = "127.0.0.1",
+				Port = 2828
+			});
+
+			Console.WriteLine("|   Build |   Messages | Msg Bytes | Milliseconds |        MPS |     MBps |");
+			Console.WriteLine("|---------|------------|-----------|--------------|------------|----------|");
+
+
+			var message_size = message.Size;
+
+			server.IncomingMessage += (sender, args2) => {
+				MqMessage message_out;
+				count += args2.Messages.Count;
+
+
+				if (count == runs) {
+					sw.Stop();
+					var mode = "Release";
+
+#if DEBUG
+					mode = "Debug";
+#endif
+
+					var messages_per_second = (int)((double)runs / sw.ElapsedMilliseconds * 1000);
+					var msg_size_no_header = message_size - 12;
+					var mbps = runs * (double)(msg_size_no_header) / sw.ElapsedMilliseconds / 1000;
+					Console.WriteLine("| {0,7} | {1,10:N0} | {2,9:N0} | {3,12:N0} | {4,10:N0} | {5,8:N2} |", mode, runs, msg_size_no_header, sw.ElapsedMilliseconds, messages_per_second, mbps);
+					total_values[0] += sw.ElapsedMilliseconds;
+					total_values[1] += messages_per_second;
+					total_values[2] += mbps;
+
+
+					wait.Set();
+				}
+
+			};
+
+
+
+			var send = new Action(() => {
+				count = 0;
+				sw.Restart();
+				for (var i = 0; i < runs; i++) {
+					client.Send(message);
+				}
+				//MqServer sv = server;
+				wait.WaitOne();
+				wait.Reset();
+
+			});
+
+			client.Connected += (sender, args) => {
+				for (var i = 0; i < loops; i++) {
+					send();
+				}
+
+				Console.WriteLine("|         |            |  AVERAGES | {0,12:N0} | {1,10:N0} | {2,8:N2} |", total_values[0] / loops, total_values[1] / loops, total_values[2] / loops);
+				Console.WriteLine();
+
+				server.Stop();
+				client.Close();
+				complete_test.Set();
+			};
+
+			client.Connect();
+
+			complete_test.WaitOne();
+		}
+
 	}
+
 }

@@ -66,9 +66,14 @@ namespace DtronixMessageQueue.Socket {
 			}
 
 			connection_limit.WaitOne();
-			if (MainSocket.AcceptAsync(e) == false) {
-				AcceptCompleted(e);
+			try {
+				if (MainSocket.AcceptAsync(e) == false) {
+					AcceptCompleted(e);
+				}
+			} catch (ObjectDisposedException) {
+				// ignored
 			}
+			
 		}
 
 		// This method is the callback method associated with Socket.AcceptAsync 
@@ -111,6 +116,9 @@ namespace DtronixMessageQueue.Socket {
 			foreach (var session in sessions) {
 				session.CloseConnection(SocketCloseReason.ServerClosing);
 			}
+
+			//MainSocket.Shutdown(SocketShutdown.Both);
+			MainSocket.Close();
 		}
 	}
 

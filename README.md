@@ -1,6 +1,6 @@
 DtronixMessageQueue [![Build Status](https://travis-ci.org/Dtronix/DtronixMessageQueue.svg?branch=master)](https://travis-ci.org/Dtronix/DtronixMessageQueue)
 ============
-DtronixMessageQueue is a small .net TCP/UDP message queueing system based upon [kerryjiang's SuperSocket](https://github.com/kerryjiang/SuperSocket)
+DtronixMessageQueue is a small .net TCP/UDP message queueing system using the microsoft [SocketAsyncEventArgs](https://msdn.microsoft.com/en-us/library/system.net.sockets.socketasynceventargs(v=vs.110).aspx) interface
 
 The purpose of this project is to provide a simple transport protocol for multiple systems, mostly being the DtronixRpc system.
 
@@ -9,8 +9,5 @@ The purpose of this project is to provide a simple transport protocol for multip
 
 [Desktop Intel i5-3470 8GB](DtronixMessageQueue.Tests.Performance/Results/i5-3470-8GB.md)
 
-Messages sizes exclude the 3 bytes header for the packet and the 3 byte header for each frame.
-Each message is 4 frames long.
-
 ### License
-Released under MIT license
+Released under [MIT license](LICENSE)
