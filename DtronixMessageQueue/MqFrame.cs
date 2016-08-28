@@ -30,7 +30,7 @@ namespace DtronixMessageQueue {
 			}
 		}
 
-		public const int MaxFrameSize = 1024*16 - HeaderLength;
+		public const int MaxFrameSize = 1024*4 - HeaderLength;
 
 		public const int HeaderLength = 3;
 
@@ -76,7 +76,9 @@ namespace DtronixMessageQueue {
 		/// Sets this frame to be the last frame of a message.
 		/// </summary>
 		public void SetLast() {
-			FrameType = FrameType == MqFrameType.Empty ? MqFrameType.EmptyLast : MqFrameType.Last;
+			if (FrameType != MqFrameType.Command) {
+				FrameType = FrameType == MqFrameType.Empty ? MqFrameType.EmptyLast : MqFrameType.Last;
+			}
 		}
 
 		/// <summary>

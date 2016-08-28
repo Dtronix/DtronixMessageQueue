@@ -4,8 +4,6 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 using DtronixMessageQueue;
-using SuperSocket.SocketBase;
-using SuperSocket.SocketEngine.Configuration;
 using Xunit;
 using Xunit.Abstractions;
 
@@ -22,26 +20,33 @@ namespace DtronixMessageQueue.Tests {
 		[Theory]
 		[InlineData(1, false)]
 		[InlineData(1, true)]
-		[InlineData(50, true)]
 		public void Server_should_send_data_to_client(int number, bool validate) {
 			var message_source = GenerateRandomMessage(4, 50);
 
-			Server.NewSessionConnected += session => {
+			Server.Connected += (sender, session) => {
 				for (int i = 0; i < number; i++) {
-					session.Send(message_source);
+					session.Session.Send(message_source);
 				}
 				
 			};
 
+			int client_message_count = 0;
 			Client.IncomingMessage += (sender, args) => {
 				MqMessage message;
-				args.Mailbox.Inbox.TryDequeue(out message);
 
-				if (validate) {
-					CompareMessages(message_source, message);
+				client_message_count += args.Messages.Count;
+
+				while (args.Messages.Count > 0) {
+					message = args.Messages.Dequeue();
+
+					if (validate) {
+						CompareMessages(message_source, message);
+					}
 				}
 
-				TestStatus.Set();
+				if (client_message_count == number) {
+					TestStatus.Set();
+				}
 			};
 
 			StartAndWait();
@@ -54,7 +59,7 @@ namespace DtronixMessageQueue.Tests {
 		[Fact]
 		public void Server_accepts_new_connection() {
 
-			Server.NewSessionConnected += session => {
+			Server.Connected += (sender, session) => {
 				TestStatus.Set();
 			};
 
@@ -65,11 +70,11 @@ namespace DtronixMessageQueue.Tests {
 		[Fact]
 		public void Server_detects_client_disconnect() {
 
-			Client.Connected += async (sender, args) => {
-				await Client.Close();
+			Client.Connected += (sender, args) => {
+				Client.Close();
 			};
 
-			Server.SessionClosed += (session, value) => {
+			Server.Closed += (session, value) => {
 				TestStatus.Set();
 			};
 
@@ -77,8 +82,8 @@ namespace DtronixMessageQueue.Tests {
 		}
 
 
-		[Fact]
-		public void Server_stops() {
+		//[Fact]
+		/*public void Server_stops() {
 			Server.Started += (sender, args) => {
 				Server.Stop();
 
@@ -93,6 +98,6 @@ namespace DtronixMessageQueue.Tests {
 			};
 
 			StartAndWait();
-		}
+		}*/
 	}
 }

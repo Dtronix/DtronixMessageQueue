@@ -101,7 +101,7 @@ namespace DtronixMessageQueue.Tests {
 		[Fact]
 		public void FrameBuilder_throws_frame_type_out_of_range() {
 			Assert.Throws<InvalidDataException>(() => {
-				frame_builder.Write(new byte[] { 5 }, 0, 1);
+				frame_builder.Write(new byte[] { 6 }, 0, 1);
 			});
 		}
 

@@ -13,8 +13,8 @@ namespace DtronixMessageQueue {
 		//public int MaxFrameSize { get; }
 		private readonly MqWorker supervisor;
 
-		private readonly ConcurrentDictionary<MqMailbox, bool> ongoing_write_operations = new ConcurrentDictionary<MqMailbox, bool>();
-		private readonly BlockingCollection<MqMailbox> write_operations = new BlockingCollection<MqMailbox>();
+		private readonly ConcurrentDictionary<MqSession, bool> ongoing_write_operations = new ConcurrentDictionary<MqSession, bool>();
+		private readonly BlockingCollection<MqSession> write_operations = new BlockingCollection<MqSession>();
 		private readonly List<MqWorker> write_workers = new List<MqWorker>();
 
 		public int TotalWriters => write_workers.Count;
@@ -23,8 +23,8 @@ namespace DtronixMessageQueue {
 		public int MaxWriters { get; set; } = 0;
 		public int MaxReaders { get; set; } = 0;
 
-		private readonly ConcurrentDictionary<MqMailbox, bool> ongoing_read_operations = new ConcurrentDictionary<MqMailbox, bool>();
-		private readonly BlockingCollection<MqMailbox> read_operations = new BlockingCollection<MqMailbox>();
+		private readonly ConcurrentDictionary<MqSession, bool> ongoing_read_operations = new ConcurrentDictionary<MqSession, bool>();
+		private readonly BlockingCollection<MqSession> read_operations = new BlockingCollection<MqSession>();
 		private readonly List<MqWorker> read_workers = new List<MqWorker>();
 
 		public MqPostmaster() {
@@ -42,12 +42,10 @@ namespace DtronixMessageQueue {
 		private void SupervisorWork(MqWorker worker) {
 			while (worker.Token.IsCancellationRequested == false) {
 				if (ProcessWorkers(read_workers, MaxReaders)) {
-					Console.WriteLine("Created read worker.");
 					CreateReadWorker();
 				}
 
 				if (ProcessWorkers(write_workers, MaxWriters)) {
-					Console.WriteLine("Created write worker.");
 					CreateWriteWorker();
 				}
 				Thread.Sleep(500);
@@ -58,12 +56,12 @@ namespace DtronixMessageQueue {
 		}
 
 
-		public bool SignalWrite(MqMailbox mailbox) {
-			return ongoing_write_operations.TryAdd(mailbox, true) && write_operations.TryAdd(mailbox);
+		public bool SignalWrite(MqSession session) {
+			return ongoing_write_operations.TryAdd(session, true) && write_operations.TryAdd(session);
 		}
 
-		public bool SignalRead(MqMailbox mailbox) {
-			return ongoing_read_operations.TryAdd(mailbox, true) && read_operations.TryAdd(mailbox);
+		public bool SignalRead(MqSession session) {
+			return ongoing_read_operations.TryAdd(session, true) && read_operations.TryAdd(session);
 		}
 
 
@@ -95,25 +93,25 @@ namespace DtronixMessageQueue {
 		/// </summary>
 		public void CreateWriteWorker() {
 			var writer_worker = new MqWorker(worker => {
-				MqMailbox mailbox = null;
-				bool out_mailbox;
+				MqSession session = null;
+				bool out_session;
 
 				try {
 					worker.StartIdle();
-					while (write_operations.TryTake(out mailbox, 60000, worker.Token)) {
+					while (write_operations.TryTake(out session, 60000, worker.Token)) {
 						worker.StartWork();
-						mailbox.ProcessOutbox();
+						session.ProcessOutbox();
 						worker.StartIdle();
-						ongoing_write_operations.TryRemove(mailbox, out out_mailbox);
+						ongoing_write_operations.TryRemove(session, out out_session);
 
 					}
 				} catch (ThreadAbortException) {
 				} catch (Exception) {
-					if (mailbox != null) {
+					if (session != null) {
 						/*logger.Error(e,
 							is_writer
 								? "MqConnection {0}: Exception occurred while when writing."
-								: "MqConnection {0}: Exception occurred while when reading.", mailbox.Connection.Id);*/
+								: "MqConnection {0}: Exception occurred while when reading.", session.Connection.Id);*/
 					}
 				}
 			}, "mq_write_worker_" + write_workers.Count);
@@ -127,26 +125,25 @@ namespace DtronixMessageQueue {
 		/// Creates a worker reader.
 		/// </summary>
 		public void CreateReadWorker() {
-			Console.WriteLine("Created read worker.");
 			var reader_worker = new MqWorker(worker => {
-				MqMailbox mailbox = null;
-				bool out_mailbox;
+				MqSession session = null;
+				bool out_session;
 				try {
 					worker.StartIdle();
-					while (read_operations.TryTake(out mailbox, 60000, worker.Token)) {
+					while (read_operations.TryTake(out session, 60000, worker.Token)) {
 						worker.StartWork();
-						mailbox.ProcessIncomingQueue();
+						session.ProcessIncomingQueue();
 						worker.StartIdle();
-						ongoing_read_operations.TryRemove(mailbox, out out_mailbox);
+						ongoing_read_operations.TryRemove(session, out out_session);
 
 					}
 				} catch (ThreadAbortException) {
 				} catch (Exception) {
-					if (mailbox != null) {
+					if (session != null) {
 						/*logger.Error(e,
 							is_writer
 								? "MqConnection {0}: Exception occurred while when writing."
-								: "MqConnection {0}: Exception occurred while when reading.", mailbox.Connection.Id);*/
+								: "MqConnection {0}: Exception occurred while when reading.", session.Connection.Id);*/
 					}
 				}
 			}, "mq_read_worker_" + read_workers.Count);

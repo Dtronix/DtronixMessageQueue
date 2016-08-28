@@ -29,6 +29,11 @@ namespace DtronixMessageQueue {
 		/// <summary>
 		/// This frame is an empty frame and the last part of a message.
 		/// </summary>
-		EmptyLast
+		EmptyLast,
+
+		/// <summary>
+		/// This frame is a command to the MQ server or client to be processed and consumed internally.
+		/// </summary>
+		Command
 	}
 }

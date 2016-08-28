@@ -10,7 +10,7 @@ using System.Runtime.InteropServices;
 using System.Threading;
 using System.Threading.Tasks;
 using DtronixMessageQueue;
-using SuperSocket.SocketBase.Config;
+using DtronixMessageQueue.Socket;
 
 namespace DtronixMessageQueue.Tests.Performance {
 	class Program {
@@ -19,7 +19,7 @@ namespace DtronixMessageQueue.Tests.Performance {
 		[return: MarshalAs(UnmanagedType.Bool)]
 		static extern bool GetPhysicallyInstalledSystemMemory(out long total_memory_in_kilobytes);
 
-		static void Main(string[] args) {
+		static void Main(string[] args){
 			string mode = null;
 			int total_loops, total_messages, total_frames, frame_size, total_clients;
 
@@ -54,6 +54,7 @@ namespace DtronixMessageQueue.Tests.Performance {
 				
 
 			} else if (mode == "client") {
+				WriteSysInfo();
 				Console.WriteLine("|   Messages | Msg Bytes | Milliseconds |        MPS |     MBps |");
 				Console.WriteLine("|------------|-----------|--------------|------------|----------|");
 
@@ -63,18 +64,8 @@ namespace DtronixMessageQueue.Tests.Performance {
 				StartServer(total_messages, total_clients);
 
 			}else if (mode == "single-process") {
-				Task.Run(() => {
-					StartServer(total_messages, total_clients);
-				});
-
-				Console.WriteLine("|   Messages | Msg Bytes | Milliseconds |        MPS |     MBps |");
-				Console.WriteLine("|------------|-----------|--------------|------------|----------|");
-
-				for (int i = 0; i < total_clients; i++) {
-					Task.Run(() => {
-						StartClient(total_loops, total_messages, total_frames, frame_size);
-					});
-				}
+				WriteSysInfo();
+				InProcessTest();
 
 			}
 
@@ -82,16 +73,7 @@ namespace DtronixMessageQueue.Tests.Performance {
 
 		}
 
-		private static void StartClient(int total_loops, int total_messages, int total_frames, int frame_size) {
-			Console.WriteLine("Client starting...");
-
-			var cl = new MqClient();
-			var stopwatch = new Stopwatch();
-			var message_reader = new MqMessageReader();
-			var message_size = total_frames*frame_size;
-			var message = new MqMessage();
-			double[] total_values = { 0, 0, 0 };
-
+		private static void WriteSysInfo() {
 			ManagementObjectSearcher mos = new ManagementObjectSearcher("root\\CIMV2", "SELECT * FROM Win32_Processor");
 			foreach (var o in mos.Get()) {
 				var mo = (ManagementObject)o;
@@ -102,7 +84,19 @@ namespace DtronixMessageQueue.Tests.Performance {
 			long mem_kb;
 			GetPhysicallyInstalledSystemMemory(out mem_kb);
 			Console.WriteLine(" with " + (mem_kb / 1024 / 1024) + " GB of RAM installed.\r\n");
+		}
 
+		private static void StartClient(int total_loops, int total_messages, int total_frames, int frame_size) {
+			var cl = new MqClient(new SocketConfig() {
+				Ip = "127.0.0.1",
+				Port = 2828
+			});
+
+			var stopwatch = new Stopwatch();
+			var message_reader = new MqMessageReader();
+			var message_size = total_frames*frame_size;
+			var message = new MqMessage();
+			double[] total_values = { 0, 0, 0 };
 
 			for (int i = 0; i < total_frames; i++) {
 				message.Add(new MqFrame(RandomBytes(frame_size)));
@@ -110,39 +104,51 @@ namespace DtronixMessageQueue.Tests.Performance {
 
 			cl.IncomingMessage += (sender, args) => {
 				MqMessage msg;
-				if (args.Mailbox.Inbox.TryDequeue(out msg)) {
+				while (args.Messages.Count > 0) {
+					msg = args.Messages.Dequeue();
+
 					message_reader.Message = msg;
 					var result = message_reader.ReadString();
 
 					if (result == "COMPLETE") {
 
-						stopwatch.Stop();
+						if (total_loops-- > 0) {
 
-						var messages_per_second = (int)((double)total_messages / stopwatch.ElapsedMilliseconds * 1000);
-						var msg_size_no_header = message_size;
-						var mbps = total_messages * (double)(msg_size_no_header) / stopwatch.ElapsedMilliseconds / 1000;
-						Console.WriteLine("| {0,10:N0} | {1,9:N0} | {2,12:N0} | {3,10:N0} | {4,8:N2} |", total_messages, msg_size_no_header, stopwatch.ElapsedMilliseconds, messages_per_second, mbps);
+							stopwatch.Stop();
 
-						total_values[0] += stopwatch.ElapsedMilliseconds;
-						total_values[1] += messages_per_second;
-						total_values[2] += mbps;
+							var messages_per_second = (int) ((double) total_messages/stopwatch.ElapsedMilliseconds*1000);
+							var msg_size_no_header = message_size;
+							var mbps = total_messages*(double) (msg_size_no_header)/stopwatch.ElapsedMilliseconds/1000;
+							Console.WriteLine("| {0,10:N0} | {1,9:N0} | {2,12:N0} | {3,10:N0} | {4,8:N2} |", total_messages,
+								msg_size_no_header, stopwatch.ElapsedMilliseconds, messages_per_second, mbps);
 
+							total_values[0] += stopwatch.ElapsedMilliseconds;
+							total_values[1] += messages_per_second;
+							total_values[2] += mbps;
+						}
 
-						Console.WriteLine("|            |  AVERAGES | {0,12:N0} | {1,10:N0} | {2,8:N2} |", total_values[0] / total_loops, total_values[1] / total_loops, total_values[2] / total_loops);
-						Console.WriteLine();
-						Console.WriteLine("Test complete");
+						if (total_loops == 0) {
+
+							Console.WriteLine("|            |  AVERAGES | {0,12:N0} | {1,10:N0} | {2,8:N2} |", total_values[0]/total_loops,
+								total_values[1]/total_loops, total_values[2]/total_loops);
+							Console.WriteLine();
+							Console.WriteLine("Test complete");
+						}
+
 
 						cl.Close();
 					}else if (result == "START") {
-						stopwatch.Start();
-						for (var i = 0; i < total_messages; i++) {
-							cl.Send(message);
+						if (total_loops > 0) {
+							stopwatch.Restart();
+							for (var i = 0; i < total_messages; i++) {
+								cl.Send(message);
+							}
 						}
 					}
 				}
 			};
 
-			cl.ConnectAsync("127.0.0.1").Wait();
+			cl.Connect();
 
 		}
 
@@ -155,20 +161,19 @@ namespace DtronixMessageQueue.Tests.Performance {
 			builder.Write("START");
 			var start_message = builder.ToMessage(true);
 
-			Console.WriteLine("Server starting");
-			var server = new MqServer(new ServerConfig {
+			var server = new MqServer(new SocketConfig() {
 				Ip = "127.0.0.1",
 				Port = 2828
 			});
 			ConcurrentDictionary<MqSession, ClientRunInfo> client_infos = new ConcurrentDictionary<MqSession, ClientRunInfo>();
 
 
-			server.NewSessionConnected += session => {
+			server.Connected += (sender, session) => {
 				var current_info = new ClientRunInfo() {
-					Session = session,
+					Session = session.Session,
 					Runs = 0
 				};
-				client_infos.TryAdd(session, current_info);
+				client_infos.TryAdd(session.Session, current_info);
 
 				if (client_infos.Count == total_clients) {
 
@@ -178,28 +183,27 @@ namespace DtronixMessageQueue.Tests.Performance {
 				}
 			};
 
-			server.SessionClosed += (session, value) => {
+			server.Closed += (session, value) => {
 				ClientRunInfo info;
-				client_infos.TryRemove(session, out info);
+				client_infos.TryRemove(value.Session, out info);
 			};
 
 			server.IncomingMessage += (sender, args) => {
-				MqMessage message_out;
-
 				var client_info = client_infos[args.Session];
-				while (args.Mailbox.Inbox.TryDequeue(out message_out)) {
-					client_info.Runs++;
-				}
+
+				// Count the total messages.
+				client_info.Runs += args.Messages.Count;
 
 				if (client_info.Runs == total_messages) {
 					args.Session.Send(complete_message);
+					args.Session.Send(start_message);
+					client_info.Runs = 0;
 				}
 
 			};
 
 
 			server.Start();
-			Console.WriteLine("Server started.");
 		}
 
 		private class ClientRunInfo {
@@ -208,9 +212,61 @@ namespace DtronixMessageQueue.Tests.Performance {
 
 		}
 
+		private static byte[] RandomBytes(int len) {
+			var number = 0;
+			var val = new byte[len];
 
-		private static void MqPerformanceTests(int runs, int loops, MqMessage message) {
-			var server = new MqServer(new ServerConfig {
+			for (var i = 0; i < len; i++) {
+				val[i] = (byte)number++;
+				if (number > 255) {
+					number = 0;
+				}
+			}
+
+
+			//Random rand = new Random();
+			//rand.NextBytes(val);
+
+			return val;
+		}
+
+
+		static void InProcessTest() {
+
+			var small_message = new MqMessage {
+				new MqFrame(RandomBytes(50), MqFrameType.More),
+				new MqFrame(RandomBytes(50), MqFrameType.More),
+				new MqFrame(RandomBytes(50), MqFrameType.More),
+				new MqFrame(RandomBytes(50), MqFrameType.Last)
+			};
+
+			MqInProcessPerformanceTests(1000000, 5, small_message);
+
+			var medimum_message = new MqMessage {
+				new MqFrame(RandomBytes(500), MqFrameType.More),
+				new MqFrame(RandomBytes(500), MqFrameType.More),
+				new MqFrame(RandomBytes(500), MqFrameType.More),
+				new MqFrame(RandomBytes(500), MqFrameType.Last)
+			};
+
+			MqInProcessPerformanceTests(100000, 5, medimum_message);
+
+			var large_message = new MqMessage {
+				new MqFrame(RandomBytes(MqFrame.MaxFrameSize), MqFrameType.More),
+				new MqFrame(RandomBytes(MqFrame.MaxFrameSize), MqFrameType.More),
+				new MqFrame(RandomBytes(MqFrame.MaxFrameSize), MqFrameType.More),
+				new MqFrame(RandomBytes(MqFrame.MaxFrameSize), MqFrameType.Last)
+			};
+
+			MqInProcessPerformanceTests(10000, 5, large_message);
+
+			Console.WriteLine("Performance complete");
+
+			Console.ReadLine();
+		}
+
+		private static void MqInProcessPerformanceTests(int runs, int loops, MqMessage message) {
+			var server = new MqServer(new SocketConfig {
 				Ip = "127.0.0.1",
 				Port = 2828
 			});
@@ -221,7 +277,12 @@ namespace DtronixMessageQueue.Tests.Performance {
 			var count = 0;
 			var sw = new Stopwatch();
 			var wait = new AutoResetEvent(false);
+			var complete_test = new AutoResetEvent(false);
 
+			var client = new MqClient(new SocketConfig() {
+				Ip = "127.0.0.1",
+				Port = 2828
+			});
 
 			Console.WriteLine("|   Build |   Messages | Msg Bytes | Milliseconds |        MPS |     MBps |");
 			Console.WriteLine("|---------|------------|-----------|--------------|------------|----------|");
@@ -231,10 +292,8 @@ namespace DtronixMessageQueue.Tests.Performance {
 
 			server.IncomingMessage += (sender, args2) => {
 				MqMessage message_out;
+				count += args2.Messages.Count;
 
-				while (args2.Mailbox.Inbox.TryDequeue(out message_out)) {
-					count++;
-				}
 
 				if (count == runs) {
 					sw.Stop();
@@ -259,7 +318,6 @@ namespace DtronixMessageQueue.Tests.Performance {
 			};
 
 
-			var client = new MqClient();
 
 			var send = new Action(() => {
 				count = 0;
@@ -267,42 +325,30 @@ namespace DtronixMessageQueue.Tests.Performance {
 				for (var i = 0; i < runs; i++) {
 					client.Send(message);
 				}
-				MqServer sv = server;
+				//MqServer sv = server;
 				wait.WaitOne();
 				wait.Reset();
 
 			});
 
-			client.ConnectAsync("127.0.0.1").Wait();
-
-			for (var i = 0; i < loops; i++) {
-				send();
-			}
-
-			Console.WriteLine("|         |            |  AVERAGES | {0,12:N0} | {1,10:N0} | {2,8:N2} |", total_values[0] / loops, total_values[1] / loops, total_values[2] / loops);
-			Console.WriteLine();
-
-			server.Stop();
-			client.Close().Wait();
-
-		}
-
-		private static byte[] RandomBytes(int len) {
-			var number = 0;
-			var val = new byte[len];
-
-			for (var i = 0; i < len; i++) {
-				val[i] = (byte)number++;
-				if (number > 255) {
-					number = 0;
+			client.Connected += (sender, args) => {
+				for (var i = 0; i < loops; i++) {
+					send();
 				}
-			}
 
+				Console.WriteLine("|         |            |  AVERAGES | {0,12:N0} | {1,10:N0} | {2,8:N2} |", total_values[0] / loops, total_values[1] / loops, total_values[2] / loops);
+				Console.WriteLine();
 
-			//Random rand = new Random();
-			//rand.NextBytes(val);
+				server.Stop();
+				client.Close();
+				complete_test.Set();
+			};
 
-			return val;
+			client.Connect();
+
+			complete_test.WaitOne();
 		}
+
 	}
+
 }

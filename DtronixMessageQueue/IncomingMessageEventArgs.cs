@@ -12,30 +12,23 @@ namespace DtronixMessageQueue {
 	public class IncomingMessageEventArgs : EventArgs {
 
 		/// <summary>
-		/// Reference to the mailbox with the new message.
+		/// Messages ready to be read.
 		/// </summary>
-		public MqMailbox Mailbox { get; set; }
+		public Queue<MqMessage> Messages { get; }
 
 		/// <summary>
 		/// If this message is on the server, this will contain the reference to the connected session of the client.
 		/// </summary>
-		public MqSession Session { get; set; }
-
-		/// <summary>
-		/// If this message on the client, this will contain the reference to the client.
-		/// </summary>
-		public MqClient Client { get; set; }
+		public MqSession Session { get; }
 
 		/// <summary>
 		/// Creates an instance of the event args.
 		/// </summary>
-		/// <param name="mailbox">Mailbox with the new message</param>
+		/// <param name="messages">Messages read and ready to be used.</param>
 		/// <param name="session">Server session.  Null if this is on the client.</param>
-		/// <param name="client">Client.  Null if this is on the server.</param>
-		public IncomingMessageEventArgs(MqMailbox mailbox, MqSession session, MqClient client) {
-			Mailbox = mailbox;
+		public IncomingMessageEventArgs(Queue<MqMessage> messages, MqSession session) {
+			Messages = messages;
 			Session = session;
-			Client = client;
 		}
 	}
 }

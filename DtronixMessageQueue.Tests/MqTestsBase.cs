@@ -4,9 +4,7 @@ using System.Net;
 using System.Net.Sockets;
 using System.Threading;
 using DtronixMessageQueue;
-using SuperSocket.SocketBase;
-using SuperSocket.SocketBase.Config;
-using SuperSocket.SocketEngine.Configuration;
+using DtronixMessageQueue.Socket;
 using Xunit;
 using Xunit.Abstractions;
 
@@ -29,32 +27,30 @@ namespace DtronixMessageQueue.Tests {
 			this.Output = output;
 			Port = FreeTcpPort();
 
-			var config = new ServerConfig {
+			var config = new SocketConfig {
 				Ip = "127.0.0.1",
 				Port = Port
 			};
 
 			Server = new MqServer(config);
-			Client = new MqClient();
+
+
+			Client = new MqClient(config);
 		}
 
 		static int FreeTcpPort() {
 			TcpListener l = new TcpListener(IPAddress.Loopback, 0);
 			l.Start();
-			int port = ((IPEndPoint)l.LocalEndpoint).Port;
+			int port = ((IPEndPoint) l.LocalEndpoint).Port;
 			l.Stop();
 			return port;
 		}
 
 		public void StartAndWait() {
-			Server.Started += async (sender, args) => {
-				if (Server.State == ServerState.Running) {
-					await Client.ConnectAsync("127.0.0.1", Port);
-				}
-				
-			};
 			Server.Start();
-			
+			Client.Connect();
+
+
 			TestStatus.Wait(TestTimeout);
 
 			if (TestStatus.IsSet == false) {
@@ -63,6 +59,13 @@ namespace DtronixMessageQueue.Tests {
 
 			if (LastException != null) {
 				throw LastException;
+			}
+
+			try {
+				Server.Stop();
+				Client.Close();
+			} catch {
+				// ignored
 			}
 		}
 

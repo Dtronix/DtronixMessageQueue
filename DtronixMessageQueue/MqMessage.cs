@@ -29,7 +29,6 @@ namespace DtronixMessageQueue {
 		/// </summary>
 		public bool IsReadOnly => false;
 
-
 		/// <summary>
 		/// Gets or sets the frame at the specified index.
 		/// </summary>
@@ -50,6 +49,10 @@ namespace DtronixMessageQueue {
 		public MqMessage() {
 		}
 
+		public MqMessage(MqFrame frame) {
+			Add(frame);
+		}
+
 		/// <summary>
 		/// Fixes any mistakes for the frames' FrameType set.  Called before frames are processed by the outbox.
 		/// </summary>
@@ -58,7 +61,9 @@ namespace DtronixMessageQueue {
 
 			// Set frame's FrameType appropriately.
 			foreach (var frame in mq_frames) {
-				frame.FrameType = frame.DataLength == 0 ? MqFrameType.Empty : MqFrameType.More;
+				if (frame.FrameType != MqFrameType.Command) {
+					frame.FrameType = frame.DataLength == 0 ? MqFrameType.Empty : MqFrameType.More;
+				}
 			}
 
 			// Set the last frame to the "last frame" FrameType.

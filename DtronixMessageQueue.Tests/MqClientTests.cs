@@ -4,8 +4,7 @@ using System.Net;
 using System.Threading;
 using System.Threading.Tasks;
 using DtronixMessageQueue;
-using SuperSocket.SocketBase;
-using SuperSocket.SocketBase.Config;
+using DtronixMessageQueue.Socket;
 using Xunit;
 using Xunit.Abstractions;
 
@@ -20,8 +19,6 @@ namespace DtronixMessageQueue.Tests {
 		[Theory]
 		[InlineData(1, false)]
 		[InlineData(1, true)]
-		[InlineData(50, true)]
-		//[InlineData(100, true)]
 		public void Client_should_send_data_to_server(int number, bool validate) {
 			var message_source = GenerateRandomMessage(4, 50);
 			int received_messages = 0;
@@ -34,8 +31,9 @@ namespace DtronixMessageQueue.Tests {
 			Server.IncomingMessage += (sender, args) => {
 				MqMessage message;
 
-				while (args.Mailbox.Inbox.TryDequeue(out message)) {
-					received_messages++;
+				while (args.Messages.Count > 0) {
+					message = args.Messages.Dequeue();
+					Interlocked.Increment(ref received_messages);
 					if (validate) {
 						CompareMessages(message_source, message);
 					}
@@ -64,7 +62,8 @@ namespace DtronixMessageQueue.Tests {
 			Server.IncomingMessage += (sender, args) => {
 				MqMessage message;
 
-				while (args.Mailbox.Inbox.TryDequeue(out message)) {
+				while (args.Messages.Count > 0) {
+					message = args.Messages.Dequeue();
 					if (message.Count != 2) {
 						LastException = new Exception("Server received an empty message.");
 					}
@@ -90,8 +89,8 @@ namespace DtronixMessageQueue.Tests {
 		[Fact]
 		public void Client_disconects_from_server() {
 
-			Client.Connected += async (sender, args) => {
-				await Client.Close();
+			Client.Connected += (sender, args) => {
+				Client.Close();
 			};
 
 			Client.Closed += (sender, args) => TestStatus.Set();
@@ -102,7 +101,7 @@ namespace DtronixMessageQueue.Tests {
 		[Fact]
 		public void Client_notified_server_stopping() {
 
-			Server.NewSessionConnected += session => Server.Stop();
+			Server.Connected += (sender, session) => Server.Stop();
 
 			Client.Closed += (sender, args) => TestStatus.Set();
 
@@ -122,9 +121,28 @@ namespace DtronixMessageQueue.Tests {
 		[Fact]
 		public void Client_notified_server_session_closed() {
 
-			Server.NewSessionConnected += session => session.Close(CloseReason.Unknown);
+			Server.Connected += (sender, session) => {
+				//Thread.Sleep(1000);
+				//session.Session.Send(new MqMessage(new MqFrame(new byte[24], MqFrameType.Last)));
+				session.Session.CloseConnection(SocketCloseReason.ApplicationError);
+			};
 
-			Client.Closed += (sender, args) => TestStatus.Set();
+			Client.Closed += (sender, args) => {
+				if (args.CloseReason != SocketCloseReason.ApplicationError) {
+					LastException = new InvalidOperationException("Server did not return proper close reason.");
+				}
+				TestStatus.Set();
+			};
+
+			StartAndWait();
+		}
+
+		[Fact]
+		public void Client_notifies_server_closing_session() {
+
+			Client.Connected += (sender, args) => Client.Close();
+
+			Server.Closed += (sender, args) => TestStatus.Set();
 
 			StartAndWait();
 		}
