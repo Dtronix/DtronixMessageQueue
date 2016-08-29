@@ -253,12 +253,11 @@ namespace DtronixMessageQueue.Tests.Performance {
 
 			MqInProcessPerformanceTests(100000, 5, medimum_message);
 
-			var large_message = new MqMessage {
-				new MqFrame(RandomBytes(config.FrameBufferSize), MqFrameType.More, config),
-				new MqFrame(RandomBytes(config.FrameBufferSize), MqFrameType.More, config),
-				new MqFrame(RandomBytes(config.FrameBufferSize), MqFrameType.More, config),
-				new MqFrame(RandomBytes(config.FrameBufferSize), MqFrameType.Last, config)
-			};
+			var large_message = new MqMessage();
+
+			for (int i = 0; i < 20; i++) {
+				large_message.Add(new MqFrame(RandomBytes(3000), MqFrameType.More, config));
+			}
 
 			MqInProcessPerformanceTests(10000, 5, large_message);
 

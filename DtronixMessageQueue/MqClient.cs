@@ -53,7 +53,7 @@ namespace DtronixMessageQueue {
 			var session = base.CreateSession(socket);
 			session.Postmaster = postmaster;
 			session.IncomingMessage += OnIncomingMessage;
-
+			session.BaseSocket = this;
 			return session;
 		}
 

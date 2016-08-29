@@ -39,7 +39,7 @@ namespace DtronixMessageQueue.Socket {
 		public void Start() {
 			var ip = IPAddress.Parse(Config.Ip);
 			var local_end_point = new IPEndPoint(ip, Config.Port);
-			if (MainSocket != null && MainSocket.Connected) {
+			if (MainSocket != null && MainSocket.IsBound) {
 				throw new InvalidOperationException("Server is already running.");
 			}
 
@@ -83,7 +83,7 @@ namespace DtronixMessageQueue.Socket {
 		/// </summary>
 		/// <param name="e">Event args for this event.</param>
 		private void AcceptCompleted(SocketAsyncEventArgs e) {
-			if (MainSocket.Connected == false) {
+			if (MainSocket.IsBound == false) {
 				return;
 			}
 
