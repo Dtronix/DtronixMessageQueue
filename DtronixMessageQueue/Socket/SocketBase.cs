@@ -4,6 +4,10 @@ using System.Net.Sockets;
 using System.Threading;
 
 namespace DtronixMessageQueue.Socket {
+	/// <summary>
+	/// Base socket for all server and client sockets.
+	/// </summary>
+	/// <typeparam name="TSession">Session type for this</typeparam>
 	public abstract class SocketBase<TSession>
 		where TSession : SocketSession, new() {
 
@@ -17,29 +21,57 @@ namespace DtronixMessageQueue.Socket {
 		/// </summary>
 		public event EventHandler<SessionClosedEventArgs<TSession>> Closed;
 
+		/// <summary>
+		/// Configurations of this socket.
+		/// </summary>
 		public SocketConfig Config { get; }
 
+		/// <summary>
+		/// Main socket used by the child class for connection or for the listening of incoming connections.
+		/// </summary>
 		protected System.Net.Sockets.Socket MainSocket; 
-		protected bool IsRunning;
 
+		/// <summary>
+		/// Pool of async args for sessions to use.
+		/// </summary>
 		protected SocketAsyncEventArgsPool AsyncPool;
 
+		/// <summary>
+		/// Reusable buffer set for all the connected sessions.
+		/// </summary>
 		protected BufferManager BufferManager;  // represents a large reusable set of buffers for all socket operations
 
 
+		/// <summary>
+		/// Base constructor to all socket classes.
+		/// </summary>
+		/// <param name="config">Configurations for this socket.</param>
+		protected SocketBase(SocketConfig config) {
+			Config = config;
+		}
+
+
+		/// <summary>
+		/// Method called when a session connects.
+		/// </summary>
+		/// <param name="session">Session that connected.</param>
 		protected virtual void OnConnect(TSession session) {
 			Connected?.Invoke(this, new SessionConnectedEventArgs<TSession>(session));
 		}
 
 
+		/// <summary>
+		/// Method called when a session closes.
+		/// </summary>
+		/// <param name="session">Session that closed.</param>
+		/// <param name="reason">Reason for the closing of the session.</param>
 		protected virtual void OnClose(TSession session, SocketCloseReason reason) {
 			Closed?.Invoke(this, new SessionClosedEventArgs<TSession>(session, reason));
 		}
 
-		protected SocketBase(SocketConfig config) {
-			Config = config;
-		}
-
+		/// <summary>
+		/// Called by the constructor of the sub-class to set all configurations.
+		/// </summary>
 		protected void Setup() {
 			// allocate buffers such that the maximum number of sockets can have one outstanding read and 
 			//write posted to the socket simultaneously  
@@ -63,11 +95,19 @@ namespace DtronixMessageQueue.Socket {
 			}
 		}
 
+		/// <summary>
+		/// Method called when new sessions are created.  Override to change behavior.
+		/// </summary>
+		/// <param name="socket">Socket this session will be using.</param>
+		/// <returns>New session instance.</returns>
 		protected virtual TSession CreateSession(System.Net.Sockets.Socket socket) {
 			var session = new TSession();
 			SocketSession.Setup(session, socket, AsyncPool, Config);
 			session.Closed += (sender, args) => OnClose(session, args.CloseReason);
 			return session;
 		}
+
+
+		public abstract MqFrame CreateFrame(byte[] bytes);
 	}
 }

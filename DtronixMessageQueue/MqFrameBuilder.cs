@@ -26,8 +26,11 @@ namespace DtronixMessageQueue {
 
 		private static int max_type_enum = -1;
 
-		public MqFrameBuilder() {
-			buffer = new byte[MqFrame.MaxFrameSize + MqFrame.HeaderLength];
+		private MqSocketConfig config;
+
+		public MqFrameBuilder(MqSocketConfig config) {
+			this.config = config;
+			buffer = new byte[config.FrameBufferSize + MqFrame.HeaderLength];
 
 			// Determine what our max enum value is for the FrameType
 			if (max_type_enum == -1) {
@@ -160,7 +163,7 @@ namespace DtronixMessageQueue {
 		}
 
 		private void EnqueueAndReset() {
-			Frames.Enqueue(new MqFrame(current_frame_data, current_frame_type));
+			Frames.Enqueue(new MqFrame(current_frame_data, current_frame_type, config));
 			current_frame_type = MqFrameType.Unset;
 			current_frame_data = null;
 		}

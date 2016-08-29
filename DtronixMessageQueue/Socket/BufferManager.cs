@@ -1,7 +1,10 @@
 ﻿using System.Collections.Generic;
 using System.Net.Sockets;
 
-namespace DtronixMessageQueue {
+namespace DtronixMessageQueue.Socket {
+	/// <summary>
+	/// Large memory buffer manager
+	/// </summary>
 	public class BufferManager {
 
 		/// <summary>
@@ -14,10 +17,26 @@ namespace DtronixMessageQueue {
 		/// </summary>
 		private byte[] buffer;
 
+		/// <summary>
+		/// Stack containing the index of the freed buffers.
+		/// </summary>
 		private readonly Stack<int> free_index_pool;
+
+		/// <summary>
+		/// Current index in the buffer pool
+		/// </summary>
 		private int current_index;
+
+		/// <summary>
+		/// Size of each session buffer.
+		/// </summary>
 		private readonly int buffer_size;
 
+		/// <summary>
+		/// Creates a buffer manager with the specified buffer size and total size.
+		/// </summary>
+		/// <param name="total_bytes">Total size of the buffer for all the sessions.</param>
+		/// <param name="buffer_size">Size of the each of the individual buffers for the sessions.</param>
 		public BufferManager(int total_bytes, int buffer_size) {
 			num_bytes = total_bytes;
 			current_index = 0;

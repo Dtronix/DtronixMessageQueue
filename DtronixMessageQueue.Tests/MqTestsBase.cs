@@ -17,6 +17,8 @@ namespace DtronixMessageQueue.Tests {
 		public MqClient Client { get; }
 		public int Port { get; }
 
+		private MqSocketConfig config;
+
 		public Exception LastException { get; set; }
 
 		public TimeSpan TestTimeout { get; set; } = new TimeSpan(0, 0, 60);
@@ -27,7 +29,7 @@ namespace DtronixMessageQueue.Tests {
 			this.Output = output;
 			Port = FreeTcpPort();
 
-			var config = new SocketConfig {
+			config = new MqSocketConfig {
 				Ip = "127.0.0.1",
 				Port = Port
 			};
@@ -95,10 +97,10 @@ namespace DtronixMessageQueue.Tests {
 
 				if (frame_length == -1) {
 					frame = new MqFrame(Utilities.SequentialBytes(random.Next(50, 1024*16 - 3)),
-						(i + 1 < frame_count) ? MqFrameType.More : MqFrameType.Last);
+						(i + 1 < frame_count) ? MqFrameType.More : MqFrameType.Last, config);
 				} else {
 					frame = new MqFrame(Utilities.SequentialBytes(frame_length),
-						(i + 1 < frame_count) ? MqFrameType.More : MqFrameType.Last);
+						(i + 1 < frame_count) ? MqFrameType.More : MqFrameType.Last, config);
 				}
 				message.Add(frame);
 			}

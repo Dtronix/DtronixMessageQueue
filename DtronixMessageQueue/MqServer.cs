@@ -12,6 +12,9 @@ using System.Threading.Tasks;
 using DtronixMessageQueue.Socket;
 
 namespace DtronixMessageQueue {
+	/// <summary>
+	/// Message Queue Server to handle incoming clients
+	/// </summary>
 	public class MqServer : SocketServer<MqSession> {
 		private readonly MqPostmaster postmaster;
 
@@ -23,7 +26,7 @@ namespace DtronixMessageQueue {
 		/// <summary>
 		/// Initializes a new instance of a message queue.
 		/// </summary>
-		public MqServer(SocketConfig config) : base(config) {
+		public MqServer(MqSocketConfig config) : base(config) {
 
 			postmaster = new MqPostmaster {
 				MaxReaders = config.MaxConnections + 1,
@@ -45,38 +48,16 @@ namespace DtronixMessageQueue {
 		protected override MqSession CreateSession(System.Net.Sockets.Socket socket) {
 			var session = base.CreateSession(socket);
 			session.Postmaster = postmaster;
-
 			session.IncomingMessage += OnIncomingMessage;
-
+			session.BaseSocket = this;
 			return session;
 		}
+
 
 		protected override void OnClose(MqSession session, SocketCloseReason reason) {
 			session.IncomingMessage -= OnIncomingMessage;
 			session.Dispose();
 			base.OnClose(session, reason);
 		}
-
-
-
-
-
-		/*protected override void ExecuteCommand(MqSession session, RequestInfo<byte, byte[]> request_info) {
-			try {
-				if (request_info.Header == 0) {
-					session.Mailbox.EnqueueIncomingBuffer(request_info.Body);
-					//} else if (request_info.Header == 1) {
-					// TODO: Setup configurations that the client must send before successfully connecting.
-					// request_info.
-				} else {
-					// If the first byte is anything else, the data is either corrupted or another protocol.
-					session.Close(CloseReason.ApplicationError);
-				}
-			} catch (Exception) {
-				session.Close(CloseReason.ApplicationError);
-				return;
-			}
-			base.ExecuteCommand(session, request_info);
-		}*/
 	}
 }

@@ -20,8 +20,9 @@ namespace DtronixMessageQueue.Socket {
 				NoDelay = true
 			};
 
-			var event_arg = new SocketAsyncEventArgs();
-			event_arg.RemoteEndPoint = end_point;
+			var event_arg = new SocketAsyncEventArgs {
+				RemoteEndPoint = end_point
+			};
 
 			event_arg.Completed += (sender, args) => {
 				if (args.LastOperation == SocketAsyncOperation.Connect) {
@@ -31,6 +32,10 @@ namespace DtronixMessageQueue.Socket {
 			};
 
 			MainSocket.ConnectAsync(event_arg);
+		}
+
+		public override MqFrame CreateFrame(byte[] bytes) {
+			return new MqFrame(bytes, (MqSocketConfig)Config);
 		}
 	}
 }

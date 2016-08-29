@@ -154,13 +154,13 @@ namespace DtronixMessageQueue {
 		}
 
 		public void Dispose() {
-			supervisor.Stop();
+			supervisor.Dispose();
 			foreach (var write_worker in write_workers) {
-				write_worker.Stop();
+				write_worker.Dispose();
 			}
 
 			foreach (var read_worker in read_workers) {
-				read_worker.Stop();
+				read_worker.Dispose();
 			}
 		}
 	}

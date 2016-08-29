@@ -29,7 +29,7 @@ namespace DtronixMessageQueue {
 		/// <summary>
 		/// Initializes a new instance of a message queue.
 		/// </summary>
-		public MqClient(SocketConfig config) : base(config) {
+		public MqClient(MqSocketConfig config) : base(config) {
 			config.MaxConnections = 1;
 
 			postmaster = new MqPostmaster {
@@ -53,7 +53,7 @@ namespace DtronixMessageQueue {
 			var session = base.CreateSession(socket);
 			session.Postmaster = postmaster;
 			session.IncomingMessage += OnIncomingMessage;
-
+			session.BaseSocket = this;
 			return session;
 		}
 
@@ -63,10 +63,6 @@ namespace DtronixMessageQueue {
 		/// </summary>
 		/// <param name="message">Message to send.</param>
 		public void Send(MqMessage message) {
-			/*if (IsConnected == false) {
-				throw new InvalidOperationException("Can not send messages while disconnected from server.");
-			}*/
-
 			if (message.Count == 0) {
 				return;
 			}
@@ -75,11 +71,14 @@ namespace DtronixMessageQueue {
 			Session.EnqueueOutgoingMessage(message);
 		}
 
-
 		public void Close() {
 			Session.IncomingMessage -= OnIncomingMessage;
 			Session.CloseConnection(SocketCloseReason.ClientClosing);
 			Session.Dispose();
+		}
+
+		public override MqFrame CreateFrame(byte[] bytes) {
+			return new MqFrame(bytes, (MqSocketConfig)Config);
 		}
 
 		/// <summary>
