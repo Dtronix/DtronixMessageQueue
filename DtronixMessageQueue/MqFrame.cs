@@ -1,9 +1,11 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Dynamic;
 using System.IO;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
+using DtronixMessageQueue.Socket;
 
 namespace DtronixMessageQueue {
 	
@@ -30,9 +32,9 @@ namespace DtronixMessageQueue {
 			}
 		}
 
-		public const int MaxFrameSize = 1024*4 - HeaderLength;
-
 		public const int HeaderLength = 3;
+
+		private MqSocketConfig config;
 
 		/// <summary>
 		/// Total bytes that this frame contains.
@@ -58,18 +60,22 @@ namespace DtronixMessageQueue {
 			}
 		}
 
-		public MqFrame(byte[] bytes) : this(bytes, MqFrameType.Unset) {
 
+
+
+		public MqFrame(byte[] bytes, MqSocketConfig config) : this(bytes, MqFrameType.Unset, config) {
 		}
 
-
-		public MqFrame(byte[] bytes, MqFrameType type) {
-			if (bytes?.Length > MaxFrameSize) {
-				throw new ArgumentException("Byte array passed is larger than the maximum frame size allowed.  Must be less than " + MaxFrameSize, nameof(bytes));
+		public MqFrame(byte[] bytes, MqFrameType type, MqSocketConfig config) {
+			this.config = config;
+			if (bytes?.Length > this.config.FrameBufferSize) {
+				throw new ArgumentException("Byte array passed is larger than the maximum frame size allowed.  Must be less than " + config.FrameBufferSize, nameof(bytes));
 			}
 			buffer = bytes;
 			FrameType = type;
 		}
+
+
 
 
 		/// <summary>
@@ -500,7 +506,7 @@ namespace DtronixMessageQueue {
 				Write(index, (ushort)string_bytes.Length);
 			}
 
-			if (index + string_bytes.Length + (prepend_size ? 2 : 0) > MaxFrameSize) {
+			if (index + string_bytes.Length + (prepend_size ? 2 : 0) > config.FrameBufferSize) {
 				throw new InvalidOperationException("Length of ASCII string is longer than the frame will allow.");
 			}
 

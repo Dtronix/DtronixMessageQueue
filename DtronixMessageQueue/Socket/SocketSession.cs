@@ -7,20 +7,52 @@ using System.Threading;
 using System.Threading.Tasks;
 
 namespace DtronixMessageQueue.Socket {
+
+	/// <summary>
+	/// Base socket session to be sub-classes by the implementer.
+	/// </summary>
 	public abstract class SocketSession : IDisposable {
 
+		/// <summary>
+		/// Current state of the socket.
+		/// </summary>
 		public enum State : byte {
+			/// <summary>
+			/// State has not been set.
+			/// </summary>
 			Unknown,
+
+			/// <summary>
+			/// Session is attempting to connect to remote connection.
+			/// </summary>
 			Connecting,
+
+			/// <summary>
+			/// Session has connected to remote session.
+			/// </summary>
 			Connected,
+
+			/// <summary>
+			/// Session is in the process of closing its connection.
+			/// </summary>
 			Closing,
+
+			/// <summary>
+			/// Session has been closed and no longer can be used.
+			/// </summary>
 			Closed,
+
+			/// <summary>
+			/// Socket is in an error state.
+			/// </summary>
 			Error
 		}
+		private SocketConfig config;
 
-		private SocketAsyncEventArgsPool args_pool;
-
-		private ManualResetEventSlim write_reset;
+		/// <summary>
+		/// Configurations for the associated socket.
+		/// </summary>
+		public SocketConfig Config => config;
 
 		/// <summary>
 		/// Id for this session
@@ -32,6 +64,18 @@ namespace DtronixMessageQueue.Socket {
 		/// </summary>
 		public State CurrentState { get; protected set; }
 
+		private DateTime last_received;
+
+
+		/// <summary>
+		/// Internal framebuilder for this instance.
+		/// </summary>
+		protected MqFrameBuilder frame_builder;
+
+		/// <summary>
+		/// Last time the session received anything from the socket.
+		/// </summary>
+		public DateTime LastReceived => last_received;
 
 		protected System.Net.Sockets.Socket socket;
 
@@ -40,17 +84,25 @@ namespace DtronixMessageQueue.Socket {
 		/// </summary>
 		public System.Net.Sockets.Socket Socket => socket;
 
-		private DateTime last_received;
-
 		/// <summary>
-		/// Last time the session received anything from the socket.
+		/// Async args used to send data to the wire.
 		/// </summary>
-		public DateTime LastReceived => last_received;
-
 		private SocketAsyncEventArgs send_args;
 
+		/// <summary>
+		/// Async args used to receive data off the wire.
+		/// </summary>
 		private SocketAsyncEventArgs receive_args;
 
+		/// <summary>
+		/// Pool used by all the sessions on this SocketBase.
+		/// </summary>
+		private SocketAsyncEventArgsPool args_pool;
+
+		/// <summary>
+		/// Reset event used to ensure only one MqWorker can write to the socket at a time.
+		/// </summary>
+		private ManualResetEventSlim write_reset;
 
 		/// <summary>
 		/// This event fires when a connection has been established.
@@ -62,30 +114,41 @@ namespace DtronixMessageQueue.Socket {
 		/// </summary>
 		public event EventHandler<SessionClosedEventArgs<SocketSession>> Closed;
 
+		/// <summary>
+		/// Creates a new socket session with a new Id.
+		/// </summary>
 		protected SocketSession() {
 			Id = Guid.NewGuid();
 			CurrentState = State.Connecting;
 		}
 
-		public static void Setup(SocketSession session, System.Net.Sockets.Socket socket, SocketAsyncEventArgsPool args_pool, SocketConfig configs) {
+		/// <summary>
+		/// Sets up this socket with the specified configurations.
+		/// </summary>
+		/// <param name="session">The session to setup.</param>
+		/// <param name="socket">Socket this session is to use.</param>
+		/// <param name="args_pool">Argument pool for this session to use.  Pulls two asyncevents for reading and writing and returns them at the end of this socket's life.</param>
+		/// <param name="config">Socket configurations this session is to use.</param>
+		public static void Setup(SocketSession session, System.Net.Sockets.Socket socket, SocketAsyncEventArgsPool args_pool, SocketConfig config) {
+			session.config = config;
 			session.args_pool = args_pool;
 			session.send_args = args_pool.Pop();
 			session.send_args.Completed += session.IoCompleted;
 			session.receive_args = args_pool.Pop();
 			session.receive_args.Completed += session.IoCompleted;
-
+			session.frame_builder = new MqFrameBuilder((MqSocketConfig)config);
 
 			session.socket = socket;
 			session.write_reset = new ManualResetEventSlim(true);
 
-			if(configs.SendTimeout > 0)
-				socket.SendTimeout = configs.SendTimeout;
+			if(config.SendTimeout > 0)
+				socket.SendTimeout = config.SendTimeout;
 
-			if (configs.SendAndReceiveBufferSize > 0)
-				socket.ReceiveBufferSize = configs.SendAndReceiveBufferSize;
+			if (config.SendAndReceiveBufferSize > 0)
+				socket.ReceiveBufferSize = config.SendAndReceiveBufferSize;
 
-			if (configs.SendAndReceiveBufferSize > 0)
-				socket.SendBufferSize = configs.SendAndReceiveBufferSize;
+			if (config.SendAndReceiveBufferSize > 0)
+				socket.SendBufferSize = config.SendAndReceiveBufferSize;
 
 			socket.NoDelay = true;
 			socket.SetSocketOption(SocketOptionLevel.Socket, SocketOptionName.DontLinger, true);
@@ -96,14 +159,25 @@ namespace DtronixMessageQueue.Socket {
 			session.CurrentState = State.Connected;
 		}
 
+		/// <summary>
+		/// Called when this session is connected to the socket.
+		/// </summary>
 		protected void OnConnected() {
 			Connected?.Invoke(this, new SessionConnectedEventArgs<SocketSession>(this));
 		}
 
+		/// <summary>
+		/// Called when this session is disconnected from the socket.
+		/// </summary>
+		/// <param name="reason">Reason this socket is disconnecting</param>
 		protected void OnDisconnected(SocketCloseReason reason) {
 			Closed?.Invoke(this, new SessionClosedEventArgs<SocketSession>(this, reason));
 		}
 
+		/// <summary>
+		/// Overridden to parse incoming bytes from the wire.
+		/// </summary>
+		/// <param name="buffer">Buffer of bytes to parse.</param>
 		protected abstract void HandleIncomingBytes(byte[] buffer);
 
 		/// <summary>
@@ -136,8 +210,13 @@ namespace DtronixMessageQueue.Socket {
 			}
 		}
 
-
-		internal void Send(byte[] buffer, int offset, int length) {
+		/// <summary>
+		/// Sends raw bytes to the socket.  Blocks until data is sent.
+		/// </summary>
+		/// <param name="buffer">Buffer bytes to send.</param>
+		/// <param name="offset">Offset in the buffer.</param>
+		/// <param name="length">Total bytes to send.</param>
+		protected void Send(byte[] buffer, int offset, int length) {
 			if (Socket == null || Socket.Connected == false) {
 				return;
 			}
@@ -162,7 +241,7 @@ namespace DtronixMessageQueue.Socket {
 		/// This method is invoked when an asynchronous send operation completes.  
 		/// The method issues another receive on the socket to read any additional data sent from the client
 		/// </summary>
-		/// <param name="e"></param>
+		/// <param name="e">Event args of this action.</param>
 		private void SendComplete(SocketAsyncEventArgs e) {
 			if (e.SocketError != SocketError.Success) {
 				CloseConnection(SocketCloseReason.SocketError);
@@ -173,9 +252,8 @@ namespace DtronixMessageQueue.Socket {
 		/// <summary>
 		/// This method is invoked when an asynchronous receive operation completes. 
 		/// If the remote host closed the connection, then the socket is closed.
-		/// If data was received then the data is echoed back to the client.
 		/// </summary>
-		/// <param name="e"></param>
+		/// <param name="e">Event args of this action.</param>
 		protected void RecieveComplete(SocketAsyncEventArgs e) {
 			if (CurrentState == State.Closing) {
 				return;
@@ -189,10 +267,10 @@ namespace DtronixMessageQueue.Socket {
 				// Update the last time this session was active.
 				last_received = DateTime.UtcNow;
 
-				// If the bytes received is larger than the buffer, ignore this operation.
-				if (e.BytesTransferred > MqFrame.MaxFrameSize + MqFrame.HeaderLength) {
-					CloseConnection(SocketCloseReason.SocketError);
-				}
+				// If the bytes received is larger than the buffer, close this session.
+				//if (e.BytesTransferred >  config.SendAndReceiveBufferSize) {
+				//	CloseConnection(SocketCloseReason.SocketError);
+				//}
 
 				// Create a copy of these bytes.
 				var buffer = new byte[e.BytesTransferred];
@@ -218,11 +296,16 @@ namespace DtronixMessageQueue.Socket {
 			}
 		}
 
+		/// <summary>
+		/// Called when this session is desired or requested to be closed.
+		/// </summary>
+		/// <param name="reason">Reason this socket is closing.</param>
 		public virtual void CloseConnection(SocketCloseReason reason) {
 			// If this session has already been closed, nothing more to do.
 			if (CurrentState == State.Closed) {
 				return;
 			}
+
 			// close the socket associated with the client
 			try {
 				Socket.Close(1000);
@@ -244,6 +327,9 @@ namespace DtronixMessageQueue.Socket {
 			CurrentState = State.Closed;
 		}
 
+		/// <summary>
+		/// Disconnects client and releases resources.
+		/// </summary>
 		public void Dispose() {
 			if (CurrentState == State.Connected) {
 				CloseConnection(SocketCloseReason.ClientClosing);

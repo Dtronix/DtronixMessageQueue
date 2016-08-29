@@ -87,7 +87,7 @@ namespace DtronixMessageQueue.Tests.Performance {
 		}
 
 		private static void StartClient(int total_loops, int total_messages, int total_frames, int frame_size) {
-			var cl = new MqClient(new SocketConfig() {
+			var cl = new MqClient(new MqSocketConfig() {
 				Ip = "127.0.0.1",
 				Port = 2828
 			});
@@ -99,7 +99,8 @@ namespace DtronixMessageQueue.Tests.Performance {
 			double[] total_values = { 0, 0, 0 };
 
 			for (int i = 0; i < total_frames; i++) {
-				message.Add(new MqFrame(RandomBytes(frame_size)));
+				var frame = cl.CreateFrame(RandomBytes(frame_size));
+				message.Add(frame);
 			}
 
 			cl.IncomingMessage += (sender, args) => {
@@ -153,7 +154,12 @@ namespace DtronixMessageQueue.Tests.Performance {
 		}
 
 		private static void StartServer(int total_messages, int total_clients) {
-			var builder = new MqMessageWriter();
+			var server = new MqServer(new MqSocketConfig() {
+				Ip = "127.0.0.1",
+				Port = 2828
+			});
+
+			var builder = new MqMessageWriter((MqSocketConfig)server.Config);
 			builder.Write("COMPLETE");
 
 			var complete_message = builder.ToMessage(true);
@@ -161,10 +167,6 @@ namespace DtronixMessageQueue.Tests.Performance {
 			builder.Write("START");
 			var start_message = builder.ToMessage(true);
 
-			var server = new MqServer(new SocketConfig() {
-				Ip = "127.0.0.1",
-				Port = 2828
-			});
 			ConcurrentDictionary<MqSession, ClientRunInfo> client_infos = new ConcurrentDictionary<MqSession, ClientRunInfo>();
 
 
@@ -232,30 +234,30 @@ namespace DtronixMessageQueue.Tests.Performance {
 
 
 		static void InProcessTest() {
-
+			var config = new MqSocketConfig();
 			var small_message = new MqMessage {
-				new MqFrame(RandomBytes(50), MqFrameType.More),
-				new MqFrame(RandomBytes(50), MqFrameType.More),
-				new MqFrame(RandomBytes(50), MqFrameType.More),
-				new MqFrame(RandomBytes(50), MqFrameType.Last)
+				new MqFrame(RandomBytes(50), MqFrameType.More, config),
+				new MqFrame(RandomBytes(50), MqFrameType.More, config),
+				new MqFrame(RandomBytes(50), MqFrameType.More, config),
+				new MqFrame(RandomBytes(50), MqFrameType.Last, config)
 			};
 
 			MqInProcessPerformanceTests(1000000, 5, small_message);
 
 			var medimum_message = new MqMessage {
-				new MqFrame(RandomBytes(500), MqFrameType.More),
-				new MqFrame(RandomBytes(500), MqFrameType.More),
-				new MqFrame(RandomBytes(500), MqFrameType.More),
-				new MqFrame(RandomBytes(500), MqFrameType.Last)
+				new MqFrame(RandomBytes(500), MqFrameType.More, config),
+				new MqFrame(RandomBytes(500), MqFrameType.More, config),
+				new MqFrame(RandomBytes(500), MqFrameType.More, config),
+				new MqFrame(RandomBytes(500), MqFrameType.Last, config)
 			};
 
 			MqInProcessPerformanceTests(100000, 5, medimum_message);
 
 			var large_message = new MqMessage {
-				new MqFrame(RandomBytes(MqFrame.MaxFrameSize), MqFrameType.More),
-				new MqFrame(RandomBytes(MqFrame.MaxFrameSize), MqFrameType.More),
-				new MqFrame(RandomBytes(MqFrame.MaxFrameSize), MqFrameType.More),
-				new MqFrame(RandomBytes(MqFrame.MaxFrameSize), MqFrameType.Last)
+				new MqFrame(RandomBytes(config.FrameBufferSize), MqFrameType.More, config),
+				new MqFrame(RandomBytes(config.FrameBufferSize), MqFrameType.More, config),
+				new MqFrame(RandomBytes(config.FrameBufferSize), MqFrameType.More, config),
+				new MqFrame(RandomBytes(config.FrameBufferSize), MqFrameType.Last, config)
 			};
 
 			MqInProcessPerformanceTests(10000, 5, large_message);
@@ -266,7 +268,7 @@ namespace DtronixMessageQueue.Tests.Performance {
 		}
 
 		private static void MqInProcessPerformanceTests(int runs, int loops, MqMessage message) {
-			var server = new MqServer(new SocketConfig {
+			var server = new MqServer(new MqSocketConfig {
 				Ip = "127.0.0.1",
 				Port = 2828
 			});
@@ -279,7 +281,7 @@ namespace DtronixMessageQueue.Tests.Performance {
 			var wait = new AutoResetEvent(false);
 			var complete_test = new AutoResetEvent(false);
 
-			var client = new MqClient(new SocketConfig() {
+			var client = new MqClient(new MqSocketConfig() {
 				Ip = "127.0.0.1",
 				Port = 2828
 			});
@@ -291,7 +293,6 @@ namespace DtronixMessageQueue.Tests.Performance {
 			var message_size = message.Size;
 
 			server.IncomingMessage += (sender, args2) => {
-				MqMessage message_out;
 				count += args2.Messages.Count;
 
 

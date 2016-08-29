@@ -15,18 +15,12 @@ namespace DtronixMessageQueue {
 
 	public class MqSession : SocketSession {
 
-
 		private bool is_running = true;
 
 		/// <summary>
 		/// The Postmaster for this client/server.
 		/// </summary>
 		public MqPostmaster Postmaster { get; set; }
-
-		/// <summary>
-		/// Internal framebuilder for this instance.
-		/// </summary>
-		private readonly MqFrameBuilder frame_builder = new MqFrameBuilder();
 
 		/// <summary>
 		/// Total bytes the inbox has remaining to process.
@@ -58,6 +52,11 @@ namespace DtronixMessageQueue {
 		/// User supplied token used to pass a related object around with this session.
 		/// </summary>
 		public object Token { get; set; }
+
+		/// <summary>
+		/// Base socket for this session.
+		/// </summary>
+		public SocketBase<MqSession> BaseSocket { get; set; }
 
 		/// <summary>
 		/// Adds bytes from the client/server reading methods to be processed by the Postmaster.
@@ -125,7 +124,7 @@ namespace DtronixMessageQueue {
 				foreach (var frame in result.Frames) {
 					var frame_size = frame.FrameSize;
 					// If this would overflow the max client buffer size, send the full buffer queue.
-					if (length + frame_size > MqFrame.MaxFrameSize + MqFrame.HeaderLength) {
+					if (length + frame_size > ((MqSocketConfig)Config).FrameBufferSize + MqFrame.HeaderLength) {
 						SendBufferQueue(buffer_queue, length);
 
 						// Reset the length to 0;
@@ -210,7 +209,10 @@ namespace DtronixMessageQueue {
 			MqFrame close_frame = null;
 			if (CurrentState == State.Connected) {
 				CurrentState = State.Closing;
-				close_frame = new MqFrame(new byte[2]) {FrameType = MqFrameType.Command};
+				
+				close_frame = BaseSocket.CreateFrame(new byte[2]);
+				close_frame.FrameType = MqFrameType.Command;
+
 				close_frame.Write(0, (byte) 0);
 				close_frame.Write(1, (byte) reason);
 			}

@@ -13,13 +13,15 @@ namespace DtronixMessageQueue.Tests {
 		private MqFrame last_frame;
 		private MqFrame more_frame;
 		private MqFrameBuilder frame_builder;
+		private MqSocketConfig config = new MqSocketConfig();
 
 		public MqFrameBuilderTests() {
-			frame_builder = new MqFrameBuilder();
-			empty_last_frame = new MqFrame(null, MqFrameType.EmptyLast);
-			empty_frame = new MqFrame(null, MqFrameType.Empty);
-			last_frame = new MqFrame(new byte[] {1, 2, 3, 4, 5, 6, 7, 8, 9, 0}, MqFrameType.Last);
-			more_frame = new MqFrame(new byte[] { 1, 2, 3, 4, 5, 6, 7, 8, 9, 0 }, MqFrameType.More);
+
+			frame_builder = new MqFrameBuilder(config);
+			empty_last_frame = new MqFrame(null, MqFrameType.EmptyLast, config);
+			empty_frame = new MqFrame(null, MqFrameType.Empty, config);
+			last_frame = new MqFrame(new byte[] {1, 2, 3, 4, 5, 6, 7, 8, 9, 0}, MqFrameType.Last, config);
+			more_frame = new MqFrame(new byte[] { 1, 2, 3, 4, 5, 6, 7, 8, 9, 0 }, MqFrameType.More, config);
 		}
 
 		[Fact]
@@ -80,7 +82,7 @@ namespace DtronixMessageQueue.Tests {
 		[Fact]
 		public void FrameBuilder_throws_passed_buffer_too_large() {
 			Assert.Throws<InvalidDataException>(() => {
-				frame_builder.Write(new byte[MqFrame.MaxFrameSize + 1], 0, MqFrame.MaxFrameSize + 1);
+				frame_builder.Write(new byte[config.FrameBufferSize + 1], 0, config.FrameBufferSize + 1);
 			});
 		}
 

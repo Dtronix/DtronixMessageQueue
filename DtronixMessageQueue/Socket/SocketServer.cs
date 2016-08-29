@@ -6,47 +6,49 @@ using System.Threading;
 using System.Threading.Tasks;
 
 namespace DtronixMessageQueue.Socket {
+	/// <summary>
+	/// Base functionality for handling connection requests.
+	/// </summary>
+	/// <typeparam name="TSession">Session type.</typeparam>
 	public class SocketServer<TSession> : SocketBase<TSession>
 		where TSession : SocketSession, new() {
 
+		/// <summary>
+		/// Limits the number of active connections.
+		/// </summary>
 		private readonly Semaphore connection_limit;
 
-		private readonly SocketConfig configurations;
+
+		/// <summary>
+		/// Dictionary of all connected clients.
+		/// </summary>
+		private readonly ConcurrentDictionary<Guid, TSession> connected_sessions = new ConcurrentDictionary<Guid, TSession>();
 
 
-		private readonly ConcurrentDictionary<Guid, TSession> connected_clients = new ConcurrentDictionary<Guid, TSession>();
-
-
-		public SocketServer(SocketConfig configurations) : base(configurations) {
-			this.configurations = configurations;
-
-			connection_limit = new Semaphore(configurations.MaxConnections, configurations.MaxConnections);
-
+		/// <summary>
+		/// Creates a socket server with the specified configurations.
+		/// </summary>
+		/// <param name="config">Configurations for this socket.</param>
+		public SocketServer(SocketConfig config) : base(config) {
+			connection_limit = new Semaphore(config.MaxConnections, config.MaxConnections);
 		}
 
+		/// <summary>
+		/// Starts the server and begins listening for incoming connections.
+		/// </summary>
 		public void Start() {
-			Start(new IPEndPoint(IPAddress.Parse(Config.Ip), Config.Port));
-		}
-
-
-		// Starts the server such that it is listening for 
-		// incoming connection requests.    
-		//
-		// <param name="localEndPoint">The endpoint which the server will listening 
-		// for connection requests on</param>
-		public void Start(IPEndPoint local_end_point) {
-			if (IsRunning) {
+			var ip = IPAddress.Parse(Config.Ip);
+			var local_end_point = new IPEndPoint(ip, Config.Port);
+			if (MainSocket != null && MainSocket.Connected) {
 				throw new InvalidOperationException("Server is already running.");
 			}
-
-			IsRunning = true;
 
 			// create the socket which listens for incoming connections
 			MainSocket = new System.Net.Sockets.Socket(local_end_point.AddressFamily, SocketType.Stream, ProtocolType.Tcp);
 			MainSocket.Bind(local_end_point);
 
 			// start the server with a listen backlog.
-			MainSocket.Listen(configurations.ListenerBacklog);
+			MainSocket.Listen(Config.ListenerBacklog);
 
 			// post accepts on the listening socket
 			StartAccept(null);
@@ -59,7 +61,7 @@ namespace DtronixMessageQueue.Socket {
 		private void StartAccept(SocketAsyncEventArgs e) {
 			if (e == null) {
 				e = new SocketAsyncEventArgs();
-				e.Completed += AcceptEventArg_Completed;
+				e.Completed += (sender, completed_e) => AcceptCompleted(completed_e);
 			} else {
 				// socket must be cleared since the context object is being reused
 				e.AcceptSocket = null;
@@ -76,42 +78,60 @@ namespace DtronixMessageQueue.Socket {
 			
 		}
 
-		// This method is the callback method associated with Socket.AcceptAsync 
-		// operations and is invoked when an accept operation is complete
-		//
-		void AcceptEventArg_Completed(object sender, SocketAsyncEventArgs e) {
-			AcceptCompleted(e);
-		}
-
+		/// <summary>
+		/// Called by the socket when a new connection has been accepted.
+		/// </summary>
+		/// <param name="e">Event args for this event.</param>
 		private void AcceptCompleted(SocketAsyncEventArgs e) {
-			if (IsRunning == false) {
+			if (MainSocket.Connected == false) {
 				return;
 			}
 
-			//e.AcceptSocket.NoDelay = true;
-
-			// Get the socket for the accepted client connection and put it into the 
-			//ReadEventArg object user token
-			//SocketAsyncEventArgs read_event_args = AsyncPool.Pop();
+			e.AcceptSocket.NoDelay = true;
 
 			var session = CreateSession(e.AcceptSocket);
 
-			connected_clients.TryAdd(session.Id, session);
+			// Add event to remove this session from the active client list.
+			session.Closed += RemoveClientEvent;
+
+			// Add this session to the list of connected sessions.
+			connected_sessions.TryAdd(session.Id, session);
 
 			// Invoke the events.
 			Task.Run(() => OnConnect(session));
-
-			// As soon as the client is connected, post a receive to the connection
-			//e.AcceptSocket.ReceiveAsync(read_event_args);
 
 			// Accept the next connection request
 			StartAccept(e);
 		}
 
+		/// <summary>
+		/// Event called to remove the disconnected session from the list of active connections.
+		/// </summary>
+		/// <param name="sender">Sender of the disconnection event.</param>
+		/// <param name="e">Session events.</param>
+		private void RemoveClientEvent(object sender, SessionClosedEventArgs<SocketSession> e) {
+			TSession session_out;
+			connected_sessions.TryRemove(e.Session.Id, out session_out);
+			e.Session.Closed -= RemoveClientEvent;
+		}
 
+
+		/// <summary>
+		/// Creates a frame with the specified bytes and the current configurations.
+		/// </summary>
+		/// <param name="bytes">Bytes to put in the frame.</param>
+		/// <returns>Configured frame.</returns>
+		public override MqFrame CreateFrame(byte[] bytes) {
+			return new MqFrame(bytes, (MqSocketConfig)Config);
+		}
+
+
+		/// <summary>
+		/// Terminates this server and notify all connected clients.
+		/// </summary>
 		public void Stop() {
-			TSession[] sessions = new TSession[connected_clients.Values.Count];
-			connected_clients.Values.CopyTo(sessions, 0);
+			TSession[] sessions = new TSession[connected_sessions.Values.Count];
+			connected_sessions.Values.CopyTo(sessions, 0);
 
 			foreach (var session in sessions) {
 				session.CloseConnection(SocketCloseReason.ServerClosing);
