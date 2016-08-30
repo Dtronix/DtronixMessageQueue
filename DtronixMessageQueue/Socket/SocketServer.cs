@@ -156,7 +156,7 @@ namespace DtronixMessageQueue.Socket {
 			ConnectedSessions.Values.CopyTo(sessions, 0);
 
 			foreach (var session in sessions) {
-				session.CloseConnection(SocketCloseReason.ServerClosing);
+				session.Close(SocketCloseReason.ServerClosing);
 			}
 
 			MainSocket.Close();

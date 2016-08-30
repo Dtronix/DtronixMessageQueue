@@ -110,7 +110,7 @@ namespace DtronixMessageQueue {
 
 		public void Close() {
 			Session.IncomingMessage -= OnIncomingMessage;
-			Session.CloseConnection(SocketCloseReason.ClientClosing);
+			Session.Close(SocketCloseReason.ClientClosing);
 			Session.Dispose();
 		}
 

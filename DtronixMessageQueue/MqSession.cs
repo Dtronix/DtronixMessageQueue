@@ -159,7 +159,7 @@ namespace DtronixMessageQueue {
 				} catch (InvalidDataException) {
 					//logger.Error(ex, "Connector {0}: Client send invalid data.", Connection.Id);
 
-					CloseConnection(SocketCloseReason.ProtocolError);
+					Close(SocketCloseReason.ProtocolError);
 					break;
 				}
 
@@ -202,7 +202,7 @@ namespace DtronixMessageQueue {
 		}
 
 
-		public override void CloseConnection(SocketCloseReason reason) {
+		public override void Close(SocketCloseReason reason) {
 			if (CurrentState == State.Closed) {
 				return;
 			}
@@ -232,7 +232,7 @@ namespace DtronixMessageQueue {
 				ProcessOutbox();
 			}
 
-			base.CloseConnection(reason);
+			base.Close(reason);
 		}
 
 		/// <summary>
@@ -266,7 +266,7 @@ namespace DtronixMessageQueue {
 			switch (command_type) {
 				case 0: // Closed
 					CurrentState = State.Closing;
-					CloseConnection((SocketCloseReason)frame.ReadByte(1));
+					Close((SocketCloseReason)frame.ReadByte(1));
 					break;
 
 			}

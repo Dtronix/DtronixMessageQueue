@@ -159,7 +159,7 @@ namespace DtronixMessageQueue.Tests {
 			Server.Connected += (sender, session) => {
 				//Thread.Sleep(1000);
 				//session.Session.Send(new MqMessage(new MqFrame(new byte[24], MqFrameType.Last)));
-				session.Session.CloseConnection(SocketCloseReason.ApplicationError);
+				session.Session.Close(SocketCloseReason.ApplicationError);
 			};
 
 			Client.Closed += (sender, args) => {

@@ -189,7 +189,7 @@ namespace DtronixMessageQueue.Socket {
 					break;
 
 				case SocketAsyncOperation.Disconnect:
-					CloseConnection(SocketCloseReason.ClientClosing);
+					Close(SocketCloseReason.ClientClosing);
 					break;
 
 				case SocketAsyncOperation.Receive:
@@ -228,7 +228,7 @@ namespace DtronixMessageQueue.Socket {
 					IoCompleted(this, send_args);
 				}
 			} catch (ObjectDisposedException) {
-				CloseConnection(SocketCloseReason.SocketError);
+				Close(SocketCloseReason.SocketError);
 			}
 		}
 
@@ -240,7 +240,7 @@ namespace DtronixMessageQueue.Socket {
 		/// <param name="e">Event args of this action.</param>
 		private void SendComplete(SocketAsyncEventArgs e) {
 			if (e.SocketError != SocketError.Success) {
-				CloseConnection(SocketCloseReason.SocketError);
+				Close(SocketCloseReason.SocketError);
 			}
 			write_reset.Set();
 		}
@@ -265,7 +265,7 @@ namespace DtronixMessageQueue.Socket {
 
 				// If the bytes received is larger than the buffer, close this session.
 				//if (e.BytesTransferred >  config.SendAndReceiveBufferSize) {
-				//	CloseConnection(SocketCloseReason.SocketError);
+				//	Close(SocketCloseReason.SocketError);
 				//}
 
 				// Create a copy of these bytes.
@@ -283,12 +283,12 @@ namespace DtronixMessageQueue.Socket {
 						IoCompleted(this, e);
 					}
 				} catch (ObjectDisposedException) {
-					CloseConnection(SocketCloseReason.SocketError);
+					Close(SocketCloseReason.SocketError);
 				}
 
 
 			} else {
-				CloseConnection(SocketCloseReason.SocketError);
+				Close(SocketCloseReason.SocketError);
 			}
 		}
 
@@ -296,7 +296,7 @@ namespace DtronixMessageQueue.Socket {
 		/// Called when this session is desired or requested to be closed.
 		/// </summary>
 		/// <param name="reason">Reason this socket is closing.</param>
-		public virtual void CloseConnection(SocketCloseReason reason) {
+		public virtual void Close(SocketCloseReason reason) {
 			// If this session has already been closed, nothing more to do.
 			if (CurrentState == State.Closed) {
 				return;
@@ -328,7 +328,7 @@ namespace DtronixMessageQueue.Socket {
 		/// </summary>
 		public void Dispose() {
 			if (CurrentState == State.Connected) {
-				CloseConnection(SocketCloseReason.ClientClosing);
+				Close(SocketCloseReason.ClientClosing);
 			}
 		}
 	}

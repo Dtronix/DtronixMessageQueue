@@ -49,7 +49,7 @@ namespace DtronixMessageQueue {
 
 			foreach (var session in ConnectedSessions.Values) {
 				if (session.LastReceived < timeout_time) {
-					session.CloseConnection(SocketCloseReason.TimeOut);
+					session.Close(SocketCloseReason.TimeOut);
 				}
 			}
 
