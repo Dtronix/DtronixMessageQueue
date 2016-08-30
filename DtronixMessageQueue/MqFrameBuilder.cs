@@ -2,9 +2,6 @@
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
-using System.Text;
-using System.Threading;
-using System.Threading.Tasks;
 
 namespace DtronixMessageQueue {
 	public class MqFrameBuilder : IDisposable {
@@ -120,7 +117,9 @@ namespace DtronixMessageQueue {
 					current_frame_type = (MqFrameType)frame_type_bytes[0];
 				}
 
-				if (current_frame_type == MqFrameType.Empty || current_frame_type == MqFrameType.EmptyLast) {
+				if (current_frame_type == MqFrameType.Empty ||
+					current_frame_type == MqFrameType.EmptyLast ||
+					current_frame_type == MqFrameType.Ping) {
 					EnqueueAndReset();
 					break;
 				}

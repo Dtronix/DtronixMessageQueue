@@ -1,7 +1,5 @@
 ﻿using System;
-using System.Collections.Concurrent;
 using System.Net.Sockets;
-using System.Threading;
 
 namespace DtronixMessageQueue.Socket {
 	/// <summary>
@@ -109,5 +107,7 @@ namespace DtronixMessageQueue.Socket {
 
 
 		public abstract MqFrame CreateFrame(byte[] bytes);
+
+		public abstract MqFrame CreateFrame(byte[] bytes, MqFrameType type);
 	}
 }

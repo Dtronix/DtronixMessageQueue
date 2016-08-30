@@ -1,39 +1,38 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
-
-namespace DtronixMessageQueue {
+﻿namespace DtronixMessageQueue {
 	public enum MqFrameType : byte {
 		/// <summary>
 		/// This frame type has not been defined.
 		/// </summary>
-		Unset,
+		Unset = 0,
 
 		/// <summary>
 		/// This frame type has not been determined yet.
 		/// </summary>
-		Empty,
+		Empty = 1,
 
 		/// <summary>
 		/// This frame is part of a larger message.
 		/// </summary>
-		More,
+		More = 2,
 
 		/// <summary>
 		/// This frame is the last part of a message.
 		/// </summary>
-		Last,
+		Last = 3,
 
 		/// <summary>
 		/// This frame is an empty frame and the last part of a message.
 		/// </summary>
-		EmptyLast,
+		EmptyLast = 4,
 
 		/// <summary>
 		/// This frame is a command to the MQ server or client to be processed and consumed internally.
 		/// </summary>
-		Command
+		Command = 5,
+
+		/// <summary>
+		/// This frame is a type of command frame with no body.  This frame is consumed by the FrameBuilder.
+		/// </summary>
+		Ping = 6
 	}
 }

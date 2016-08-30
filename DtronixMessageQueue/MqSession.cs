@@ -1,13 +1,8 @@
 ﻿using System;
-using System.CodeDom;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.IO;
-using System.Linq;
-using System.Net.Sockets;
-using System.Text;
 using System.Threading;
-using System.Threading.Tasks;
 using DtronixMessageQueue.Socket;
 
 namespace DtronixMessageQueue {
@@ -123,6 +118,7 @@ namespace DtronixMessageQueue {
 				result.PrepareSend();
 				foreach (var frame in result.Frames) {
 					var frame_size = frame.FrameSize;
+
 					// If this would overflow the max client buffer size, send the full buffer queue.
 					if (length + frame_size > ((MqSocketConfig)Config).FrameBufferSize + MqFrame.HeaderLength) {
 						SendBufferQueue(buffer_queue, length);
@@ -172,6 +168,11 @@ namespace DtronixMessageQueue {
 
 				for (var i = 0; i < frame_count; i++) {
 					var frame = frame_builder.Frames.Dequeue();
+
+					// Do nothing if this is a ping frame.
+					if (frame.FrameType == MqFrameType.Ping) {
+						continue;
+					}
 
 					// Determine if this frame is a command type.  If it is, process it and don't add it to the message.
 					if (frame.FrameType == MqFrameType.Command) {
@@ -234,16 +235,19 @@ namespace DtronixMessageQueue {
 			base.CloseConnection(reason);
 		}
 
+		/// <summary>
+		/// Adds a frame to the outbox to be processed.
+		/// </summary>
+		/// <param name="frame">Frame to send.</param>
+		public void Send(MqFrame frame) {
+			Send(new MqMessage(frame));
+		}
 
 		/// <summary>
 		/// Sends a message to the session's client.
 		/// </summary>
 		/// <param name="message">Message to send.</param>
 		public void Send(MqMessage message) {
-			/*if (Connected == false) {
-				throw new InvalidOperationException("Can not send messages while disconnected from server.");
-			}*/
-
 			if (message.Count == 0) {
 				return;
 			}

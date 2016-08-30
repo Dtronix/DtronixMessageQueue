@@ -1,11 +1,5 @@
 ﻿using System;
-using System.Collections.Generic;
-using System.Dynamic;
-using System.IO;
-using System.Linq;
 using System.Text;
-using System.Threading.Tasks;
-using DtronixMessageQueue.Socket;
 
 namespace DtronixMessageQueue {
 	
@@ -52,7 +46,7 @@ namespace DtronixMessageQueue {
 		public int FrameSize {
 			get {
 				// If this frame is empty, then it has a total of one byte.
-				if (FrameType == MqFrameType.Empty) {
+				if (FrameType == MqFrameType.Empty || FrameType == MqFrameType.EmptyLast || FrameType == MqFrameType.Ping) {
 					return 1;
 				}
 
@@ -82,7 +76,8 @@ namespace DtronixMessageQueue {
 		/// Sets this frame to be the last frame of a message.
 		/// </summary>
 		public void SetLast() {
-			if (FrameType != MqFrameType.Command) {
+			if (FrameType != MqFrameType.Command &&
+				FrameType != MqFrameType.Ping) {
 				FrameType = FrameType == MqFrameType.Empty ? MqFrameType.EmptyLast : MqFrameType.Last;
 			}
 		}
@@ -93,7 +88,7 @@ namespace DtronixMessageQueue {
 		/// <returns>Frame bytes.</returns>
 		public byte[] RawFrame() {
 			// If this is an empty frame, return an empty byte which corresponds to MqFrameType.Empty or MqFrameType.EmptyLast
-			if (FrameType == MqFrameType.Empty || FrameType == MqFrameType.EmptyLast) {
+			if (FrameType == MqFrameType.Empty || FrameType == MqFrameType.EmptyLast || FrameType == MqFrameType.Ping) {
 				return new[] { (byte)FrameType };
 			}
 

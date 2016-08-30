@@ -1,9 +1,4 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
-using DtronixMessageQueue.Socket;
+﻿using DtronixMessageQueue.Socket;
 
 namespace DtronixMessageQueue {
 	public class MqSocketConfig : SocketConfig {
@@ -13,5 +8,17 @@ namespace DtronixMessageQueue {
 		/// Need to exclude the header length for a frame.
 		/// </summary>
 		public int FrameBufferSize { get; set; } = 1024 * 4 - MqFrame.HeaderLength;
+
+		/// <summary>
+		/// (Client) 
+		/// Milliseconds between pings.
+		/// </summary>
+		public int PingFrequency { get; set; } = -1;
+
+		/// <summary>
+		/// (Server)
+		/// Max milliseconds since the last received packet before the session is disconnected.
+		/// </summary>
+		public int PingTimeout { get; set; } = 60000;
 	}
 }

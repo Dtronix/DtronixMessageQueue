@@ -1,14 +1,6 @@
 ﻿using System;
 using System.Collections.Concurrent;
-using System.Collections.Generic;
-using System.Diagnostics;
-using System.IO;
-using System.Linq;
-using System.Net;
-using System.Net.Sockets;
-using System.Text;
 using System.Threading;
-using System.Threading.Tasks;
 using DtronixMessageQueue.Socket;
 
 namespace DtronixMessageQueue {
@@ -24,16 +16,43 @@ namespace DtronixMessageQueue {
 		public event EventHandler<IncomingMessageEventArgs> IncomingMessage;
 
 		/// <summary>
+		/// Timer used to verify that the sessions are still connected.
+		/// </summary>
+		private Timer timeout_timer;
+
+		/// <summary>
 		/// Initializes a new instance of a message queue.
 		/// </summary>
 		public MqServer(MqSocketConfig config) : base(config) {
-
+			timeout_timer = new Timer(TimeoutCallback, ConnectedSessions, config.PingFrequency, config.PingFrequency);
 			postmaster = new MqPostmaster {
 				MaxReaders = config.MaxConnections + 1,
 				MaxWriters = config.MaxConnections + 1
 			};
 
 			Setup();
+
+
+		}
+
+		/// <summary>
+		/// Called by the timer to verify that the session is still connected.  If it has timed out, close it.
+		/// </summary>
+		/// <param name="state">Concurrent dictionary of the sessions.</param>
+		private void TimeoutCallback(object state) {
+			var sessions = state as ConcurrentDictionary<Guid, MqSession>;
+			if (sessions.IsEmpty) {
+				return;
+			}
+
+			var timeout_time = DateTime.UtcNow.Subtract(new TimeSpan(0, 0, 0, 0, Config.ConnectionTimeout));
+
+			foreach (var session in sessions.Values) {
+				if (session.LastReceived < timeout_time) {
+					session.CloseConnection(SocketCloseReason.TimeOut);
+				}
+			}
+
 		}
 
 		/// <summary>
@@ -55,6 +74,9 @@ namespace DtronixMessageQueue {
 
 
 		protected override void OnClose(MqSession session, SocketCloseReason reason) {
+			MqSession out_session;
+			ConnectedSessions.TryRemove(session.Id, out out_session);
+
 			session.IncomingMessage -= OnIncomingMessage;
 			session.Dispose();
 			base.OnClose(session, reason);

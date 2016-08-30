@@ -1,10 +1,7 @@
 ﻿using System;
-using System.Diagnostics;
 using System.Net;
 using System.Net.Sockets;
 using System.Threading;
-using DtronixMessageQueue;
-using DtronixMessageQueue.Socket;
 using Xunit;
 using Xunit.Abstractions;
 
@@ -21,7 +18,7 @@ namespace DtronixMessageQueue.Tests {
 
 		public Exception LastException { get; set; }
 
-		public TimeSpan TestTimeout { get; set; } = new TimeSpan(0, 0, 60);
+		public TimeSpan TestTimeout { get; set; } = new TimeSpan(0, 0, 0, 0, 60000);
 
 		public ManualResetEventSlim TestStatus { get; set; } = new ManualResetEventSlim(false);
 
@@ -48,14 +45,15 @@ namespace DtronixMessageQueue.Tests {
 			return port;
 		}
 
-		public void StartAndWait() {
+		public void StartAndWait(bool timeout_error = true, int timeout_length = -1) {
 			Server.Start();
 			Client.Connect();
 
+			timeout_length = timeout_length != -1 ? timeout_length : (int)TestTimeout.TotalMilliseconds;
 
-			TestStatus.Wait(TestTimeout);
+			TestStatus.Wait(new TimeSpan(0, 0, 0, 0, timeout_length));
 
-			if (TestStatus.IsSet == false) {
+			if (timeout_error && TestStatus.IsSet == false) {
 				throw new TimeoutException("Test timed out.");
 			}
 

@@ -1,9 +1,6 @@
 ﻿using System;
-using System.Collections.Generic;
 using System.IO;
 using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
 using Xunit;
 
 namespace DtronixMessageQueue.Tests {
@@ -14,6 +11,8 @@ namespace DtronixMessageQueue.Tests {
 		private MqFrame more_frame;
 		private MqFrameBuilder frame_builder;
 		private MqSocketConfig config = new MqSocketConfig();
+		private MqFrame command_frame;
+		private MqFrame ping_frame;
 
 		public MqFrameBuilderTests() {
 
@@ -22,6 +21,8 @@ namespace DtronixMessageQueue.Tests {
 			empty_frame = new MqFrame(null, MqFrameType.Empty, config);
 			last_frame = new MqFrame(new byte[] {1, 2, 3, 4, 5, 6, 7, 8, 9, 0}, MqFrameType.Last, config);
 			more_frame = new MqFrame(new byte[] { 1, 2, 3, 4, 5, 6, 7, 8, 9, 0 }, MqFrameType.More, config);
+			command_frame = new MqFrame(new byte[] { 1, 2, 3, 4, 5, 6, 7, 8, 9, 0 }, MqFrameType.Command, config);
+			ping_frame = new MqFrame(null, MqFrameType.Ping, config);
 		}
 
 		[Fact]
@@ -54,6 +55,22 @@ namespace DtronixMessageQueue.Tests {
 			var parsed_frame = frame_builder.Frames.Dequeue();
 
 			Utilities.CompareFrame(more_frame, parsed_frame);
+		}
+
+		[Fact]
+		public void FrameBuilder_parses_command_frame() {
+			frame_builder.Write(command_frame.RawFrame(), 0, command_frame.FrameSize);
+			var parsed_frame = frame_builder.Frames.Dequeue();
+
+			Utilities.CompareFrame(command_frame, parsed_frame);
+		}
+
+		[Fact]
+		public void FrameBuilder_parses_ping_frame() {
+			frame_builder.Write(ping_frame.RawFrame(), 0, ping_frame.FrameSize);
+			var parsed_frame = frame_builder.Frames.Dequeue();
+
+			Utilities.CompareFrame(ping_frame, parsed_frame);
 		}
 
 		[Fact]
@@ -102,8 +119,10 @@ namespace DtronixMessageQueue.Tests {
 
 		[Fact]
 		public void FrameBuilder_throws_frame_type_out_of_range() {
+			var max_type_enum = Enum.GetValues(typeof(MqFrameType)).Cast<byte>().Max() + 1;
+
 			Assert.Throws<InvalidDataException>(() => {
-				frame_builder.Write(new byte[] { 6 }, 0, 1);
+				frame_builder.Write(new byte[] { (byte)max_type_enum }, 0, 1);
 			});
 		}
 

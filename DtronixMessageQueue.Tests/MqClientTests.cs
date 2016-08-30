@@ -1,9 +1,5 @@
 ﻿using System;
-using System.Diagnostics;
-using System.Net;
 using System.Threading;
-using System.Threading.Tasks;
-using DtronixMessageQueue;
 using DtronixMessageQueue.Socket;
 using Xunit;
 using Xunit.Abstractions;
@@ -19,7 +15,6 @@ namespace DtronixMessageQueue.Tests {
 		[Theory]
 		[InlineData(1, false)]
 		[InlineData(1, true)]
-		[InlineData(50, true)]
 		public void Client_should_send_data_to_server(int number, bool validate) {
 			var message_source = GenerateRandomMessage(4, 50);
 			int received_messages = 0;
@@ -75,6 +70,45 @@ namespace DtronixMessageQueue.Tests {
 			};
 
 			StartAndWait();
+		}
+
+		[Fact]
+		public void Client_does_not_notify_on_command_frame() {
+			var command_frame = Client.CreateFrame(new byte[21]);
+			command_frame.FrameType = MqFrameType.Command;
+
+			Client.Connected += (sender, args) => {
+				Client.Send(command_frame);
+			};
+
+			Server.IncomingMessage += (sender, args) => {
+				TestStatus.Set();
+			};
+
+			StartAndWait(false, 500);
+
+			if (TestStatus.IsSet) {
+				throw new Exception("Server read command frame.");
+			}
+		}
+
+		[Fact]
+		public void Client_does_not_notify_on_ping_frame() {
+			var command_frame = Client.CreateFrame(null, MqFrameType.Ping);
+
+			Client.Connected += (sender, args) => {
+				Client.Send(command_frame);
+			};
+
+			Server.IncomingMessage += (sender, args) => {
+				TestStatus.Set();
+			};
+
+			StartAndWait(false, 500);
+
+			if (TestStatus.IsSet) {
+				throw new Exception("Server read command frame.");
+			}
 		}
 
 

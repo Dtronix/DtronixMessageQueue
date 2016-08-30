@@ -1,10 +1,6 @@
 ﻿using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Net;
-using System.Net.Sockets;
-using System.Text;
-using System.Threading.Tasks;
+using System.Collections.Concurrent;
+using System.Threading;
 using DtronixMessageQueue.Socket;
 
 
@@ -25,12 +21,18 @@ namespace DtronixMessageQueue {
 		/// </summary>
 		public event EventHandler<IncomingMessageEventArgs> IncomingMessage;
 
+		/// <summary>
+		/// Timer used to verify that the sessions are still connected.
+		/// </summary>
+		private Timer timeout_timer;
+
 
 		/// <summary>
 		/// Initializes a new instance of a message queue.
 		/// </summary>
 		public MqClient(MqSocketConfig config) : base(config) {
 			config.MaxConnections = 1;
+			timeout_timer = new Timer(TimeoutCallback);
 
 			postmaster = new MqPostmaster {
 				MaxReaders = 2,
@@ -38,6 +40,30 @@ namespace DtronixMessageQueue {
 			};
 
 			Setup();
+		}
+
+		protected override void OnConnect(MqSession session) {
+			// Start the timeout timer.
+			var ping_frequency = ((MqSocketConfig) Config).PingFrequency;
+			timeout_timer.Change(ping_frequency / 2, ping_frequency);
+
+			base.OnConnect(session);
+		}
+
+		protected override void OnClose(MqSession session, SocketCloseReason reason) {
+			// Stop the timeout timer.
+			timeout_timer.Change(Timeout.Infinite, Timeout.Infinite);
+
+			base.OnClose(session, reason);
+		}
+
+
+		/// <summary>
+		/// Called by the timer to verify that the session is still connected.  If it has timed out, close it.
+		/// </summary>
+		/// <param name="state">Concurrent dictionary of the sessions.</param>
+		private void TimeoutCallback(object state) {
+			Session.Send(CreateFrame(null, MqFrameType.Ping));
 		}
 
 		/// <summary>
@@ -55,6 +81,14 @@ namespace DtronixMessageQueue {
 			session.IncomingMessage += OnIncomingMessage;
 			session.BaseSocket = this;
 			return session;
+		}
+
+		/// <summary>
+		/// Adds a frame to the outbox to be processed.
+		/// </summary>
+		/// <param name="frame">Frame to send.</param>
+		public void Send(MqFrame frame) {
+			Send(new MqMessage(frame));
 		}
 
 		/// <summary>
@@ -77,16 +111,13 @@ namespace DtronixMessageQueue {
 			Session.Dispose();
 		}
 
-		public override MqFrame CreateFrame(byte[] bytes) {
-			return new MqFrame(bytes, (MqSocketConfig)Config);
-		}
-
 		/// <summary>
 		/// Disposes of all resources associated with this client.
 		/// </summary>
 		public void Dispose() {
 			postmaster.Dispose();
-			
+			timeout_timer.Dispose();
+
 		}
 
 	}

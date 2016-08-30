@@ -1,8 +1,4 @@
 ﻿using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
 using Xunit;
 
 namespace DtronixMessageQueue.Tests {
@@ -11,6 +7,7 @@ namespace DtronixMessageQueue.Tests {
 		private byte[] actual_bytes;
 		private byte[] expected_bytes;
 		MqSocketConfig config = new MqSocketConfig();
+
 		public MqFrameTests() {
 		}
 
@@ -41,6 +38,24 @@ namespace DtronixMessageQueue.Tests {
 		public void Frame_creates_empty_last_frame() {
 			expected_bytes = new byte[] {4};
 			actual_frame = new MqFrame(null, MqFrameType.EmptyLast, config);
+			actual_bytes = actual_frame.RawFrame();
+
+			Assert.Equal(expected_bytes, actual_bytes);
+		}
+
+		[Fact]
+		public void Frame_creates_command_frame() {
+			expected_bytes = new byte[] {5, 1, 0, 1};
+			actual_frame = new MqFrame(new byte[] {1}, MqFrameType.Command, config);
+			actual_bytes = actual_frame.RawFrame();
+
+			Assert.Equal(expected_bytes, actual_bytes);
+		}
+
+		[Fact]
+		public void Frame_creates_ping_frame() {
+			expected_bytes = new byte[] { 6 };
+			actual_frame = new MqFrame(null, MqFrameType.Ping, config);
 			actual_bytes = actual_frame.RawFrame();
 
 			Assert.Equal(expected_bytes, actual_bytes);
@@ -153,7 +168,7 @@ namespace DtronixMessageQueue.Tests {
 		public void Frame_reads_bool() {
 			actual_frame = new MqFrame(new byte[1], MqFrameType.Last, config);
 			actual_frame.Write(0, true);
-			
+
 			Assert.Equal(true, actual_frame.ReadBoolean(0));
 		}
 
@@ -179,9 +194,9 @@ namespace DtronixMessageQueue.Tests {
 
 		[Fact]
 		public void Frame_writes_sbyte_negative() {
-			expected_bytes = new byte[] { 3, 1, 0, 155 };
+			expected_bytes = new byte[] {3, 1, 0, 155};
 			actual_frame = new MqFrame(new byte[1], MqFrameType.Last, config);
-			actual_frame.Write(0, (sbyte)-101);
+			actual_frame.Write(0, (sbyte) -101);
 
 			actual_bytes = actual_frame.RawFrame();
 
@@ -190,9 +205,9 @@ namespace DtronixMessageQueue.Tests {
 
 		[Fact]
 		public void Frame_writes_sbyte_position() {
-			expected_bytes = new byte[] { 3, 2, 0, 0, 101 };
+			expected_bytes = new byte[] {3, 2, 0, 0, 101};
 			actual_frame = new MqFrame(new byte[2], MqFrameType.Last, config);
-			actual_frame.Write(1, (sbyte)101);
+			actual_frame.Write(1, (sbyte) 101);
 
 			actual_bytes = actual_frame.RawFrame();
 
@@ -201,7 +216,7 @@ namespace DtronixMessageQueue.Tests {
 
 		[Fact]
 		public void Frame_reads_sbyte() {
-			var value = (sbyte)101;
+			var value = (sbyte) 101;
 			actual_frame = new MqFrame(new byte[1], MqFrameType.Last, config);
 			actual_frame.Write(0, value);
 
@@ -210,7 +225,7 @@ namespace DtronixMessageQueue.Tests {
 
 		[Fact]
 		public void Frame_reads_sbyte_position() {
-			var value = (sbyte)101;
+			var value = (sbyte) 101;
 			actual_frame = new MqFrame(new byte[2], MqFrameType.Last, config);
 			actual_frame.Write(1, value);
 
@@ -220,9 +235,9 @@ namespace DtronixMessageQueue.Tests {
 
 		[Fact]
 		public void Frame_writes_char() {
-			expected_bytes = new byte[] { 3, 1, 0, 68 };
+			expected_bytes = new byte[] {3, 1, 0, 68};
 			actual_frame = new MqFrame(new byte[1], MqFrameType.Last, config);
-			actual_frame.Write(0, (char)'D');
+			actual_frame.Write(0, (char) 'D');
 
 			actual_bytes = actual_frame.RawFrame();
 
@@ -231,9 +246,9 @@ namespace DtronixMessageQueue.Tests {
 
 		[Fact]
 		public void Frame_writes_char_position() {
-			expected_bytes = new byte[] { 3, 2, 0, 0, 68 };
+			expected_bytes = new byte[] {3, 2, 0, 0, 68};
 			actual_frame = new MqFrame(new byte[2], MqFrameType.Last, config);
-			actual_frame.Write(1, (char)'D');
+			actual_frame.Write(1, (char) 'D');
 
 			actual_bytes = actual_frame.RawFrame();
 
@@ -242,7 +257,7 @@ namespace DtronixMessageQueue.Tests {
 
 		[Fact]
 		public void Frame_reads_char() {
-			var value = (char)'D';
+			var value = (char) 'D';
 			actual_frame = new MqFrame(new byte[1], MqFrameType.Last, config);
 			actual_frame.Write(0, value);
 
@@ -251,7 +266,7 @@ namespace DtronixMessageQueue.Tests {
 
 		[Fact]
 		public void Frame_reads_char_position() {
-			var value = (char)'D';
+			var value = (char) 'D';
 			actual_frame = new MqFrame(new byte[2], MqFrameType.Last, config);
 			actual_frame.Write(1, value);
 
@@ -300,7 +315,7 @@ namespace DtronixMessageQueue.Tests {
 
 		[Fact]
 		public void Frame_reads_short_position() {
-			var value = (short)24157;
+			var value = (short) 24157;
 			actual_frame = new MqFrame(new byte[3], MqFrameType.Last, config);
 			actual_frame.Write(1, value);
 
@@ -329,7 +344,7 @@ namespace DtronixMessageQueue.Tests {
 
 		[Fact]
 		public void Frame_reads_ushort() {
-			var value = (ushort)55231;
+			var value = (ushort) 55231;
 			actual_frame = new MqFrame(new byte[2], MqFrameType.Last, config);
 			actual_frame.Write(0, value);
 
@@ -338,7 +353,7 @@ namespace DtronixMessageQueue.Tests {
 
 		[Fact]
 		public void Frame_reads_ushort_position() {
-			var value = (ushort)55231;
+			var value = (ushort) 55231;
 			actual_frame = new MqFrame(new byte[3], MqFrameType.Last, config);
 			actual_frame.Write(1, value);
 
@@ -378,7 +393,7 @@ namespace DtronixMessageQueue.Tests {
 
 		[Fact]
 		public void Frame_reads_int() {
-			var value = (int)1234567890;
+			var value = (int) 1234567890;
 			actual_frame = new MqFrame(new byte[4], MqFrameType.Last, config);
 			actual_frame.Write(0, value);
 
@@ -387,7 +402,7 @@ namespace DtronixMessageQueue.Tests {
 
 		[Fact]
 		public void Frame_reads_int_position() {
-			var value = (int)1234567890;
+			var value = (int) 1234567890;
 			actual_frame = new MqFrame(new byte[5], MqFrameType.Last, config);
 			actual_frame.Write(1, value);
 
@@ -417,7 +432,7 @@ namespace DtronixMessageQueue.Tests {
 
 		[Fact]
 		public void Frame_reads_uint() {
-			var value = (uint)4244962215;
+			var value = (uint) 4244962215;
 			actual_frame = new MqFrame(new byte[4], MqFrameType.Last, config);
 			actual_frame.Write(0, value);
 
@@ -426,7 +441,7 @@ namespace DtronixMessageQueue.Tests {
 
 		[Fact]
 		public void Frame_reads_uint_position() {
-			var value = (uint)4244962215;
+			var value = (uint) 4244962215;
 			actual_frame = new MqFrame(new byte[5], MqFrameType.Last, config);
 			actual_frame.Write(1, value);
 
@@ -466,7 +481,7 @@ namespace DtronixMessageQueue.Tests {
 
 		[Fact]
 		public void Frame_reads_long() {
-			var value = (long)4244962215;
+			var value = (long) 4244962215;
 			actual_frame = new MqFrame(new byte[8], MqFrameType.Last, config);
 			actual_frame.Write(0, value);
 
@@ -475,7 +490,7 @@ namespace DtronixMessageQueue.Tests {
 
 		[Fact]
 		public void Frame_reads_long_position() {
-			var value = (long)4244962215;
+			var value = (long) 4244962215;
 			actual_frame = new MqFrame(new byte[9], MqFrameType.Last, config);
 			actual_frame.Write(1, value);
 
@@ -506,7 +521,7 @@ namespace DtronixMessageQueue.Tests {
 
 		[Fact]
 		public void Frame_reads_ulong() {
-			var value = (ulong)18146744003702551615;
+			var value = (ulong) 18146744003702551615;
 			actual_frame = new MqFrame(new byte[8], MqFrameType.Last, config);
 			actual_frame.Write(0, value);
 
@@ -515,7 +530,7 @@ namespace DtronixMessageQueue.Tests {
 
 		[Fact]
 		public void Frame_reads_ulong_position() {
-			var value = (ulong)18146744003702551615;
+			var value = (ulong) 18146744003702551615;
 			actual_frame = new MqFrame(new byte[9], MqFrameType.Last, config);
 			actual_frame.Write(1, value);
 
@@ -525,9 +540,9 @@ namespace DtronixMessageQueue.Tests {
 
 		[Fact]
 		public void Frame_writes_float() {
-			expected_bytes = new byte[] { 3, 4, 0, 121, 233, 246, 66 };
+			expected_bytes = new byte[] {3, 4, 0, 121, 233, 246, 66};
 			actual_frame = new MqFrame(new byte[4], MqFrameType.Last, config);
-			actual_frame.Write(0, (float)123.456);
+			actual_frame.Write(0, (float) 123.456);
 
 			actual_bytes = actual_frame.RawFrame();
 
@@ -536,9 +551,9 @@ namespace DtronixMessageQueue.Tests {
 
 		[Fact]
 		public void Frame_writes_float_position() {
-			expected_bytes = new byte[] { 3, 5, 0, 0, 121, 233, 246, 66 };
+			expected_bytes = new byte[] {3, 5, 0, 0, 121, 233, 246, 66};
 			actual_frame = new MqFrame(new byte[5], MqFrameType.Last, config);
-			actual_frame.Write(1, (float)123.456);
+			actual_frame.Write(1, (float) 123.456);
 
 			actual_bytes = actual_frame.RawFrame();
 
@@ -547,7 +562,7 @@ namespace DtronixMessageQueue.Tests {
 
 		[Fact]
 		public void Frame_reads_float() {
-			var value = (float)123.456;
+			var value = (float) 123.456;
 			actual_frame = new MqFrame(new byte[4], MqFrameType.Last, config);
 			actual_frame.Write(0, value);
 
@@ -556,7 +571,7 @@ namespace DtronixMessageQueue.Tests {
 
 		[Fact]
 		public void Frame_reads_float_position() {
-			var value = (float)123.456;
+			var value = (float) 123.456;
 			actual_frame = new MqFrame(new byte[5], MqFrameType.Last, config);
 			actual_frame.Write(1, value);
 
@@ -587,7 +602,7 @@ namespace DtronixMessageQueue.Tests {
 
 		[Fact]
 		public void Frame_reads_double() {
-			var value = (double)12345.67891;
+			var value = (double) 12345.67891;
 			actual_frame = new MqFrame(new byte[8], MqFrameType.Last, config);
 			actual_frame.Write(0, value);
 
@@ -596,7 +611,7 @@ namespace DtronixMessageQueue.Tests {
 
 		[Fact]
 		public void Frame_reads_double_position() {
-			var value = (double)12345.67891;
+			var value = (double) 12345.67891;
 			actual_frame = new MqFrame(new byte[9], MqFrameType.Last, config);
 			actual_frame.Write(1, value);
 
@@ -628,7 +643,7 @@ namespace DtronixMessageQueue.Tests {
 
 		[Fact]
 		public void Frame_reads_decimal() {
-			var value = (decimal)9123456789123456789.9123456789123456789;
+			var value = (decimal) 9123456789123456789.9123456789123456789;
 			actual_frame = new MqFrame(new byte[16], MqFrameType.Last, config);
 			actual_frame.Write(0, value);
 
@@ -637,7 +652,7 @@ namespace DtronixMessageQueue.Tests {
 
 		[Fact]
 		public void Frame_reads_decimal_position() {
-			var value = (decimal)9123456789123456789.9123456789123456789;
+			var value = (decimal) 9123456789123456789.9123456789123456789;
 			actual_frame = new MqFrame(new byte[17], MqFrameType.Last, config);
 			actual_frame.Write(1, value);
 
@@ -658,8 +673,8 @@ namespace DtronixMessageQueue.Tests {
 		[Fact]
 		public void Frame_writes_ascii_text_prepended_with_size() {
 			expected_bytes = new byte[] {
-				3, 28, 0, 
-				26, 0, 
+				3, 28, 0,
+				26, 0,
 				97, 98, 99, 100, 101, 102, 103, 104, 105, 106, 107, 108, 109, 110, 111, 112, 113, 114, 115, 116,
 				117, 118, 119, 120, 121, 122
 			};
@@ -746,7 +761,7 @@ namespace DtronixMessageQueue.Tests {
 				value += value;
 			}
 			actual_frame = new MqFrame(new byte[config.FrameBufferSize], MqFrameType.Last, config);
-			
+
 			Assert.Throws<InvalidOperationException>(() => actual_frame.WriteAscii(0, value, false));
 		}
 

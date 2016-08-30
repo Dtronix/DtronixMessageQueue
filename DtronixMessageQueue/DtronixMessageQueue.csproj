@@ -57,6 +57,7 @@
     <Compile Include="Socket\SocketConfig.cs" />
     <Compile Include="Socket\SocketServer.cs" />
     <Compile Include="Socket\SocketSession.cs" />
+    <Compile Include="Utilities.cs" />
     <Content Include="DtronixMessageQueue.nuspec">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </Content>
