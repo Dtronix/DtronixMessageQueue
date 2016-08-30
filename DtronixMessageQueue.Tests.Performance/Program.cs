@@ -238,7 +238,7 @@ namespace DtronixMessageQueue.Tests.Performance {
 			};
 
 
-			Console.WriteLine("FrameBufferSize: {0}; SendAndReceiveBufferSize: {1}", config.FrameBufferSize, config.SendAndReceiveBufferSize);
+			Console.WriteLine("FrameBufferSize: {0}; SendAndReceiveBufferSize: {1}\r\n", config.FrameBufferSize, config.SendAndReceiveBufferSize);
 
 			var small_message = new MqMessage {
 				new MqFrame(RandomBytes(50), MqFrameType.More, config),
