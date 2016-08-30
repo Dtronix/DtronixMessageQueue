@@ -5,6 +5,13 @@ DtronixMessageQueue is a small .net TCP/UDP message queueing system using the mi
 The purpose of this project is to provide a simple transport protocol for multiple systems, mostly being the DtronixRpc system.
 
 ### Performance
+Sample performance tests.  Numbers are averages from 5 loops of the performance test program. [Full Performance Test](DtronixMessageQueue.Tests.Performance/Results/i5-3470-8GB-16KB.md)
+
+|   Build |   Messages | Msg Bytes | Milliseconds |        MPS |     MBps |
+|---------|------------|-----------|--------------|------------|----------|
+| Release |  1,000,000 |       200 |        1,253 |    798,200 |   159.64 |
+| Release |    100,000 |     2,000 |          638 |    156,744 |   313.49 |
+| Release |     10,000 |    60,048 |        1,868 |      5,352 |   321.40 |
 
 [Laptop Intel i7-6500U 16GB](DtronixMessageQueue.Tests.Performance/Results/i7-6500U-16GB.md)
 
