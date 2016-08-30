@@ -1,16 +1,10 @@
 ﻿using System;
 using System.Collections.Concurrent;
-using System.Collections.Generic;
 using System.Diagnostics;
-using System.IO;
-using System.Linq;
 using System.Management;
 using System.Reflection;
 using System.Runtime.InteropServices;
 using System.Threading;
-using System.Threading.Tasks;
-using DtronixMessageQueue;
-using DtronixMessageQueue.Socket;
 
 namespace DtronixMessageQueue.Tests.Performance {
 	class Program {
@@ -64,8 +58,10 @@ namespace DtronixMessageQueue.Tests.Performance {
 				StartServer(total_messages, total_clients);
 
 			}else if (mode == "single-process") {
-				WriteSysInfo();
-				InProcessTest();
+				using (var cc = new ConsoleCopy("MessageQueuePerformanceTest.txt")) {
+					WriteSysInfo();
+					InProcessTest();
+				}
 
 			}
 
@@ -234,7 +230,16 @@ namespace DtronixMessageQueue.Tests.Performance {
 
 
 		static void InProcessTest() {
-			var config = new MqSocketConfig();
+			var config = new MqSocketConfig {
+				Ip = "127.0.0.1",
+				Port = 2828,
+				SendAndReceiveBufferSize = 8000,
+				FrameBufferSize = 8000 - MqFrame.HeaderLength
+			};
+
+
+			Console.WriteLine("FrameBufferSize: {0}; SendAndReceiveBufferSize: {1}\r\n", config.FrameBufferSize, config.SendAndReceiveBufferSize);
+
 			var small_message = new MqMessage {
 				new MqFrame(RandomBytes(50), MqFrameType.More, config),
 				new MqFrame(RandomBytes(50), MqFrameType.More, config),
@@ -242,7 +247,7 @@ namespace DtronixMessageQueue.Tests.Performance {
 				new MqFrame(RandomBytes(50), MqFrameType.Last, config)
 			};
 
-			MqInProcessPerformanceTests(1000000, 5, small_message);
+			MqInProcessPerformanceTests(1000000, 5, small_message, config);
 
 			var medimum_message = new MqMessage {
 				new MqFrame(RandomBytes(500), MqFrameType.More, config),
@@ -251,7 +256,7 @@ namespace DtronixMessageQueue.Tests.Performance {
 				new MqFrame(RandomBytes(500), MqFrameType.Last, config)
 			};
 
-			MqInProcessPerformanceTests(100000, 5, medimum_message);
+			MqInProcessPerformanceTests(100000, 5, medimum_message, config);
 
 			var large_message = new MqMessage();
 
@@ -259,18 +264,15 @@ namespace DtronixMessageQueue.Tests.Performance {
 				large_message.Add(new MqFrame(RandomBytes(3000), MqFrameType.More, config));
 			}
 
-			MqInProcessPerformanceTests(10000, 5, large_message);
+			MqInProcessPerformanceTests(10000, 5, large_message, config);
 
 			Console.WriteLine("Performance complete");
 
 			Console.ReadLine();
 		}
 
-		private static void MqInProcessPerformanceTests(int runs, int loops, MqMessage message) {
-			var server = new MqServer(new MqSocketConfig {
-				Ip = "127.0.0.1",
-				Port = 2828
-			});
+		private static void MqInProcessPerformanceTests(int runs, int loops, MqMessage message, MqSocketConfig config) {
+			var server = new MqServer(config);
 			server.Start();
 
 			double[] total_values = { 0, 0, 0 };
@@ -280,10 +282,7 @@ namespace DtronixMessageQueue.Tests.Performance {
 			var wait = new AutoResetEvent(false);
 			var complete_test = new AutoResetEvent(false);
 
-			var client = new MqClient(new MqSocketConfig() {
-				Ip = "127.0.0.1",
-				Port = 2828
-			});
+			var client = new MqClient(config);
 
 			Console.WriteLine("|   Build |   Messages | Msg Bytes | Milliseconds |        MPS |     MBps |");
 			Console.WriteLine("|---------|------------|-----------|--------------|------------|----------|");

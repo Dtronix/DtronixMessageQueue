@@ -1,8 +1,4 @@
-﻿using System;
-using System.IO;
-using System.Threading;
-using Xunit;
-using Xunit.Abstractions;
+﻿using Xunit.Abstractions;
 
 namespace DtronixMessageQueue.Tests {
 

@@ -1,10 +1,6 @@
 ﻿using System;
-using System.Collections.Generic;
-using System.Linq;
 using System.Net.Sockets;
-using System.Text;
 using System.Threading;
-using System.Threading.Tasks;
 
 namespace DtronixMessageQueue.Socket {
 
@@ -64,16 +60,16 @@ namespace DtronixMessageQueue.Socket {
 		/// </summary>
 		public State CurrentState { get; protected set; }
 
-		private DateTime last_received;
-
 
 		/// <summary>
 		/// Internal framebuilder for this instance.
 		/// </summary>
 		protected MqFrameBuilder frame_builder;
 
+		private DateTime last_received = DateTime.UtcNow;
+
 		/// <summary>
-		/// Last time the session received anything from the socket.
+		/// Last time the session received anything from the socket.  Time in UTC.
 		/// </summary>
 		public DateTime LastReceived => last_received;
 

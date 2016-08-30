@@ -2,12 +2,22 @@
 using System.Collections.Generic;
 using System.Net.Sockets;
 
-namespace DtronixMessageQueue {
+namespace DtronixMessageQueue.Socket {
 	/// <summary>
 	/// Represents a collection of reusable SocketAsyncEventArgs objects.  
 	/// </summary>
 	public class SocketAsyncEventArgsPool {
+
+		/// <summary>
+		/// Preconfigured stack of event args to use.
+		/// </summary>
 		private readonly Stack<SocketAsyncEventArgs> pool;
+
+
+		/// <summary>
+		/// The number of SocketAsyncEventArgs instances in the pool
+		/// </summary>
+		public int Count => pool.Count;
 
 		/// <summary>
 		/// Initializes the object pool to the specified size
@@ -39,10 +49,5 @@ namespace DtronixMessageQueue {
 				return pool.Pop();
 			}
 		}
-
-		/// <summary>
-		/// The number of SocketAsyncEventArgs instances in the pool
-		/// </summary>
-		public int Count => pool.Count;
 	}
 }

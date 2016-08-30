@@ -18,12 +18,17 @@ namespace DtronixMessageQueue.Socket {
 		/// </summary>
 		private readonly Semaphore connection_limit;
 
+		/// <summary>
+		/// True if the server is listening and accepting connections.  False if the server is closed.
+		/// </summary>
+		public override bool IsRunning => is_stopped == false && (MainSocket?.IsBound ?? false);
 
 		/// <summary>
 		/// Dictionary of all connected clients.
 		/// </summary>
-		private readonly ConcurrentDictionary<Guid, TSession> connected_sessions = new ConcurrentDictionary<Guid, TSession>();
+		protected readonly ConcurrentDictionary<Guid, TSession> ConnectedSessions = new ConcurrentDictionary<Guid, TSession>();
 
+		private bool is_stopped = false;
 
 		/// <summary>
 		/// Creates a socket server with the specified configurations.
@@ -95,7 +100,7 @@ namespace DtronixMessageQueue.Socket {
 			session.Closed += RemoveClientEvent;
 
 			// Add this session to the list of connected sessions.
-			connected_sessions.TryAdd(session.Id, session);
+			ConnectedSessions.TryAdd(session.Id, session);
 
 			// Invoke the events.
 			Task.Run(() => OnConnect(session));
@@ -111,10 +116,9 @@ namespace DtronixMessageQueue.Socket {
 		/// <param name="e">Session events.</param>
 		private void RemoveClientEvent(object sender, SessionClosedEventArgs<SocketSession> e) {
 			TSession session_out;
-			connected_sessions.TryRemove(e.Session.Id, out session_out);
+			ConnectedSessions.TryRemove(e.Session.Id, out session_out);
 			e.Session.Closed -= RemoveClientEvent;
 		}
-
 
 		/// <summary>
 		/// Creates a frame with the specified bytes and the current configurations.
@@ -125,20 +129,34 @@ namespace DtronixMessageQueue.Socket {
 			return new MqFrame(bytes, (MqSocketConfig)Config);
 		}
 
+		/// <summary>
+		/// Creates a frame with the specified bytes and the current configurations.
+		/// </summary>
+		/// <param name="bytes">Bytes to put in the frame.</param>
+		/// <param name="type">Type of frame to create.</param>
+		/// <returns>Configured frame.</returns>
+		public override MqFrame CreateFrame(byte[] bytes, MqFrameType type) {
+			return new MqFrame(bytes, type, (MqSocketConfig)Config);
+		}
+
+
 
 		/// <summary>
 		/// Terminates this server and notify all connected clients.
 		/// </summary>
 		public void Stop() {
-			TSession[] sessions = new TSession[connected_sessions.Values.Count];
-			connected_sessions.Values.CopyTo(sessions, 0);
+			if (is_stopped) {
+				return;
+			}
+			TSession[] sessions = new TSession[ConnectedSessions.Values.Count];
+			ConnectedSessions.Values.CopyTo(sessions, 0);
 
 			foreach (var session in sessions) {
 				session.CloseConnection(SocketCloseReason.ServerClosing);
 			}
 
-			//MainSocket.Shutdown(SocketShutdown.Both);
 			MainSocket.Close();
+			is_stopped = true;
 		}
 	}
 

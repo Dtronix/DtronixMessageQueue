@@ -1,10 +1,6 @@
-﻿using System;
-using System.Collections;
+﻿using System.Collections;
 using System.Collections.Generic;
-using System.IO;
 using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
 
 namespace DtronixMessageQueue {
 
@@ -61,7 +57,8 @@ namespace DtronixMessageQueue {
 
 			// Set frame's FrameType appropriately.
 			foreach (var frame in mq_frames) {
-				if (frame.FrameType != MqFrameType.Command) {
+				if (frame.FrameType != MqFrameType.Command && 
+					frame.FrameType != MqFrameType.Ping) {
 					frame.FrameType = frame.DataLength == 0 ? MqFrameType.Empty : MqFrameType.More;
 				}
 			}

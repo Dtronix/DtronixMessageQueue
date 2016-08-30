@@ -2,15 +2,22 @@
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
-using System.Text;
-using System.Threading;
-using System.Threading.Tasks;
 
 namespace DtronixMessageQueue {
+
+	/// <summary>
+	/// Class to parse raw byte arrays into frames.
+	/// </summary>
 	public class MqFrameBuilder : IDisposable {
 
+		/// <summary>
+		/// Byte buffer used to maintain and parse the passed buffers.
+		/// </summary>
 		private readonly byte[] buffer;
 
+		/// <summary>
+		/// Data for this frame
+		/// </summary>
 		private byte[] current_frame_data;
 		private MqFrameType current_frame_type;
 
@@ -120,7 +127,9 @@ namespace DtronixMessageQueue {
 					current_frame_type = (MqFrameType)frame_type_bytes[0];
 				}
 
-				if (current_frame_type == MqFrameType.Empty || current_frame_type == MqFrameType.EmptyLast) {
+				if (current_frame_type == MqFrameType.Empty ||
+					current_frame_type == MqFrameType.EmptyLast ||
+					current_frame_type == MqFrameType.Ping) {
 					EnqueueAndReset();
 					break;
 				}

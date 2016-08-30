@@ -1,7 +1,5 @@
 ﻿using System;
-using System.Collections.Concurrent;
 using System.Net.Sockets;
-using System.Threading;
 
 namespace DtronixMessageQueue.Socket {
 	/// <summary>
@@ -10,6 +8,11 @@ namespace DtronixMessageQueue.Socket {
 	/// <typeparam name="TSession">Session type for this</typeparam>
 	public abstract class SocketBase<TSession>
 		where TSession : SocketSession, new() {
+
+		/// <summary>
+		/// True if the socket is connected/listening.
+		/// </summary>
+		public abstract bool IsRunning { get; }
 
 		/// <summary>
 		/// This event fires when a connection has been established.
@@ -109,5 +112,7 @@ namespace DtronixMessageQueue.Socket {
 
 
 		public abstract MqFrame CreateFrame(byte[] bytes);
+
+		public abstract MqFrame CreateFrame(byte[] bytes, MqFrameType type);
 	}
 }
