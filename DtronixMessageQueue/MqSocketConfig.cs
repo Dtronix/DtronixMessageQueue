@@ -11,7 +11,7 @@ namespace DtronixMessageQueue {
 
 		/// <summary>
 		/// (Client) 
-		/// Milliseconds between pings.
+		/// Milliseconds between pings.  -1 Disables pings.
 		/// </summary>
 		public int PingFrequency { get; set; } = -1;
 
@@ -20,5 +20,15 @@ namespace DtronixMessageQueue {
 		/// Max milliseconds since the last received packet before the session is disconnected.
 		/// </summary>
 		public int PingTimeout { get; set; } = 60000;
+
+
+		/// <summary>
+		/// (Server)
+		/// Max number of workers used to read/write.
+		/// </summary>
+		/// <remarks>
+		/// Value of 20 would make a maximum of 20 readers and 20 writers.  Total of 40 workers.
+		/// </remarks>
+		public int MaxReadWriteWorkers { get; set; } = 20;
 	}
 }

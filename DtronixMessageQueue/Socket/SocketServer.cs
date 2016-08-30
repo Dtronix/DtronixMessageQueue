@@ -28,7 +28,10 @@ namespace DtronixMessageQueue.Socket {
 		/// </summary>
 		protected readonly ConcurrentDictionary<Guid, TSession> ConnectedSessions = new ConcurrentDictionary<Guid, TSession>();
 
-		private bool is_stopped = false;
+		/// <summary>
+		/// Set to true of this socket is stopped.
+		/// </summary>
+		private bool is_stopped = true;
 
 		/// <summary>
 		/// Creates a socket server with the specified configurations.
@@ -44,7 +47,7 @@ namespace DtronixMessageQueue.Socket {
 		public void Start() {
 			var ip = IPAddress.Parse(Config.Ip);
 			var local_end_point = new IPEndPoint(ip, Config.Port);
-			if (MainSocket != null && MainSocket.IsBound) {
+			if (is_stopped == false) {
 				throw new InvalidOperationException("Server is already running.");
 			}
 
@@ -57,6 +60,7 @@ namespace DtronixMessageQueue.Socket {
 
 			// post accepts on the listening socket
 			StartAccept(null);
+			is_stopped = false;
 		}
 
 		/// <summary>
@@ -126,7 +130,7 @@ namespace DtronixMessageQueue.Socket {
 		/// <param name="bytes">Bytes to put in the frame.</param>
 		/// <returns>Configured frame.</returns>
 		public override MqFrame CreateFrame(byte[] bytes) {
-			return new MqFrame(bytes, (MqSocketConfig)Config);
+			return Utilities.CreateFrame(bytes, MqFrameType.Unset, (MqSocketConfig)Config);
 		}
 
 		/// <summary>
@@ -136,7 +140,7 @@ namespace DtronixMessageQueue.Socket {
 		/// <param name="type">Type of frame to create.</param>
 		/// <returns>Configured frame.</returns>
 		public override MqFrame CreateFrame(byte[] bytes, MqFrameType type) {
-			return new MqFrame(bytes, type, (MqSocketConfig)Config);
+			return Utilities.CreateFrame(bytes, type, (MqSocketConfig)Config);
 		}
 
 

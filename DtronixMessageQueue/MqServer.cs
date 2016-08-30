@@ -26,10 +26,7 @@ namespace DtronixMessageQueue {
 		public MqServer(MqSocketConfig config) : base(config) {
 			timeout_timer = new Timer(TimeoutCallback, ConnectedSessions, 0, config.PingTimeout);
 
-			postmaster = new MqPostmaster {
-				MaxReaders = config.MaxConnections + 1,
-				MaxWriters = config.MaxConnections + 1
-			};
+			postmaster = new MqPostmaster(config);
 
 			Setup();
 

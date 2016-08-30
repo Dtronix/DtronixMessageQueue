@@ -3,28 +3,69 @@ using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Threading;
 
-//using NLog;
-
 namespace DtronixMessageQueue {
+
+	/// <summary>
+	/// Postmaster to handle worker creation/deletion and parsing of all incoming and outgoing messages.
+	/// </summary>
 	public class MqPostmaster : IDisposable {
-		//public int MaxFrameSize { get; }
+
+		/// <summary>
+		/// Internal worker to review the current work being done.
+		/// </summary>
 		private readonly MqWorker supervisor;
 
+		/// <summary>
+		/// Dictionary to prevent multiple writes occurring on the same session concurrently.
+		/// </summary>
 		private readonly ConcurrentDictionary<MqSession, bool> ongoing_write_operations = new ConcurrentDictionary<MqSession, bool>();
+
+		/// <summary>
+		/// Collection used to hold onto sessions pending write operations.
+		/// </summary>
 		private readonly BlockingCollection<MqSession> write_operations = new BlockingCollection<MqSession>();
+
+		/// <summary>
+		/// List of all write workers.
+		/// </summary>
 		private readonly List<MqWorker> write_workers = new List<MqWorker>();
 
-		public int TotalWriters => write_workers.Count;
-		public int TotalReaders => read_workers.Count;
-
-		public int MaxWriters { get; set; } = 0;
-		public int MaxReaders { get; set; } = 0;
-
+		/// <summary>
+		/// Dictionary to prevent multiple reads occurring on the same session concurrently.
+		/// </summary>
 		private readonly ConcurrentDictionary<MqSession, bool> ongoing_read_operations = new ConcurrentDictionary<MqSession, bool>();
+
+		/// <summary>
+		/// Collection used to hold onto sessions pending read operations.
+		/// </summary>
 		private readonly BlockingCollection<MqSession> read_operations = new BlockingCollection<MqSession>();
+
+		/// <summary>
+		/// List of all read workers.
+		/// </summary>
 		private readonly List<MqWorker> read_workers = new List<MqWorker>();
 
-		public MqPostmaster() {
+		/// <summary>
+		/// Current number of all writer workers.
+		/// </summary>
+		public int TotalWriters => write_workers.Count;
+
+		/// <summary>
+		/// Current number of all reader workers.
+		/// </summary>
+		public int TotalReaders => read_workers.Count;
+
+		/// <summary>
+		/// Configurations for this socket.
+		/// </summary>
+		private readonly MqSocketConfig config;
+
+		/// <summary>
+		/// Creates a new postmaster instance to handle reading and writing of all sessions.
+		/// </summary>
+		public MqPostmaster(MqSocketConfig config) {
+			this.config = config;
+
 			// Add a supervisor to review when it is needed to increase or decrease the worker numbers.
 			supervisor = new MqWorker(SupervisorWork, "postmaster_supervisor");
 
@@ -36,32 +77,31 @@ namespace DtronixMessageQueue {
 			supervisor.Start();
 		}
 
+		/// <summary>
+		/// Supervisor method to review status of all workers.
+		/// Spawns or removes threads depending on workload.
+		/// </summary>
+		/// <param name="worker">Worker to review.</param>
 		private void SupervisorWork(MqWorker worker) {
 			while (worker.Token.IsCancellationRequested == false) {
-				if (ProcessWorkers(read_workers, MaxReaders)) {
+				if (ProcessWorkers(read_workers, config.MaxReadWriteWorkers)) {
 					CreateReadWorker();
 				}
 
-				if (ProcessWorkers(write_workers, MaxWriters)) {
+				if (ProcessWorkers(write_workers, config.MaxReadWriteWorkers)) {
 					CreateWriteWorker();
 				}
 				Thread.Sleep(500);
 			}
 		}
 
-		public MqPostmaster(MqServer server) {
-		}
 
-
-		public bool SignalWrite(MqSession session) {
-			return ongoing_write_operations.TryAdd(session, true) && write_operations.TryAdd(session);
-		}
-
-		public bool SignalRead(MqSession session) {
-			return ongoing_read_operations.TryAdd(session, true) && read_operations.TryAdd(session);
-		}
-
-
+		/// <summary>
+		/// Reviews the specified worker list (reader/writer) and determines if new workers are needed or not.
+		/// </summary>
+		/// <param name="worker_list">Worker list to review.</param>
+		/// <param name="max_workers">Maximum number of workers for this list.</param>
+		/// <returns></returns>
 		private bool ProcessWorkers(List<MqWorker> worker_list, int max_workers) {
 			MqWorker idle_worker = null;
 			foreach (var worker in worker_list) {
@@ -76,12 +116,30 @@ namespace DtronixMessageQueue {
 				}
 			}
 
-
 			if (max_workers != 0 && worker_list.Count >= max_workers) {
 				return false;
 			}
 
 			return idle_worker == null;
+		}
+
+		/// <summary>
+		/// Signals the postmaster that a data is ready to be sent on the specified session.
+		/// </summary>
+		/// <param name="session">Session to send data on.</param>
+		/// <returns>True if write was queued.  False if the write action was already queued.</returns>
+		public bool SignalWrite(MqSession session) {
+			return ongoing_write_operations.TryAdd(session, true) && write_operations.TryAdd(session);
+		}
+
+
+		/// <summary>
+		/// Signals the postmaster that a data is ready to be read on the specified session.
+		/// </summary>
+		/// <param name="session">Session to read from.</param>
+		/// <returns>True if write was queued.  False if the read action was already queued.</returns>
+		public bool SignalRead(MqSession session) {
+			return ongoing_read_operations.TryAdd(session, true) && read_operations.TryAdd(session);
 		}
 
 
@@ -150,6 +208,9 @@ namespace DtronixMessageQueue {
 			read_workers.Add(reader_worker);
 		}
 
+		/// <summary>
+		/// Stops all workers and removes all associated resources.
+		/// </summary>
 		public void Dispose() {
 			supervisor.Dispose();
 			foreach (var write_worker in write_workers) {

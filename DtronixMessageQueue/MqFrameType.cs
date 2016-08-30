@@ -1,4 +1,8 @@
 ﻿namespace DtronixMessageQueue {
+	
+	/// <summary>
+	/// Enum used to determine what type a frame is and how to handle it.
+	/// </summary>
 	public enum MqFrameType : byte {
 		/// <summary>
 		/// This frame type has not been defined.

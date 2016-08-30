@@ -7,9 +7,14 @@ using DtronixMessageQueue.Socket;
 
 namespace DtronixMessageQueue {
 
-
+	/// <summary>
+	/// Session to handle all reading/writing for a socket session.
+	/// </summary>
 	public class MqSession : SocketSession {
 
+		/// <summary>
+		/// True if the socket is currently running.
+		/// </summary>
 		private bool is_running = true;
 
 		/// <summary>

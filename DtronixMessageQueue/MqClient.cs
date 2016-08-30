@@ -32,12 +32,10 @@ namespace DtronixMessageQueue {
 		/// </summary>
 		public MqClient(MqSocketConfig config) : base(config) {
 			config.MaxConnections = 1;
+			config.MaxReadWriteWorkers = 1;
 			timeout_timer = new Timer(TimeoutCallback);
 
-			postmaster = new MqPostmaster {
-				MaxReaders = 2,
-				MaxWriters = 2
-			};
+			postmaster = new MqPostmaster(config);
 
 			Setup();
 		}

@@ -35,24 +35,34 @@ namespace DtronixMessageQueue {
 		/// </summary>
 		public override Stream BaseStream { get; } = Stream.Null;
 
-		private MqSocketConfig config;
+		/// <summary>
+		/// Session configurations
+		/// </summary>
+		private readonly MqSocketConfig socket_config;
 
 		/// <summary>
-		/// Creates a new message writer with the default encoding.
+		/// Creates a new message writer with the specified socket configurations default UTF8 encoding.
 		/// </summary>
-		public MqMessageWriter(MqSocketConfig config) : this(config, Encoding.UTF8) {
+		/// <param name="socket_config">Current socket configurations.  Used to create new frames.</param>
+		public MqMessageWriter(MqSocketConfig socket_config) : this(socket_config, Encoding.UTF8) {
 		}
 
+
 		/// <summary>
-		/// Creates a new message writer with the specified encoding.
+		/// Creates a new message writer with the specified socket configurations and encoding.
 		/// </summary>
-		/// <param name="encoding"></param>
-		public MqMessageWriter(MqSocketConfig config, Encoding encoding) {
-			this.config = config;
+		/// <param name="socket_config">Current socket configurations.  Used to create new frames.</param>
+		/// <param name="encoding">Encoding to use for string and char parsing.</param>
+		public MqMessageWriter(MqSocketConfig socket_config, Encoding encoding) {
+			this.socket_config = socket_config;
 			this.encoding = encoding;
-			builder_frame = new MqFrame(new byte[config.FrameBufferSize], MqFrameType.More, config);
+			builder_frame = new MqFrame(new byte[socket_config.FrameBufferSize], MqFrameType.More, socket_config);
 		}
 
+		/// <summary>
+		/// Used to ensure there is enough space left in this frame to write to.
+		/// </summary>
+		/// <param name="length">Number of bytes to ensure are available to write to.</param>
 		private void EnsureSpace(int length) {
 			// If this new requested length is outside our frame limit, copy the bytes from the builder frame to the actual final frame.
 			if (position + length > builder_frame.DataLength) {
@@ -65,7 +75,7 @@ namespace DtronixMessageQueue {
 		/// </summary>
 		public void FinalizeFrame() {
 			if (position == 0) {
-				frames.Add(new MqFrame(null, MqFrameType.Empty, config));
+				frames.Add(new MqFrame(null, MqFrameType.Empty, socket_config));
 			} else {
 				InternalFinalizeFrame();
 			}
@@ -79,7 +89,7 @@ namespace DtronixMessageQueue {
 				throw new InvalidOperationException("Can not finalize frame when it is empty.");
 			}
 			var bytes = new byte[position];
-			var frame = new MqFrame(bytes, MqFrameType.Last, config);
+			var frame = new MqFrame(bytes, MqFrameType.Last, socket_config);
 			Buffer.BlockCopy(builder_frame.Buffer, 0, bytes, 0, position);
 
 			frames.Add(frame);
@@ -285,7 +295,7 @@ namespace DtronixMessageQueue {
 		/// </summary>
 		public void Write() {
 			InternalFinalizeFrame();
-			frames.Add(new MqFrame(null, MqFrameType.Empty, config));
+			frames.Add(new MqFrame(null, MqFrameType.Empty, socket_config));
 		}
 
 		/// <summary>

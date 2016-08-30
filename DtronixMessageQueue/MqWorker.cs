@@ -3,41 +3,74 @@ using System.Diagnostics;
 using System.Threading;
 
 namespace DtronixMessageQueue {
-	internal class MqWorker : IDisposable {
-		//private readonly Task worker_task;
+
+	/// <summary>
+	/// Worker which creates a new thread and monitor's its usage.
+	/// Loops the passed action worker until the worker had been canceled.
+	/// </summary>
+	public class MqWorker : IDisposable {
+
+		/// <summary>
+		/// Average time this worker spent idle.  Used to determine if this worker is still needed.
+		/// </summary>
 		private long average_idle_time = 0;
+
+		/// <summary>
+		/// Average time this worker spent working.  Used to determine if this worker is still needed.
+		/// </summary>
 		private long average_work_time = 0;
+
+		/// <summary>
+		/// Stopwatch used to monitor the idle time.
+		/// </summary>
 		private readonly Stopwatch idle_stopwatch = new Stopwatch();
+
+		/// <summary>
+		/// Stopwatch used to monitor the work time.
+		/// </summary>
 		private readonly Stopwatch work_stopwatch = new Stopwatch();
 
-
+		/// <summary>
+		/// Token source used to cancel this worker.
+		/// </summary>
 		private readonly CancellationTokenSource cancellation_source = new CancellationTokenSource();
 
+		/// <summary>
+		/// Token used to cancel this worker.
+		/// </summary>
 		public CancellationToken Token { get; }
 
 		/// <summary>
 		/// Average time this worker remains idle.
 		/// The smaller the number, the more work being done.
 		/// </summary>
-		public long AverageIdleTime {
-			get {
-				/*if (idle_stopwatch.IsRunning) {
-					if (average_idle_time == 0) {
-						return idle_stopwatch.ElapsedMilliseconds;
-					}
-					return (idle_stopwatch.ElapsedMilliseconds + average_idle_time) / 2;
-				}*/
-				return average_idle_time;
-			}
-		}
+		public long AverageIdleTime => average_idle_time;
 
+		/// <summary>
+		/// True if this worker is idling.
+		/// </summary>
 		public bool IsIdling => idle_stopwatch.IsRunning;
 
+		/// <summary>
+		/// True if this worker is working.
+		/// </summary>
 		public bool IsWorking => work_stopwatch.IsRunning;
 
+		/// <summary>
+		/// Work action to perform.
+		/// </summary>
 		private readonly Action<MqWorker> work;
-		private Thread worker_thread;
 
+		/// <summary>
+		/// Thread this worker uses to perform the work.
+		/// </summary>
+		private readonly Thread worker_thread;
+
+		/// <summary>
+		/// Creates an instance o
+		/// </summary>
+		/// <param name="work"></param>
+		/// <param name="name"></param>
 		public MqWorker(Action<MqWorker> work, string name) {
 			idle_stopwatch.Start();
 			this.work = work;
@@ -58,6 +91,9 @@ namespace DtronixMessageQueue {
 			//worker_task.Start();
 		}
 
+		/// <summary>
+		/// Called by the worker action when the work has completed to signal the worker is idle.
+		/// </summary>
 		public void StartIdle() {
 			idle_stopwatch.Restart();
 
@@ -70,6 +106,9 @@ namespace DtronixMessageQueue {
 			}
 		}
 
+		/// <summary>
+		/// Called by the worker action when the work has started to signal the worker is busy.
+		/// </summary>
 		public void StartWork() {
 			work_stopwatch.Restart();
 			idle_stopwatch.Stop();
@@ -86,9 +125,11 @@ namespace DtronixMessageQueue {
 			cancellation_source.Cancel();
 		}
 
+		/// <summary>
+		/// Called by the new thread to loop the worker's action.
+		/// </summary>
+		/// <param name="o"></param>
 		private void ProcessQueue(object o) {
-			
-
 			while (Token.IsCancellationRequested == false) {
 				try {
 					work?.Invoke((MqWorker)o);
@@ -98,10 +139,17 @@ namespace DtronixMessageQueue {
 			}
 		}
 
+		/// <summary>
+		/// Stops the thread and releases resources.
+		/// </summary>
 		public void Dispose() {
 			if (worker_thread.IsAlive) {
 				Stop();
 			}
+
+			idle_stopwatch.Stop();
+			work_stopwatch.Stop();
+			worker_thread.Abort();
 		}
 	}
 }

@@ -3,23 +3,56 @@ using System.IO;
 using System.Text;
 
 namespace DtronixMessageQueue {
+
+	/// <summary>
+	/// Reader to parse a message into sub-components.
+	/// </summary>
 	public class MqMessageReader : BinaryReader {
+
+		/// <summary>
+		/// Current encoding to use for char and string parsing.
+		/// </summary>
 		private readonly Encoding encoding;
+
+		/// <summary>
+		/// Current decoder to use for char and string parsing.
+		/// </summary>
+		private readonly Decoder decoder;
+
+		/// <summary>
+		/// Current position in the frame that is being read.
+		/// </summary>
 		private int position;
+
+		/// <summary>
+		/// Current message being read.
+		/// </summary>
 		private MqMessage message;
 
+		/// <summary>
+		/// Current frame being read.
+		/// </summary>
 		private MqFrame current_frame;
 
+		/// <summary>
+		/// Current frame in the message that is being read.
+		/// </summary>
 		private int message_position;
 
+		/// <summary>
+		/// True if this encoding always has two bytes per character.
+		/// </summary>
 		private readonly bool two_bytes_per_char;
 
+		/// <summary>
+		/// Maximum number of chars to read from the message.
+		/// </summary>
 		private const int MaxCharBytesSize = 128;
 
+		/// <summary>
+		/// Number of bytes each char takes for the specified encoding.
+		/// </summary>
 		private byte[] char_bytes;
-
-
-		private readonly Decoder decoder;
 
 		/// <summary>
 		/// Current frame that is being read.
@@ -82,6 +115,10 @@ namespace DtronixMessageQueue {
 			Message = initial_message;
 		}
 
+		/// <summary>
+		/// Ensures the specified number of bytes is available to read from.
+		/// </summary>
+		/// <param name="length">Number of bytes to ensure available.</param>
 		private void EnsureBuffer(int length) {
 			
 			if (position + length > current_frame.DataLength) {
@@ -93,6 +130,9 @@ namespace DtronixMessageQueue {
 			}
 		}
 
+		/// <summary>
+		/// Skips over to the next non-empty frame in the message.
+		/// </summary>
 		private void NextNonEmptyFrame() {
 			position = 0;
 			// Increment until we reach the next non-empty frame.
