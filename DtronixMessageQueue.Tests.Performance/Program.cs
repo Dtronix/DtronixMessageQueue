@@ -58,8 +58,10 @@ namespace DtronixMessageQueue.Tests.Performance {
 				StartServer(total_messages, total_clients);
 
 			}else if (mode == "single-process") {
-				WriteSysInfo();
-				InProcessTest();
+				using (var cc = new ConsoleCopy("MessageQueuePerformanceTest.txt")) {
+					WriteSysInfo();
+					InProcessTest();
+				}
 
 			}
 
