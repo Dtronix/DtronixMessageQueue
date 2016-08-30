@@ -191,10 +191,10 @@ namespace DtronixMessageQueue.Tests {
 			};
 
 			
-			Client = new MqClient(client_config);
+			Client = new MqClient<SimpleMqSession> (client_config);
 
 			Config.PingTimeout = 500;
-			Server = new MqServer(Config);
+			Server = new MqServer<SimpleMqSession>(Config);
 
 
 			Client.Closed += (sender, args) => {
@@ -222,10 +222,10 @@ namespace DtronixMessageQueue.Tests {
 			};
 
 
-			Client = new MqClient(client_config);
+			Client = new MqClient<SimpleMqSession>(client_config);
 
 			Config.PingTimeout = 200;
-			Server = new MqServer(Config);
+			Server = new MqServer<SimpleMqSession>(Config);
 
 
 			Client.Closed += (sender, args) => {

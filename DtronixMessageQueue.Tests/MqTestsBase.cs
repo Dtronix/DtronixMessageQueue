@@ -10,8 +10,8 @@ namespace DtronixMessageQueue.Tests {
 		private Random random = new Random();
 		public ITestOutputHelper Output;
 
-		public MqServer Server { get; protected set; }
-		public MqClient Client { get; protected set; }
+		public MqServer<SimpleMqSession> Server { get; protected set; }
+		public MqClient<SimpleMqSession> Client { get; protected set; }
 		public int Port { get; }
 
 		protected MqSocketConfig Config;
@@ -31,8 +31,8 @@ namespace DtronixMessageQueue.Tests {
 				Port = Port
 			};
 
-			Server = new MqServer(Config);
-			Client = new MqClient(Config);
+			Server = new MqServer<SimpleMqSession>(Config);
+			Client = new MqClient<SimpleMqSession>(Config);
 		}
 
 

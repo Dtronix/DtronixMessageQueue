@@ -7,13 +7,14 @@ namespace DtronixMessageQueue {
 	/// <summary>
 	/// Message Queue Server to handle incoming clients
 	/// </summary>
-	public class MqServer : SocketServer<MqSession> {
-		private readonly MqPostmaster postmaster;
+	public class MqServer<TSession> : SocketServer<TSession>
+		where TSession : MqSession<TSession>, new() {
+		private readonly MqPostmaster<TSession> postmaster;
 
 		/// <summary>
 		/// Event fired when a new message arrives at a session's mailbox.
 		/// </summary>
-		public event EventHandler<IncomingMessageEventArgs> IncomingMessage;
+		public event EventHandler<IncomingMessageEventArgs<TSession>> IncomingMessage;
 
 		/// <summary>
 		/// True if the timeout timer is running.  False otherwise.
@@ -31,7 +32,7 @@ namespace DtronixMessageQueue {
 		public MqServer(MqSocketConfig config) : base(config) {
 			timeout_timer = new Timer(TimeoutCallback);
 
-			postmaster = new MqPostmaster(config);
+			postmaster = new MqPostmaster<TSession>(config);
 
 			Setup();
 
@@ -59,11 +60,11 @@ namespace DtronixMessageQueue {
 		/// </summary>
 		/// <param name="sender">The source of the event.</param>
 		/// <param name="e">The event object containing the mailbox to retrieve the message from.</param>
-		private void OnIncomingMessage(object sender, IncomingMessageEventArgs e) {
+		private void OnIncomingMessage(object sender, IncomingMessageEventArgs<TSession> e) {
 			IncomingMessage?.Invoke(sender, e);
 		}
 
-		protected override MqSession CreateSession(System.Net.Sockets.Socket socket) {
+		protected override TSession CreateSession(System.Net.Sockets.Socket socket) {
 			var session = base.CreateSession(socket);
 			session.Postmaster = postmaster;
 			session.IncomingMessage += OnIncomingMessage;
@@ -72,7 +73,7 @@ namespace DtronixMessageQueue {
 			return session;
 		}
 
-		protected override void OnConnect(MqSession session) {
+		protected override void OnConnect(TSession session) {
 			// Start the timeout timer if it is not already running.
 			if (timeout_timer_running == false) {
 				timeout_timer.Change(0, ((MqSocketConfig)Config).PingTimeout);
@@ -83,8 +84,8 @@ namespace DtronixMessageQueue {
 		}
 
 
-		protected override void OnClose(MqSession session, SocketCloseReason reason) {
-			MqSession out_session;
+		protected override void OnClose(TSession session, SocketCloseReason reason) {
+			TSession out_session;
 			ConnectedSessions.TryRemove(session.Id, out out_session);
 
 			// If there are no clients connected, stop the timer.

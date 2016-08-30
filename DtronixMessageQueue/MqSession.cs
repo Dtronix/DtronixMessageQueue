@@ -10,7 +10,8 @@ namespace DtronixMessageQueue {
 	/// <summary>
 	/// Session to handle all reading/writing for a socket session.
 	/// </summary>
-	public class MqSession : SocketSession {
+	public abstract class MqSession<TSession> : SocketSession
+		where TSession : MqSession<TSession>, new() {
 
 		/// <summary>
 		/// True if the socket is currently running.
@@ -20,7 +21,7 @@ namespace DtronixMessageQueue {
 		/// <summary>
 		/// The Postmaster for this client/server.
 		/// </summary>
-		public MqPostmaster Postmaster { get; set; }
+		public MqPostmaster<TSession> Postmaster { get; set; }
 
 		/// <summary>
 		/// Total bytes the inbox has remaining to process.
@@ -45,18 +46,12 @@ namespace DtronixMessageQueue {
 		/// <summary>
 		/// Event fired when a new message has been processed by the Postmaster and ready to be read.
 		/// </summary>
-		public event EventHandler<IncomingMessageEventArgs> IncomingMessage;
-
-
-		/// <summary>
-		/// User supplied token used to pass a related object around with this session.
-		/// </summary>
-		public object Token { get; set; }
+		public event EventHandler<IncomingMessageEventArgs<TSession>> IncomingMessage;
 
 		/// <summary>
 		/// Base socket for this session.
 		/// </summary>
-		public SocketBase<MqSession> BaseSocket { get; set; }
+		public SocketBase<TSession> BaseSocket { get; set; }
 
 		/// <summary>
 		/// Adds bytes from the client/server reading methods to be processed by the Postmaster.
@@ -202,7 +197,7 @@ namespace DtronixMessageQueue {
 			//Postmaster.SignalReadComplete(this);
 
 			if (messages != null) {
-				IncomingMessage?.Invoke(this, new IncomingMessageEventArgs(messages, this));
+				IncomingMessage?.Invoke(this, new IncomingMessageEventArgs<TSession>(messages, this));
 			}
 		}
 
@@ -265,7 +260,7 @@ namespace DtronixMessageQueue {
 		/// Processes an incoming command frame from the connection.
 		/// </summary>
 		/// <param name="frame">Command frame to process.</param>
-		internal void ProcessCommand(MqFrame frame) {
+		protected virtual void ProcessCommand(MqFrame frame) {
 			var command_type = frame.ReadByte(0);
 
 			switch (command_type) {

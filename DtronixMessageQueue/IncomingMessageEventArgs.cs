@@ -6,7 +6,8 @@ namespace DtronixMessageQueue {
 	/// <summary>
 	/// Event args for when a new message has been processed and is ready for usage.
 	/// </summary>
-	public class IncomingMessageEventArgs : EventArgs {
+	public class IncomingMessageEventArgs<TSession> : EventArgs
+		where TSession : MqSession<TSession>, new() {
 
 		/// <summary>
 		/// Messages ready to be read.
@@ -16,14 +17,14 @@ namespace DtronixMessageQueue {
 		/// <summary>
 		/// If this message is on the server, this will contain the reference to the connected session of the client.
 		/// </summary>
-		public MqSession Session { get; }
+		public MqSession<TSession> Session { get; }
 
 		/// <summary>
 		/// Creates an instance of the event args.
 		/// </summary>
 		/// <param name="messages">Messages read and ready to be used.</param>
 		/// <param name="session">Server session.  Null if this is on the client.</param>
-		public IncomingMessageEventArgs(Queue<MqMessage> messages, MqSession session) {
+		public IncomingMessageEventArgs(Queue<MqMessage> messages, MqSession<TSession> session) {
 			Messages = messages;
 			Session = session;
 		}

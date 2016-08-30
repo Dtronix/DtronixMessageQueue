@@ -113,7 +113,7 @@ namespace DtronixMessageQueue.Tests {
 		[Fact]
 		public void FrameBuilder_throws_frame_specified_length_too_large() {
 			Assert.Throws<InvalidDataException>(() => {
-				frame_builder.Write(new byte[] { 2, 254, 63, 1 }, 0, 4);
+				frame_builder.Write(new byte[] { 2, 255, 255, 1 }, 0, 4);
 			});
 		}
 

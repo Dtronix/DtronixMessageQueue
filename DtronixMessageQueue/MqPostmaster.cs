@@ -3,12 +3,12 @@ using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Threading;
 
-namespace DtronixMessageQueue {
-
+namespace DtronixMessageQueue {		
 	/// <summary>
 	/// Postmaster to handle worker creation/deletion and parsing of all incoming and outgoing messages.
 	/// </summary>
-	public class MqPostmaster : IDisposable {
+	public class MqPostmaster<TSession> : IDisposable
+		where TSession : MqSession<TSession>, new() {
 
 		/// <summary>
 		/// Internal worker to review the current work being done.
@@ -18,12 +18,12 @@ namespace DtronixMessageQueue {
 		/// <summary>
 		/// Dictionary to prevent multiple writes occurring on the same session concurrently.
 		/// </summary>
-		private readonly ConcurrentDictionary<MqSession, bool> ongoing_write_operations = new ConcurrentDictionary<MqSession, bool>();
+		private readonly ConcurrentDictionary<MqSession<TSession>, bool> ongoing_write_operations = new ConcurrentDictionary<MqSession<TSession>, bool>();
 
 		/// <summary>
 		/// Collection used to hold onto sessions pending write operations.
 		/// </summary>
-		private readonly BlockingCollection<MqSession> write_operations = new BlockingCollection<MqSession>();
+		private readonly BlockingCollection<MqSession<TSession>> write_operations = new BlockingCollection<MqSession<TSession>>();
 
 		/// <summary>
 		/// List of all write workers.
@@ -33,12 +33,12 @@ namespace DtronixMessageQueue {
 		/// <summary>
 		/// Dictionary to prevent multiple reads occurring on the same session concurrently.
 		/// </summary>
-		private readonly ConcurrentDictionary<MqSession, bool> ongoing_read_operations = new ConcurrentDictionary<MqSession, bool>();
+		private readonly ConcurrentDictionary<MqSession<TSession>, bool> ongoing_read_operations = new ConcurrentDictionary<MqSession<TSession>, bool>();
 
 		/// <summary>
 		/// Collection used to hold onto sessions pending read operations.
 		/// </summary>
-		private readonly BlockingCollection<MqSession> read_operations = new BlockingCollection<MqSession>();
+		private readonly BlockingCollection<MqSession<TSession>> read_operations = new BlockingCollection<MqSession<TSession>>();
 
 		/// <summary>
 		/// List of all read workers.
@@ -128,7 +128,7 @@ namespace DtronixMessageQueue {
 		/// </summary>
 		/// <param name="session">Session to send data on.</param>
 		/// <returns>True if write was queued.  False if the write action was already queued.</returns>
-		public bool SignalWrite(MqSession session) {
+		public bool SignalWrite(MqSession<TSession> session) {
 			return ongoing_write_operations.TryAdd(session, true) && write_operations.TryAdd(session);
 		}
 
@@ -138,7 +138,7 @@ namespace DtronixMessageQueue {
 		/// </summary>
 		/// <param name="session">Session to read from.</param>
 		/// <returns>True if write was queued.  False if the read action was already queued.</returns>
-		public bool SignalRead(MqSession session) {
+		public bool SignalRead(MqSession<TSession> session) {
 			return ongoing_read_operations.TryAdd(session, true) && read_operations.TryAdd(session);
 		}
 
@@ -148,7 +148,7 @@ namespace DtronixMessageQueue {
 		/// </summary>
 		public void CreateWriteWorker() {
 			var writer_worker = new MqWorker(worker => {
-				MqSession session = null;
+				MqSession<TSession> session = null;
 				bool out_session;
 
 				try {
@@ -181,7 +181,7 @@ namespace DtronixMessageQueue {
 		/// </summary>
 		public void CreateReadWorker() {
 			var reader_worker = new MqWorker(worker => {
-				MqSession session = null;
+				MqSession<TSession> session = null;
 				bool out_session;
 				try {
 					worker.StartIdle();

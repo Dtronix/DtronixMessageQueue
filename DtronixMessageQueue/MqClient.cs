@@ -9,17 +9,18 @@ namespace DtronixMessageQueue {
 	/// <summary>
 	/// Client used to connect to a remote message queue server.
 	/// </summary>
-	public class MqClient : SocketClient<MqSession> {
+	public class MqClient<TSession> : SocketClient<TSession>
+		where TSession : MqSession<TSession>, new() {
 
 		/// <summary>
 		/// Internal postmaster.
 		/// </summary>
-		private readonly MqPostmaster postmaster;
+		private readonly MqPostmaster<TSession> postmaster;
 
 		/// <summary>
 		/// Event fired when a new message arrives at the mailbox.
 		/// </summary>
-		public event EventHandler<IncomingMessageEventArgs> IncomingMessage;
+		public event EventHandler<IncomingMessageEventArgs<TSession>> IncomingMessage;
 
 		/// <summary>
 		/// Timer used to verify that the sessions are still connected.
@@ -36,12 +37,12 @@ namespace DtronixMessageQueue {
 			config.MaxConnections = 1;
 			config.MaxReadWriteWorkers = 1;
 			timeout_timer = new Timer(TimeoutCallback);
-			postmaster = new MqPostmaster(config);
+			postmaster = new MqPostmaster<TSession>(config);
 
 			Setup();
 		}
 
-		protected override void OnConnect(MqSession session) {
+		protected override void OnConnect(TSession session) {
 			// Start the timeout timer.
 			var ping_frequency = ((MqSocketConfig) Config).PingFrequency;
 
@@ -52,7 +53,7 @@ namespace DtronixMessageQueue {
 			base.OnConnect(session);
 		}
 
-		protected override void OnClose(MqSession session, SocketCloseReason reason) {
+		protected override void OnClose(TSession session, SocketCloseReason reason) {
 			// Stop the timeout timer.
 			timeout_timer.Change(Timeout.Infinite, Timeout.Infinite);
 
@@ -73,11 +74,11 @@ namespace DtronixMessageQueue {
 		/// </summary>
 		/// <param name="sender">The source of the event.</param>
 		/// <param name="e">The event object containing the mailbox to retrieve the message from.</param>
-		private void OnIncomingMessage(object sender, IncomingMessageEventArgs e) {
+		private void OnIncomingMessage(object sender, IncomingMessageEventArgs<TSession> e) {
 			IncomingMessage?.Invoke(sender, e);
 		}
 
-		protected override MqSession CreateSession(System.Net.Sockets.Socket socket) {
+		protected override TSession CreateSession(System.Net.Sockets.Socket socket) {
 			var session = base.CreateSession(socket);
 			session.Postmaster = postmaster;
 			session.IncomingMessage += OnIncomingMessage;

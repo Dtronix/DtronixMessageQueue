@@ -81,6 +81,7 @@
     <Compile Include="PerformanceTests.cs" />
     <Compile Include="MqClientTests.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
+    <Compile Include="SimpleMqSession.cs" />
     <Compile Include="Utilities.cs" />
   </ItemGroup>
   <ItemGroup>
