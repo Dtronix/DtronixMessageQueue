@@ -137,7 +137,6 @@ namespace DtronixMessageQueue {
 				// Send the last of the buffer queue.
 				SendBufferQueue(buffer_queue, length);
 			}
-			//Postmaster.SignalWriteComplete(this);
 		}
 
 		/// <summary>
@@ -197,11 +196,25 @@ namespace DtronixMessageQueue {
 			//Postmaster.SignalReadComplete(this);
 
 			if (messages != null) {
-				IncomingMessage?.Invoke(this, new IncomingMessageEventArgs<TSession>(messages, this));
+				OnIncomingMessage(this, new IncomingMessageEventArgs<TSession>(messages, this));
 			}
 		}
 
+		/// <summary>
+		/// Event fired when one or more new messages are ready for use.
+		/// </summary>
+		/// <param name="sender">Originator of call for this event.</param>
+		/// <param name="e">Event args for the message.</param>
+		public virtual void OnIncomingMessage(object sender, IncomingMessageEventArgs<TSession> e) {
+			IncomingMessage?.Invoke(sender, e);
+		}
 
+
+		/// <summary>
+		/// Closes this session with the specified reason.
+		/// Notifies the other end of this connection the reason for the session's closure.
+		/// </summary>
+		/// <param name="reason">Reason for closing this session.</param>
 		public override void Close(SocketCloseReason reason) {
 			if (CurrentState == State.Closed) {
 				return;
@@ -272,6 +285,10 @@ namespace DtronixMessageQueue {
 			}
 		}
 
+		/// <summary>
+		/// String representation of the active session.
+		/// </summary>
+		/// <returns>String representation.</returns>
 		public override string ToString() {
 			return $"MqSession; Reading {inbox_byte_count} bytes; Sending {outbox.Count} messages.";
 		}
