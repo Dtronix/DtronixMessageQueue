@@ -24,17 +24,18 @@ namespace DtronixMessageQueue {
 		/// <summary>
 		/// Timer used to verify that the sessions are still connected.
 		/// </summary>
-		private Timer timeout_timer;
+		private readonly Timer timeout_timer;
 
 
 		/// <summary>
 		/// Initializes a new instance of a message queue.
 		/// </summary>
 		public MqClient(MqSocketConfig config) : base(config) {
+
+			// Override the default connection limit and read/write workers.
 			config.MaxConnections = 1;
 			config.MaxReadWriteWorkers = 1;
 			timeout_timer = new Timer(TimeoutCallback);
-
 			postmaster = new MqPostmaster(config);
 
 			Setup();
@@ -43,7 +44,10 @@ namespace DtronixMessageQueue {
 		protected override void OnConnect(MqSession session) {
 			// Start the timeout timer.
 			var ping_frequency = ((MqSocketConfig) Config).PingFrequency;
-			timeout_timer.Change(ping_frequency / 2, ping_frequency);
+
+			if (ping_frequency > 0) {
+				timeout_timer.Change(ping_frequency/2, ping_frequency);
+			}
 
 			base.OnConnect(session);
 		}

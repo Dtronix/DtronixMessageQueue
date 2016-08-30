@@ -163,7 +163,7 @@ namespace DtronixMessageQueue.Tests.Performance {
 			builder.Write("START");
 			var start_message = builder.ToMessage(true);
 
-			ConcurrentDictionary<MqSession, ClientRunInfo> client_infos = new ConcurrentDictionary<MqSession, ClientRunInfo>();
+			ConcurrentDictionary<MqSession, ClientRunInfo> clients_info = new ConcurrentDictionary<MqSession, ClientRunInfo>();
 
 
 			server.Connected += (sender, session) => {
@@ -171,11 +171,11 @@ namespace DtronixMessageQueue.Tests.Performance {
 					Session = session.Session,
 					Runs = 0
 				};
-				client_infos.TryAdd(session.Session, current_info);
+				clients_info.TryAdd(session.Session, current_info);
 
-				if (client_infos.Count == total_clients) {
+				if (clients_info.Count == total_clients) {
 
-					foreach (var mq_session in client_infos.Keys) {
+					foreach (var mq_session in clients_info.Keys) {
 						mq_session.Send(start_message);
 					}
 				}
@@ -183,11 +183,11 @@ namespace DtronixMessageQueue.Tests.Performance {
 
 			server.Closed += (session, value) => {
 				ClientRunInfo info;
-				client_infos.TryRemove(value.Session, out info);
+				clients_info.TryRemove(value.Session, out info);
 			};
 
 			server.IncomingMessage += (sender, args) => {
-				var client_info = client_infos[args.Session];
+				var client_info = clients_info[args.Session];
 
 				// Count the total messages.
 				client_info.Runs += args.Messages.Count;
@@ -232,9 +232,7 @@ namespace DtronixMessageQueue.Tests.Performance {
 		static void InProcessTest() {
 			var config = new MqSocketConfig {
 				Ip = "127.0.0.1",
-				Port = 2828,
-				SendAndReceiveBufferSize = 8000,
-				FrameBufferSize = 8000 - MqFrame.HeaderLength
+				Port = 2828
 			};
 
 

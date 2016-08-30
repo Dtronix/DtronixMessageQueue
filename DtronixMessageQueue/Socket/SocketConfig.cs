@@ -7,7 +7,7 @@
 		/// <summary>
 		/// Maximum number of connections allowed.  Only used by the server.
 		/// </summary>
-		public int MaxConnections { get; set; } = 10;
+		public int MaxConnections { get; set; } = 1000;
 
 		/// <summary>
 		/// Maximum backlog for pending connections.
@@ -18,7 +18,7 @@
 		/// <summary>
 		/// Size of the buffer for the sockets.
 		/// </summary>
-		public int SendAndReceiveBufferSize { get; set; } = 1024*4;
+		public int SendAndReceiveBufferSize { get; set; } = 1024*16;
 
 		/// <summary>
 		/// Time in milliseconds it takes for the sending event to fail.

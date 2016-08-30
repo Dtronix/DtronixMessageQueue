@@ -205,7 +205,12 @@ namespace DtronixMessageQueue.Tests {
 				}
 			};
 
-			StartAndWait(true, 1000);
+			StartAndWait(false, 1000);
+
+			if (TestStatus.IsSet == false) {
+				throw new Exception("Socket did not timeout.");
+			}
+
 		}
 
 		[Fact]
