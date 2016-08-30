@@ -10,6 +10,11 @@ namespace DtronixMessageQueue.Socket {
 		where TSession : SocketSession, new() {
 
 		/// <summary>
+		/// True if the socket is connected/listening.
+		/// </summary>
+		public abstract bool IsRunning { get; }
+
+		/// <summary>
 		/// This event fires when a connection has been established.
 		/// </summary>
 		public event EventHandler<SessionConnectedEventArgs<TSession>> Connected;

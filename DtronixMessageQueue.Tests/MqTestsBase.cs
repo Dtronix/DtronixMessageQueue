@@ -10,11 +10,11 @@ namespace DtronixMessageQueue.Tests {
 		private Random random = new Random();
 		public ITestOutputHelper Output;
 
-		public MqServer Server { get; }
-		public MqClient Client { get; }
+		public MqServer Server { get; protected set; }
+		public MqClient Client { get; protected set; }
 		public int Port { get; }
 
-		private MqSocketConfig config;
+		protected MqSocketConfig Config;
 
 		public Exception LastException { get; set; }
 
@@ -26,18 +26,17 @@ namespace DtronixMessageQueue.Tests {
 			this.Output = output;
 			Port = FreeTcpPort();
 
-			config = new MqSocketConfig {
+			Config = new MqSocketConfig {
 				Ip = "127.0.0.1",
 				Port = Port
 			};
 
-			Server = new MqServer(config);
-
-
-			Client = new MqClient(config);
+			Server = new MqServer(Config);
+			Client = new MqClient(Config);
 		}
 
-		static int FreeTcpPort() {
+
+		public static int FreeTcpPort() {
 			TcpListener l = new TcpListener(IPAddress.Loopback, 0);
 			l.Start();
 			int port = ((IPEndPoint) l.LocalEndpoint).Port;
@@ -46,8 +45,12 @@ namespace DtronixMessageQueue.Tests {
 		}
 
 		public void StartAndWait(bool timeout_error = true, int timeout_length = -1) {
-			Server.Start();
-			Client.Connect();
+			if (Server.IsRunning == false) {
+				Server.Start();
+			}
+			if (Client.IsRunning == false) {
+				Client.Connect();
+			}
 
 			timeout_length = timeout_length != -1 ? timeout_length : (int)TestTimeout.TotalMilliseconds;
 
@@ -95,10 +98,10 @@ namespace DtronixMessageQueue.Tests {
 
 				if (frame_length == -1) {
 					frame = new MqFrame(Utilities.SequentialBytes(random.Next(50, 1024*16 - 3)),
-						(i + 1 < frame_count) ? MqFrameType.More : MqFrameType.Last, config);
+						(i + 1 < frame_count) ? MqFrameType.More : MqFrameType.Last, Config);
 				} else {
 					frame = new MqFrame(Utilities.SequentialBytes(frame_length),
-						(i + 1 < frame_count) ? MqFrameType.More : MqFrameType.Last, config);
+						(i + 1 < frame_count) ? MqFrameType.More : MqFrameType.Last, Config);
 				}
 				message.Add(frame);
 			}

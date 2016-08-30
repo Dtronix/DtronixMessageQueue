@@ -24,7 +24,8 @@ namespace DtronixMessageQueue {
 		/// Initializes a new instance of a message queue.
 		/// </summary>
 		public MqServer(MqSocketConfig config) : base(config) {
-			timeout_timer = new Timer(TimeoutCallback, ConnectedSessions, config.PingFrequency, config.PingFrequency);
+			timeout_timer = new Timer(TimeoutCallback, ConnectedSessions, 0, config.PingTimeout);
+
 			postmaster = new MqPostmaster {
 				MaxReaders = config.MaxConnections + 1,
 				MaxWriters = config.MaxConnections + 1
@@ -45,7 +46,8 @@ namespace DtronixMessageQueue {
 				return;
 			}
 
-			var timeout_time = DateTime.UtcNow.Subtract(new TimeSpan(0, 0, 0, 0, Config.ConnectionTimeout));
+			var timout_int = ((MqSocketConfig) Config).PingTimeout;
+			var timeout_time = DateTime.UtcNow.Subtract(new TimeSpan(0, 0, 0, 0, timout_int));
 
 			foreach (var session in sessions.Values) {
 				if (session.LastReceived < timeout_time) {

@@ -2,7 +2,7 @@
 using System.Text;
 
 namespace DtronixMessageQueue {
-	
+
 	/// <summary>
 	/// byte_buffer frame containing raw byte_buffer to be sent over the transport.
 	/// </summary>
@@ -21,11 +21,14 @@ namespace DtronixMessageQueue {
 						throw new ArgumentException($"Can not set frame to {value} when buffer is not null or empty.");
 					}
 				}
-				frame_type = value; 
-				
+				frame_type = value;
+
 			}
 		}
 
+		/// <summary>
+		/// Size taken up with the header for this frame.
+		/// </summary>
 		public const int HeaderLength = 3;
 
 		private MqSocketConfig config;
@@ -56,14 +59,30 @@ namespace DtronixMessageQueue {
 
 
 
-
+		/// <summary>
+		/// Creates a new frame wit the specified bytes and configurations.
+		/// </summary>
+		/// <param name="bytes">Byte buffer to use for this frame.</param>
+		/// <param name="config">Socket configurations used for creating and finalizing this frame.</param>
 		public MqFrame(byte[] bytes, MqSocketConfig config) : this(bytes, MqFrameType.Unset, config) {
 		}
 
+		/// <summary>
+		/// Creates a new frame wit the specified bytes and configurations.
+		/// </summary>
+		/// <param name="bytes">Byte buffer to use for this frame.</param>
+		/// <param name="type">Initial type of frame to create.</param>
+		/// <param name="config">Socket configurations used for creating and finalizing this frame.</param>
 		public MqFrame(byte[] bytes, MqFrameType type, MqSocketConfig config) {
+			if (config == null) {
+				throw new ArgumentNullException(nameof(config), "Configurations can not be null.");
+			}
+
 			this.config = config;
 			if (bytes?.Length > this.config.FrameBufferSize) {
-				throw new ArgumentException("Byte array passed is larger than the maximum frame size allowed.  Must be less than " + config.FrameBufferSize, nameof(bytes));
+				throw new ArgumentException(
+					"Byte array passed is larger than the maximum frame size allowed.  Must be less than " + config.FrameBufferSize,
+					nameof(bytes));
 			}
 			buffer = bytes;
 			FrameType = type;
@@ -89,7 +108,7 @@ namespace DtronixMessageQueue {
 		public byte[] RawFrame() {
 			// If this is an empty frame, return an empty byte which corresponds to MqFrameType.Empty or MqFrameType.EmptyLast
 			if (FrameType == MqFrameType.Empty || FrameType == MqFrameType.EmptyLast || FrameType == MqFrameType.Ping) {
-				return new[] { (byte)FrameType };
+				return new[] {(byte) FrameType};
 			}
 
 			if (buffer == null) {
@@ -99,9 +118,9 @@ namespace DtronixMessageQueue {
 			var bytes = new byte[HeaderLength + buffer.Length];
 
 			// Type of frame that this is.
-			bytes[0] = (byte)FrameType;
+			bytes[0] = (byte) FrameType;
 
-			var size_bytes = BitConverter.GetBytes((short)buffer.Length);
+			var size_bytes = BitConverter.GetBytes((short) buffer.Length);
 
 			// Copy the length.
 			System.Buffer.BlockCopy(size_bytes, 0, bytes, 1, 2);
@@ -139,7 +158,7 @@ namespace DtronixMessageQueue {
 		/// <param name="index">The zero-based index to write the value to.</param>
 		/// <param name="value">Value to write to the specified index.</param>
 		public void Write(int index, bool value) {
-			buffer[index] = (byte)(value ? 1 : 0);
+			buffer[index] = (byte) (value ? 1 : 0);
 		}
 
 		/// <summary>
@@ -168,7 +187,7 @@ namespace DtronixMessageQueue {
 		/// </summary>
 		/// <param name="index">The zero-based index to read the value from.</param>
 		public sbyte ReadSByte(int index) {
-			return (sbyte)buffer[index];
+			return (sbyte) buffer[index];
 		}
 
 		/// <summary>
@@ -178,7 +197,7 @@ namespace DtronixMessageQueue {
 		/// <param name="index">The zero-based index to write the value to.</param>
 		/// <param name="value">Value to write to the specified index.</param>
 		public void Write(int index, sbyte value) {
-			buffer[index] = (byte)value;
+			buffer[index] = (byte) value;
 		}
 
 		/// <summary>
@@ -187,7 +206,7 @@ namespace DtronixMessageQueue {
 		/// </summary>
 		/// <param name="index">The zero-based index to read the value from.</param>
 		public char ReadChar(int index) {
-			return (char)buffer[index];
+			return (char) buffer[index];
 		}
 
 		/// <summary>
@@ -197,7 +216,7 @@ namespace DtronixMessageQueue {
 		/// <param name="index">The zero-based index to write the value to.</param>
 		/// <param name="value">Value to write to the specified index.</param>
 		public void Write(int index, char value) {
-			buffer[index] = (byte)value;
+			buffer[index] = (byte) value;
 		}
 
 		/// <summary>
@@ -206,7 +225,7 @@ namespace DtronixMessageQueue {
 		/// </summary>
 		/// <param name="index">The zero-based index to read the value from.</param>
 		public short ReadInt16(int index) {
-			return (short)(buffer[index] | buffer[index + 1] << 8);
+			return (short) (buffer[index] | buffer[index + 1] << 8);
 		}
 
 
@@ -227,7 +246,7 @@ namespace DtronixMessageQueue {
 		/// </summary>
 		/// <param name="index">The zero-based index to read the value from.</param>
 		public ushort ReadUInt16(int index) {
-			return (ushort)(buffer[index] | buffer[index + 1] << 8);
+			return (ushort) (buffer[index] | buffer[index + 1] << 8);
 		}
 
 
@@ -238,8 +257,8 @@ namespace DtronixMessageQueue {
 		/// <param name="index">The zero-based index to write the value to.</param>
 		/// <param name="value">Value to write to the specified index.</param>
 		public void Write(int index, ushort value) {
-			buffer[index + 0] = (byte)value;
-			buffer[index + 1] = (byte)(value >> 8);
+			buffer[index + 0] = (byte) value;
+			buffer[index + 1] = (byte) (value >> 8);
 		}
 
 
@@ -274,7 +293,7 @@ namespace DtronixMessageQueue {
 		/// </summary>
 		/// <param name="index">The zero-based index to read the value from.</param>
 		public uint ReadUInt32(int index) {
-			return (uint)(buffer[index] | buffer[index + 1] << 8 | buffer[index + 2] << 16 | buffer[index + 3] << 24);
+			return (uint) (buffer[index] | buffer[index + 1] << 8 | buffer[index + 2] << 16 | buffer[index + 3] << 24);
 		}
 
 		/// <summary>
@@ -284,10 +303,10 @@ namespace DtronixMessageQueue {
 		/// <param name="index">The zero-based index to write the value to.</param>
 		/// <param name="value">Value to write to the specified index.</param>
 		public void Write(int index, uint value) {
-			buffer[index + 0] = (byte)value;
-			buffer[index + 1] = (byte)(value >> 8);
-			buffer[index + 2] = (byte)(value >> 16);
-			buffer[index + 3] = (byte)(value >> 24);
+			buffer[index + 0] = (byte) value;
+			buffer[index + 1] = (byte) (value >> 8);
+			buffer[index + 2] = (byte) (value >> 16);
+			buffer[index + 3] = (byte) (value >> 24);
 		}
 
 		/// <summary>
@@ -326,11 +345,11 @@ namespace DtronixMessageQueue {
 		/// </summary>
 		/// <param name="index">The zero-based index to read the value from.</param>
 		public ulong ReadUInt64(int index) {
-			var lo = (uint)(buffer[index] | buffer[index + 1] << 8 |
+			var lo = (uint) (buffer[index] | buffer[index + 1] << 8 |
 							buffer[index + 2] << 16 | buffer[index + 3] << 24);
-			var hi = (uint)(buffer[index + 4] | buffer[index + 5] << 8 |
+			var hi = (uint) (buffer[index + 4] | buffer[index + 5] << 8 |
 							buffer[index + 6] << 16 | buffer[index + 7] << 24);
-			return (ulong)hi << 32 | lo;
+			return (ulong) hi << 32 | lo;
 		}
 
 		/// <summary>
@@ -340,14 +359,14 @@ namespace DtronixMessageQueue {
 		/// <param name="index">The zero-based index to write the value to.</param>
 		/// <param name="value">Value to write to the specified index.</param>
 		public void Write(int index, ulong value) {
-			buffer[index + 0] = (byte)value;
-			buffer[index + 1] = (byte)(value >> 8);
-			buffer[index + 2] = (byte)(value >> 16);
-			buffer[index + 3] = (byte)(value >> 24);
-			buffer[index + 4] = (byte)(value >> 32);
-			buffer[index + 5] = (byte)(value >> 40);
-			buffer[index + 6] = (byte)(value >> 48);
-			buffer[index + 7] = (byte)(value >> 56);
+			buffer[index + 0] = (byte) value;
+			buffer[index + 1] = (byte) (value >> 8);
+			buffer[index + 2] = (byte) (value >> 16);
+			buffer[index + 3] = (byte) (value >> 24);
+			buffer[index + 4] = (byte) (value >> 32);
+			buffer[index + 5] = (byte) (value >> 40);
+			buffer[index + 6] = (byte) (value >> 48);
+			buffer[index + 7] = (byte) (value >> 56);
 		}
 
 		/// <summary>
@@ -356,8 +375,8 @@ namespace DtronixMessageQueue {
 		/// </summary>
 		/// <param name="index">The zero-based index to read the value from.</param>
 		public unsafe float ReadSingle(int index) {
-			var tmp_buffer = (uint)(buffer[index] | buffer[index+1] << 8 | buffer[index+2] << 16 | buffer[index+3] << 24);
-			return *(float*)&tmp_buffer;
+			var tmp_buffer = (uint) (buffer[index] | buffer[index + 1] << 8 | buffer[index + 2] << 16 | buffer[index + 3] << 24);
+			return *(float*) &tmp_buffer;
 		}
 
 
@@ -386,13 +405,13 @@ namespace DtronixMessageQueue {
 		/// </summary>
 		/// <param name="index">The zero-based index to read the value from.</param>
 		public unsafe double ReadDouble(int index) {
-			var lo = (uint)(buffer[index] | buffer[index+1] << 8 |
-				buffer[index+2] << 16 | buffer[index+3] << 24);
-			var hi = (uint)(buffer[index+4] | buffer[index+5] << 8 |
-				buffer[index+6] << 16 | buffer[index+7] << 24);
+			var lo = (uint) (buffer[index] | buffer[index + 1] << 8 |
+							buffer[index + 2] << 16 | buffer[index + 3] << 24);
+			var hi = (uint) (buffer[index + 4] | buffer[index + 5] << 8 |
+							buffer[index + 6] << 16 | buffer[index + 7] << 24);
 
-			var tmp_buffer = (ulong)hi << 32 | lo;
-			return *(double*)&tmp_buffer;
+			var tmp_buffer = (ulong) hi << 32 | lo;
+			return *(double*) &tmp_buffer;
 		}
 
 
@@ -441,28 +460,28 @@ namespace DtronixMessageQueue {
 			var bits = decimal.GetBits(value);
 
 			var lo = bits[0];
-			buffer[index+0] = (byte)lo;
-			buffer[index+1] = (byte)(lo >> 8);
-			buffer[index+2] = (byte)(lo >> 16);
-			buffer[index+3] = (byte)(lo >> 24);
+			buffer[index + 0] = (byte) lo;
+			buffer[index + 1] = (byte) (lo >> 8);
+			buffer[index + 2] = (byte) (lo >> 16);
+			buffer[index + 3] = (byte) (lo >> 24);
 
 			var mid = bits[1];
-			buffer[index+4] = (byte)mid;
-			buffer[index+5] = (byte)(mid >> 8);
-			buffer[index+6] = (byte)(mid >> 16);
-			buffer[index+7] = (byte)(mid >> 24);
+			buffer[index + 4] = (byte) mid;
+			buffer[index + 5] = (byte) (mid >> 8);
+			buffer[index + 6] = (byte) (mid >> 16);
+			buffer[index + 7] = (byte) (mid >> 24);
 
 			var hi = bits[2];
-			buffer[index+8] = (byte)hi;
-			buffer[index+9] = (byte)(hi >> 8);
-			buffer[index+10] = (byte)(hi >> 16);
-			buffer[index+11] = (byte)(hi >> 24);
+			buffer[index + 8] = (byte) hi;
+			buffer[index + 9] = (byte) (hi >> 8);
+			buffer[index + 10] = (byte) (hi >> 16);
+			buffer[index + 11] = (byte) (hi >> 24);
 
 			var flags = bits[3];
-			buffer[index+12] = (byte)flags;
-			buffer[index+13] = (byte)(flags >> 8);
-			buffer[index+14] = (byte)(flags >> 16);
-			buffer[index+15] = (byte)(flags >> 24);
+			buffer[index + 12] = (byte) flags;
+			buffer[index + 13] = (byte) (flags >> 8);
+			buffer[index + 14] = (byte) (flags >> 16);
+			buffer[index + 15] = (byte) (flags >> 24);
 		}
 
 
@@ -485,7 +504,6 @@ namespace DtronixMessageQueue {
 			return Encoding.ASCII.GetString(str_buffer);
 		}
 
-
 		/// <summary>
 		/// Writes a ASCII encoded string.
 		/// (uint16?)(string)
@@ -498,7 +516,7 @@ namespace DtronixMessageQueue {
 			var string_bytes = Encoding.ASCII.GetBytes(value);
 
 			if (prepend_size) {
-				Write(index, (ushort)string_bytes.Length);
+				Write(index, (ushort) string_bytes.Length);
 			}
 
 			if (index + string_bytes.Length + (prepend_size ? 2 : 0) > config.FrameBufferSize) {
@@ -507,8 +525,6 @@ namespace DtronixMessageQueue {
 
 			Write(index + (prepend_size ? 2 : 0), string_bytes, 0, string_bytes.Length);
 		}
-
-
 
 		/// <summary>
 		/// Reads the bytes from this frame.
@@ -553,8 +569,6 @@ namespace DtronixMessageQueue {
 			System.Buffer.BlockCopy(byte_buffer, offset, buffer, frame_index, count);
 		}
 
-
-
 		/// <summary>
 		/// Creates a string representation of this frame.
 		/// </summary>
@@ -562,7 +576,6 @@ namespace DtronixMessageQueue {
 		public override string ToString() {
 			return $"MqFrame totaling {buffer.Length:N0} bytes; Type: {FrameType}";
 		}
-
 
 		/// <summary>
 		/// Disposes of this object and its resources.

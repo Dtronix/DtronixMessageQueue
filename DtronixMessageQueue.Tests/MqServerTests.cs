@@ -1,4 +1,5 @@
-﻿using Xunit;
+﻿using System;
+using Xunit;
 using Xunit.Abstractions;
 
 namespace DtronixMessageQueue.Tests {
@@ -47,9 +48,6 @@ namespace DtronixMessageQueue.Tests {
 
 		}
 
-
-
-
 		[Fact]
 		public void Server_accepts_new_connection() {
 
@@ -59,7 +57,6 @@ namespace DtronixMessageQueue.Tests {
 
 			StartAndWait();
 		}
-
 
 		[Fact]
 		public void Server_detects_client_disconnect() {
@@ -76,22 +73,12 @@ namespace DtronixMessageQueue.Tests {
 		}
 
 
-		//[Fact]
-		/*public void Server_stops() {
-			Server.Started += (sender, args) => {
-				Server.Stop();
-
-				try {
-					Assert.Equal(Server.State, ServerState.NotStarted);
-					TestStatus.Set();
-				} catch (Exception e) {
-					LastException = e;
-					TestStatus.Set();
-				}
-				
-			};
-
-			StartAndWait();
-		}*/
+		[Fact]
+		public void Server_stops() {
+			Server.Start();
+			Assert.Equal(true, Server.IsRunning);
+			Server.Stop();
+			Assert.Equal(false, Server.IsRunning);
+		}
 	}
 }

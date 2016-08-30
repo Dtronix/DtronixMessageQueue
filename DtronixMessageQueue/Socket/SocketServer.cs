@@ -18,12 +18,17 @@ namespace DtronixMessageQueue.Socket {
 		/// </summary>
 		private readonly Semaphore connection_limit;
 
+		/// <summary>
+		/// True if the server is listening and accepting connections.  False if the server is closed.
+		/// </summary>
+		public override bool IsRunning => is_stopped == false && (MainSocket?.IsBound ?? false);
 
 		/// <summary>
 		/// Dictionary of all connected clients.
 		/// </summary>
 		protected readonly ConcurrentDictionary<Guid, TSession> ConnectedSessions = new ConcurrentDictionary<Guid, TSession>();
 
+		private bool is_stopped = false;
 
 		/// <summary>
 		/// Creates a socket server with the specified configurations.
@@ -115,7 +120,6 @@ namespace DtronixMessageQueue.Socket {
 			e.Session.Closed -= RemoveClientEvent;
 		}
 
-
 		/// <summary>
 		/// Creates a frame with the specified bytes and the current configurations.
 		/// </summary>
@@ -141,6 +145,9 @@ namespace DtronixMessageQueue.Socket {
 		/// Terminates this server and notify all connected clients.
 		/// </summary>
 		public void Stop() {
+			if (is_stopped) {
+				return;
+			}
 			TSession[] sessions = new TSession[ConnectedSessions.Values.Count];
 			ConnectedSessions.Values.CopyTo(sessions, 0);
 
@@ -148,8 +155,8 @@ namespace DtronixMessageQueue.Socket {
 				session.CloseConnection(SocketCloseReason.ServerClosing);
 			}
 
-			//MainSocket.Shutdown(SocketShutdown.Both);
 			MainSocket.Close();
+			is_stopped = true;
 		}
 	}
 

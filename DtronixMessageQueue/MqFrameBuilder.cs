@@ -4,10 +4,20 @@ using System.IO;
 using System.Linq;
 
 namespace DtronixMessageQueue {
+
+	/// <summary>
+	/// Class to parse raw byte arrays into frames.
+	/// </summary>
 	public class MqFrameBuilder : IDisposable {
 
+		/// <summary>
+		/// Byte buffer used to maintain and parse the passed buffers.
+		/// </summary>
 		private readonly byte[] buffer;
 
+		/// <summary>
+		/// Data for this frame
+		/// </summary>
 		private byte[] current_frame_data;
 		private MqFrameType current_frame_type;
 

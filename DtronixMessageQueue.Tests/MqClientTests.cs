@@ -182,5 +182,61 @@ namespace DtronixMessageQueue.Tests {
 			StartAndWait();
 		}
 
+		[Fact]
+		public void Client_times_out() {
+			var client_config = new MqSocketConfig {
+				Ip = Config.Ip,
+				Port = Config.Port,
+				PingFrequency = 60000
+			};
+
+			
+			Client = new MqClient(client_config);
+
+			Config.PingTimeout = 500;
+			Server = new MqServer(Config);
+
+
+			Client.Closed += (sender, args) => {
+				if (args.CloseReason == SocketCloseReason.TimeOut) {
+					TestStatus.Set();
+				} else {
+					LastException = new Exception("Client closed for reason other than timeout.");
+				}
+			};
+
+			StartAndWait(true, 1000);
+		}
+
+		[Fact]
+		public void Client_prevents_times_out() {
+			var client_config = new MqSocketConfig {
+				Ip = Config.Ip,
+				Port = Config.Port,
+				PingFrequency = 100
+			};
+
+
+			Client = new MqClient(client_config);
+
+			Config.PingTimeout = 200;
+			Server = new MqServer(Config);
+
+
+			Client.Closed += (sender, args) => {
+				if (args.CloseReason == SocketCloseReason.TimeOut) {
+					TestStatus.Set();
+				} else {
+					LastException = new Exception("Client closed for reason other than timeout.");
+				}
+			};
+
+			StartAndWait(false, 1000);
+
+			if (TestStatus.IsSet) {
+				throw new Exception("Client timed out.");
+			}
+		}
+
 	}
 }
