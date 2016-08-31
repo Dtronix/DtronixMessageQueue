@@ -153,6 +153,15 @@ namespace DtronixMessageQueue.Socket {
 			socket.ReceiveAsync(session.receive_args);
 
 			session.CurrentState = State.Connected;
+
+			session.OnSetup();
+		}
+
+		/// <summary>
+		/// Called after the initial setup has occurred on the session.
+		/// </summary>
+		protected virtual void OnSetup() {
+
 		}
 
 		/// <summary>
