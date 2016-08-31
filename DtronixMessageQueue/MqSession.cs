@@ -196,7 +196,7 @@ namespace DtronixMessageQueue {
 			//Postmaster.SignalReadComplete(this);
 
 			if (messages != null) {
-				OnIncomingMessage(this, new IncomingMessageEventArgs<TSession>(messages, this));
+				OnIncomingMessage(this, new IncomingMessageEventArgs<TSession>(messages, (TSession)this));
 			}
 		}
 

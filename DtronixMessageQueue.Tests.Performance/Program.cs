@@ -83,7 +83,7 @@ namespace DtronixMessageQueue.Tests.Performance {
 		}
 
 		private static void StartClient(int total_loops, int total_messages, int total_frames, int frame_size) {
-			var cl = new MqClient(new MqSocketConfig() {
+			var cl = new MqClient<SimpleMqSession>(new MqSocketConfig() {
 				Ip = "127.0.0.1",
 				Port = 2828
 			});
@@ -150,7 +150,7 @@ namespace DtronixMessageQueue.Tests.Performance {
 		}
 
 		private static void StartServer(int total_messages, int total_clients) {
-			var server = new MqServer(new MqSocketConfig() {
+			var server = new MqServer<SimpleMqSession>(new MqSocketConfig() {
 				Ip = "127.0.0.1",
 				Port = 2828
 			});
@@ -163,7 +163,7 @@ namespace DtronixMessageQueue.Tests.Performance {
 			builder.Write("START");
 			var start_message = builder.ToMessage(true);
 
-			ConcurrentDictionary<MqSession, ClientRunInfo> clients_info = new ConcurrentDictionary<MqSession, ClientRunInfo>();
+			ConcurrentDictionary<SimpleMqSession, ClientRunInfo> clients_info = new ConcurrentDictionary<SimpleMqSession, ClientRunInfo>();
 
 
 			server.Connected += (sender, session) => {
@@ -206,7 +206,7 @@ namespace DtronixMessageQueue.Tests.Performance {
 
 		private class ClientRunInfo {
 			public int Runs { get; set; }
-			public MqSession Session { get; set; }
+			public SimpleMqSession Session { get; set; }
 
 		}
 
@@ -270,7 +270,7 @@ namespace DtronixMessageQueue.Tests.Performance {
 		}
 
 		private static void MqInProcessPerformanceTests(int runs, int loops, MqMessage message, MqSocketConfig config) {
-			var server = new MqServer(config);
+			var server = new MqServer<SimpleMqSession>(config);
 			server.Start();
 
 			double[] total_values = { 0, 0, 0 };
@@ -280,7 +280,7 @@ namespace DtronixMessageQueue.Tests.Performance {
 			var wait = new AutoResetEvent(false);
 			var complete_test = new AutoResetEvent(false);
 
-			var client = new MqClient(config);
+			var client = new MqClient<SimpleMqSession>(config);
 
 			Console.WriteLine("|   Build |   Messages | Msg Bytes | Milliseconds |        MPS |     MBps |");
 			Console.WriteLine("|---------|------------|-----------|--------------|------------|----------|");

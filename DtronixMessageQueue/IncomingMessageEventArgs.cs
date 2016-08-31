@@ -17,14 +17,14 @@ namespace DtronixMessageQueue {
 		/// <summary>
 		/// If this message is on the server, this will contain the reference to the connected session of the client.
 		/// </summary>
-		public MqSession<TSession> Session { get; }
+		public TSession Session { get; }
 
 		/// <summary>
 		/// Creates an instance of the event args.
 		/// </summary>
 		/// <param name="messages">Messages read and ready to be used.</param>
 		/// <param name="session">Server session.  Null if this is on the client.</param>
-		public IncomingMessageEventArgs(Queue<MqMessage> messages, MqSession<TSession> session) {
+		public IncomingMessageEventArgs(Queue<MqMessage> messages, TSession session) {
 			Messages = messages;
 			Session = session;
 		}
