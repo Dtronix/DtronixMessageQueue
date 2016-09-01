@@ -32,11 +32,13 @@ namespace DtronixMessageQueue.Rpc {
 					SupportMultipleContent = true
 				};
 				var json_serializer = new JsonSerializer {
-					NullValueHandling = NullValueHandling.Ignore
-					
+					NullValueHandling = NullValueHandling.Ignore,
+					CheckAdditionalContent = false,
+
+
 				};
 
-				store = new Store() {
+				store = new Store {
 					MessageWriter = mq_writer,
 					BsonWriter = bson_writer,
 					Serializer = json_serializer,
@@ -44,8 +46,15 @@ namespace DtronixMessageQueue.Rpc {
 					BsonReader = bson_reader
 
 				};
+			} else {
+				store.MessageWriter.Clear();
+
+				// Hack to reset BsonRead
+				store.BsonReader = new BsonReader(store.MessageReader);
 			}
-			store.MessageWriter.Clear();
+			
+			//
+			
 			
 			return store;
 		}

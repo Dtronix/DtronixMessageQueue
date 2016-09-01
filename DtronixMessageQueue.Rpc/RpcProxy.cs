@@ -62,8 +62,8 @@ namespace DtronixMessageQueue.Rpc {
 
 			session.Send(rw_store.MessageWriter.ToMessage(true));
 
-			return_wait?.ReturnResetEvent.Wait(return_wait.Token);
-
+			//return_wait?.ReturnResetEvent.Wait(return_wait.Token);
+			return new ReturnMessage(1, null, 0, method_call.LogicalCallContext, method_call);
 			try {
 				rw_store.MessageReader.Message = return_wait.ReturnMessage;
 

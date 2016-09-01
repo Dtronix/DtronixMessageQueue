@@ -120,6 +120,8 @@ namespace DtronixMessageQueue.Rpc {
 					case RpcMessageType.RpcCall:
 						object[] parameters = new object[argument_count];
 
+		
+
 						// Deserialize each parameter.
 						JObject param_jobject = (JObject)store.Serializer.Deserialize(store.BsonReader);
 						var param_children = param_jobject.PropertyValues().ToArray();
