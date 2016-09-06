@@ -48,21 +48,35 @@
   </ItemGroup>
   <ItemGroup>
     <Compile Include="ConsoleCopy.cs" />
+    <Compile Include="MqPerformanceTest.cs" />
+    <Compile Include="PerformanceTestBase.cs" />
     <Compile Include="Program.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
+    <Compile Include="RpcPerformanceTest.cs" />
+    <Compile Include="Services\Server\CalculatorService.cs" />
+    <Compile Include="Services\Server\ICalculatorService.cs" />
+    <Compile Include="Services\Server\TestService.cs" />
     <Compile Include="SimpleMqSession.cs" />
+    <Compile Include="SimpleRpcSession.cs" />
   </ItemGroup>
   <ItemGroup>
     <None Include="App.config" />
+    <Content Include="run-rpc.bat">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </Content>
   </ItemGroup>
   <ItemGroup>
+    <ProjectReference Include="..\DtronixMessageQueue.Rpc\DtronixMessageQueue.Rpc.csproj">
+      <Project>{F034C114-E1A9-42FC-A2B0-0864C821179B}</Project>
+      <Name>DtronixMessageQueue.Rpc</Name>
+    </ProjectReference>
     <ProjectReference Include="..\DtronixMessageQueue\DtronixMessageQueue.csproj">
       <Project>{060bfeca-a3d2-4871-ae35-28deccb95fe3}</Project>
       <Name>DtronixMessageQueue</Name>
     </ProjectReference>
   </ItemGroup>
   <ItemGroup>
-    <Content Include="Run.bat">
+    <Content Include="run-mq.bat">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </Content>
   </ItemGroup>
