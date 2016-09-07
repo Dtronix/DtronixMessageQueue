@@ -10,21 +10,34 @@ namespace DtronixMessageQueue.Tests.Performance.Services.Server {
 		public string Name { get; } = "TestService";
 		public SimpleRpcSession Session { get; set; }
 
+		public event EventHandler Completed;
+
 		private int call_count = 0;
 		private int total_calls = 0;
 
+		private bool completed = false;
 
 		public void TestNoReturn() {
 			call_count++;
+			VerifyComplete();
 
 		}
 
 		public int TestIncrement() {
-			throw new NotImplementedException();
+			call_count++;
+			VerifyComplete();
+			return call_count;
 		}
 
 		public void TestSetup(int calls) {
 			total_calls = calls;
+		}
+
+		private void VerifyComplete() {
+			if (completed == false && total_calls == call_count) {
+				completed = true;
+				Completed?.Invoke(this, EventArgs.Empty);
+			}
 		}
 
 

@@ -25,6 +25,7 @@ namespace DtronixMessageQueue.Tests.Performance {
 			TestService test_service;
 
 			server.Connected += (sender, args) => {
+				
 				test_service = new TestService();
 				args.Session.AddService(test_service);
 			};
