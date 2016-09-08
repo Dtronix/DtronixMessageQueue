@@ -10,7 +10,7 @@ namespace DtronixMessageQueue.Tests.Performance.Services.Server {
 		public string Name { get; } = "TestService";
 		public SimpleRpcSession Session { get; set; }
 
-		public event EventHandler Completed;
+		public event EventHandler<SimpleRpcSession> Completed;
 
 		private int call_count = 0;
 		private int total_calls = 0;
@@ -36,7 +36,7 @@ namespace DtronixMessageQueue.Tests.Performance.Services.Server {
 		private void VerifyComplete() {
 			if (completed == false && total_calls == call_count) {
 				completed = true;
-				Completed?.Invoke(this, EventArgs.Empty);
+				Completed?.Invoke(this, Session);
 			}
 		}
 

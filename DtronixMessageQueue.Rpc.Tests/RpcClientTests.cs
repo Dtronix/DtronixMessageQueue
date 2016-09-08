@@ -54,7 +54,7 @@ namespace DtronixMessageQueue.Rpc.Tests {
 				Stopwatch stopwatch = Stopwatch.StartNew();
 
 				int added_int = 0;
-				for (int i = 0; i < 1000; i++) {
+				for (int i = 0; i < 100; i++) {
 					added_int = service.Add(added_int, 1);
 				}
 				
@@ -78,7 +78,7 @@ namespace DtronixMessageQueue.Rpc.Tests {
 			Client.Connected += (sender, args) => {
 				args.Session.AddProxy<ICalculatorService>(new CalculatorService());
 				var service = Client.Session.GetProxy<ICalculatorService>();
-				int threads = 10;
+				int threads = 2;
 				int to_loops = 100;
 
 				stopwatch.Start();

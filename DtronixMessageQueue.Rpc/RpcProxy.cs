@@ -1,4 +1,5 @@
-﻿using System.Linq;
+﻿using System.CodeDom;
+using System.Linq;
 using System.Reflection;
 using System.Runtime.Remoting.Messaging;
 using System.Runtime.Remoting.Proxies;
@@ -43,14 +44,10 @@ namespace DtronixMessageQueue.Rpc {
 			RpcReturnCallWait return_wait = null;
 
 			// Determine what kind of method we are calling.
-			if (method_info.ReturnType == typeof(void)) {
-				rw_store.MessageWriter.Write((byte)RpcMessageType.RpcCallNoReturn);
-			} else {
-				rw_store.MessageWriter.Write((byte) RpcMessageType.RpcCall);
+			rw_store.MessageWriter.Write((byte) RpcMessageType.RpcCall);
 
-				return_wait = session.CreateReturnCallWait();
-				rw_store.MessageWriter.Write(return_wait.Id);
-			}
+			return_wait = session.CreateReturnCallWait();
+			rw_store.MessageWriter.Write(return_wait.Id);
 
 			rw_store.MessageWriter.Write(decorated.Name);
 			rw_store.MessageWriter.Write(method_call.MethodName);
@@ -62,16 +59,23 @@ namespace DtronixMessageQueue.Rpc {
 
 			session.Send(rw_store.MessageWriter.ToMessage(true));
 
-			//return_wait?.ReturnResetEvent.Wait(return_wait.Token);
-			return new ReturnMessage(1, null, 0, method_call.LogicalCallContext, method_call);
+			return_wait.ReturnResetEvent.Wait(return_wait.Token);
+			//return new ReturnMessage(1, null, 0, method_call.LogicalCallContext, method_call);
 			try {
+				if (return_wait == null) {
+					return new ReturnMessage(null, null, 0, method_call.LogicalCallContext, method_call);
+				}
 				rw_store.MessageReader.Message = return_wait.ReturnMessage;
 
 				// Skip 3 bytes.
 				rw_store.MessageReader.ReadBytes(3);
-				JObject return_jobject = (JObject)rw_store.Serializer.Deserialize(rw_store.BsonReader);
-				var param_children = return_jobject.PropertyValues().ToArray();
-				var return_value = param_children[0].ToObject(method_info.ReturnType);
+				object return_value = typeof(void);
+
+				if (method_info.ReturnType != typeof(void)) {
+					JObject return_jobject = (JObject) rw_store.Serializer.Deserialize(rw_store.BsonReader);
+					var param_children = return_jobject.PropertyValues().ToArray();
+					return_value = param_children[0].ToObject(method_info.ReturnType);
+				}
 
 				return new ReturnMessage(return_value, null, 0, method_call.LogicalCallContext, method_call);
 
