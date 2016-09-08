@@ -115,7 +115,8 @@ namespace DtronixMessageQueue {
 		/// <summary>
 		/// Internally called method by the Postmaster on a different thread to send all messages in the outbox.
 		/// </summary>
-		internal void ProcessOutbox() {
+		/// <returns>True if messages were sent.  False if nothing was sent.</returns>
+		internal bool ProcessOutbox() {
 			MqMessage result;
 			var length = 0;
 			var buffer_queue = new Queue<byte[]>();
@@ -139,16 +140,20 @@ namespace DtronixMessageQueue {
 				}
 			}
 
-			if (buffer_queue.Count > 0) {
-				// Send the last of the buffer queue.
-				SendBufferQueue(buffer_queue, length);
+			if (buffer_queue.Count == 0) {
+				return false;
 			}
+
+			// Send the last of the buffer queue.
+			SendBufferQueue(buffer_queue, length);
+			return true;
 		}
 
 		/// <summary>
 		/// Internal method called by the Postmaster on a different thread to process all bytes in the inbox.
 		/// </summary>
-		internal void ProcessIncomingQueue() {
+		/// <returns>True if incoming queue was processed; False if nothing was available for process.</returns>
+		internal bool ProcessIncomingQueue() {
 			if (message == null) {
 				message = new MqMessage();
 			}
@@ -201,9 +206,13 @@ namespace DtronixMessageQueue {
 			}
 			//Postmaster.SignalReadComplete(this);
 
-			if (messages != null) {
-				OnIncomingMessage(this, new IncomingMessageEventArgs<TSession>(messages, (TSession)this));
+			if (messages == null) {
+				return false;
 			}
+
+			OnIncomingMessage(this, new IncomingMessageEventArgs<TSession>(messages, (TSession)this));
+			return true;
+
 		}
 
 		/// <summary>

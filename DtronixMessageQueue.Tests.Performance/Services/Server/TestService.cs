@@ -20,7 +20,7 @@ namespace DtronixMessageQueue.Tests.Performance.Services.Server {
 
 		public void TestNoReturn() {
 			var number = Interlocked.Increment(ref call_count);
-			Console.Write(number + " ");
+			//Console.Write(number + " ");
 			VerifyComplete();
 
 		}

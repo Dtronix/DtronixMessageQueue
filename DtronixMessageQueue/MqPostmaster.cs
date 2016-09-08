@@ -155,9 +155,14 @@ namespace DtronixMessageQueue {
 					worker.StartIdle();
 					while (write_operations.TryTake(out session, 60000, worker.Token)) {
 						worker.StartWork();
-						session.ProcessOutbox();
+
+						if (session.ProcessOutbox()) {
+							write_operations.TryAdd(session);
+						} else {
+							ongoing_write_operations.TryRemove(session, out out_session);
+						}
+
 						worker.StartIdle();
-						ongoing_write_operations.TryRemove(session, out out_session);
 					}
 				} catch (ThreadAbortException) {
 				} catch (Exception) {
@@ -186,9 +191,13 @@ namespace DtronixMessageQueue {
 					worker.StartIdle();
 					while (read_operations.TryTake(out session, 60000, worker.Token)) {
 						worker.StartWork();
-						session.ProcessIncomingQueue();
+						if (session.ProcessIncomingQueue()) {
+							read_operations.TryAdd(session);
+						} else { 
+							ongoing_read_operations.TryRemove(session, out out_session);
+						}
+
 						worker.StartIdle();
-						ongoing_read_operations.TryRemove(session, out out_session);
 
 					}
 				} catch (ThreadAbortException) {
