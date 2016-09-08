@@ -34,6 +34,10 @@ namespace DtronixMessageQueue.Rpc.Tests {
 				var service = Client.Session.GetProxy<ICalculatorService>();
 				var result = service.Add(100, 200);
 
+				if (result != 300) {
+					LastException = new Exception("Service returned wrong result.");
+				}
+
 				TestStatus.Set();
 			};
 
@@ -106,25 +110,6 @@ namespace DtronixMessageQueue.Rpc.Tests {
 			StartAndWait();
 
 			Output.WriteLine($"{stopwatch.ElapsedMilliseconds}");
-		}
-
-
-
-		[Fact]
-		public void serializes_data() {
-			var writer = new MqMessageWriter(Config);
-			var bwriter = new BsonWriter(writer) {CloseOutput = false};
-
-			var s = new Test {
-				Length = 51235115,
-				TestStr = "ASFSFASFsfaasf aslgheqw8tyh 23  hy wasgh asdgio a"
-			};
-
-			JsonSerializer serializer = new JsonSerializer();
-			serializer.Serialize(bwriter, s);
-
-
-			var message2 = writer.ToMessage();
 		}
 	}
 }

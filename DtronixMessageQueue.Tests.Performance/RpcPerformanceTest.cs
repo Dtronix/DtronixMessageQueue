@@ -72,7 +72,7 @@ namespace DtronixMessageQueue.Tests.Performance {
 							break;
 
 						case RpcTestType.Return:
-							var result = service.TestIncrement();
+							service.TestIncrement();
 							break;
 
 						case RpcTestType.Exception:
