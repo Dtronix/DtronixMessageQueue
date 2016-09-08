@@ -33,6 +33,11 @@ namespace DtronixMessageQueue.Tests.Performance.Services.Server {
 			total_calls = calls;
 		}
 
+		public void ResetTest() {
+			call_count = 0;
+			completed = false;
+		}
+
 		private void VerifyComplete() {
 			if (completed == false && total_calls == call_count) {
 				completed = true;
@@ -47,5 +52,6 @@ namespace DtronixMessageQueue.Tests.Performance.Services.Server {
 		void TestNoReturn();
 		int TestIncrement();
 		void TestSetup(int calls);
+		void ResetTest();
 	}
 }

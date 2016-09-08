@@ -16,7 +16,7 @@ namespace DtronixMessageQueue.Tests.Performance {
 				Port = 2828
 			};
 
-			RpcSingleProcessTest(1000, 1, config, RpcTestType.NoRetrun);
+			RpcSingleProcessTest(1000, 10, config, RpcTestType.NoRetrun);
 		}
 
 
@@ -60,8 +60,11 @@ namespace DtronixMessageQueue.Tests.Performance {
 
 
 			var send = new Action(() => {
-				sw.Restart();
+				
 				var service = client.Session.GetProxy<ITestService>();
+				service.ResetTest();
+
+				sw.Restart();
 				for (var i = 0; i < runs; i++) {
 					switch (type) {
 						case RpcTestType.NoRetrun:
