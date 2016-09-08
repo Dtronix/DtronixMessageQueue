@@ -26,7 +26,7 @@ namespace DtronixMessageQueue.Tests.Performance {
 
 				default:
 					Console.WriteLine("Running MQ performance tests.");
-					new RpcPerformanceTest(args);
+					new MqPerformanceTest(args);
 					break;
 
 
