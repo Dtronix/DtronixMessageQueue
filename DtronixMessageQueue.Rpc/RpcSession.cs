@@ -115,20 +115,21 @@ namespace DtronixMessageQueue.Rpc {
 				var method_info = service.GetType().GetMethod(method_name);
 				var method_parameters = method_info.GetParameters();
 
+				object[] parameters = new object[argument_count];
+
+				// Deserialize each parameter.
+				JObject param_jobject = (JObject)store.Serializer.Deserialize(store.BsonReader);
+				var param_children = param_jobject.PropertyValues().ToArray();
+
+				for (int i = 0; i < argument_count; i++) {
+					parameters[i] = param_children[i].ToObject(method_parameters[i].ParameterType);
+				}
+
+				var return_value = method_info.Invoke(service, parameters);
+
 
 				switch (message_type) {
 					case RpcMessageType.RpcCall:
-						object[] parameters = new object[argument_count];
-
-						// Deserialize each parameter.
-						JObject param_jobject = (JObject)store.Serializer.Deserialize(store.BsonReader);
-						var param_children = param_jobject.PropertyValues().ToArray();
-
-						for (int i = 0; i < argument_count; i++) {
-							parameters[i] = param_children[i].ToObject(method_parameters[i].ParameterType);
-						}
-
-						var return_value = method_info.Invoke(service, parameters);
 
 						store.MessageWriter.Clear();
 						store.MessageWriter.Write((byte)RpcMessageType.RpcCallReturn);

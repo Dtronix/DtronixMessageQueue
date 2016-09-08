@@ -44,10 +44,14 @@ namespace DtronixMessageQueue.Rpc {
 			RpcReturnCallWait return_wait = null;
 
 			// Determine what kind of method we are calling.
-			rw_store.MessageWriter.Write((byte) RpcMessageType.RpcCall);
+			if (method_info.ReturnType == typeof(void)) {
+				rw_store.MessageWriter.Write((byte)RpcMessageType.RpcCallNoReturn);
+			} else {
+				rw_store.MessageWriter.Write((byte)RpcMessageType.RpcCall);
 
-			return_wait = session.CreateReturnCallWait();
-			rw_store.MessageWriter.Write(return_wait.Id);
+				return_wait = session.CreateReturnCallWait();
+				rw_store.MessageWriter.Write(return_wait.Id);
+			}
 
 			rw_store.MessageWriter.Write(decorated.Name);
 			rw_store.MessageWriter.Write(method_call.MethodName);
@@ -59,12 +63,14 @@ namespace DtronixMessageQueue.Rpc {
 
 			session.Send(rw_store.MessageWriter.ToMessage(true));
 
+			if (return_wait == null) {
+				return new ReturnMessage(null, null, 0, method_call.LogicalCallContext, method_call);
+			}
+
 			return_wait.ReturnResetEvent.Wait(return_wait.Token);
-			//return new ReturnMessage(1, null, 0, method_call.LogicalCallContext, method_call);
+
+
 			try {
-				if (return_wait == null) {
-					return new ReturnMessage(null, null, 0, method_call.LogicalCallContext, method_call);
-				}
 				rw_store.MessageReader.Message = return_wait.ReturnMessage;
 
 				// Skip 3 bytes.

@@ -2,6 +2,7 @@
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
+using System.Threading;
 using System.Threading.Tasks;
 using DtronixMessageQueue.Rpc;
 
@@ -18,7 +19,8 @@ namespace DtronixMessageQueue.Tests.Performance.Services.Server {
 		private bool completed = false;
 
 		public void TestNoReturn() {
-			call_count++;
+			var number = Interlocked.Increment(ref call_count);
+			Console.Write(number + " ");
 			VerifyComplete();
 
 		}
