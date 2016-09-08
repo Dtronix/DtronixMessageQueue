@@ -110,7 +110,7 @@ namespace DtronixMessageQueue {
 				}
 
 				// If this is not the idle worker and it has been idle for more than 60 seconds, close down this worker.
-				if (worker.IsIdling && worker != idle_worker && worker.AverageIdleTime > 60000) {
+				if (worker.IsIdling && worker != idle_worker && worker.AverageIdleTime > config.IdleWorkerTimeout) {
 					worker_list.Remove(worker);
 					worker.Stop();
 				}
@@ -158,7 +158,6 @@ namespace DtronixMessageQueue {
 						session.ProcessOutbox();
 						worker.StartIdle();
 						ongoing_write_operations.TryRemove(session, out out_session);
-
 					}
 				} catch (ThreadAbortException) {
 				} catch (Exception) {
