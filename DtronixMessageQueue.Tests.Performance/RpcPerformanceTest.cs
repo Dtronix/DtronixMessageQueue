@@ -16,7 +16,13 @@ namespace DtronixMessageQueue.Tests.Performance {
 				Port = 2828
 			};
 
+			RpcSingleProcessTest(1000, 4, config, RpcTestType.Exception);
+
+			RpcSingleProcessTest(1000, 4, config, RpcTestType.Return);
+
 			RpcSingleProcessTest(100000, 4, config, RpcTestType.NoRetrun);
+
+			
 		}
 
 
@@ -40,7 +46,7 @@ namespace DtronixMessageQueue.Tests.Performance {
 #endif
 
 					var messages_per_second = (int)((double)runs / sw.ElapsedMilliseconds * 1000);
-					Console.WriteLine("| {0,7} | {1,10:N0} | {2,12:N0} |   {3,8:N0} |", mode, runs, sw.ElapsedMilliseconds, messages_per_second);
+					Console.WriteLine("| {0,7} | {1,9} | {2,10:N0} | {3,12:N0} |   {4,8:N0} |", mode, type, runs, sw.ElapsedMilliseconds, messages_per_second);
 					total_values[0] += sw.ElapsedMilliseconds;
 					total_values[1] += messages_per_second;
 
@@ -54,8 +60,8 @@ namespace DtronixMessageQueue.Tests.Performance {
 			server.Start();
 
 
-			Console.WriteLine("|   Build |   Calls    | Milliseconds |    RPC/sec |");
-			Console.WriteLine("|---------|------------|--------------|------------|");
+			Console.WriteLine("|   Build | Type      |   Calls    | Milliseconds |    RPC/sec |");
+			Console.WriteLine("|---------|-----------|------------|--------------|------------|");
 
 
 
@@ -76,6 +82,7 @@ namespace DtronixMessageQueue.Tests.Performance {
 							break;
 
 						case RpcTestType.Exception:
+							service.TestException();
 							break;
 					}
 					
@@ -95,7 +102,7 @@ namespace DtronixMessageQueue.Tests.Performance {
 					send();
 				}
 
-				Console.WriteLine("|         |   AVERAGES | {0,12:N0} | {1,10:N0} |", total_values[0]/loops, total_values[1]/loops);
+				Console.WriteLine("|         |           |   AVERAGES | {0,12:N0} | {1,10:N0} |", total_values[0]/loops, total_values[1]/loops);
 				Console.WriteLine();
 
 				server.Stop();

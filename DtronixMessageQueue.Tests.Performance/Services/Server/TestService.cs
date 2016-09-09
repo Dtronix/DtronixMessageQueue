@@ -40,6 +40,12 @@ namespace DtronixMessageQueue.Tests.Performance.Services.Server {
 			completed = false;
 		}
 
+		public int TestException() {
+			call_count++;
+			VerifyComplete();
+			throw new Exception("This is a test exception");
+		}
+
 		private void VerifyComplete() {
 			if (completed == false && total_calls == call_count) {
 				completed = true;
@@ -55,5 +61,6 @@ namespace DtronixMessageQueue.Tests.Performance.Services.Server {
 		int TestIncrement();
 		void TestSetup(int calls);
 		void ResetTest();
+		int TestException();
 	}
 }

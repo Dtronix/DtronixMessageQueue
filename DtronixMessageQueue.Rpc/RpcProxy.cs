@@ -1,4 +1,5 @@
-﻿using System.CodeDom;
+﻿using System;
+using System.CodeDom;
 using System.Linq;
 using System.Reflection;
 using System.Runtime.Remoting.Messaging;
@@ -73,37 +74,32 @@ namespace DtronixMessageQueue.Rpc {
 			try {
 				rw_store.MessageReader.Message = return_wait.ReturnMessage;
 
-				// Skip 3 bytes.
-				rw_store.MessageReader.ReadBytes(3);
+				
+				var return_type = (RpcMessageType)rw_store.MessageReader.ReadByte();
+
+				// Skip 2 bytes.
+				rw_store.MessageReader.ReadBytes(2);
 				object return_value = typeof(void);
 
-				if (method_info.ReturnType != typeof(void)) {
-					JObject return_jobject = (JObject) rw_store.Serializer.Deserialize(rw_store.BsonReader);
-					var param_children = return_jobject.PropertyValues().ToArray();
-					return_value = param_children[0].ToObject(method_info.ReturnType);
-				}
+				JObject return_jobject = (JObject) rw_store.Serializer.Deserialize(rw_store.BsonReader);
+				var return_children = return_jobject.PropertyValues().ToArray();
 
-				return new ReturnMessage(return_value, null, 0, method_call.LogicalCallContext, method_call);
-
-				/*switch (return_msg_type) {
+				switch (return_type) {
 					case RpcMessageType.RpcCallReturn:
+						return_value = return_children[0].ToObject(method_info.ReturnType);
+						return new ReturnMessage(return_value, null, 0, method_call.LogicalCallContext, method_call);
 
 					case RpcMessageType.RpcCallException:
-						var exception_type_string = rw_store.MessageReader.ReadString();
-						var exception_instance = (Exception)rw_store.Serializer.Deserialize(rw_store.BsonReader, Type.GetType(exception_type_string, true));
-						var exception = new RpcRemoteException($"Method: {method_info.Name} threw an exception.", exception_instance);
-
+						var exception = (RpcRemoteException)return_children[0].ToObject(typeof(RpcRemoteException));
 						return new ReturnMessage(exception, method_call);
+
+					default:
+						throw new ArgumentOutOfRangeException();
 				}
 
-				return new ReturnMessage(new InvalidOperationException("Session returned malformed request."), method_call);*/
 			} finally {
 				session.ReadWriteStore.Put(rw_store);
 			}
-
-			
 		}
-
-
 	}
 }

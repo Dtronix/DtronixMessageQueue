@@ -13,7 +13,7 @@ namespace DtronixMessageQueue.Socket {
 		/// <summary>
 		/// Logger for this class.
 		/// </summary>
-		private ILogger logger = LogManager.GetCurrentClassLogger();
+		private static ILogger logger = LogManager.GetCurrentClassLogger();
 
 		/// <summary>
 		/// Current state of the socket.

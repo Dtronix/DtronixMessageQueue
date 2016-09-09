@@ -17,19 +17,14 @@ namespace DtronixMessageQueue.Tests.Performance {
 			var mode = args.Length == 0 ? null : args[0];
 			switch (mode) {
 				case "mq":
+					Console.WriteLine("Running MQ performance tests.\r\n");
 					new MqPerformanceTest(args);
-					break;
-
-				case "rpc":
-					new RpcPerformanceTest(args);
 					break;
 
 				default:
-					Console.WriteLine("Running MQ performance tests.");
-					new MqPerformanceTest(args);
+					Console.WriteLine("Running RPC performance tests.\r\n");
+					new RpcPerformanceTest(args);
 					break;
-
-
 			}
 
 			Console.ReadLine();

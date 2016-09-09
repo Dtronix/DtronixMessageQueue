@@ -52,15 +52,12 @@ namespace DtronixMessageQueue.Rpc {
 
 					case RpcMessageType.RpcCallNoReturn:
 					case RpcMessageType.RpcCall:
-						ProcessRpc(message, e, message_type);
-						break;
-
-					case RpcMessageType.RpcCallReturn:
-						ProcessRpcReturn(message);
+						ProcessRpcCall(message, e, message_type);
 						break;
 
 					case RpcMessageType.RpcCallException:
-						ProcessRpcException(message, e);
+					case RpcMessageType.RpcCallReturn:
+						ProcessRpcReturn(message);
 						break;
 
 					default:
@@ -89,15 +86,15 @@ namespace DtronixMessageQueue.Rpc {
 
 
 
-		private void ProcessRpc(MqMessage message, IncomingMessageEventArgs<TSession> e, RpcMessageType message_type) {
+		private void ProcessRpcCall(MqMessage message, IncomingMessageEventArgs<TSession> e, RpcMessageType message_type) {
 			var store = ReadWriteStore.Get();
+			ushort message_return_id = 0;
 			try {
 				store.MessageReader.Message = message;
 
 				// Skip RpcMessageType
 				store.MessageReader.ReadByte();
 
-				ushort message_return_id = 0;
 				if (message_type == RpcMessageType.RpcCall) {
 					message_return_id = store.MessageReader.ReadUInt16();
 				}
@@ -148,6 +145,7 @@ namespace DtronixMessageQueue.Rpc {
 			} catch (Exception ex) {
 				store.MessageWriter.Clear();
 				store.MessageWriter.Write((byte)RpcMessageType.RpcCallException);
+				store.MessageWriter.Write(message_return_id);
 
 				if (ex is RpcRemoteException == false) {
 					ex = new RpcRemoteException("Remote call threw an exception", ex);
@@ -183,11 +181,6 @@ namespace DtronixMessageQueue.Rpc {
 		}
 
 
-
-		private void ProcessRpcException(MqMessage mq_message, IncomingMessageEventArgs<TSession> incoming_message_event_args) {
-			throw new NotImplementedException();
-		}
-
 		private void ProcessRpcReturn(MqMessage mq_message) {
 			var store = ReadWriteStore.Get();
 			try {
@@ -195,6 +188,7 @@ namespace DtronixMessageQueue.Rpc {
 
 				// Skip message type byte.
 				store.MessageReader.ReadByte();
+
 				var return_id = store.MessageReader.ReadUInt16();
 				RpcReturnCallWait call_wait;
 				if (return_call_wait.TryRemove(return_id, out call_wait) == false) {
@@ -204,7 +198,6 @@ namespace DtronixMessageQueue.Rpc {
 				call_wait.ReturnMessage = mq_message;
 
 				call_wait.ReturnResetEvent.Set();
-
 			} finally {
 				ReadWriteStore.Put(store);
 			}

@@ -24,7 +24,7 @@ namespace DtronixMessageQueue.Tests.Performance {
 				total_frames = 4;
 				frame_size = 50;
 				total_clients = 1;
-			} else if (args.Length == 6) {
+			} else if (args.Length == 7) {
 				mode = args[1];
 				total_loops = int.Parse(args[2]);
 				total_messages = int.Parse(args[3]);

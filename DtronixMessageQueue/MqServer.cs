@@ -14,7 +14,7 @@ namespace DtronixMessageQueue {
 		/// <summary>
 		/// Logger for this class.
 		/// </summary>
-		private ILogger logger = LogManager.GetCurrentClassLogger();
+		private static ILogger logger = LogManager.GetCurrentClassLogger();
 
 		/// <summary>
 		/// Handles all incoming and outgoing messages
