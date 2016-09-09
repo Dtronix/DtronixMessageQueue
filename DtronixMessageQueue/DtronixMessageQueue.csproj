@@ -48,6 +48,7 @@
   </ItemGroup>
   <ItemGroup>
     <Compile Include="MqMessageReader.cs" />
+    <Compile Include="MqMessageStreamWriter.cs" />
     <Compile Include="MqMessageWriter.cs" />
     <Compile Include="MqSession.cs" />
     <Compile Include="MqSocketConfig.cs" />
