@@ -104,7 +104,7 @@ namespace DtronixMessageQueue.Rpc {
 				var argument_count = store.MessageReader.ReadByte();
 
 				if (services.ContainsKey(service_name) == false) {
-					throw new RpcRemoteException($"Service '{service_name}' does not exist.");
+					throw new Exception($"Service '{service_name}' does not exist.");
 				}
 
 				var service = services[service_name];
@@ -147,11 +147,7 @@ namespace DtronixMessageQueue.Rpc {
 				store.MessageWriter.Write((byte)RpcMessageType.RpcCallException);
 				store.MessageWriter.Write(message_return_id);
 
-				if (ex is RpcRemoteException == false) {
-					ex = new RpcRemoteException("Remote call threw an exception", ex);
-				}
-
-				store.Serializer.Serialize(store.BsonWriter, ex);
+				store.Serializer.Serialize(store.BsonWriter, new RpcRemoteException("Remote call threw an exception", ex));
 
 				Send(store.MessageWriter.ToMessage(true));
 

@@ -1,11 +1,14 @@
 ﻿using System;
 using System.CodeDom;
+using System.IO;
 using System.Linq;
 using System.Reflection;
 using System.Runtime.Remoting.Messaging;
 using System.Runtime.Remoting.Proxies;
 using System.Threading;
 using Newtonsoft.Json.Linq;
+using ProtoBuf;
+using ProtoBuf.Meta;
 
 namespace DtronixMessageQueue.Rpc {
 	class RpcProxy<T, TSession> : RealProxy
@@ -58,6 +61,24 @@ namespace DtronixMessageQueue.Rpc {
 			rw_store.MessageWriter.Write(method_call.MethodName);
 			rw_store.MessageWriter.Write((byte)arguments.Length);
 
+			arguments = new[] {new RpcRemoteException("Test"), };
+			//RuntimeTypeModel.Default.AutoAddMissingTypes = true;
+			//RuntimeTypeModel.Default.AllowParseableTypes = true;
+
+			RuntimeTypeModel.Default.Add(typeof(RpcRemoteException), false).Add("Message", "StackTrace");
+
+			MemoryStream stream = new MemoryStream();
+			foreach (var arg in arguments) {
+				RuntimeTypeModel.Default.Serialize(stream, arg);
+			}
+			
+			stream.Position = 0;
+
+			foreach (var arg in arguments) {
+				var result = Serializer.Deserialize(arg.GetType(), stream);
+			}
+
+
 			if (arguments != null) {
 				rw_store.Serializer.Serialize(rw_store.BsonWriter, arguments);
 			}
@@ -91,7 +112,8 @@ namespace DtronixMessageQueue.Rpc {
 
 					case RpcMessageType.RpcCallException:
 						var exception = (RpcRemoteException)return_children[0].ToObject(typeof(RpcRemoteException));
-						return new ReturnMessage(exception, method_call);
+
+						return new ReturnMessage(new Exception(exception.Message), method_call);
 
 					default:
 						throw new ArgumentOutOfRangeException();
