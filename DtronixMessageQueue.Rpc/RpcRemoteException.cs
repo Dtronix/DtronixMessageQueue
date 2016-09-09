@@ -1,16 +1,27 @@
 ﻿using System;
+using ProtoBuf;
 
 namespace DtronixMessageQueue.Rpc {
+	[ProtoContract]
 	public class RpcRemoteException {
+		
+		[ProtoMember(1)]
 		public string Message { get; set; }
-		public string StackTrace { get; set; }
-		public RpcRemoteException(string message) : this(message, null) {
+
+		[ProtoMember(2)]
+		public string ExceptionType { get; set; }
+
+		public RpcRemoteException() {
 			
 		}
-
-		public RpcRemoteException(string message, Exception inner_exception) {
+		public RpcRemoteException(string message, Exception exception) {
+			ExceptionType = exception.GetType().Name;
 			Message = message;
-			StackTrace = inner_exception?.StackTrace;
+		}
+
+		public RpcRemoteException(Exception exception) {
+			ExceptionType = exception.GetType().Name;
+			Message = exception.Message;
 		}
 	}
 }

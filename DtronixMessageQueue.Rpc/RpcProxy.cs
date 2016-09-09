@@ -6,7 +6,6 @@ using System.Reflection;
 using System.Runtime.Remoting.Messaging;
 using System.Runtime.Remoting.Proxies;
 using System.Threading;
-using Newtonsoft.Json.Linq;
 using ProtoBuf;
 using ProtoBuf.Meta;
 
@@ -61,26 +60,14 @@ namespace DtronixMessageQueue.Rpc {
 			rw_store.MessageWriter.Write(method_call.MethodName);
 			rw_store.MessageWriter.Write((byte)arguments.Length);
 
-			arguments = new[] {new RpcRemoteException("Test"), };
-			//RuntimeTypeModel.Default.AutoAddMissingTypes = true;
-			//RuntimeTypeModel.Default.AllowParseableTypes = true;
-
-			RuntimeTypeModel.Default.Add(typeof(RpcRemoteException), false).Add("Message", "StackTrace");
-
-			MemoryStream stream = new MemoryStream();
 			foreach (var arg in arguments) {
-				RuntimeTypeModel.Default.Serialize(stream, arg);
-			}
-			
-			stream.Position = 0;
+				RuntimeTypeModel.Default.SerializeWithLengthPrefix(rw_store.Stream, arg, arg.GetType(), PrefixStyle.Fixed32, );
 
-			foreach (var arg in arguments) {
-				var result = Serializer.Deserialize(arg.GetType(), stream);
-			}
+				rw_store.MessageWriter.Write((uint)rw_store.Stream.Length);
+				rw_store.MessageWriter.Write(rw_store.Stream.ToArray());
+				// Should always read the entire buffer in one go.
 
-
-			if (arguments != null) {
-				rw_store.Serializer.Serialize(rw_store.BsonWriter, arguments);
+				rw_store.Stream.SetLength(0);
 			}
 
 			session.Send(rw_store.MessageWriter.ToMessage(true));
@@ -94,13 +81,17 @@ namespace DtronixMessageQueue.Rpc {
 
 			try {
 				rw_store.MessageReader.Message = return_wait.ReturnMessage;
-
 				
 				var return_type = (RpcMessageType)rw_store.MessageReader.ReadByte();
-
 				// Skip 2 bytes.
 				rw_store.MessageReader.ReadBytes(2);
 				object return_value = typeof(void);
+				rw_store.MessageReader.ReadBytes()
+				stream.Write();
+
+
+
+				RuntimeTypeModel.Default.Deserialize()
 
 				JObject return_jobject = (JObject) rw_store.Serializer.Deserialize(rw_store.BsonReader);
 				var return_children = return_jobject.PropertyValues().ToArray();

@@ -6,6 +6,7 @@ using System.Runtime.Remoting.Proxies;
 using System.Threading;
 using DtronixMessageQueue.Socket;
 using Newtonsoft.Json.Linq;
+using ProtoBuf.Meta;
 
 namespace DtronixMessageQueue.Rpc {
 	public class RpcSession<TSession> : MqSession<TSession>
@@ -114,6 +115,17 @@ namespace DtronixMessageQueue.Rpc {
 
 				object[] parameters = new object[argument_count];
 
+				
+
+				for (int i = 0; i < argument_count; i++) {
+					var param_len = store.MessageReader.ReadUInt16();
+
+
+					RuntimeTypeModel.Default.SerializeWithLengthPrefix(,,,);
+
+						store.Stream.Write();
+				}
+
 				// Deserialize each parameter.
 				JObject param_jobject = (JObject)store.Serializer.Deserialize(store.BsonReader);
 				var param_children = param_jobject.PropertyValues().ToArray();
@@ -147,7 +159,7 @@ namespace DtronixMessageQueue.Rpc {
 				store.MessageWriter.Write((byte)RpcMessageType.RpcCallException);
 				store.MessageWriter.Write(message_return_id);
 
-				store.Serializer.Serialize(store.BsonWriter, new RpcRemoteException("Remote call threw an exception", ex));
+				store.Serializer.Serialize(store.BsonWriter, new RpcRemoteException("Remote call threw an exception.", ex));
 
 				Send(store.MessageWriter.ToMessage(true));
 
