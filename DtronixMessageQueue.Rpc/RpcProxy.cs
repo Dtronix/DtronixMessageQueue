@@ -94,11 +94,11 @@ namespace DtronixMessageQueue.Rpc {
 
 				switch (return_type) {
 					case RpcMessageType.RpcCallReturn:
-						var return_value = RuntimeTypeModel.Default.DeserializeWithLengthPrefix(store.Stream, null, method_info.ReturnType, PrefixStyle.Base128, 1);
+						var return_value = RuntimeTypeModel.Default.DeserializeWithLengthPrefix(store.Stream, null, method_info.ReturnType, PrefixStyle.Base128, 0);
 						return new ReturnMessage(return_value, null, 0, method_call.LogicalCallContext, method_call);
 
 					case RpcMessageType.RpcCallException:
-						var return_exception = (RpcRemoteExceptionDataContract)RuntimeTypeModel.Default.DeserializeWithLengthPrefix(store.Stream, null, typeof(RpcRemoteExceptionDataContract), PrefixStyle.Base128, 1);
+						var return_exception = (RpcRemoteExceptionDataContract)RuntimeTypeModel.Default.DeserializeWithLengthPrefix(store.Stream, null, typeof(RpcRemoteExceptionDataContract), PrefixStyle.Base128, 0);
 						return new ReturnMessage(new RpcRemoteException(return_exception), method_call);
 
 					default:

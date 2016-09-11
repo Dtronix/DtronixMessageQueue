@@ -58,7 +58,7 @@ namespace DtronixMessageQueue.Rpc.Tests {
 				Stopwatch stopwatch = Stopwatch.StartNew();
 
 				int added_int = 0;
-				for (int i = 0; i < 100; i++) {
+				for (int i = 0; i < 10; i++) {
 					added_int = service.Add(added_int, 1);
 				}
 				
@@ -67,49 +67,6 @@ namespace DtronixMessageQueue.Rpc.Tests {
 			};
 
 			StartAndWait();
-		}
-
-		[Fact]
-		public void Client_calls_proxy_method_simultaneous() {
-
-			Server.Connected += (sender, args) => {
-				args.Session.AddService<ICalculatorService>(new CalculatorService());
-			};
-
-			int loops = 0;
-			Stopwatch stopwatch = new Stopwatch();
-
-			Client.Connected += (sender, args) => {
-				args.Session.AddProxy<ICalculatorService>(new CalculatorService());
-				var service = Client.Session.GetProxy<ICalculatorService>();
-				int threads = 2;
-				int to_loops = 100;
-
-				stopwatch.Start();
-				for (int j = 0; j < threads; j++) {
-					Task.Run(() => {
-						Interlocked.Increment(ref loops);
-						
-						int added_int = 0;
-						for (int i = 0; i < to_loops; i++) {
-							added_int = service.Add(added_int, 1);
-						}
-
-						
-
-						if (loops == threads*to_loops) {
-							TestStatus.Set();
-						}
-					});
-				}
-				
-
-
-			};
-
-			StartAndWait();
-
-			Output.WriteLine($"{stopwatch.ElapsedMilliseconds}");
 		}
 	}
 }

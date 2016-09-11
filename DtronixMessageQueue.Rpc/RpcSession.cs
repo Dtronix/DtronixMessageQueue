@@ -125,7 +125,7 @@ namespace DtronixMessageQueue.Rpc {
 					for (int i = 0; i < argument_count; i++) {
 						parameters[i] = RuntimeTypeModel.Default.DeserializeWithLengthPrefix(store.Stream, null,
 							method_parameters[i].ParameterType,
-							PrefixStyle.Base128, 0);
+							PrefixStyle.Base128, i);
 					}
 				}
 
@@ -140,7 +140,7 @@ namespace DtronixMessageQueue.Rpc {
 						store.MessageWriter.Write((byte)RpcMessageType.RpcCallReturn);
 						store.MessageWriter.Write(message_return_id);
 
-						RuntimeTypeModel.Default.SerializeWithLengthPrefix(store.Stream, return_value, return_value.GetType(), PrefixStyle.Base128, 1);
+						RuntimeTypeModel.Default.SerializeWithLengthPrefix(store.Stream, return_value, return_value.GetType(), PrefixStyle.Base128, 0);
 
 						store.MessageWriter.Write(store.Stream.ToArray());
 
