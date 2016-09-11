@@ -16,13 +16,13 @@ namespace DtronixMessageQueue.Tests.Performance {
 				Port = 2828
 			};
 
-			RpcSingleProcessTest(1000, 4, config, RpcTestType.Exception);
+			RpcSingleProcessTest(100000, 4, config, RpcTestType.NoRetrun);
 
 			RpcSingleProcessTest(1000, 4, config, RpcTestType.Return);
 
-			RpcSingleProcessTest(100000, 4, config, RpcTestType.NoRetrun);
+			RpcSingleProcessTest(1000, 4, config, RpcTestType.Exception);
 
-			
+
 		}
 
 
