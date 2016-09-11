@@ -1,27 +1,14 @@
 ﻿using System;
-using ProtoBuf;
+using System.Collections.Generic;
+using System.Linq;
+using System.Text;
+using System.Threading.Tasks;
 
 namespace DtronixMessageQueue.Rpc {
-	[ProtoContract]
-	public class RpcRemoteException {
-		
-		[ProtoMember(1)]
-		public string Message { get; set; }
-
-		[ProtoMember(2)]
-		public string ExceptionType { get; set; }
-
-		public RpcRemoteException() {
+	public class RpcRemoteException : Exception {
+		public RpcRemoteException(RpcRemoteExceptionDataContract exception) : base(exception.Message) {
 			
 		}
-		public RpcRemoteException(string message, Exception exception) {
-			ExceptionType = exception.GetType().Name;
-			Message = message;
-		}
 
-		public RpcRemoteException(Exception exception) {
-			ExceptionType = exception.GetType().Name;
-			Message = exception.Message;
-		}
 	}
 }

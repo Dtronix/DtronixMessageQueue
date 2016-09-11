@@ -2,10 +2,11 @@
 using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Linq;
+using System.Reflection;
 using System.Runtime.Remoting.Proxies;
 using System.Threading;
 using DtronixMessageQueue.Socket;
-using Newtonsoft.Json.Linq;
+using ProtoBuf;
 using ProtoBuf.Meta;
 
 namespace DtronixMessageQueue.Rpc {
@@ -115,23 +116,17 @@ namespace DtronixMessageQueue.Rpc {
 
 				object[] parameters = new object[argument_count];
 
-				
+				if (argument_count > 0) {
+					// Write all the rest of the message to the stream to parse into parameters.
+					var param_bytes = store.MessageReader.ReadToEnd();
+					store.Stream.Write(param_bytes, 0, param_bytes.Length);
+					store.Stream.Position = 0;
 
-				for (int i = 0; i < argument_count; i++) {
-					var param_len = store.MessageReader.ReadUInt16();
-
-
-					RuntimeTypeModel.Default.SerializeWithLengthPrefix(,,,);
-
-						store.Stream.Write();
-				}
-
-				// Deserialize each parameter.
-				JObject param_jobject = (JObject)store.Serializer.Deserialize(store.BsonReader);
-				var param_children = param_jobject.PropertyValues().ToArray();
-
-				for (int i = 0; i < argument_count; i++) {
-					parameters[i] = param_children[i].ToObject(method_parameters[i].ParameterType);
+					for (int i = 0; i < argument_count; i++) {
+						parameters[i] = RuntimeTypeModel.Default.DeserializeWithLengthPrefix(store.Stream, null,
+							method_parameters[i].ParameterType,
+							PrefixStyle.Base128, 0);
+					}
 				}
 
 				var return_value = method_info.Invoke(service, parameters);
@@ -139,11 +134,15 @@ namespace DtronixMessageQueue.Rpc {
 
 				switch (message_type) {
 					case RpcMessageType.RpcCall:
+						store.Stream.SetLength(0);
 
 						store.MessageWriter.Clear();
 						store.MessageWriter.Write((byte)RpcMessageType.RpcCallReturn);
 						store.MessageWriter.Write(message_return_id);
-						store.Serializer.Serialize(store.BsonWriter, new[] {return_value});
+
+						RuntimeTypeModel.Default.SerializeWithLengthPrefix(store.Stream, return_value, return_value.GetType(), PrefixStyle.Base128, 1);
+
+						store.MessageWriter.Write(store.Stream.ToArray());
 
 						Send(store.MessageWriter.ToMessage(true));
 
@@ -155,11 +154,17 @@ namespace DtronixMessageQueue.Rpc {
 				}
 
 			} catch (Exception ex) {
+				store.Stream.SetLength(0);
+
 				store.MessageWriter.Clear();
 				store.MessageWriter.Write((byte)RpcMessageType.RpcCallException);
 				store.MessageWriter.Write(message_return_id);
 
-				store.Serializer.Serialize(store.BsonWriter, new RpcRemoteException("Remote call threw an exception.", ex));
+				var exception = new RpcRemoteExceptionDataContract(ex is TargetInvocationException ? ex.InnerException : ex);
+
+				RuntimeTypeModel.Default.SerializeWithLengthPrefix(store.Stream, exception, exception.GetType(), PrefixStyle.Base128, 1);
+
+				store.MessageWriter.Write(store.Stream.ToArray());
 
 				Send(store.MessageWriter.ToMessage(true));
 

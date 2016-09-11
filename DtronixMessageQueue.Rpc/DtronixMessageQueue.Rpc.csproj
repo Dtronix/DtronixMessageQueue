@@ -51,6 +51,7 @@
     <Compile Include="RpcMessageType.cs" />
     <Compile Include="RpcProxy.cs" />
     <Compile Include="RpcRemoteException.cs" />
+    <Compile Include="RpcRemoteExceptionDataContract.cs" />
     <Compile Include="RpcReturnCallWait.cs" />
     <Compile Include="RpcServer.cs" />
     <Compile Include="RpcSession.cs" />

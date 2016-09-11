@@ -82,7 +82,12 @@ namespace DtronixMessageQueue.Tests.Performance {
 							break;
 
 						case RpcTestType.Exception:
-							service.TestException();
+							try {
+								service.TestException();
+							} catch {
+								//ignored
+							}
+							
 							break;
 					}
 					

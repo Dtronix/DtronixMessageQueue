@@ -81,8 +81,7 @@ namespace DtronixMessageQueue.Tests.Performance {
 			double[] total_values = {0, 0, 0};
 
 			for (int i = 0; i < total_frames; i++) {
-				var frame = cl.CreateFrame(SequentialBytes(frame_size));
-				message.Add(frame);
+				message.Add(new MqFrame(SequentialBytes(frame_size), MqFrameType.More, (MqSocketConfig)cl.Config));
 			}
 
 			cl.IncomingMessage += (sender, args) => {

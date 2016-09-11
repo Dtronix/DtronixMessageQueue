@@ -26,7 +26,7 @@ namespace DtronixMessageQueue.Rpc {
 			var method_call = msg as IMethodCallMessage;
 			var method_info = method_call.MethodBase as MethodInfo;
 
-			var rw_store = session.ReadWriteStore.Get();
+			var store = session.ReadWriteStore.Get();
 
 			object[] arguments = method_call.Args;
 			CancellationToken cancellation_token = CancellationToken.None;
@@ -48,30 +48,31 @@ namespace DtronixMessageQueue.Rpc {
 
 			// Determine what kind of method we are calling.
 			if (method_info.ReturnType == typeof(void)) {
-				rw_store.MessageWriter.Write((byte)RpcMessageType.RpcCallNoReturn);
+				store.MessageWriter.Write((byte)RpcMessageType.RpcCallNoReturn);
 			} else {
-				rw_store.MessageWriter.Write((byte)RpcMessageType.RpcCall);
+				store.MessageWriter.Write((byte)RpcMessageType.RpcCall);
 
 				return_wait = session.CreateReturnCallWait();
-				rw_store.MessageWriter.Write(return_wait.Id);
+				store.MessageWriter.Write(return_wait.Id);
 			}
 
-			rw_store.MessageWriter.Write(decorated.Name);
-			rw_store.MessageWriter.Write(method_call.MethodName);
-			rw_store.MessageWriter.Write((byte)arguments.Length);
+			store.MessageWriter.Write(decorated.Name);
+			store.MessageWriter.Write(method_call.MethodName);
+			store.MessageWriter.Write((byte)arguments.Length);
 
+			int field_number = 0;
 			foreach (var arg in arguments) {
-				RuntimeTypeModel.Default.SerializeWithLengthPrefix(rw_store.Stream, arg, arg.GetType(), PrefixStyle.Fixed32, );
+				RuntimeTypeModel.Default.SerializeWithLengthPrefix(store.Stream, arg, arg.GetType(), PrefixStyle.Base128, field_number++);
 
-				rw_store.MessageWriter.Write((uint)rw_store.Stream.Length);
-				rw_store.MessageWriter.Write(rw_store.Stream.ToArray());
+				store.MessageWriter.Write(store.Stream.ToArray());
 				// Should always read the entire buffer in one go.
 
-				rw_store.Stream.SetLength(0);
+				store.Stream.SetLength(0);
 			}
 
-			session.Send(rw_store.MessageWriter.ToMessage(true));
+			session.Send(store.MessageWriter.ToMessage(true));
 
+			// If there is no return wait, our work on this session is complete.
 			if (return_wait == null) {
 				return new ReturnMessage(null, null, 0, method_call.LogicalCallContext, method_call);
 			}
@@ -80,38 +81,32 @@ namespace DtronixMessageQueue.Rpc {
 
 
 			try {
-				rw_store.MessageReader.Message = return_wait.ReturnMessage;
+				store.MessageReader.Message = return_wait.ReturnMessage;
 				
-				var return_type = (RpcMessageType)rw_store.MessageReader.ReadByte();
-				// Skip 2 bytes.
-				rw_store.MessageReader.ReadBytes(2);
-				object return_value = typeof(void);
-				rw_store.MessageReader.ReadBytes()
-				stream.Write();
+				var return_type = (RpcMessageType)store.MessageReader.ReadByte();
+				// Skip 2 bytes for the return ID
+				store.MessageReader.ReadBytes(2);
 
-
-
-				RuntimeTypeModel.Default.Deserialize()
-
-				JObject return_jobject = (JObject) rw_store.Serializer.Deserialize(rw_store.BsonReader);
-				var return_children = return_jobject.PropertyValues().ToArray();
+				var return_bytes = store.MessageReader.ReadToEnd();
+				store.Stream.SetLength(0);
+				store.Stream.Write(return_bytes, 0, return_bytes.Length);
+				store.Stream.Position = 0;
 
 				switch (return_type) {
 					case RpcMessageType.RpcCallReturn:
-						return_value = return_children[0].ToObject(method_info.ReturnType);
+						var return_value = RuntimeTypeModel.Default.DeserializeWithLengthPrefix(store.Stream, null, method_info.ReturnType, PrefixStyle.Base128, 1);
 						return new ReturnMessage(return_value, null, 0, method_call.LogicalCallContext, method_call);
 
 					case RpcMessageType.RpcCallException:
-						var exception = (RpcRemoteException)return_children[0].ToObject(typeof(RpcRemoteException));
-
-						return new ReturnMessage(new Exception(exception.Message), method_call);
+						var return_exception = (RpcRemoteExceptionDataContract)RuntimeTypeModel.Default.DeserializeWithLengthPrefix(store.Stream, null, typeof(RpcRemoteExceptionDataContract), PrefixStyle.Base128, 1);
+						return new ReturnMessage(new RpcRemoteException(return_exception), method_call);
 
 					default:
 						throw new ArgumentOutOfRangeException();
 				}
 
 			} finally {
-				session.ReadWriteStore.Put(rw_store);
+				session.ReadWriteStore.Put(store);
 			}
 		}
 	}
