@@ -15,6 +15,8 @@ namespace DtronixMessageQueue.Tests {
 		[Theory]
 		[InlineData(1, false)]
 		[InlineData(1, true)]
+		[InlineData(100, true)]
+		[InlineData(1000, true)]
 		public void Client_should_send_data_to_server(int number, bool validate) {
 			var message_source = GenerateRandomMessage(4, 50);
 			int received_messages = 0;
@@ -74,8 +76,8 @@ namespace DtronixMessageQueue.Tests {
 
 		[Fact]
 		public void Client_does_not_notify_on_command_frame() {
-			var command_frame = Client.CreateFrame(new byte[21]);
-			command_frame.FrameType = MqFrameType.Command;
+
+			var command_frame = new MqFrame(new byte[21], MqFrameType.Command, Config);
 
 			Client.Connected += (sender, args) => {
 				Client.Send(command_frame);
@@ -94,7 +96,7 @@ namespace DtronixMessageQueue.Tests {
 
 		[Fact]
 		public void Client_does_not_notify_on_ping_frame() {
-			var command_frame = Client.CreateFrame(null, MqFrameType.Ping);
+			var command_frame = new MqFrame(null, MqFrameType.Ping, Config);
 
 			Client.Connected += (sender, args) => {
 				Client.Send(command_frame);

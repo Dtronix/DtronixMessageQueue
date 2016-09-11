@@ -1,5 +1,6 @@
 ﻿using System;
 using System.IO;
+using System.Linq;
 using System.Text;
 
 namespace DtronixMessageQueue {
@@ -22,7 +23,12 @@ namespace DtronixMessageQueue {
 		/// <summary>
 		/// Current position in the frame that is being read.
 		/// </summary>
-		private int position;
+		private int frame_position;
+
+		/// <summary>
+		/// Position in the entire message read.
+		/// </summary>
+		private int absolute_position;
 
 		/// <summary>
 		/// Current message being read.
@@ -69,10 +75,21 @@ namespace DtronixMessageQueue {
 			set {
 				message = value;
 				current_frame = value?[0];
-				position = 0;
+				frame_position = 0;
 				message_position = 0;
+				absolute_position = 0;
 			}
 		}
+
+		/// <summary>
+		/// Byte position in the message.
+		/// </summary>
+		public int Position => absolute_position;
+
+		/// <summary>
+		/// Total length of the bytes in this message.
+		/// </summary>
+		public int Length => message.Frames.Sum(frm => frm.DataLength);
 
 		/// <summary>
 		/// Unused. Stream.Null
@@ -85,7 +102,7 @@ namespace DtronixMessageQueue {
 		public bool IsAtEnd {
 			get {
 				var last_frame = message.Frames[message.Frames.Count - 1];
-				return current_frame == last_frame && last_frame.DataLength == position;
+				return current_frame == last_frame && last_frame.DataLength == frame_position;
 			}
 		}
 
@@ -120,13 +137,8 @@ namespace DtronixMessageQueue {
 		/// </summary>
 		/// <param name="length">Number of bytes to ensure available.</param>
 		private void EnsureBuffer(int length) {
-			
-			if (position + length > current_frame.DataLength) {
+			if (frame_position + length > current_frame.DataLength) {
 				throw new InvalidOperationException("Trying to read simple type across frames which is not allowed.");
-			}
-
-			if (position + length > current_frame.DataLength) {
-				NextNonEmptyFrame();
 			}
 		}
 
@@ -134,7 +146,7 @@ namespace DtronixMessageQueue {
 		/// Skips over to the next non-empty frame in the message.
 		/// </summary>
 		private void NextNonEmptyFrame() {
-			position = 0;
+			frame_position = 0;
 			// Increment until we reach the next non-empty frame.
 			do {
 				message_position++;
@@ -148,8 +160,8 @@ namespace DtronixMessageQueue {
 		/// Advances the reader to the next frame and resets reading positions.
 		/// </summary>
 		public void NextFrame() {
-			position = 0;
-			message_position++;
+			frame_position = 0;
+			message_position += 1;
 			current_frame = message[message_position];
 		}
 
@@ -159,8 +171,9 @@ namespace DtronixMessageQueue {
 		/// </summary>
 		public override bool ReadBoolean() {
 			EnsureBuffer(1);
-			var value = current_frame.ReadBoolean(position);
-			position += 1;
+			var value = current_frame.ReadBoolean(frame_position);
+			frame_position += 1;
+			absolute_position += 1;
 			return value;
 		}
 
@@ -171,8 +184,9 @@ namespace DtronixMessageQueue {
 		/// </summary>
 		public override byte ReadByte() {
 			EnsureBuffer(1);
-			var value = current_frame.ReadByte(position);
-			position += 1;
+			var value = current_frame.ReadByte(frame_position);
+			frame_position += 1;
+			absolute_position += 1;
 			return value;
 		}
 
@@ -182,8 +196,9 @@ namespace DtronixMessageQueue {
 		/// </summary>
 		public override sbyte ReadSByte() {
 			EnsureBuffer(1);
-			var value = current_frame.ReadSByte(position);
-			position += 1;
+			var value = current_frame.ReadSByte(frame_position);
+			frame_position += 1;
+			absolute_position += 1;
 			return value;
 		}
 
@@ -284,14 +299,14 @@ namespace DtronixMessageQueue {
 		public override int PeekChar() {
 			// Store the temporary state of the reader.
 			var previous_frame = current_frame;
-			var previous_position = position;
+			var previous_position = frame_position;
 			var previous_message_position = message_position;
 
 			var value = ReadChar();
 
 			// Restore the original state of the reader.
 			current_frame = previous_frame;
-			position = previous_position;
+			frame_position = previous_position;
 			message_position = previous_message_position;
 
 			return (int) value;
@@ -303,8 +318,9 @@ namespace DtronixMessageQueue {
 		/// </summary>
 		public override short ReadInt16() {
 			EnsureBuffer(2);
-			var value = current_frame.ReadInt16(position);
-			position += 2;
+			var value = current_frame.ReadInt16(frame_position);
+			frame_position += 2;
+			absolute_position += 2;
 			return value;
 		}
 
@@ -314,8 +330,9 @@ namespace DtronixMessageQueue {
 		/// </summary>
 		public override ushort ReadUInt16() {
 			EnsureBuffer(2);
-			var value = current_frame.ReadUInt16(position);
-			position += 2;
+			var value = current_frame.ReadUInt16(frame_position);
+			frame_position += 2;
+			absolute_position += 2;
 			return value;
 		}
 
@@ -335,8 +352,9 @@ namespace DtronixMessageQueue {
 		/// </summary>
 		public override int ReadInt32() {
 			EnsureBuffer(4);
-			var value = current_frame.ReadInt32(position);
-			position += 4;
+			var value = current_frame.ReadInt32(frame_position);
+			frame_position += 4;
+			absolute_position += 4;
 			return value;
 		}
 
@@ -347,8 +365,9 @@ namespace DtronixMessageQueue {
 		/// </summary>
 		public override uint ReadUInt32() {
 			EnsureBuffer(4);
-			var value = current_frame.ReadUInt32(position);
-			position += 4;
+			var value = current_frame.ReadUInt32(frame_position);
+			frame_position += 4;
+			absolute_position += 4;
 			return value;
 		}
 
@@ -358,8 +377,9 @@ namespace DtronixMessageQueue {
 		/// </summary>
 		public override long ReadInt64() {
 			EnsureBuffer(8);
-			var value = current_frame.ReadInt64(position);
-			position += 8;
+			var value = current_frame.ReadInt64(frame_position);
+			frame_position += 8;
+			absolute_position += 8;
 			return value;
 		}
 
@@ -370,8 +390,9 @@ namespace DtronixMessageQueue {
 		/// </summary>
 		public override ulong ReadUInt64() {
 			EnsureBuffer(8);
-			var value = current_frame.ReadUInt64(position);
-			position += 8;
+			var value = current_frame.ReadUInt64(frame_position);
+			frame_position += 8;
+			absolute_position += 8;
 			return value;
 		}
 
@@ -382,8 +403,9 @@ namespace DtronixMessageQueue {
 		/// </summary>
 		public override float ReadSingle() {
 			EnsureBuffer(4);
-			var value = current_frame.ReadSingle(position);
-			position += 4;
+			var value = current_frame.ReadSingle(frame_position);
+			frame_position += 4;
+			absolute_position += 4;
 			return value;
 		}
 
@@ -394,8 +416,9 @@ namespace DtronixMessageQueue {
 		/// </summary>
 		public override double ReadDouble() {
 			EnsureBuffer(8);
-			var value = current_frame.ReadDouble(position);
-			position += 8;
+			var value = current_frame.ReadDouble(frame_position);
+			frame_position += 8;
+			absolute_position += 8;
 			return value;
 		}
 
@@ -405,8 +428,9 @@ namespace DtronixMessageQueue {
 		/// </summary>
 		public override decimal ReadDecimal() {
 			EnsureBuffer(16);
-			var value = current_frame.ReadDecimal(position);
-			position += 16;
+			var value = current_frame.ReadDecimal(frame_position);
+			frame_position += 16;
+			absolute_position += 16;
 			return value;
 		}
 
@@ -424,6 +448,19 @@ namespace DtronixMessageQueue {
 
 			return encoding.GetString(str_buffer);
 
+		}
+
+		/// <summary>
+		/// Reads the rest of the message bytes from the current position to the end.
+		/// >1 Byte.
+		/// 1 or more frames.
+		/// </summary>
+		/// <returns>Message bytes read.</returns>
+		public byte[] ReadToEnd() {
+			var remaining = Length - absolute_position;
+
+			// If there is nothing left to read, return null; otherwise return the bytes.
+			return remaining == 0 ? null : ReadBytes(remaining);
 		}
 
 		/// <summary>
@@ -449,7 +486,7 @@ namespace DtronixMessageQueue {
 		public override int Read(byte[] byte_buffer, int offset, int count) {
 			var total_read = 0;
 			while (offset < count) {
-				var max_read_length = current_frame.DataLength - position;
+				var max_read_length = current_frame.DataLength - frame_position;
 				var read_length = count - total_read < max_read_length ? count - total_read : max_read_length;
 				// If we are at the end of this max frame size, get a new one.
 				if (max_read_length == 0) {
@@ -457,8 +494,9 @@ namespace DtronixMessageQueue {
 					continue;
 				}
 
-				var read = current_frame.Read(position, byte_buffer, offset, read_length);
-				position += read;
+				var read = current_frame.Read(frame_position, byte_buffer, offset, read_length);
+				frame_position += read;
+				absolute_position += read;
 				total_read += read;
 				offset += read;
 			}

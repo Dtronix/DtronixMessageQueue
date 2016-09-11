@@ -56,25 +56,5 @@ namespace DtronixMessageQueue.Socket {
 
 			MainSocket.ConnectAsync(event_arg);
 		}
-
-
-		/// <summary>
-		/// Creates a frame with the specified bytes and the current configurations.
-		/// </summary>
-		/// <param name="bytes">Bytes to put in the frame.</param>
-		/// <returns>Configured frame.</returns>
-		public override MqFrame CreateFrame(byte[] bytes) {
-			return Utilities.CreateFrame(bytes, MqFrameType.Unset, (MqSocketConfig) Config);
-		}
-
-		/// <summary>
-		/// Creates a frame with the specified bytes and the current configurations.
-		/// </summary>
-		/// <param name="bytes">Bytes to put in the frame.</param>
-		/// <param name="type">Type of frame to create.</param>
-		/// <returns>Configured frame.</returns>
-		public override MqFrame CreateFrame(byte[] bytes, MqFrameType type) {
-			return Utilities.CreateFrame(bytes, type, (MqSocketConfig)Config);
-		}
 	}
 }

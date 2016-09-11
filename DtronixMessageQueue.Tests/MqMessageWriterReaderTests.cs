@@ -442,6 +442,84 @@ namespace DtronixMessageQueue.Tests {
 			Assert.True(message_reader.IsAtEnd);
 		}
 
+		[Fact]
+		public void MessageReader_reads_to_end() {
+			var expected_value = new byte[] {1, 2, 3, 4, 5, 6, 7, 8, 9, 10};
+			message_builder.Write(expected_value);
+			var message = message_builder.ToMessage();
+			message_reader.Message = message;
+
+			Assert.Equal(expected_value, message_reader.ReadToEnd());
+			Assert.True(message_reader.IsAtEnd);
+		}
+
+		[Fact]
+		public void MessageReader_reads_to_end_multi_frame() {
+			var expected_value = new byte[] {1, 2, 3, 4, 5, 6, 7, 8, 9, 0};
+
+			message_builder.Write(new byte[] { 1, 2, 3, 4, 5 });
+			message_builder.FinalizeFrame();
+			
+			message_builder.Write(new byte[] { 6, 7, 8, 9, 0 });
+			var message = message_builder.ToMessage();
+			message_reader.Message = message;
+
+			Assert.Equal(expected_value, message_reader.ReadToEnd());
+			Assert.True(message_reader.IsAtEnd);
+		}
+
+		[Fact]
+		public void MessageReader_reads_to_end_partial() {
+			var expected_value = new byte[] { 4, 5, 6, 7, 8, 9, 10 };
+			message_builder.Write(new byte[] { 1, 2, 3, 4, 5, 6, 7, 8, 9, 10 });
+			var message = message_builder.ToMessage();
+			message_reader.Message = message;
+
+			message_reader.ReadBytes(3);
+			Assert.Equal(expected_value, message_reader.ReadToEnd());
+			Assert.True(message_reader.IsAtEnd);
+		}
+
+
+		[Fact]
+		public void MessageReader_maintains_position() {
+			var expected_value = 5;
+			message_builder.Write(new byte[] { 1, 2, 3, 4, 5, 6, 7, 8, 9, 10 });
+			var message = message_builder.ToMessage();
+			message_reader.Message = message;
+
+			message_reader.ReadBytes(5);
+			Assert.Equal(expected_value, message_reader.Position);
+			Assert.False(message_reader.IsAtEnd);
+		}
+
+		[Fact]
+		public void MessageReader_maintains_position_across_frames() {
+			var expected_value = 7;
+			message_builder.Write(new byte[] {1, 2, 3, 4});
+			message_builder.FinalizeFrame();
+			message_builder.Write(new byte[] {5, 6, 7, 8, 9, 10});
+
+			var message = message_builder.ToMessage();
+			message_reader.Message = message;
+
+
+			Assert.Equal(new byte[] {1, 2, 3, 4, 5, 6, 7}, message_reader.ReadBytes(7));
+			Assert.Equal(expected_value, message_reader.Position);
+			Assert.False(message_reader.IsAtEnd);
+		}
+
+		[Fact]
+		public void MessageReader_throws_when_reading_simple_type_across_frames() {
+			message_builder.Write(new byte[] { 1, 2 });
+			message_builder.FinalizeFrame();
+			message_builder.Write(new byte[] { 5, 6 });
+
+			var message = message_builder.ToMessage();
+			message_reader.Message = message;
+
+			Assert.Throws<InvalidOperationException>(() => message_reader.ReadInt32());
+		}
 
 
 	}

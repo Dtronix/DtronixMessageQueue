@@ -32,5 +32,12 @@ namespace DtronixMessageQueue {
 		/// Value of 20 would make a maximum of 20 readers and 20 writers.  Total of 40 workers.
 		/// </remarks>
 		public int MaxReadWriteWorkers { get; set; } = 20;
+
+
+		/// <summary>
+		/// (Server/Client)
+		/// Time in milliseconds that it takes for an idle worker to close down.
+		/// </summary>
+		public int IdleWorkerTimeout { get; set; } = 60000;
 	}
 }

@@ -4,6 +4,7 @@ using System.Collections.Generic;
 using System.IO;
 using System.Threading;
 using DtronixMessageQueue.Socket;
+using NLog;
 
 namespace DtronixMessageQueue {
 
@@ -12,6 +13,11 @@ namespace DtronixMessageQueue {
 	/// </summary>
 	public abstract class MqSession<TSession> : SocketSession
 		where TSession : MqSession<TSession>, new() {
+
+		/// <summary>
+		/// Logger for this class.
+		/// </summary>
+		private static ILogger logger = LogManager.GetCurrentClassLogger();
 
 		/// <summary>
 		/// True if the socket is currently running.
@@ -109,7 +115,8 @@ namespace DtronixMessageQueue {
 		/// <summary>
 		/// Internally called method by the Postmaster on a different thread to send all messages in the outbox.
 		/// </summary>
-		internal void ProcessOutbox() {
+		/// <returns>True if messages were sent.  False if nothing was sent.</returns>
+		internal bool ProcessOutbox() {
 			MqMessage result;
 			var length = 0;
 			var buffer_queue = new Queue<byte[]>();
@@ -133,16 +140,20 @@ namespace DtronixMessageQueue {
 				}
 			}
 
-			if (buffer_queue.Count > 0) {
-				// Send the last of the buffer queue.
-				SendBufferQueue(buffer_queue, length);
+			if (buffer_queue.Count == 0) {
+				return false;
 			}
+
+			// Send the last of the buffer queue.
+			SendBufferQueue(buffer_queue, length);
+			return true;
 		}
 
 		/// <summary>
 		/// Internal method called by the Postmaster on a different thread to process all bytes in the inbox.
 		/// </summary>
-		internal void ProcessIncomingQueue() {
+		/// <returns>True if incoming queue was processed; False if nothing was available for process.</returns>
+		internal bool ProcessIncomingQueue() {
 			if (message == null) {
 				message = new MqMessage();
 			}
@@ -195,9 +206,13 @@ namespace DtronixMessageQueue {
 			}
 			//Postmaster.SignalReadComplete(this);
 
-			if (messages != null) {
-				OnIncomingMessage(this, new IncomingMessageEventArgs<TSession>(messages, (TSession)this));
+			if (messages == null) {
+				return false;
 			}
+
+			OnIncomingMessage(this, new IncomingMessageEventArgs<TSession>(messages, (TSession)this));
+			return true;
+
 		}
 
 		/// <summary>
@@ -206,6 +221,7 @@ namespace DtronixMessageQueue {
 		/// <param name="sender">Originator of call for this event.</param>
 		/// <param name="e">Event args for the message.</param>
 		public virtual void OnIncomingMessage(object sender, IncomingMessageEventArgs<TSession> e) {
+			logger.Debug("Session {0}: Received {1} messages.", Id, e.Messages.Count);
 			IncomingMessage?.Invoke(sender, e);
 		}
 
@@ -224,7 +240,7 @@ namespace DtronixMessageQueue {
 			if (CurrentState == State.Connected) {
 				CurrentState = State.Closing;
 				
-				close_frame = BaseSocket.CreateFrame(new byte[2]);
+				close_frame = CreateFrame(new byte[2]);
 				close_frame.FrameType = MqFrameType.Command;
 
 				close_frame.Write(0, (byte) 0);
@@ -266,6 +282,25 @@ namespace DtronixMessageQueue {
 			}
 
 			EnqueueOutgoingMessage(message);
+		}
+
+		/// <summary>
+		/// Creates a frame with the specified bytes and the current configurations.
+		/// </summary>
+		/// <param name="bytes">Bytes to put in the frame.</param>
+		/// <returns>Configured frame.</returns>
+		public MqFrame CreateFrame(byte[] bytes) {
+			return Utilities.CreateFrame(bytes, MqFrameType.Unset, (MqSocketConfig)Config);
+		}
+
+		/// <summary>
+		/// Creates a frame with the specified bytes and the current configurations.
+		/// </summary>
+		/// <param name="bytes">Bytes to put in the frame.</param>
+		/// <param name="type">Type of frame to create.</param>
+		/// <returns>Configured frame.</returns>
+		public MqFrame CreateFrame(byte[] bytes, MqFrameType type) {
+			return Utilities.CreateFrame(bytes, type, (MqSocketConfig)Config);
 		}
 
 

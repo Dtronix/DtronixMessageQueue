@@ -3,12 +3,23 @@ using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Threading;
 
-namespace DtronixMessageQueue {		
+namespace DtronixMessageQueue {
 	/// <summary>
 	/// Postmaster to handle worker creation/deletion and parsing of all incoming and outgoing messages.
 	/// </summary>
 	public class MqPostmaster<TSession> : IDisposable
 		where TSession : MqSession<TSession>, new() {
+
+		private class WorkerInfo {
+			public enum WorkerType {
+				Reader,
+				Writer
+			}
+
+			public BlockingCollection<MqSession<TSession>> Operations;
+			public ConcurrentDictionary<MqSession<TSession>, bool> OngoingOperations;
+			public WorkerType Type;
+		}
 
 		/// <summary>
 		/// Internal worker to review the current work being done.
@@ -110,7 +121,7 @@ namespace DtronixMessageQueue {
 				}
 
 				// If this is not the idle worker and it has been idle for more than 60 seconds, close down this worker.
-				if (worker.IsIdling && worker != idle_worker && worker.AverageIdleTime > 60000) {
+				if (worker.IsIdling && worker != idle_worker && worker.AverageIdleTime > config.IdleWorkerTimeout) {
 					worker_list.Remove(worker);
 					worker.Stop();
 				}
@@ -147,65 +158,64 @@ namespace DtronixMessageQueue {
 		/// Creates a worker writer.
 		/// </summary>
 		public void CreateWriteWorker() {
-			var writer_worker = new MqWorker(worker => {
-				MqSession<TSession> session = null;
-				bool out_session;
+			var worker_info = new WorkerInfo {
+				Type = WorkerInfo.WorkerType.Writer,
+				OngoingOperations = ongoing_write_operations,
+				Operations = write_operations
+			};
 
-				try {
+			var worker = new MqWorker(wrk => ReadWriteWork(wrk, worker_info), "mq_write_worker_" + write_workers.Count);
+
+			worker.Start();
+
+			write_workers.Add(worker);
+		}
+
+		private void ReadWriteWork(MqWorker worker, WorkerInfo info) {
+			MqSession<TSession> session = null;
+			bool out_session;
+			bool work_done = false;
+			try {
+				worker.StartIdle();
+				while (work_done || info.Operations.TryTake(out session, 60000, worker.Token)) {
+					worker.StartWork();
+
+					if (info.Type == WorkerInfo.WorkerType.Writer ? session.ProcessOutbox() : session.ProcessIncomingQueue()) {
+						work_done = true;
+						continue;
+					}
+
+					work_done = false;
+					info.OngoingOperations.TryRemove(session, out out_session);
+
 					worker.StartIdle();
-					while (write_operations.TryTake(out session, 60000, worker.Token)) {
-						worker.StartWork();
-						session.ProcessOutbox();
-						worker.StartIdle();
-						ongoing_write_operations.TryRemove(session, out out_session);
-
-					}
-				} catch (ThreadAbortException) {
-				} catch (Exception) {
-					if (session != null) {
-						/*logger.Error(e,
-							is_writer
-								? "MqConnection {0}: Exception occurred while when writing."
-								: "MqConnection {0}: Exception occurred while when reading.", session.Connection.Id);*/
-					}
 				}
-			}, "mq_write_worker_" + write_workers.Count);
-
-			writer_worker.Start();
-
-			write_workers.Add(writer_worker);
+			} catch (ThreadAbortException) {
+			} catch (Exception) {
+				if (session != null) {
+					/*logger.Error(e,
+						is_writer
+							? "MqConnection {0}: Exception occurred while when writing."
+							: "MqConnection {0}: Exception occurred while when reading.", session.Connection.Id);*/
+				}
+			}
 		}
 
 		/// <summary>
 		/// Creates a worker reader.
 		/// </summary>
 		public void CreateReadWorker() {
-			var reader_worker = new MqWorker(worker => {
-				MqSession<TSession> session = null;
-				bool out_session;
-				try {
-					worker.StartIdle();
-					while (read_operations.TryTake(out session, 60000, worker.Token)) {
-						worker.StartWork();
-						session.ProcessIncomingQueue();
-						worker.StartIdle();
-						ongoing_read_operations.TryRemove(session, out out_session);
+			var worker_info = new WorkerInfo {
+				Type = WorkerInfo.WorkerType.Reader,
+				OngoingOperations = ongoing_read_operations,
+				Operations = read_operations
+			};
 
-					}
-				} catch (ThreadAbortException) {
-				} catch (Exception) {
-					if (session != null) {
-						/*logger.Error(e,
-							is_writer
-								? "MqConnection {0}: Exception occurred while when writing."
-								: "MqConnection {0}: Exception occurred while when reading.", session.Connection.Id);*/
-					}
-				}
-			}, "mq_read_worker_" + read_workers.Count);
+			var worker = new MqWorker(wrk => ReadWriteWork(wrk, worker_info), "mq_read_worker_" + read_workers.Count);
 
-			reader_worker.Start();
+			worker.Start();
 
-			read_workers.Add(reader_worker);
+			read_workers.Add(worker);
 		}
 
 		/// <summary>

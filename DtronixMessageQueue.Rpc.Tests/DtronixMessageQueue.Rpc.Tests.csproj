@@ -4,11 +4,11 @@
   <PropertyGroup>
     <Configuration Condition=" '$(Configuration)' == '' ">Debug</Configuration>
     <Platform Condition=" '$(Platform)' == '' ">AnyCPU</Platform>
-    <ProjectGuid>{C51DA0D8-7831-49E0-925F-149C9A5B1625}</ProjectGuid>
+    <ProjectGuid>{926DD542-217A-4D5B-AA81-54D22B6B295C}</ProjectGuid>
     <OutputType>Library</OutputType>
     <AppDesignerFolder>Properties</AppDesignerFolder>
-    <RootNamespace>DtronixMessageQueue.Tests</RootNamespace>
-    <AssemblyName>DtronixMessageQueue.Tests</AssemblyName>
+    <RootNamespace>DtronixMessageQueue.Rpc.Tests</RootNamespace>
+    <AssemblyName>DtronixMessageQueue.Rpc.Tests</AssemblyName>
     <TargetFrameworkVersion>v4.5</TargetFrameworkVersion>
     <FileAlignment>512</FileAlignment>
     <ProjectTypeGuids>{3AC096D0-A1C2-E12C-1390-A8335801FDAB};{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}</ProjectTypeGuids>
@@ -37,12 +37,12 @@
     <ErrorReport>prompt</ErrorReport>
     <WarningLevel>4</WarningLevel>
   </PropertyGroup>
-  <PropertyGroup Condition="'$(Configuration)|$(Platform)' == 'Nuget|AnyCPU'">
-    <OutputPath>bin\Nuget\</OutputPath>
-  </PropertyGroup>
   <ItemGroup>
+    <Reference Include="Newtonsoft.Json, Version=9.0.0.0, Culture=neutral, PublicKeyToken=30ad4fe6b2a6aeed, processorArchitecture=MSIL">
+      <HintPath>..\packages\Newtonsoft.Json.9.0.1\lib\net45\Newtonsoft.Json.dll</HintPath>
+      <Private>True</Private>
+    </Reference>
     <Reference Include="System" />
-    <Reference Include="System.Configuration" />
     <Reference Include="xunit.abstractions, Version=2.0.0.0, Culture=neutral, PublicKeyToken=8d05b1bb7a6fdb6c, processorArchitecture=MSIL">
       <HintPath>..\packages\xunit.abstractions.2.0.1\lib\net35\xunit.abstractions.dll</HintPath>
       <Private>True</Private>
@@ -69,25 +69,22 @@
     <Otherwise />
   </Choose>
   <ItemGroup>
-    <Compile Include="MqFrameBuilderTests.cs" />
-    <Compile Include="MqFrameTests.cs" />
-    <Compile Include="MqServerTests.cs" />
-    <Compile Include="MqMessageWriterReaderTests.cs" />
-    <Compile Include="MqTestsBase.cs" />
-    <Compile Include="PerformanceTests.cs" />
-    <Compile Include="MqClientTests.cs" />
+    <Compile Include="RpcTestsBase.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
-    <Compile Include="SimpleMqSession.cs" />
+    <Compile Include="RpcClientTests.cs" />
+    <Compile Include="Services\Server\CalculatorService.cs" />
+    <Compile Include="Services\Server\ICalculatorService.cs" />
+    <Compile Include="SimpleRpcSession.cs" />
     <Compile Include="Utilities.cs" />
   </ItemGroup>
   <ItemGroup>
-    <Content Include="NLog.config">
-      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
-    </Content>
-    <None Include="app.config" />
     <None Include="packages.config" />
   </ItemGroup>
   <ItemGroup>
+    <ProjectReference Include="..\DtronixMessageQueue.Rpc\DtronixMessageQueue.Rpc.csproj">
+      <Project>{f034c114-e1a9-42fc-a2b0-0864c821179b}</Project>
+      <Name>DtronixMessageQueue.Rpc</Name>
+    </ProjectReference>
     <ProjectReference Include="..\DtronixMessageQueue\DtronixMessageQueue.csproj">
       <Project>{060bfeca-a3d2-4871-ae35-28deccb95fe3}</Project>
       <Name>DtronixMessageQueue</Name>
