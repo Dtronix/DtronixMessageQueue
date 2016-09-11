@@ -76,8 +76,8 @@ namespace DtronixMessageQueue.Tests {
 
 		[Fact]
 		public void Client_does_not_notify_on_command_frame() {
-			var command_frame = Client.CreateFrame(new byte[21]);
-			command_frame.FrameType = MqFrameType.Command;
+
+			var command_frame = new MqFrame(new byte[21], MqFrameType.Command, Config);
 
 			Client.Connected += (sender, args) => {
 				Client.Send(command_frame);
@@ -96,7 +96,7 @@ namespace DtronixMessageQueue.Tests {
 
 		[Fact]
 		public void Client_does_not_notify_on_ping_frame() {
-			var command_frame = Client.CreateFrame(null, MqFrameType.Ping);
+			var command_frame = new MqFrame(null, MqFrameType.Ping, Config);
 
 			Client.Connected += (sender, args) => {
 				Client.Send(command_frame);

@@ -27,7 +27,6 @@ namespace DtronixMessageQueue {
 		/// </summary>
 		private readonly Timer timeout_timer;
 
-
 		/// <summary>
 		/// Initializes a new instance of a message queue.
 		/// </summary>
@@ -66,7 +65,7 @@ namespace DtronixMessageQueue {
 		/// </summary>
 		/// <param name="state">Concurrent dictionary of the sessions.</param>
 		private void TimeoutCallback(object state) {
-			Session.Send(CreateFrame(null, MqFrameType.Ping));
+			Session.Send(Session.CreateFrame(null, MqFrameType.Ping));
 		}
 
 		/// <summary>

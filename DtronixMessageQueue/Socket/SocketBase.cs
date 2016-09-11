@@ -109,10 +109,5 @@ namespace DtronixMessageQueue.Socket {
 			session.Closed += (sender, args) => OnClose(session, args.CloseReason);
 			return session;
 		}
-
-
-		public abstract MqFrame CreateFrame(byte[] bytes);
-
-		public abstract MqFrame CreateFrame(byte[] bytes, MqFrameType type);
 	}
 }
