@@ -5,13 +5,13 @@ using System.Threading;
 using Xunit;
 using Xunit.Abstractions;
 
-namespace DtronixMessageQueue.Rpc.Tests {
-	public class RpcTestsBase : IDisposable {
+namespace DtronixMessageQueue.Tests.Mq {
+	public class MqTestsBase : IDisposable {
 		private Random random = new Random();
 		public ITestOutputHelper Output;
 
-		public RpcServer<SimpleRpcSession> Server { get; protected set; }
-		public RpcClient<SimpleRpcSession> Client { get; protected set; }
+		public MqServer<SimpleMqSession> Server { get; protected set; }
+		public MqClient<SimpleMqSession> Client { get; protected set; }
 		public int Port { get; }
 
 		protected MqSocketConfig Config;
@@ -22,7 +22,7 @@ namespace DtronixMessageQueue.Rpc.Tests {
 
 		public ManualResetEventSlim TestStatus { get; set; } = new ManualResetEventSlim(false);
 
-		public RpcTestsBase(ITestOutputHelper output) {
+		public MqTestsBase(ITestOutputHelper output) {
 			this.Output = output;
 			Port = FreeTcpPort();
 
@@ -31,8 +31,8 @@ namespace DtronixMessageQueue.Rpc.Tests {
 				Port = Port
 			};
 
-			Server = new RpcServer<SimpleRpcSession>(Config);
-			Client = new RpcClient<SimpleRpcSession>(Config);
+			Server = new MqServer<SimpleMqSession>(Config);
+			Client = new MqClient<SimpleMqSession>(Config);
 		}
 
 
@@ -97,10 +97,10 @@ namespace DtronixMessageQueue.Rpc.Tests {
 				MqFrame frame;
 
 				if (frame_length == -1) {
-					frame = new MqFrame(Rpc.Tests.Utilities.SequentialBytes(random.Next(50, 1024*16 - 3)),
+					frame = new MqFrame(Utilities.SequentialBytes(random.Next(50, 1024*16 - 3)),
 						(i + 1 < frame_count) ? MqFrameType.More : MqFrameType.Last, Config);
 				} else {
-					frame = new MqFrame(Rpc.Tests.Utilities.SequentialBytes(frame_length),
+					frame = new MqFrame(Utilities.SequentialBytes(frame_length),
 						(i + 1 < frame_count) ? MqFrameType.More : MqFrameType.Last, Config);
 				}
 				message.Add(frame);

@@ -1,7 +1,6 @@
 ﻿using System;
 using System.Net.Sockets;
 using System.Threading;
-using NLog;
 
 namespace DtronixMessageQueue.Socket {
 
@@ -9,11 +8,6 @@ namespace DtronixMessageQueue.Socket {
 	/// Base socket session to be sub-classes by the implementer.
 	/// </summary>
 	public abstract class SocketSession : IDisposable {
-
-		/// <summary>
-		/// Logger for this class.
-		/// </summary>
-		private static ILogger logger = LogManager.GetCurrentClassLogger();
 
 		/// <summary>
 		/// Current state of the socket.
@@ -174,7 +168,7 @@ namespace DtronixMessageQueue.Socket {
 		/// Called when this session is connected to the socket.
 		/// </summary>
 		protected void OnConnected() {
-			logger.Info("Session {0}: Connected", Id);
+			//logger.Info("Session {0}: Connected", Id);
 			Connected?.Invoke(this, new SessionConnectedEventArgs<SocketSession>(this));
 		}
 
@@ -239,7 +233,7 @@ namespace DtronixMessageQueue.Socket {
 			// Copy the bytes to the block buffer
 			Buffer.BlockCopy(buffer, offset, send_args.Buffer, send_args.Offset, length);
 
-			logger.Debug("Session {0}: Sending {1} bytes", Id, length);
+			//logger.Debug("Session {0}: Sending {1} bytes", Id, length);
 
 			// Update the buffer length.
 			send_args.SetBuffer(send_args.Offset, length);
@@ -281,7 +275,7 @@ namespace DtronixMessageQueue.Socket {
 			}
 			if (e.BytesTransferred > 0 && e.SocketError == SocketError.Success) {
 
-				logger.Debug("Session {0}: Received {1} bytes", Id, e.BytesTransferred);
+				//logger.Debug("Session {0}: Received {1} bytes", Id, e.BytesTransferred);
 
 				// Update the last time this session was active to prevent timeout.
 				last_received = DateTime.UtcNow;
@@ -313,7 +307,7 @@ namespace DtronixMessageQueue.Socket {
 		/// </summary>
 		/// <param name="reason">Reason this socket is closing.</param>
 		public virtual void Close(SocketCloseReason reason) {
-			logger.Info("Session {0}: Closing. Reason: {1}", Id, reason);
+			//logger.Info("Session {0}: Closing. Reason: {1}", Id, reason);
 
 			// If this session has already been closed, nothing more to do.
 			if (CurrentState == State.Closed) {

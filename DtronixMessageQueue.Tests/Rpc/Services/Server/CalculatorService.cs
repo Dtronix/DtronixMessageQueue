@@ -1,7 +1,7 @@
 ﻿using System;
 using System.Threading;
 
-namespace DtronixMessageQueue.Rpc.Tests.Services.Server {
+namespace DtronixMessageQueue.Tests.Rpc.Services.Server {
 	public class CalculatorService : MarshalByRefObject, ICalculatorService {
 		public string Name { get; } = "CalculatorService";
 		public SimpleRpcSession Session { get; set; }

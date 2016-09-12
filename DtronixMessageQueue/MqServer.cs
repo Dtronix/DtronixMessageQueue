@@ -2,7 +2,6 @@
 using System.Collections.Concurrent;
 using System.Threading;
 using DtronixMessageQueue.Socket;
-using NLog;
 
 namespace DtronixMessageQueue {
 	/// <summary>
@@ -10,11 +9,6 @@ namespace DtronixMessageQueue {
 	/// </summary>
 	public class MqServer<TSession> : SocketServer<TSession>
 		where TSession : MqSession<TSession>, new() {
-
-		/// <summary>
-		/// Logger for this class.
-		/// </summary>
-		private static ILogger logger = LogManager.GetCurrentClassLogger();
 
 		/// <summary>
 		/// Handles all incoming and outgoing messages

@@ -1,7 +1,7 @@
 ﻿using System;
 using Xunit;
 
-namespace DtronixMessageQueue.Tests {
+namespace DtronixMessageQueue.Tests.Mq {
 	public class MqFrameTests {
 		private MqFrame actual_frame;
 		private byte[] actual_bytes;

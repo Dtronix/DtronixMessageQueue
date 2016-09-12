@@ -4,7 +4,7 @@ using Xunit;
 using Xunit.Abstractions;
 using Assert = Xunit.Assert;
 
-namespace DtronixMessageQueue.Tests {
+namespace DtronixMessageQueue.Tests.Mq {
 	public class MqMessageWriterReaderTests {
 		public ITestOutputHelper Output;
 		private MqMessageWriter message_builder;

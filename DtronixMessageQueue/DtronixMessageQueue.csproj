@@ -32,8 +32,8 @@
     <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
   </PropertyGroup>
   <ItemGroup>
-    <Reference Include="NLog, Version=4.0.0.0, Culture=neutral, PublicKeyToken=5120e14c03d0593c, processorArchitecture=MSIL">
-      <HintPath>..\packages\NLog.4.3.8\lib\net45\NLog.dll</HintPath>
+    <Reference Include="protobuf-net, Version=2.1.0.0, Culture=neutral, PublicKeyToken=257b51d87d2e4d67, processorArchitecture=MSIL">
+      <HintPath>..\packages\protobuf-net.2.1.0\lib\net45\protobuf-net.dll</HintPath>
       <Private>True</Private>
     </Reference>
     <Reference Include="System" />
@@ -51,6 +51,16 @@
     <Compile Include="MqMessageWriter.cs" />
     <Compile Include="MqSession.cs" />
     <Compile Include="MqSocketConfig.cs" />
+    <Compile Include="Rpc\IRemoteService.cs" />
+    <Compile Include="Rpc\RpcClient.cs" />
+    <Compile Include="Rpc\RpcMessageType.cs" />
+    <Compile Include="Rpc\RpcProxy.cs" />
+    <Compile Include="Rpc\RpcRemoteException.cs" />
+    <Compile Include="Rpc\RpcRemoteExceptionDataContract.cs" />
+    <Compile Include="Rpc\RpcReturnCallWait.cs" />
+    <Compile Include="Rpc\RpcServer.cs" />
+    <Compile Include="Rpc\RpcSession.cs" />
+    <Compile Include="Rpc\SerializationStore.cs" />
     <Compile Include="Socket\BufferManager.cs" />
     <Compile Include="Socket\SessionConnectedEventArgs.cs" />
     <Compile Include="Socket\SessionClosedEventArgs.cs" />
@@ -65,12 +75,6 @@
     <Content Include="DtronixMessageQueue.nuspec">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </Content>
-    <None Include="NLog.config">
-      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
-    </None>
-    <None Include="NLog.xsd">
-      <SubType>Designer</SubType>
-    </None>
     <None Include="packages.config" />
     <Compile Include="MqFrameBuilder.cs" />
     <Compile Include="MqWorker.cs" />
