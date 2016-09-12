@@ -16,7 +16,7 @@ namespace DtronixMessageQueue.Tests.Performance {
 				Port = 2828
 			};
 
-			RpcSingleProcessTest(100000, 4, config, RpcTestType.NoRetrun);
+			RpcSingleProcessTest(100, 4, config, RpcTestType.NoRetrun);
 
 			RpcSingleProcessTest(1000, 4, config, RpcTestType.Return);
 

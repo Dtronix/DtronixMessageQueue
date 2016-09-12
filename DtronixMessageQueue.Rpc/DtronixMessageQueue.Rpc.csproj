@@ -44,7 +44,7 @@
     <Reference Include="System.Xml" />
   </ItemGroup>
   <ItemGroup>
-    <Compile Include="BsonReadWriteStore.cs" />
+    <Compile Include="SerializationStore.cs" />
     <Compile Include="IRemoteService.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
     <Compile Include="RpcClient.cs" />

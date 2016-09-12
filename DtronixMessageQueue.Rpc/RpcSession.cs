@@ -5,6 +5,7 @@ using System.Linq;
 using System.Reflection;
 using System.Runtime.Remoting.Proxies;
 using System.Threading;
+using System.Threading.Tasks;
 using DtronixMessageQueue.Socket;
 using ProtoBuf;
 using ProtoBuf.Meta;
@@ -13,19 +14,29 @@ namespace DtronixMessageQueue.Rpc {
 	public class RpcSession<TSession> : MqSession<TSession>
 		where TSession : RpcSession<TSession>, new() {
 
-
+		/// <summary>
+		/// Current call Id wich gets incremented for each call return request.
+		/// </summary>
 		private int rpc_call_id;
 
-		private object rpc_call_id_lock = new object();
+		/// <summary>
+		/// Lock to increment and loop return ID.
+		/// </summary>
+		private readonly object rpc_call_id_lock = new object();
 
-		public BsonReadWriteStore ReadWriteStore { get; private set; }
+		/// <summary>
+		/// Store which contains instances of all classes for serialization and destabilization of data.
+		/// </summary>
+		public SerializationStore Store { get; private set; }
 
-		private ConcurrentDictionary<ushort, RpcReturnCallWait> return_call_wait = 
-			new ConcurrentDictionary<ushort, RpcReturnCallWait>();
+		/// <summary>
+		/// Contains all outstanding call returns pending a return of data from the other end of the connection.
+		/// </summary>
+		private readonly ConcurrentDictionary<ushort, RpcReturnCallWait> return_call_wait = new ConcurrentDictionary<ushort, RpcReturnCallWait>();
 
-		private Dictionary<string, IRemoteService<TSession>> services = new Dictionary<string, IRemoteService<TSession>>();
-		private Dictionary<Type, IRemoteService<TSession>> remote_services_proxy = new Dictionary<Type, IRemoteService<TSession>>();
-		private Dictionary<Type, RealProxy> remote_service_realproxy = new Dictionary<Type, RealProxy>();
+		private readonly Dictionary<string, IRemoteService<TSession>> services = new Dictionary<string, IRemoteService<TSession>>();
+		private readonly Dictionary<Type, IRemoteService<TSession>> remote_services_proxy = new Dictionary<Type, IRemoteService<TSession>>();
+		private readonly Dictionary<Type, RealProxy> remote_service_realproxy = new Dictionary<Type, RealProxy>();
 
 
 		public RpcServer<TSession> Server { get; set; }
@@ -33,7 +44,7 @@ namespace DtronixMessageQueue.Rpc {
 		protected override void OnSetup() {
 			base.OnSetup();
 
-			ReadWriteStore = new BsonReadWriteStore((MqSocketConfig)Config);
+			Store = new SerializationStore((MqSocketConfig)Config);
 		}
 
 
@@ -89,7 +100,7 @@ namespace DtronixMessageQueue.Rpc {
 
 
 		private void ProcessRpcCall(MqMessage message, IncomingMessageEventArgs<TSession> e, RpcMessageType message_type) {
-			var store = ReadWriteStore.Get();
+			var store = Store.Get();
 			ushort message_return_id = 0;
 			try {
 				store.MessageReader.Message = message;
@@ -128,49 +139,60 @@ namespace DtronixMessageQueue.Rpc {
 							PrefixStyle.Base128, i);
 					}
 				}
+				Task.Run(() => {
+					object return_value;
+					try {
+						return_value = method_info.Invoke(service, parameters);
+					} catch (Exception ex) {
+						SendRpcException(store, ex, message_return_id);
+						return;
+					}
+					
 
-				var return_value = method_info.Invoke(service, parameters);
 
+					switch (message_type) {
+						case RpcMessageType.RpcCall:
+							store.Stream.SetLength(0);
 
-				switch (message_type) {
-					case RpcMessageType.RpcCall:
-						store.Stream.SetLength(0);
+							store.MessageWriter.Clear();
+							store.MessageWriter.Write((byte)RpcMessageType.RpcCallReturn);
+							store.MessageWriter.Write(message_return_id);
 
-						store.MessageWriter.Clear();
-						store.MessageWriter.Write((byte)RpcMessageType.RpcCallReturn);
-						store.MessageWriter.Write(message_return_id);
+							RuntimeTypeModel.Default.SerializeWithLengthPrefix(store.Stream, return_value, return_value.GetType(), PrefixStyle.Base128, 0);
 
-						RuntimeTypeModel.Default.SerializeWithLengthPrefix(store.Stream, return_value, return_value.GetType(), PrefixStyle.Base128, 0);
+							store.MessageWriter.Write(store.Stream.ToArray());
 
-						store.MessageWriter.Write(store.Stream.ToArray());
+							Send(store.MessageWriter.ToMessage(true));
 
-						Send(store.MessageWriter.ToMessage(true));
+							break;
+						case RpcMessageType.RpcCallNoReturn:
+							break;
+					}
 
-						break;
-					case RpcMessageType.RpcCallNoReturn:
-						break;
-					default:
-						throw new ArgumentOutOfRangeException(nameof(message_type), message_type, null);
-				}
+					Store.Put(store);
+				});
 
 			} catch (Exception ex) {
-				store.Stream.SetLength(0);
-
-				store.MessageWriter.Clear();
-				store.MessageWriter.Write((byte)RpcMessageType.RpcCallException);
-				store.MessageWriter.Write(message_return_id);
-
-				var exception = new RpcRemoteExceptionDataContract(ex is TargetInvocationException ? ex.InnerException : ex);
-
-				RuntimeTypeModel.Default.SerializeWithLengthPrefix(store.Stream, exception, exception.GetType(), PrefixStyle.Base128, 1);
-
-				store.MessageWriter.Write(store.Stream.ToArray());
-
-				Send(store.MessageWriter.ToMessage(true));
-
-			} finally {
-				ReadWriteStore.Put(store);
+				SendRpcException(store, ex, message_return_id);
+				Store.Put(store);
 			}
+
+		}
+
+		private void SendRpcException(SerializationStore.Store store, Exception ex, ushort message_return_id) {
+			store.Stream.SetLength(0);
+
+			store.MessageWriter.Clear();
+			store.MessageWriter.Write((byte)RpcMessageType.RpcCallException);
+			store.MessageWriter.Write(message_return_id);
+
+			var exception = new RpcRemoteExceptionDataContract(ex is TargetInvocationException ? ex.InnerException : ex);
+
+			RuntimeTypeModel.Default.SerializeWithLengthPrefix(store.Stream, exception, exception.GetType(), PrefixStyle.Base128, 1);
+
+			store.MessageWriter.Write(store.Stream.ToArray());
+
+			Send(store.MessageWriter.ToMessage(true));
 
 		}
 
@@ -195,7 +217,7 @@ namespace DtronixMessageQueue.Rpc {
 
 
 		private void ProcessRpcReturn(MqMessage mq_message) {
-			var store = ReadWriteStore.Get();
+			var store = Store.Get();
 			try {
 				store.MessageReader.Message = mq_message;
 
@@ -212,7 +234,7 @@ namespace DtronixMessageQueue.Rpc {
 
 				call_wait.ReturnResetEvent.Set();
 			} finally {
-				ReadWriteStore.Put(store);
+				Store.Put(store);
 			}
 		}
 

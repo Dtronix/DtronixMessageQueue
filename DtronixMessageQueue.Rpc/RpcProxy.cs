@@ -26,7 +26,7 @@ namespace DtronixMessageQueue.Rpc {
 			var method_call = msg as IMethodCallMessage;
 			var method_info = method_call.MethodBase as MethodInfo;
 
-			var store = session.ReadWriteStore.Get();
+			var store = session.Store.Get();
 
 			object[] arguments = method_call.Args;
 			CancellationToken cancellation_token = CancellationToken.None;
@@ -54,6 +54,7 @@ namespace DtronixMessageQueue.Rpc {
 
 				return_wait = session.CreateReturnCallWait();
 				store.MessageWriter.Write(return_wait.Id);
+				return_wait.Token = cancellation_token;
 			}
 
 			store.MessageWriter.Write(decorated.Name);
@@ -79,6 +80,7 @@ namespace DtronixMessageQueue.Rpc {
 
 			return_wait.ReturnResetEvent.Wait(return_wait.Token);
 
+			return_wait.Token.ThrowIfCancellationRequested();
 
 			try {
 				store.MessageReader.Message = return_wait.ReturnMessage;
@@ -106,7 +108,7 @@ namespace DtronixMessageQueue.Rpc {
 				}
 
 			} finally {
-				session.ReadWriteStore.Put(store);
+				session.Store.Put(store);
 			}
 		}
 	}
