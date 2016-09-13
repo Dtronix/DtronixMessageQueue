@@ -20,7 +20,7 @@ namespace DtronixMessageQueue.Tests.Performance {
 
 			RpcSingleProcessTest(10000, 4, config, RpcTestType.Return);
 
-			//RpcSingleProcessTest(10000, 4, config, RpcTestType.Exception);
+			RpcSingleProcessTest(10000, 4, config, RpcTestType.Exception);
 
 
 		}

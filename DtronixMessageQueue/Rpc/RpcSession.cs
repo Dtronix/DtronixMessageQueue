@@ -190,7 +190,7 @@ namespace DtronixMessageQueue.Rpc {
 
 			var exception = new RpcRemoteExceptionDataContract(ex is TargetInvocationException ? ex.InnerException : ex);
 
-			RuntimeTypeModel.Default.SerializeWithLengthPrefix(store.Stream, exception, exception.GetType(), PrefixStyle.Base128, 1);
+			RuntimeTypeModel.Default.SerializeWithLengthPrefix(store.Stream, exception, exception.GetType(), PrefixStyle.Base128, 0);
 
 			store.MessageWriter.Write(store.Stream.ToArray());
 

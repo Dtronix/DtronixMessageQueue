@@ -78,7 +78,7 @@ namespace DtronixMessageQueue.Rpc {
 				return new ReturnMessage(null, null, 0, method_call.LogicalCallContext, method_call);
 			}
 
-			return_wait.ReturnResetEvent.Wait(TimeSpan.FromSeconds(1), return_wait.Token);
+			return_wait.ReturnResetEvent.Wait(TimeSpan.FromSeconds(100), return_wait.Token);
 
 			if (return_wait.ReturnResetEvent.IsSet == false) {
 				string test = "wait;";
@@ -104,8 +104,8 @@ namespace DtronixMessageQueue.Rpc {
 						return new ReturnMessage(return_value, null, 0, method_call.LogicalCallContext, method_call);
 
 					case RpcMessageType.RpcCallException:
-						var return_exception = (RpcRemoteExceptionDataContract)RuntimeTypeModel.Default.DeserializeWithLengthPrefix(store.Stream, null, typeof(RpcRemoteExceptionDataContract), PrefixStyle.Base128, 0);
-						return new ReturnMessage(new RpcRemoteException(return_exception), method_call);
+						var return_exception = RuntimeTypeModel.Default.DeserializeWithLengthPrefix(store.Stream, null, typeof(RpcRemoteExceptionDataContract), PrefixStyle.Base128, 0);
+						return new ReturnMessage(new RpcRemoteException((RpcRemoteExceptionDataContract)return_exception), method_call);
 
 					default:
 						throw new ArgumentOutOfRangeException();
