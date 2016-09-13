@@ -34,6 +34,11 @@ namespace DtronixMessageQueue {
 		private MqMessage message;
 
 		/// <summary>
+		/// Internal framebuilder for this instance.
+		/// </summary>
+		private MqFrameBuilder frame_builder;
+
+		/// <summary>
 		/// Outbox message queue.  Internally used to store Messages before being sent to the wire by the Postmaster.
 		/// </summary>
 		private readonly ConcurrentQueue<MqMessage> outbox = new ConcurrentQueue<MqMessage>();
@@ -52,6 +57,10 @@ namespace DtronixMessageQueue {
 		/// Base socket for this session.
 		/// </summary>
 		public SocketBase<TSession> BaseSocket { get; set; }
+
+		protected override void OnSetup() {
+			frame_builder = new MqFrameBuilder((MqSocketConfig)Config);
+		}
 
 		/// <summary>
 		/// Adds bytes from the client/server reading methods to be processed by the Postmaster.

@@ -60,12 +60,9 @@ namespace DtronixMessageQueue.Socket {
 		/// </summary>
 		public State CurrentState { get; protected set; }
 
-
 		/// <summary>
-		/// Internal framebuilder for this instance.
+		/// The last time that this session received a message.
 		/// </summary>
-		protected MqFrameBuilder frame_builder;
-
 		private DateTime last_received = DateTime.UtcNow;
 
 		/// <summary>
@@ -73,7 +70,7 @@ namespace DtronixMessageQueue.Socket {
 		/// </summary>
 		public DateTime LastReceived => last_received;
 
-		protected System.Net.Sockets.Socket socket;
+		private System.Net.Sockets.Socket socket;
 
 		/// <summary>
 		/// Raw socket for this session.
@@ -132,7 +129,6 @@ namespace DtronixMessageQueue.Socket {
 			session.send_args.Completed += session.IoCompleted;
 			session.receive_args = args_pool.Pop();
 			session.receive_args.Completed += session.IoCompleted;
-			session.frame_builder = new MqFrameBuilder((MqSocketConfig)config);
 
 			session.socket = socket;
 			session.write_reset = new ManualResetEventSlim(true);
