@@ -78,7 +78,11 @@ namespace DtronixMessageQueue.Rpc {
 				return new ReturnMessage(null, null, 0, method_call.LogicalCallContext, method_call);
 			}
 
-			return_wait.ReturnResetEvent.Wait(return_wait.Token);
+			return_wait.ReturnResetEvent.Wait(TimeSpan.FromSeconds(1), return_wait.Token);
+
+			if (return_wait.ReturnResetEvent.IsSet == false) {
+				string test = "wait;";
+			}
 
 			return_wait.Token.ThrowIfCancellationRequested();
 

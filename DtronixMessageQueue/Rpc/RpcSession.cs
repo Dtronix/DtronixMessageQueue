@@ -100,46 +100,46 @@ namespace DtronixMessageQueue.Rpc {
 
 
 		private void ProcessRpcCall(MqMessage message, IncomingMessageEventArgs<TSession> e, RpcMessageType message_type) {
-			var store = Store.Get();
-			ushort message_return_id = 0;
-			try {
-				store.MessageReader.Message = message;
+			Task.Run(() => {
+				var store = Store.Get();
+				ushort message_return_id = 0;
+				try {
+					store.MessageReader.Message = message;
 
-				// Skip RpcMessageType
-				store.MessageReader.ReadByte();
+					// Skip RpcMessageType
+					store.MessageReader.ReadByte();
 
-				if (message_type == RpcMessageType.RpcCall) {
-					message_return_id = store.MessageReader.ReadUInt16();
-				}
-
-				var service_name = store.MessageReader.ReadString();
-				var method_name = store.MessageReader.ReadString();
-				var argument_count = store.MessageReader.ReadByte();
-
-				if (services.ContainsKey(service_name) == false) {
-					throw new Exception($"Service '{service_name}' does not exist.");
-				}
-
-				var service = services[service_name];
-
-				var method_info = service.GetType().GetMethod(method_name);
-				var method_parameters = method_info.GetParameters();
-
-				object[] parameters = new object[argument_count];
-
-				if (argument_count > 0) {
-					// Write all the rest of the message to the stream to parse into parameters.
-					var param_bytes = store.MessageReader.ReadToEnd();
-					store.Stream.Write(param_bytes, 0, param_bytes.Length);
-					store.Stream.Position = 0;
-
-					for (int i = 0; i < argument_count; i++) {
-						parameters[i] = RuntimeTypeModel.Default.DeserializeWithLengthPrefix(store.Stream, null,
-							method_parameters[i].ParameterType,
-							PrefixStyle.Base128, i);
+					if (message_type == RpcMessageType.RpcCall) {
+						message_return_id = store.MessageReader.ReadUInt16();
 					}
-				}
-				Task.Run(() => {
+
+					var service_name = store.MessageReader.ReadString();
+					var method_name = store.MessageReader.ReadString();
+					var argument_count = store.MessageReader.ReadByte();
+
+					if (services.ContainsKey(service_name) == false) {
+						throw new Exception($"Service '{service_name}' does not exist.");
+					}
+
+					var service = services[service_name];
+
+					var method_info = service.GetType().GetMethod(method_name);
+					var method_parameters = method_info.GetParameters();
+
+					object[] parameters = new object[argument_count];
+
+					if (argument_count > 0) {
+						// Write all the rest of the message to the stream to parse into parameters.
+						var param_bytes = store.MessageReader.ReadToEnd();
+						store.Stream.Write(param_bytes, 0, param_bytes.Length);
+						store.Stream.Position = 0;
+
+						for (int i = 0; i < argument_count; i++) {
+							parameters[i] = RuntimeTypeModel.Default.DeserializeWithLengthPrefix(store.Stream, null,
+								method_parameters[i].ParameterType,
+								PrefixStyle.Base128, i);
+						}
+					}
 					object return_value;
 					try {
 						return_value = method_info.Invoke(service, parameters);
@@ -147,7 +147,7 @@ namespace DtronixMessageQueue.Rpc {
 						SendRpcException(store, ex, message_return_id);
 						return;
 					}
-					
+
 
 
 					switch (message_type) {
@@ -155,10 +155,11 @@ namespace DtronixMessageQueue.Rpc {
 							store.Stream.SetLength(0);
 
 							store.MessageWriter.Clear();
-							store.MessageWriter.Write((byte)RpcMessageType.RpcCallReturn);
+							store.MessageWriter.Write((byte) RpcMessageType.RpcCallReturn);
 							store.MessageWriter.Write(message_return_id);
 
-							RuntimeTypeModel.Default.SerializeWithLengthPrefix(store.Stream, return_value, return_value.GetType(), PrefixStyle.Base128, 0);
+							RuntimeTypeModel.Default.SerializeWithLengthPrefix(store.Stream, return_value, return_value.GetType(),
+								PrefixStyle.Base128, 0);
 
 							store.MessageWriter.Write(store.Stream.ToArray());
 
@@ -170,12 +171,13 @@ namespace DtronixMessageQueue.Rpc {
 					}
 
 					Store.Put(store);
-				});
 
-			} catch (Exception ex) {
-				SendRpcException(store, ex, message_return_id);
-				Store.Put(store);
-			}
+
+				} catch (Exception ex) {
+					SendRpcException(store, ex, message_return_id);
+					Store.Put(store);
+				}
+			});
 
 		}
 

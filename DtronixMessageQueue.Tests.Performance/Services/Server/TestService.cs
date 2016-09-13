@@ -35,9 +35,10 @@ namespace DtronixMessageQueue.Tests.Performance.Services.Server {
 			total_calls = calls;
 		}
 
-		public void ResetTest() {
+		public bool ResetTest() {
 			call_count = 0;
 			completed = false;
+			return true;
 		}
 
 		public int TestException() {
@@ -60,7 +61,7 @@ namespace DtronixMessageQueue.Tests.Performance.Services.Server {
 		void TestNoReturn();
 		int TestIncrement();
 		void TestSetup(int calls);
-		void ResetTest();
+		bool ResetTest();
 		int TestException();
 	}
 }
