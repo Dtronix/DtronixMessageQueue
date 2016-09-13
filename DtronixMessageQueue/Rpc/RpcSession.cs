@@ -6,6 +6,7 @@ using System.Reflection;
 using System.Runtime.Remoting.Proxies;
 using System.Threading;
 using System.Threading.Tasks;
+using Amib.Threading;
 using DtronixMessageQueue.Socket;
 using ProtoBuf;
 using ProtoBuf.Meta;
@@ -29,6 +30,8 @@ namespace DtronixMessageQueue.Rpc {
 		/// </summary>
 		public SerializationStore Store { get; private set; }
 
+		private SmartThreadPool worker_thread_pool;
+
 		/// <summary>
 		/// Contains all outstanding call returns pending a return of data from the other end of the connection.
 		/// </summary>
@@ -44,7 +47,15 @@ namespace DtronixMessageQueue.Rpc {
 		protected override void OnSetup() {
 			base.OnSetup();
 
-			Store = new SerializationStore((MqSocketConfig)Config);
+			var config = (MqSocketConfig) Config;
+
+			if (Server != null) {
+				worker_thread_pool = Server.WorkerThreadPool;
+			} else {
+				worker_thread_pool = new SmartThreadPool(config.IdleWorkerTimeout, config.MaxReadWriteWorkers, 1);
+			}
+
+			Store = new SerializationStore(config);
 		}
 
 
@@ -100,7 +111,7 @@ namespace DtronixMessageQueue.Rpc {
 
 
 		private void ProcessRpcCall(MqMessage message, IncomingMessageEventArgs<TSession> e, RpcMessageType message_type) {
-			Task.Run(() => {
+			worker_thread_pool.QueueWorkItem(() => {
 				var store = Store.Get();
 				ushort message_return_id = 0;
 				try {
