@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Net.Sockets;
+using System.Security.AccessControl;
 using System.Threading;
 
 namespace DtronixMessageQueue.Socket {
@@ -95,7 +96,7 @@ namespace DtronixMessageQueue.Socket {
 		/// <summary>
 		/// Reset event used to ensure only one MqWorker can write to the socket at a time.
 		/// </summary>
-		private ManualResetEventSlim write_reset;
+		private SemaphoreSlim write_semaphore;
 
 		/// <summary>
 		/// This event fires when a connection has been established.
@@ -131,7 +132,7 @@ namespace DtronixMessageQueue.Socket {
 			session.receive_args.Completed += session.IoCompleted;
 
 			session.socket = socket;
-			session.write_reset = new ManualResetEventSlim(true);
+			session.write_semaphore = new SemaphoreSlim(1, 1);
 
 			if(config.SendTimeout > 0)
 				socket.SendTimeout = config.SendTimeout;
@@ -222,9 +223,7 @@ namespace DtronixMessageQueue.Socket {
 			if (Socket == null || Socket.Connected == false) {
 				return;
 			}
-
-			write_reset.Wait();
-			write_reset.Reset();
+			write_semaphore.Wait(-1);
 
 			// Copy the bytes to the block buffer
 			Buffer.BlockCopy(buffer, offset, send_args.Buffer, send_args.Offset, length);
@@ -253,7 +252,7 @@ namespace DtronixMessageQueue.Socket {
 			if (e.SocketError != SocketError.Success) {
 				Close(SocketCloseReason.SocketError);
 			}
-			write_reset.Set();
+			write_semaphore.Release(1);
 		}
 
 		/// <summary>
