@@ -1,5 +1,7 @@
 ﻿using System;
 using System.Diagnostics;
+using System.Threading;
+using System.Threading.Tasks;
 using DtronixMessageQueue.Tests.Rpc.Services.Server;
 using Xunit;
 using Xunit.Abstractions;
@@ -11,6 +13,7 @@ namespace DtronixMessageQueue.Tests.Rpc {
 		public RpcClientTests(ITestOutputHelper output) : base(output) {
 
 		}
+
 		public class Test {
 			public string TestStr { get; set; }
 			public int Length { get; set; }
@@ -57,7 +60,7 @@ namespace DtronixMessageQueue.Tests.Rpc {
 				for (int i = 0; i < 10; i++) {
 					added_int = service.Add(added_int, 1);
 				}
-				
+
 				Output.WriteLine($"{stopwatch.ElapsedMilliseconds}");
 				TestStatus.Set();
 			};
@@ -69,25 +72,38 @@ namespace DtronixMessageQueue.Tests.Rpc {
 		public void Client_calls_proxy_method_and_canceles() {
 
 			Server.Connected += (sender, args) => {
-				args.Session.AddService<ICalculatorService>(new CalculatorService());
+				var service = new CalculatorService();
+				args.Session.AddService<ICalculatorService>(service);
+
+				service.LongRunningTaskCanceled += (o, event_args) => {
+					TestStatus.Set();
+				};
 			};
 
 
 			Client.Connected += (sender, args) => {
 				args.Session.AddProxy<ICalculatorService>(new CalculatorService());
 				var service = Client.Session.GetProxy<ICalculatorService>();
-				Stopwatch stopwatch = Stopwatch.StartNew();
+				var token_source = new CancellationTokenSource();
 
-				int added_int = 0;
-				for (int i = 0; i < 10; i++) {
-					added_int = service.Add(added_int, 1);
+				token_source.CancelAfter(200);
+				bool threw = false;
+				try {
+					service.LongRunningTask(1, 2, token_source.Token);
+				} catch (OperationCanceledException ex) {
+					threw = true;
 				}
 
-				Output.WriteLine($"{stopwatch.ElapsedMilliseconds}");
-				TestStatus.Set();
+				if (threw != true) {
+					LastException = new Exception("Operation did not cancel.");
+				}
+				
+				
 			};
 
 			StartAndWait();
 		}
+
+
 	}
 }

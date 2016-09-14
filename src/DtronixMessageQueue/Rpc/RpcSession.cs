@@ -80,6 +80,11 @@ namespace DtronixMessageQueue.Rpc {
 						break;
 
 					case RpcMessageType.RpcCallCancellation:
+						var cancellation_id = message[0].ReadUInt16(1);
+						RpcOperationWait wait_operation;
+						if (ongoing_operations.TryRemove(cancellation_id, out wait_operation)) {
+							wait_operation.TokenSource.Cancel();
+						}
 						break;
 
 					case RpcMessageType.RpcCallNoReturn:
@@ -152,18 +157,18 @@ namespace DtronixMessageQueue.Rpc {
 					var last_param = method_info.GetParameters().LastOrDefault();
 
 					var cancellation_source = new CancellationTokenSource();
-
+					int cancellation_token_param = 0;
 					if (rec_message_return_id != 0 && last_param?.ParameterType == typeof(CancellationToken)) {
 						var return_wait = new RpcOperationWait {
 							Token = cancellation_source.Token,
 							TokenSource = cancellation_source,
 							Id = rec_message_return_id
 						};
-
+						cancellation_token_param = 1;
 						ongoing_operations.TryAdd(rec_message_return_id, return_wait);
 					}
 
-					object[] parameters = new object[rec_argument_count];
+					object[] parameters = new object[rec_argument_count + cancellation_token_param];
 
 
 					if (rec_argument_count > 0) {
@@ -179,15 +184,16 @@ namespace DtronixMessageQueue.Rpc {
 						}
 					}
 
-
-
+					if (cancellation_token_param > 0) {
+						parameters[parameters.Length - 1] = cancellation_source.Token;
+					}
 
 
 					object return_value;
 					try {
 						return_value = method_info.Invoke(service, parameters);
 					} catch (Exception ex) {
-						if (rec_message_return_id != 0) {
+						if (rec_message_return_id != 0 && ex.InnerException?.GetType() != typeof(OperationCanceledException)) {
 							SendRpcException(store, ex, rec_message_return_id);
 						}
 						return;
@@ -243,7 +249,7 @@ namespace DtronixMessageQueue.Rpc {
 
 		}
 
-		public RpcOperationWait CreateReturnCallWait() {
+		public RpcOperationWait CreateWaitOperation() {
 			var return_wait = new RpcOperationWait {
 				ReturnResetEvent = new ManualResetEventSlim()
 			};
@@ -260,6 +266,17 @@ namespace DtronixMessageQueue.Rpc {
 			}
 
 			return return_wait;
+		}
+
+		public void CancelWaitOperation(ushort id) {
+			RpcOperationWait call_wait;
+			outstanding_waits.TryRemove(id, out call_wait);
+
+			var frame = new MqFrame(new byte[3], MqFrameType.Last, (MqSocketConfig) Config);
+			frame.Write(0, (byte)RpcMessageType.RpcCallCancellation);
+			frame.Write(1, id);
+
+			Send(frame);
 		}
 
 

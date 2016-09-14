@@ -80,7 +80,6 @@
     <Compile Include="Rpc\RpcClientTests.cs" />
     <Compile Include="Rpc\RpcTestsBase.cs" />
     <Compile Include="Rpc\Services\Server\CalculatorService.cs" />
-    <Compile Include="Rpc\Services\Server\ICalculatorService.cs" />
     <Compile Include="Mq\SimpleMqSession.cs" />
     <Compile Include="Rpc\SimpleRpcSession.cs" />
     <Compile Include="Utilities.cs" />

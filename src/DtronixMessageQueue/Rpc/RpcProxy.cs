@@ -19,7 +19,7 @@ namespace DtronixMessageQueue.Rpc {
 
 		public RpcProxy(T decorated, RpcSession<TSession> session) : base(typeof(T)) {
 			this.decorated = decorated;
-			this.session = (TSession)session;
+			this.session = (TSession) session;
 		}
 
 		public override IMessage Invoke(IMessage msg) {
@@ -48,22 +48,23 @@ namespace DtronixMessageQueue.Rpc {
 
 			// Determine what kind of method we are calling.
 			if (method_info.ReturnType == typeof(void)) {
-				store.MessageWriter.Write((byte)RpcMessageType.RpcCallNoReturn);
+				store.MessageWriter.Write((byte) RpcMessageType.RpcCallNoReturn);
 			} else {
-				store.MessageWriter.Write((byte)RpcMessageType.RpcCall);
+				store.MessageWriter.Write((byte) RpcMessageType.RpcCall);
 
-				return_wait = session.CreateReturnCallWait();
+				return_wait = session.CreateWaitOperation();
 				store.MessageWriter.Write(return_wait.Id);
 				return_wait.Token = cancellation_token;
 			}
 
 			store.MessageWriter.Write(decorated.Name);
 			store.MessageWriter.Write(method_call.MethodName);
-			store.MessageWriter.Write((byte)arguments.Length);
+			store.MessageWriter.Write((byte) arguments.Length);
 
 			int field_number = 0;
 			foreach (var arg in arguments) {
-				RuntimeTypeModel.Default.SerializeWithLengthPrefix(store.Stream, arg, arg.GetType(), PrefixStyle.Base128, field_number++);
+				RuntimeTypeModel.Default.SerializeWithLengthPrefix(store.Stream, arg, arg.GetType(), PrefixStyle.Base128,
+					field_number++);
 
 				store.MessageWriter.Write(store.Stream.ToArray());
 				// Should always read the entire buffer in one go.
@@ -78,21 +79,19 @@ namespace DtronixMessageQueue.Rpc {
 				return new ReturnMessage(null, null, 0, method_call.LogicalCallContext, method_call);
 			}
 
-			return_wait.ReturnResetEvent.Wait(session.Config.SendTimeout, return_wait.Token);
+			try {
+				return_wait.ReturnResetEvent.Wait(return_wait.Token);
+			} catch (OperationCanceledException) {
+				session.CancelWaitOperation(return_wait.Id);
+				// If the operation was canceled, cancel the wait on this end and notify the other end.
+				throw new OperationCanceledException("Wait handle was canceled while waiting for a response.");
+			}
+			
 
 			if (return_wait.ReturnResetEvent.IsSet == false) {
 				throw new TimeoutException("Wait handle timed out waiting for a response.");
 			}
 
-			if (return_wait.Token.IsCancellationRequested) {
-				store.MessageWriter.Clear();
-				store.MessageWriter.Write((byte)RpcMessageType.RpcCallCancellation);
-				store.MessageWriter.Write(return_wait.Id);
-
-				session.Send(store.MessageWriter.ToMessage());
-
-				throw new OperationCanceledException("Wait handle was canceled while waiting for a response.");
-			}
 
 
 			try {
