@@ -1,7 +1,9 @@
-﻿using DtronixMessageQueue.Socket;
+﻿using System;
+using DtronixMessageQueue.Socket;
 
 namespace DtronixMessageQueue {
 	public class MqSocketConfig : SocketConfig {
+		private int max_read_write_workers = 4;
 
 		/// <summary>
 		/// Max size of the frame.  Needs to be equal or smaller than SendAndReceiveBufferSize.
@@ -25,13 +27,19 @@ namespace DtronixMessageQueue {
 
 
 		/// <summary>
-		/// (Server)
+		/// (Server/Client)
 		/// Max number of workers used to read/write.
+		/// Minimum of 4 required.
 		/// </summary>
 		/// <remarks>
-		/// Value of 20 would make a maximum of 20 readers and 20 writers.  Total of 40 workers.
+		/// Writers and readers share the total thread count specified here.
 		/// </remarks>
-		public int MaxReadWriteWorkers { get; set; } = 20;
+		public int MaxReadWriteWorkers {
+			get { return max_read_write_workers; }
+			set {
+				max_read_write_workers = Math.Max(4, value);
+			}
+		}
 
 
 		/// <summary>

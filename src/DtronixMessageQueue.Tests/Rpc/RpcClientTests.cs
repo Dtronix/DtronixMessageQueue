@@ -90,7 +90,7 @@ namespace DtronixMessageQueue.Tests.Rpc {
 				bool threw = false;
 				try {
 					service.LongRunningTask(1, 2, token_source.Token);
-				} catch (OperationCanceledException ex) {
+				} catch (OperationCanceledException) {
 					threw = true;
 				}
 

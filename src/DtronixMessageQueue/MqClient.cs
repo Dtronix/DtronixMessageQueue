@@ -34,7 +34,7 @@ namespace DtronixMessageQueue {
 
 			// Override the default connection limit and read/write workers.
 			config.MaxConnections = 1;
-			config.MaxReadWriteWorkers = 1;
+			config.MaxReadWriteWorkers = 4;
 			timeout_timer = new Timer(TimeoutCallback);
 			postmaster = new MqPostmaster<TSession>(config);
 
