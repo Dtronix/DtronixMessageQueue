@@ -69,15 +69,20 @@
     <Otherwise />
   </Choose>
   <ItemGroup>
-    <Compile Include="MqFrameBuilderTests.cs" />
-    <Compile Include="MqFrameTests.cs" />
-    <Compile Include="MqServerTests.cs" />
-    <Compile Include="MqMessageWriterReaderTests.cs" />
-    <Compile Include="MqTestsBase.cs" />
+    <Compile Include="Mq\MqFrameBuilderTests.cs" />
+    <Compile Include="Mq\MqFrameTests.cs" />
+    <Compile Include="Mq\MqServerTests.cs" />
+    <Compile Include="Mq\MqMessageWriterReaderTests.cs" />
+    <Compile Include="Mq\MqTestsBase.cs" />
     <Compile Include="PerformanceTests.cs" />
-    <Compile Include="MqClientTests.cs" />
+    <Compile Include="Mq\MqClientTests.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
-    <Compile Include="SimpleMqSession.cs" />
+    <Compile Include="Rpc\RpcClientTests.cs" />
+    <Compile Include="Rpc\RpcTestsBase.cs" />
+    <Compile Include="Rpc\Services\Server\CalculatorService.cs" />
+    <Compile Include="Rpc\Services\Server\ICalculatorService.cs" />
+    <Compile Include="Mq\SimpleMqSession.cs" />
+    <Compile Include="Rpc\SimpleRpcSession.cs" />
     <Compile Include="Utilities.cs" />
   </ItemGroup>
   <ItemGroup>

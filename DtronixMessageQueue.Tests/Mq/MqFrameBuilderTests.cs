@@ -3,7 +3,7 @@ using System.IO;
 using System.Linq;
 using Xunit;
 
-namespace DtronixMessageQueue.Tests {
+namespace DtronixMessageQueue.Tests.Mq {
 	public class MqFrameBuilderTests {
 		private MqFrame empty_last_frame;
 		private MqFrame empty_frame;

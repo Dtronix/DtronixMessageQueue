@@ -4,7 +4,6 @@ using System.Collections.Generic;
 using System.IO;
 using System.Threading;
 using DtronixMessageQueue.Socket;
-using NLog;
 
 namespace DtronixMessageQueue {
 
@@ -13,11 +12,6 @@ namespace DtronixMessageQueue {
 	/// </summary>
 	public abstract class MqSession<TSession> : SocketSession
 		where TSession : MqSession<TSession>, new() {
-
-		/// <summary>
-		/// Logger for this class.
-		/// </summary>
-		private static ILogger logger = LogManager.GetCurrentClassLogger();
 
 		/// <summary>
 		/// True if the socket is currently running.
@@ -40,6 +34,11 @@ namespace DtronixMessageQueue {
 		private MqMessage message;
 
 		/// <summary>
+		/// Internal framebuilder for this instance.
+		/// </summary>
+		private MqFrameBuilder frame_builder;
+
+		/// <summary>
 		/// Outbox message queue.  Internally used to store Messages before being sent to the wire by the Postmaster.
 		/// </summary>
 		private readonly ConcurrentQueue<MqMessage> outbox = new ConcurrentQueue<MqMessage>();
@@ -58,6 +57,12 @@ namespace DtronixMessageQueue {
 		/// Base socket for this session.
 		/// </summary>
 		public SocketBase<TSession> BaseSocket { get; set; }
+
+		protected override void OnSetup() {
+			frame_builder = new MqFrameBuilder((MqSocketConfig)Config);
+
+			base.OnSetup();
+		}
 
 		/// <summary>
 		/// Adds bytes from the client/server reading methods to be processed by the Postmaster.
@@ -221,7 +226,7 @@ namespace DtronixMessageQueue {
 		/// <param name="sender">Originator of call for this event.</param>
 		/// <param name="e">Event args for the message.</param>
 		public virtual void OnIncomingMessage(object sender, IncomingMessageEventArgs<TSession> e) {
-			logger.Debug("Session {0}: Received {1} messages.", Id, e.Messages.Count);
+			//logger.Debug("Session {0}: Received {1} messages.", Id, e.Messages.Count);
 			IncomingMessage?.Invoke(sender, e);
 		}
 

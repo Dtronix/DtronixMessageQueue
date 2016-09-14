@@ -4,7 +4,7 @@ using DtronixMessageQueue.Socket;
 using Xunit;
 using Xunit.Abstractions;
 
-namespace DtronixMessageQueue.Tests {
+namespace DtronixMessageQueue.Tests.Mq {
 
 	public class MqClientTests : MqTestsBase {
 

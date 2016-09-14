@@ -2,16 +2,17 @@
 using System.Net;
 using System.Net.Sockets;
 using System.Threading;
+using DtronixMessageQueue.Rpc;
 using Xunit;
 using Xunit.Abstractions;
 
-namespace DtronixMessageQueue.Tests {
-	public class MqTestsBase : IDisposable {
+namespace DtronixMessageQueue.Tests.Rpc {
+	public class RpcTestsBase : IDisposable {
 		private Random random = new Random();
 		public ITestOutputHelper Output;
 
-		public MqServer<SimpleMqSession> Server { get; protected set; }
-		public MqClient<SimpleMqSession> Client { get; protected set; }
+		public RpcServer<SimpleRpcSession> Server { get; protected set; }
+		public RpcClient<SimpleRpcSession> Client { get; protected set; }
 		public int Port { get; }
 
 		protected MqSocketConfig Config;
@@ -22,7 +23,7 @@ namespace DtronixMessageQueue.Tests {
 
 		public ManualResetEventSlim TestStatus { get; set; } = new ManualResetEventSlim(false);
 
-		public MqTestsBase(ITestOutputHelper output) {
+		public RpcTestsBase(ITestOutputHelper output) {
 			this.Output = output;
 			Port = FreeTcpPort();
 
@@ -31,8 +32,8 @@ namespace DtronixMessageQueue.Tests {
 				Port = Port
 			};
 
-			Server = new MqServer<SimpleMqSession>(Config);
-			Client = new MqClient<SimpleMqSession>(Config);
+			Server = new RpcServer<SimpleRpcSession>(Config);
+			Client = new RpcClient<SimpleRpcSession>(Config);
 		}
 
 

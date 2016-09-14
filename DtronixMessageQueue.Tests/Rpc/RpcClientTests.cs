@@ -1,14 +1,10 @@
 ﻿using System;
 using System.Diagnostics;
-using System.Threading;
-using System.Threading.Tasks;
-using DtronixMessageQueue.Rpc.Tests.Services.Server;
-using Newtonsoft.Json;
-using Newtonsoft.Json.Bson;
+using DtronixMessageQueue.Tests.Rpc.Services.Server;
 using Xunit;
 using Xunit.Abstractions;
 
-namespace DtronixMessageQueue.Rpc.Tests {
+namespace DtronixMessageQueue.Tests.Rpc {
 	public class RpcClientTests : RpcTestsBase {
 
 

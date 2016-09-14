@@ -71,10 +71,6 @@
     <None Include="packages.config" />
   </ItemGroup>
   <ItemGroup>
-    <ProjectReference Include="..\DtronixMessageQueue.Rpc\DtronixMessageQueue.Rpc.csproj">
-      <Project>{F034C114-E1A9-42FC-A2B0-0864C821179B}</Project>
-      <Name>DtronixMessageQueue.Rpc</Name>
-    </ProjectReference>
     <ProjectReference Include="..\DtronixMessageQueue\DtronixMessageQueue.csproj">
       <Project>{060bfeca-a3d2-4871-ae35-28deccb95fe3}</Project>
       <Name>DtronixMessageQueue</Name>
