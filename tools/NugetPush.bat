@@ -1,0 +1,2 @@
+..\..\..\packages\NuGet.CommandLine.3.4.3\tools\nuget.exe push *0.nupkg -Source https://www.nuget.org/api/v2/package
+..\..\..\packages\NuGet.CommandLine.3.4.3\tools\nuget.exe push *.symbols.nupkg -Source https://www.nuget.org/api/v2/package
