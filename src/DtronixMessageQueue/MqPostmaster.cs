@@ -114,36 +114,23 @@ namespace DtronixMessageQueue {
 		private void ProcessReadWrite(WorkerInfo info, CancellationToken token) {
 			MqSession<TSession> session = null;
 			var more_work = false;
-			//try {
-				do {
-					// Only queue this item up one time per method call.
-					if (more_work == false) {
-						info.Operations.TryTake(out session, 60000, token);
-						thread_pool.QueueWorkItem(ProcessReadWrite, info, token);
-					}
-
-					if (info.Type == WorkerInfo.WorkerType.Writer ? session.ProcessOutbox() : session.ProcessIncomingQueue()) {
-						more_work = true;
-						continue;
-					}
-
-					more_work = false;
-
-					bool out_session;
-					info.OngoingOperations.TryRemove(session, out out_session);
-				} while (more_work);
-
-				
-
-			/*} catch (ThreadAbortException) {
-			} catch (Exception) {
-				if (session != null) {
-					/*logger.Error(e,
-						is_writer
-							? "MqConnection {0}: Exception occurred while when writing."
-							: "MqConnection {0}: Exception occurred while when reading.", session.Connection.Id);
+			do {
+				// Only queue this item up one time per method call.
+				if (more_work == false) {
+					info.Operations.TryTake(out session, 60000, token);
+					thread_pool.QueueWorkItem(ProcessReadWrite, info, token);
 				}
-			}*/
+
+				if (info.Type == WorkerInfo.WorkerType.Writer ? session.ProcessOutbox() : session.ProcessIncomingQueue()) {
+					more_work = true;
+					continue;
+				}
+
+				more_work = false;
+
+				bool out_session;
+				info.OngoingOperations.TryRemove(session, out out_session);
+			} while (more_work);
 		}
 
 
