@@ -2,7 +2,15 @@
 using System.Threading;
 
 namespace DtronixMessageQueue.Rpc {
+
+	/// <summary>
+	/// Class which represents a task which is waiting on another event to occur.
+	/// </summary>
 	public class RpcOperationWait {
+
+		/// <summary>
+		/// Id of this wait operation.  Used to coordinate between client/server.
+		/// </summary>
 		public ushort Id { get; set; }
 		
 		/// <summary>
