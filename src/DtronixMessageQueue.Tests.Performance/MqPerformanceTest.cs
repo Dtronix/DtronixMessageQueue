@@ -39,12 +39,10 @@ namespace DtronixMessageQueue.Tests.Performance {
 			var exe_path = Assembly.GetExecutingAssembly().Location;
 
 			if (mode == "setup") {
-				Process.Start(exe_path, $"server {total_loops} {total_messages} {total_frames} {frame_size} {total_clients}")
-					.WaitForExit();
-				Thread.Sleep(500);
+				Process.Start(exe_path, $"mq server {total_loops} {total_messages} {total_frames} {frame_size} {total_clients}");
 
 				for (int i = 0; i < total_clients; i++) {
-					Process.Start(exe_path, $"client {total_loops} {total_messages} {total_frames} {frame_size} {total_clients}");
+					Process.Start(exe_path, $"mq client {total_loops} {total_messages} {total_frames} {frame_size} {total_clients}");
 				}
 
 
