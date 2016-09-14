@@ -1,2 +1,2 @@
 language: csharp
-solution: DtronixMessageQueue.sln
+solution: ./src/DtronixMessageQueue.sln

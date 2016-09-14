@@ -13,13 +13,13 @@ Sample performance tests.  Numbers are averages from 5 loops of the performance 
 | Release |    100,000 |     2,000 |          638 |    156,744 |   313.49 |
 | Release |     10,000 |    60,048 |        1,868 |      5,352 |   321.40 |
 
-[Laptop Intel i7-6500U 16GB](DtronixMessageQueue.Tests.Performance/Results/i7-6500U-16GB.md)
+[Laptop Intel i7-6500U 16GB](docs/performance-results/i7-6500U-16GB.md)
 
-[Desktop Intel i5-3470 8GB 8KB Buffer](DtronixMessageQueue.Tests.Performance/Results/i5-3470-8GB-8KB.md)
+[Desktop Intel i5-3470 8GB 8KB Buffer](docs/performance-results/i5-3470-8GB-8KB.md)
 
-[Desktop Intel i5-3470 8GB 16KB Buffer](DtronixMessageQueue.Tests.Performance/Results/i5-3470-8GB-16KB.md)
+[Desktop Intel i5-3470 8GB 16KB Buffer](docs/performance-results/i5-3470-8GB-16KB.md)
 
-[Desktop Intel i7-6700K 32GB 8KB Buffer](DtronixMessageQueue.Tests.Performance/Results/i7-6700K-32GB.md)
+[Desktop Intel i7-6700K 32GB 8KB Buffer](docs/performance-results/i7-6700K-32GB.md)
 
 ### License
 Released under [MIT license](LICENSE)
