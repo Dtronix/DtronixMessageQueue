@@ -2,7 +2,7 @@
 using System.Threading;
 
 namespace DtronixMessageQueue.Rpc {
-	public class RpcReturnCallWait {
+	public class RpcOperationWait {
 		public ushort Id { get; set; }
 		
 		/// <summary>
@@ -19,6 +19,11 @@ namespace DtronixMessageQueue.Rpc {
 		/// Cancellation token for the request.
 		/// </summary>
 		public CancellationToken Token { get; set; }
+
+		/// <summary>
+		/// Cancellation token source for the request.
+		/// </summary>
+		public CancellationTokenSource TokenSource { get; set; }
 
 		/// <summary>
 		/// Contains the time that this call wait was created to check for timeouts.

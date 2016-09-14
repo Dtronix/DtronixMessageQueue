@@ -44,7 +44,7 @@ namespace DtronixMessageQueue.Rpc {
 			}
 
 
-			RpcReturnCallWait return_wait = null;
+			RpcOperationWait return_wait = null;
 
 			// Determine what kind of method we are calling.
 			if (method_info.ReturnType == typeof(void)) {

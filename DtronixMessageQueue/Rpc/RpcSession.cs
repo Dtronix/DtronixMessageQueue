@@ -35,12 +35,12 @@ namespace DtronixMessageQueue.Rpc {
 		/// <summary>
 		/// Contains all outstanding call returns pending a return of data from the other end of the connection.
 		/// </summary>
-		private readonly ConcurrentDictionary<ushort, RpcReturnCallWait> return_call_wait = new ConcurrentDictionary<ushort, RpcReturnCallWait>();
+		private readonly ConcurrentDictionary<ushort, RpcOperationWait> outstanding_waits = new ConcurrentDictionary<ushort, RpcOperationWait>();
 
 		/// <summary>
 		/// Contains all operations running on this session which are cancellable.
 		/// </summary>
-		private readonly ConcurrentDictionary<ushort, RpcReturnCallWait> ongoing_operations = new ConcurrentDictionary<ushort, RpcReturnCallWait>();
+		private readonly ConcurrentDictionary<ushort, RpcOperationWait> ongoing_operations = new ConcurrentDictionary<ushort, RpcOperationWait>();
 
 		private readonly Dictionary<string, IRemoteService<TSession>> services = new Dictionary<string, IRemoteService<TSession>>();
 		private readonly Dictionary<Type, IRemoteService<TSession>> remote_services_proxy = new Dictionary<Type, IRemoteService<TSession>>();
@@ -119,9 +119,10 @@ namespace DtronixMessageQueue.Rpc {
 
 
 		private void ProcessRpcCall(MqMessage message, RpcMessageType message_type) {
+
 			worker_thread_pool.QueueWorkItem(() => {
 				var store = Store.Get();
-				ushort message_return_id = 0;
+				ushort rec_message_return_id = 0;
 				try {
 					store.MessageReader.Message = message;
 
@@ -129,31 +130,49 @@ namespace DtronixMessageQueue.Rpc {
 					store.MessageReader.ReadByte();
 
 					if (message_type == RpcMessageType.RpcCall) {
-						message_return_id = store.MessageReader.ReadUInt16();
+						rec_message_return_id = store.MessageReader.ReadUInt16();
 					}
 
-					var service_name = store.MessageReader.ReadString();
-					var method_name = store.MessageReader.ReadString();
-					var argument_count = store.MessageReader.ReadByte();
+					var rec_service_name = store.MessageReader.ReadString();
+					var rec_method_name = store.MessageReader.ReadString();
+					var rec_argument_count = store.MessageReader.ReadByte();
 
-					if (services.ContainsKey(service_name) == false) {
-						throw new Exception($"Service '{service_name}' does not exist.");
+					if (services.ContainsKey(rec_service_name) == false) {
+						throw new Exception($"Service '{rec_service_name}' does not exist.");
 					}
 
-					var service = services[service_name];
+					var service = services[rec_service_name];
 
-					var method_info = service.GetType().GetMethod(method_name);
+					var method_info = service.GetType().GetMethod(rec_method_name);
 					var method_parameters = method_info.GetParameters();
 
-					object[] parameters = new object[argument_count];
+					
 
-					if (argument_count > 0) {
+
+					var last_param = method_info.GetParameters().LastOrDefault();
+
+					var cancellation_source = new CancellationTokenSource();
+
+					if (rec_message_return_id != 0 && last_param?.ParameterType == typeof(CancellationToken)) {
+						var return_wait = new RpcOperationWait {
+							Token = cancellation_source.Token,
+							TokenSource = cancellation_source,
+							Id = rec_message_return_id
+						};
+
+						ongoing_operations.TryAdd(rec_message_return_id, return_wait);
+					}
+
+					object[] parameters = new object[rec_argument_count];
+
+
+					if (rec_argument_count > 0) {
 						// Write all the rest of the message to the stream to parse into parameters.
 						var param_bytes = store.MessageReader.ReadToEnd();
 						store.Stream.Write(param_bytes, 0, param_bytes.Length);
 						store.Stream.Position = 0;
 
-						for (int i = 0; i < argument_count; i++) {
+						for (int i = 0; i < rec_argument_count; i++) {
 							parameters[i] = RuntimeTypeModel.Default.DeserializeWithLengthPrefix(store.Stream, null,
 								method_parameters[i].ParameterType,
 								PrefixStyle.Base128, i);
@@ -161,17 +180,6 @@ namespace DtronixMessageQueue.Rpc {
 					}
 
 
-					var last_param = method_info.GetParameters().LastOrDefault();
-
-					var cancellation_token = new CancellationTokenSource();
-
-					if (last_param?.ParameterType == typeof(CancellationToken)) {
-						var return_wait = new RpcReturnCallWait {
-							Token = new CancellationToken()
-						};
-
-						ongoing_operations.TryAdd(message_return_id, )
-					}
 
 
 
@@ -179,7 +187,9 @@ namespace DtronixMessageQueue.Rpc {
 					try {
 						return_value = method_info.Invoke(service, parameters);
 					} catch (Exception ex) {
-						SendRpcException(store, ex, message_return_id);
+						if (rec_message_return_id != 0) {
+							SendRpcException(store, ex, rec_message_return_id);
+						}
 						return;
 					}
 
@@ -191,7 +201,7 @@ namespace DtronixMessageQueue.Rpc {
 
 							store.MessageWriter.Clear();
 							store.MessageWriter.Write((byte) RpcMessageType.RpcCallReturn);
-							store.MessageWriter.Write(message_return_id);
+							store.MessageWriter.Write(rec_message_return_id);
 
 							RuntimeTypeModel.Default.SerializeWithLengthPrefix(store.Stream, return_value, return_value.GetType(),
 								PrefixStyle.Base128, 0);
@@ -209,7 +219,7 @@ namespace DtronixMessageQueue.Rpc {
 
 
 				} catch (Exception ex) {
-					SendRpcException(store, ex, message_return_id);
+					SendRpcException(store, ex, rec_message_return_id);
 					Store.Put(store);
 				}
 			});
@@ -233,8 +243,8 @@ namespace DtronixMessageQueue.Rpc {
 
 		}
 
-		public RpcReturnCallWait CreateReturnCallWait() {
-			var return_wait = new RpcReturnCallWait {
+		public RpcOperationWait CreateReturnCallWait() {
+			var return_wait = new RpcOperationWait {
 				ReturnResetEvent = new ManualResetEventSlim()
 			};
 
@@ -245,7 +255,7 @@ namespace DtronixMessageQueue.Rpc {
 				return_wait.Id = (ushort)rpc_call_id;
 			}
 
-			if (return_call_wait.TryAdd(return_wait.Id, return_wait) == false) {
+			if (outstanding_waits.TryAdd(return_wait.Id, return_wait) == false) {
 				throw new InvalidOperationException($"Id {return_wait.Id} already exists in the return_wait_handles dictionary.");
 			}
 
@@ -262,8 +272,8 @@ namespace DtronixMessageQueue.Rpc {
 				store.MessageReader.ReadByte();
 
 				var return_id = store.MessageReader.ReadUInt16();
-				RpcReturnCallWait call_wait;
-				if (return_call_wait.TryRemove(return_id, out call_wait) == false) {
+				RpcOperationWait call_wait;
+				if (outstanding_waits.TryRemove(return_id, out call_wait) == false) {
 					return;
 				}
 
