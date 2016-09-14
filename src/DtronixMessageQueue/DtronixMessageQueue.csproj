@@ -104,7 +104,7 @@
     <PostBuildEvent>
 	 del $(TargetDir)\*.nupkg
      $(SolutionDir)packages\NuGet.CommandLine.3.4.3\tools\nuget.exe pack $(SolutionDir)DtronixMessageQueue\DtronixMessageQueue.csproj -Symbols -Prop Configuration=Nuget -Verbosity Detailed
-     copy  "$(SolutionDir)Tools\NugetPush.bat" "$(TargetDir)NugetPush.bat"
+     copy  "$(SolutionDir)..\tools\NugetPush.bat" "$(TargetDir)NugetPush.bat"
   </PostBuildEvent>
   </PropertyGroup>
   <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />
