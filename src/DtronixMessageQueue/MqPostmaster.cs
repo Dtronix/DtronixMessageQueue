@@ -11,7 +11,10 @@ namespace DtronixMessageQueue {
 	public class MqPostmaster<TSession> : IDisposable
 		where TSession : MqSession<TSession>, new() {
 
-		private SmartThreadPool thread_pool;
+		/// <summary>
+		/// Internal thread pool for this instance.
+		/// </summary>
+		private readonly SmartThreadPool thread_pool;
 
 		private class WorkerInfo {
 
@@ -23,11 +26,6 @@ namespace DtronixMessageQueue {
 			public ConcurrentDictionary<MqSession<TSession>, bool> OngoingOperations;
 			public WorkerType Type;
 		}
-
-		/// <summary>
-		/// Internal worker to review the current work being done.
-		/// </summary>
-		private readonly MqWorker supervisor;
 
 		/// <summary>
 		/// Dictionary to prevent multiple writes occurring on the same session concurrently.
@@ -54,7 +52,7 @@ namespace DtronixMessageQueue {
 		/// </summary>
 		private readonly MqSocketConfig config;
 
-		private CancellationTokenSource cancellation_token_source = new CancellationTokenSource();
+		private readonly CancellationTokenSource cancellation_token_source = new CancellationTokenSource();
 
 		/// <summary>
 		/// Creates a new postmaster instance to handle reading and writing of all sessions.
@@ -62,16 +60,7 @@ namespace DtronixMessageQueue {
 		public MqPostmaster(MqSocketConfig config) {
 			this.config = config;
 
-			// Add a supervisor to review when it is needed to increase or decrease the worker numbers.
-			//supervisor = new MqWorker(SupervisorWork, "postmaster_supervisor");
-
-			// Create one reader and one writer workers to start off with.
-			
-
-
-			//supervisor.Start();
-
-			thread_pool = new SmartThreadPool(config.IdleWorkerTimeout, config.MaxReadWriteWorkers);
+			thread_pool = new SmartThreadPool(config.IdleWorkerTimeout, config.MaxReadWriteWorkers, 4);
 
 			var writer_info = new WorkerInfo {
 				Type = WorkerInfo.WorkerType.Writer,

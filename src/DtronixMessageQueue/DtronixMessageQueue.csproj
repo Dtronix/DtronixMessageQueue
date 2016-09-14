@@ -81,7 +81,6 @@
     </Content>
     <None Include="packages.config" />
     <Compile Include="MqFrameBuilder.cs" />
-    <Compile Include="MqWorker.cs" />
     <Compile Include="MqPostmaster.cs" />
     <Compile Include="IncomingMessageEventArgs.cs" />
     <Compile Include="MqClient.cs" />
