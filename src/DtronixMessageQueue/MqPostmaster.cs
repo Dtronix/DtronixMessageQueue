@@ -114,7 +114,7 @@ namespace DtronixMessageQueue {
 		private void ProcessReadWrite(WorkerInfo info, CancellationToken token) {
 			MqSession<TSession> session = null;
 			var more_work = false;
-			try {
+			//try {
 				do {
 					// Only queue this item up one time per method call.
 					if (more_work == false) {
@@ -133,17 +133,17 @@ namespace DtronixMessageQueue {
 					info.OngoingOperations.TryRemove(session, out out_session);
 				} while (more_work);
 
-				thread_pool.QueueWorkItem(ProcessReadWrite, info, token);
+				
 
-			} catch (ThreadAbortException) {
+			/*} catch (ThreadAbortException) {
 			} catch (Exception) {
 				if (session != null) {
 					/*logger.Error(e,
 						is_writer
 							? "MqConnection {0}: Exception occurred while when writing."
-							: "MqConnection {0}: Exception occurred while when reading.", session.Connection.Id);*/
+							: "MqConnection {0}: Exception occurred while when reading.", session.Connection.Id);
 				}
-			}
+			}*/
 		}
 
 
