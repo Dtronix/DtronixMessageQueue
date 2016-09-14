@@ -1,1 +1,0 @@
-git log v0.5..HEAD --pretty="%%H - %%s" --no-merges >output.txt
