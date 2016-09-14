@@ -37,6 +37,11 @@ namespace DtronixMessageQueue.Rpc {
 		/// </summary>
 		private readonly ConcurrentDictionary<ushort, RpcReturnCallWait> return_call_wait = new ConcurrentDictionary<ushort, RpcReturnCallWait>();
 
+		/// <summary>
+		/// Contains all operations running on this session which are cancellable.
+		/// </summary>
+		private readonly ConcurrentDictionary<ushort, RpcReturnCallWait> ongoing_operations = new ConcurrentDictionary<ushort, RpcReturnCallWait>();
+
 		private readonly Dictionary<string, IRemoteService<TSession>> services = new Dictionary<string, IRemoteService<TSession>>();
 		private readonly Dictionary<Type, IRemoteService<TSession>> remote_services_proxy = new Dictionary<Type, IRemoteService<TSession>>();
 		private readonly Dictionary<Type, RealProxy> remote_service_realproxy = new Dictionary<Type, RealProxy>();
@@ -74,9 +79,12 @@ namespace DtronixMessageQueue.Rpc {
 						ProcessRpcCommand(message, e);
 						break;
 
+					case RpcMessageType.RpcCallCancellation:
+						break;
+
 					case RpcMessageType.RpcCallNoReturn:
 					case RpcMessageType.RpcCall:
-						ProcessRpcCall(message, e, message_type);
+						ProcessRpcCall(message, message_type);
 						break;
 
 					case RpcMessageType.RpcCallException:
@@ -110,7 +118,7 @@ namespace DtronixMessageQueue.Rpc {
 
 
 
-		private void ProcessRpcCall(MqMessage message, IncomingMessageEventArgs<TSession> e, RpcMessageType message_type) {
+		private void ProcessRpcCall(MqMessage message, RpcMessageType message_type) {
 			worker_thread_pool.QueueWorkItem(() => {
 				var store = Store.Get();
 				ushort message_return_id = 0;
@@ -151,6 +159,22 @@ namespace DtronixMessageQueue.Rpc {
 								PrefixStyle.Base128, i);
 						}
 					}
+
+
+					var last_param = method_info.GetParameters().LastOrDefault();
+
+					var cancellation_token = new CancellationTokenSource();
+
+					if (last_param?.ParameterType == typeof(CancellationToken)) {
+						var return_wait = new RpcReturnCallWait {
+							Token = new CancellationToken()
+						};
+
+						ongoing_operations.TryAdd(message_return_id, )
+					}
+
+
+
 					object return_value;
 					try {
 						return_value = method_info.Invoke(service, parameters);

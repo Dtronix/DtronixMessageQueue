@@ -5,6 +5,7 @@
 		RpcCall = 2,
 		RpcCallNoReturn = 3,
 		RpcCallReturn = 4,
-		RpcCallException = 5
+		RpcCallException = 5,
+		RpcCallCalcellation = 6
 	}
 }

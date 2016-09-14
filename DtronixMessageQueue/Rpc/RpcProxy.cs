@@ -78,13 +78,22 @@ namespace DtronixMessageQueue.Rpc {
 				return new ReturnMessage(null, null, 0, method_call.LogicalCallContext, method_call);
 			}
 
-			return_wait.ReturnResetEvent.Wait(TimeSpan.FromSeconds(100), return_wait.Token);
+			return_wait.ReturnResetEvent.Wait(session.Config.SendTimeout, return_wait.Token);
 
 			if (return_wait.ReturnResetEvent.IsSet == false) {
-				string test = "wait;";
+				throw new TimeoutException("Wait handle timed out waiting for a response.");
 			}
 
-			return_wait.Token.ThrowIfCancellationRequested();
+			if (return_wait.Token.IsCancellationRequested) {
+				store.MessageWriter.Clear();
+				store.MessageWriter.Write((byte)RpcMessageType.RpcCallCancellation);
+				store.MessageWriter.Write(return_wait.Id);
+
+				session.Send(store.MessageWriter.ToMessage());
+
+				throw new OperationCanceledException("Wait handle was canceled while waiting for a response.");
+			}
+
 
 			try {
 				store.MessageReader.Message = return_wait.ReturnMessage;
