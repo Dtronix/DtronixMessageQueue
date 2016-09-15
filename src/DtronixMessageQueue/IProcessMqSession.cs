@@ -1,5 +1,9 @@
 ﻿namespace DtronixMessageQueue {
-	public interface IProcessSession {
+
+	/// <summary>
+	/// Class to implement on sessions which have processing to do.
+	/// </summary>
+	public interface IProcessMqSession {
 
 		/// <summary>
 		/// Internal method called by the Postmaster on a different thread to process all bytes in the inbox.

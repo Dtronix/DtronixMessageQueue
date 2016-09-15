@@ -152,13 +152,17 @@ namespace DtronixMessageQueue.Socket {
 			OnSetup();
 		}
 
+		/// <summary>
+		/// Start the session's receive events.
+		/// </summary>
 		void ISetupSocketSession<TConfig>.Start() {
-			if (CurrentState == State.Connecting) {
-				// Start receiving data.
-				CurrentState = State.Connected;
-				socket.ReceiveAsync(receive_args);
-
+			if (CurrentState != State.Connecting) {
+				return;
 			}
+
+			// Start receiving data.
+			CurrentState = State.Connected;
+			socket.ReceiveAsync(receive_args);
 		}
 
 		/// <summary>

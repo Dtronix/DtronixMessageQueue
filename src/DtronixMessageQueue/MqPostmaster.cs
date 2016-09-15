@@ -112,7 +112,7 @@ namespace DtronixMessageQueue {
 					info.Operations.TryTake(out session, 60000, token);
 					thread_pool.QueueWorkItem(ProcessReadWrite, info, token);
 				}
-				var process_session = (IProcessSession) session;
+				var process_session = (IProcessMqSession) session;
 				if (info.Type == WorkerInfo.WorkerType.Writer ? process_session.ProcessOutbox() : process_session.ProcessIncomingQueue()) {
 					more_work = true;
 					continue;

@@ -12,7 +12,7 @@ namespace DtronixMessageQueue {
 	/// </summary>
 	/// <typeparam name="TSession">Session type for this connection.</typeparam>
 	/// <typeparam name="TConfig">Configuration for this connection.</typeparam>
-	public abstract class MqSession<TSession, TConfig> : SocketSession<TConfig>, IProcessSession
+	public abstract class MqSession<TSession, TConfig> : SocketSession<TConfig>, IProcessMqSession
 		where TSession : MqSession<TSession, TConfig>, new()
 		where TConfig : MqConfig {
 
@@ -34,7 +34,7 @@ namespace DtronixMessageQueue {
 		/// <summary>
 		/// Reference to the current message being processed by the inbox.
 		/// </summary>
-		private MqMessage message;
+		private MqMessage process_message;
 
 		/// <summary>
 		/// Internal framebuilder for this instance.
@@ -62,7 +62,7 @@ namespace DtronixMessageQueue {
 		public SocketBase<TSession, TConfig> BaseSocket { get; set; }
 
 		protected override void OnSetup() {
-			frame_builder = new MqFrameBuilder((MqConfig)Config);
+			frame_builder = new MqFrameBuilder(Config);
 
 			base.OnSetup();
 		}
@@ -80,21 +80,6 @@ namespace DtronixMessageQueue {
 			Interlocked.Add(ref inbox_byte_count, buffer.Length);
 
 			Postmaster.SignalRead(this);
-		}
-
-		/// <summary>
-		/// Adds a message to the outbox to be processed by the Postmaster.
-		/// </summary>
-		/// <param name="out_message">Message to send.</param>
-		public void EnqueueOutgoingMessage(MqMessage out_message) {
-			if (is_running == false) {
-				return;
-			}
-
-			outbox.Enqueue(out_message);
-
-			// Signal the workers that work is to be done.
-			Postmaster.SignalWrite(this);
 		}
 
 		/// <summary>
@@ -124,7 +109,7 @@ namespace DtronixMessageQueue {
 		/// Internally called method by the Postmaster on a different thread to send all messages in the outbox.
 		/// </summary>
 		/// <returns>True if messages were sent.  False if nothing was sent.</returns>
-		bool IProcessSession.ProcessOutbox() {
+		bool IProcessMqSession.ProcessOutbox() {
 			MqMessage message;
 			var length = 0;
 			var buffer_queue = new Queue<byte[]>();
@@ -135,7 +120,7 @@ namespace DtronixMessageQueue {
 					var frame_size = frame.FrameSize;
 
 					// If this would overflow the max client buffer size, send the full buffer queue.
-					if (length + frame_size > ((MqConfig)Config).FrameBufferSize + MqFrame.HeaderLength) {
+					if (length + frame_size > Config.FrameBufferSize + MqFrame.HeaderLength) {
 						SendBufferQueue(buffer_queue, length);
 
 						// Reset the length to 0;
@@ -161,9 +146,9 @@ namespace DtronixMessageQueue {
 		/// Internal method called by the Postmaster on a different thread to process all bytes in the inbox.
 		/// </summary>
 		/// <returns>True if incoming queue was processed; False if nothing was available for process.</returns>
-		bool IProcessSession.ProcessIncomingQueue() {
-			if (message == null) {
-				message = new MqMessage();
+		bool IProcessMqSession.ProcessIncomingQueue() {
+			if (process_message == null) {
+				process_message = new MqMessage();
 			}
 
 			Queue<MqMessage> messages = null;
@@ -198,7 +183,7 @@ namespace DtronixMessageQueue {
 						continue;
 					}
 
-					message.Add(frame);
+					process_message.Add(frame);
 
 					if (frame.FrameType != MqFrameType.EmptyLast && frame.FrameType != MqFrameType.Last) {
 						continue;
@@ -208,8 +193,8 @@ namespace DtronixMessageQueue {
 						messages = new Queue<MqMessage>();
 					}
 
-					messages.Enqueue(message);
-					message = new MqMessage();
+					messages.Enqueue(process_message);
+					process_message = new MqMessage();
 				}
 			}
 			//Postmaster.SignalReadComplete(this);
@@ -218,18 +203,21 @@ namespace DtronixMessageQueue {
 				return false;
 			}
 
-			OnIncomingMessage(this, new IncomingMessageEventArgs<TSession, TConfig>(messages, (TSession)this));
+
+
+			OnIncomingMessage(this, new IncomingMessageEventArgs<TSession, TConfig>(messages, (TSession) this));
+
 			return true;
 
 		}
+
 
 		/// <summary>
 		/// Event fired when one or more new messages are ready for use.
 		/// </summary>
 		/// <param name="sender">Originator of call for this event.</param>
 		/// <param name="e">Event args for the message.</param>
-		public virtual void OnIncomingMessage(object sender, IncomingMessageEventArgs<TSession, TConfig> e) {
-			//logger.Debug("Session {0}: Received {1} messages.", Id, e.Messages.Count);
+		protected virtual void OnIncomingMessage(object sender, IncomingMessageEventArgs<TSession, TConfig> e) {
 			IncomingMessage?.Invoke(sender, e);
 		}
 
@@ -267,7 +255,7 @@ namespace DtronixMessageQueue {
 				outbox.Enqueue(msg);
 
 				// Process the last bit of data.
-				((IProcessSession) this).ProcessOutbox();
+				((IProcessMqSession) this).ProcessOutbox();
 			}
 
 			base.Close(reason);
@@ -289,8 +277,14 @@ namespace DtronixMessageQueue {
 			if (message.Count == 0) {
 				return;
 			}
+			if (is_running == false) {
+				return;
+			}
 
-			EnqueueOutgoingMessage(message);
+			outbox.Enqueue(message);
+
+			// Signal the workers that work is to be done.
+			Postmaster.SignalWrite(this);
 		}
 
 		/// <summary>
@@ -299,7 +293,7 @@ namespace DtronixMessageQueue {
 		/// <param name="bytes">Bytes to put in the frame.</param>
 		/// <returns>Configured frame.</returns>
 		public MqFrame CreateFrame(byte[] bytes) {
-			return Utilities.CreateFrame(bytes, MqFrameType.Unset, (MqConfig)Config);
+			return Utilities.CreateFrame(bytes, MqFrameType.Unset, Config);
 		}
 
 		/// <summary>
@@ -336,20 +330,5 @@ namespace DtronixMessageQueue {
 		public override string ToString() {
 			return $"MqSession; Reading {inbox_byte_count} bytes; Sending {outbox.Count} messages.";
 		}
-	}
-
-	public interface IProcessSession {
-
-		/// <summary>
-		/// Internal method called by the Postmaster on a different thread to process all bytes in the inbox.
-		/// </summary>
-		/// <returns>True if incoming queue was processed; False if nothing was available for process.</returns>
-		bool ProcessIncomingQueue();
-
-		/// <summary>
-		/// Internally called method by the Postmaster on a different thread to send all messages in the outbox.
-		/// </summary>
-		/// <returns>True if messages were sent.  False if nothing was sent.</returns>
-		bool ProcessOutbox();
 	}
 }

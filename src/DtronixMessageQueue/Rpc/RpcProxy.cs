@@ -85,7 +85,7 @@ namespace DtronixMessageQueue.Rpc {
 				store.MessageWriter.Write((byte) RpcMessageType.RpcCall);
 
 				// Create a wait operation to wait for the response.
-				return_wait = session.CreateWaitOperation();
+				return_wait = ((IProcessRpcSession)session).CreateWaitOperation();
 
 				// Byte[1,2] Wait Id which is used for returning the value and cancellation.
 				store.MessageWriter.Write(return_wait.Id);
@@ -129,7 +129,7 @@ namespace DtronixMessageQueue.Rpc {
 			} catch (OperationCanceledException) {
 
 				// If the operation was canceled, cancel the wait on this end and notify the other end.
-				session.CancelWaitOperation(return_wait.Id);
+				((IProcessRpcSession)session).CancelWaitOperation(return_wait.Id);
 				throw new OperationCanceledException("Wait handle was canceled while waiting for a response.");
 			}
 			

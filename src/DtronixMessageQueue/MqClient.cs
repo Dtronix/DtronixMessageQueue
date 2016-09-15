@@ -102,12 +102,8 @@ namespace DtronixMessageQueue {
 		/// </summary>
 		/// <param name="message">Message to send.</param>
 		public void Send(MqMessage message) {
-			if (message.Count == 0) {
-				return;
-			}
-
-			// Enqueue the outgoing message to be processed by the postmaster.
-			Session.EnqueueOutgoingMessage(message);
+			// Send the outgoing message to the session to be processed by the postmaster.
+			Session.Send(message);
 		}
 
 		public void Close() {

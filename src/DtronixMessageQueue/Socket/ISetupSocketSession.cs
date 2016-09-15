@@ -1,4 +1,9 @@
 ﻿namespace DtronixMessageQueue.Socket {
+
+	/// <summary>
+	/// Class to implement on classes which have setup events.
+	/// </summary>
+	/// <typeparam name="TConfig"></typeparam>
 	public interface ISetupSocketSession<TConfig>
 		where TConfig : SocketConfig {
 
@@ -10,6 +15,9 @@
 		/// <param name="session_config">Socket configurations this session is to use.</param>
 		void Setup(System.Net.Sockets.Socket session_socket, SocketAsyncEventArgsPool socket_args_pool, TConfig session_config);
 
+		/// <summary>
+		/// Start the session's receive events.
+		/// </summary>
 		void Start();
 	}
 }
