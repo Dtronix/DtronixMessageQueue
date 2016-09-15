@@ -3,7 +3,7 @@ using System.IO;
 
 namespace DtronixMessageQueue.Rpc {
 	public class SerializationStore {
-		private readonly MqSocketConfig config;
+		private readonly MqConfig config;
 
 		public class Store {
 			public MqMessageWriter MessageWriter;
@@ -13,7 +13,7 @@ namespace DtronixMessageQueue.Rpc {
 
 		private readonly ConcurrentQueue<Store> reader_writers = new ConcurrentQueue<Store>();
 
-		public SerializationStore(MqSocketConfig config) {
+		public SerializationStore(MqConfig config) {
 			this.config = config;
 		}
 

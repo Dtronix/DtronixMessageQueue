@@ -16,9 +16,10 @@ namespace DtronixMessageQueue.Rpc {
 	/// </summary>
 	/// <typeparam name="T">Type of class to proxy. method calls.</typeparam>
 	/// <typeparam name="TSession">Session to proxy the method calls over.</typeparam>
-	public class RpcProxy<T, TSession> : RealProxy
-		where T : IRemoteService<TSession>
-		where TSession : RpcSession<TSession>, new() {
+	public class RpcProxy<T, TSession, TConfig> : RealProxy
+		where T : IRemoteService<TSession, TConfig>
+		where TSession : RpcSession<TSession, TConfig>, new()
+		where TConfig : RpcConfig {
 
 		/// <summary>
 		/// Internal reference to the class which is being proxied.
@@ -35,7 +36,7 @@ namespace DtronixMessageQueue.Rpc {
 		/// </summary>
 		/// <param name="decorated">Class to proxy method calls from.</param>
 		/// <param name="session">Session to convey proxied method calls over.</param>
-		public RpcProxy(T decorated, RpcSession<TSession> session) : base(typeof(T)) {
+		public RpcProxy(T decorated, RpcSession<TSession, TConfig> session) : base(typeof(T)) {
 			this.decorated = decorated;
 			this.session = (TSession) session;
 		}

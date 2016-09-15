@@ -10,7 +10,7 @@ namespace DtronixMessageQueue.Tests.Mq {
 		private MqFrame last_frame;
 		private MqFrame more_frame;
 		private MqFrameBuilder frame_builder;
-		private MqSocketConfig config = new MqSocketConfig();
+		private MqConfig config = new MqConfig();
 		private MqFrame command_frame;
 		private MqFrame ping_frame;
 

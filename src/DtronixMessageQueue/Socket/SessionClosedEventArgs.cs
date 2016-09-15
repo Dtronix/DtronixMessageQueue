@@ -5,8 +5,9 @@ namespace DtronixMessageQueue.Socket {
 	/// Event args used when a session is closed.
 	/// </summary>
 	/// <typeparam name="TSession">Session type.</typeparam>
-	public class SessionClosedEventArgs<TSession> : EventArgs
-		where TSession : SocketSession {
+	public class SessionClosedEventArgs<TSession, TConfig> : EventArgs
+		where TSession : SocketSession<TConfig>
+		where TConfig : SocketConfig {
 
 		/// <summary>
 		/// Closed session.

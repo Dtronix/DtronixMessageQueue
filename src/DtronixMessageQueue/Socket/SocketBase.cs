@@ -6,8 +6,9 @@ namespace DtronixMessageQueue.Socket {
 	/// Base socket for all server and client sockets.
 	/// </summary>
 	/// <typeparam name="TSession">Session type for this</typeparam>
-	public abstract class SocketBase<TSession>
-		where TSession : SocketSession, new() {
+	public abstract class SocketBase<TSession, TConfig>
+		where TSession : SocketSession<TConfig>, new()
+		where TConfig : SocketConfig {
 
 		/// <summary>
 		/// True if the socket is connected/listening.
@@ -17,17 +18,22 @@ namespace DtronixMessageQueue.Socket {
 		/// <summary>
 		/// This event fires when a connection has been established.
 		/// </summary>
-		public event EventHandler<SessionConnectedEventArgs<TSession>> Connected;
+		public event EventHandler<SessionEventArgs<TSession, TConfig>> Connected;
 
 		/// <summary>
 		/// This event fires when a connection has been closed.
 		/// </summary>
-		public event EventHandler<SessionClosedEventArgs<TSession>> Closed;
+		public event EventHandler<SessionClosedEventArgs<TSession, TConfig>> Closed;
+		
+		/// <summary>
+		/// Event called when a new session is created and is being setup but before the session is active.
+		/// </summary>
+		public event EventHandler<SessionEventArgs<TSession, TConfig>> SessionSetup;
 
 		/// <summary>
 		/// Configurations of this socket.
 		/// </summary>
-		public SocketConfig Config { get; }
+		public TConfig Config { get; }
 
 		/// <summary>
 		/// Main socket used by the child class for connection or for the listening of incoming connections.
@@ -49,7 +55,7 @@ namespace DtronixMessageQueue.Socket {
 		/// Base constructor to all socket classes.
 		/// </summary>
 		/// <param name="config">Configurations for this socket.</param>
-		protected SocketBase(SocketConfig config) {
+		protected SocketBase(TConfig config) {
 			Config = config;
 		}
 
@@ -59,7 +65,7 @@ namespace DtronixMessageQueue.Socket {
 		/// </summary>
 		/// <param name="session">Session that connected.</param>
 		protected virtual void OnConnect(TSession session) {
-			Connected?.Invoke(this, new SessionConnectedEventArgs<TSession>(session));
+			Connected?.Invoke(this, new SessionEventArgs<TSession, TConfig>(session));
 		}
 
 
@@ -69,7 +75,7 @@ namespace DtronixMessageQueue.Socket {
 		/// <param name="session">Session that closed.</param>
 		/// <param name="reason">Reason for the closing of the session.</param>
 		protected virtual void OnClose(TSession session, SocketCloseReason reason) {
-			Closed?.Invoke(this, new SessionClosedEventArgs<TSession>(session, reason));
+			Closed?.Invoke(this, new SessionClosedEventArgs<TSession, TConfig>(session, reason));
 		}
 
 		/// <summary>
@@ -105,7 +111,8 @@ namespace DtronixMessageQueue.Socket {
 		/// <returns>New session instance.</returns>
 		protected virtual TSession CreateSession(System.Net.Sockets.Socket socket) {
 			var session = new TSession();
-			SocketSession.Setup(session, socket, AsyncPool, Config);
+			SocketSession<TConfig>.Setup(session, socket, AsyncPool, Config);
+			SessionSetup?.Invoke(this, new SessionEventArgs<TSession, TConfig>(session));
 			session.Closed += (sender, args) => OnClose(session, args.CloseReason);
 			return session;
 		}

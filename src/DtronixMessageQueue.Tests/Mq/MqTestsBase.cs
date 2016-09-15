@@ -10,11 +10,11 @@ namespace DtronixMessageQueue.Tests.Mq {
 		private Random random = new Random();
 		public ITestOutputHelper Output;
 
-		public MqServer<SimpleMqSession> Server { get; protected set; }
-		public MqClient<SimpleMqSession> Client { get; protected set; }
+		public MqServer<SimpleMqSession, MqConfig> Server { get; protected set; }
+		public MqClient<SimpleMqSession, MqConfig> Client { get; protected set; }
 		public int Port { get; }
 
-		protected MqSocketConfig Config;
+		protected MqConfig Config;
 
 		public Exception LastException { get; set; }
 
@@ -26,13 +26,13 @@ namespace DtronixMessageQueue.Tests.Mq {
 			this.Output = output;
 			Port = FreeTcpPort();
 
-			Config = new MqSocketConfig {
+			Config = new MqConfig {
 				Ip = "127.0.0.1",
 				Port = Port
 			};
 
-			Server = new MqServer<SimpleMqSession>(Config);
-			Client = new MqClient<SimpleMqSession>(Config);
+			Server = new MqServer<SimpleMqSession, MqConfig>(Config);
+			Client = new MqClient<SimpleMqSession, MqConfig>(Config);
 		}
 
 

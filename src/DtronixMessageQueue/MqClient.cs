@@ -9,18 +9,19 @@ namespace DtronixMessageQueue {
 	/// <summary>
 	/// Client used to connect to a remote message queue server.
 	/// </summary>
-	public class MqClient<TSession> : SocketClient<TSession>
-		where TSession : MqSession<TSession>, new() {
+	public class MqClient<TSession, TConfig> : SocketClient<TSession, TConfig>
+		where TSession : MqSession<TSession, TConfig>, new()
+		where TConfig : MqConfig {
 
 		/// <summary>
 		/// Internal postmaster.
 		/// </summary>
-		private readonly MqPostmaster<TSession> postmaster;
+		private readonly MqPostmaster<TSession, TConfig> postmaster;
 
 		/// <summary>
 		/// Event fired when a new message arrives at the mailbox.
 		/// </summary>
-		public event EventHandler<IncomingMessageEventArgs<TSession>> IncomingMessage;
+		public event EventHandler<IncomingMessageEventArgs<TSession, TConfig>> IncomingMessage;
 
 		/// <summary>
 		/// Timer used to verify that the sessions are still connected.
@@ -30,20 +31,20 @@ namespace DtronixMessageQueue {
 		/// <summary>
 		/// Initializes a new instance of a message queue.
 		/// </summary>
-		public MqClient(MqSocketConfig config) : base(config) {
+		public MqClient(TConfig config) : base(config) {
 
 			// Override the default connection limit and read/write workers.
 			config.MaxConnections = 1;
 			config.MaxReadWriteWorkers = 4;
 			timeout_timer = new Timer(TimeoutCallback);
-			postmaster = new MqPostmaster<TSession>(config);
+			postmaster = new MqPostmaster<TSession, TConfig>(config);
 
 			Setup();
 		}
 
 		protected override void OnConnect(TSession session) {
 			// Start the timeout timer.
-			var ping_frequency = ((MqSocketConfig) Config).PingFrequency;
+			var ping_frequency = ((MqConfig) Config).PingFrequency;
 
 			if (ping_frequency > 0) {
 				timeout_timer.Change(ping_frequency/2, ping_frequency);
@@ -73,7 +74,7 @@ namespace DtronixMessageQueue {
 		/// </summary>
 		/// <param name="sender">The source of the event.</param>
 		/// <param name="e">The event object containing the mailbox to retrieve the message from.</param>
-		private void OnIncomingMessage(object sender, IncomingMessageEventArgs<TSession> e) {
+		private void OnIncomingMessage(object sender, IncomingMessageEventArgs<TSession, TConfig> e) {
 			IncomingMessage?.Invoke(sender, e);
 		}
 

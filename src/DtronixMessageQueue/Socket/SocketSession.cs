@@ -8,7 +8,8 @@ namespace DtronixMessageQueue.Socket {
 	/// <summary>
 	/// Base socket session to be sub-classes by the implementer.
 	/// </summary>
-	public abstract class SocketSession : IDisposable {
+	public abstract class SocketSession<TConfig> : IDisposable
+		where TConfig : SocketConfig {
 
 		/// <summary>
 		/// Current state of the socket.
@@ -44,12 +45,12 @@ namespace DtronixMessageQueue.Socket {
 			/// </summary>
 			Error
 		}
-		private SocketConfig config;
+		private TConfig config;
 
 		/// <summary>
 		/// Configurations for the associated socket.
 		/// </summary>
-		public SocketConfig Config => config;
+		public TConfig Config => config;
 
 		/// <summary>
 		/// Id for this session
@@ -101,12 +102,13 @@ namespace DtronixMessageQueue.Socket {
 		/// <summary>
 		/// This event fires when a connection has been established.
 		/// </summary>
-		public event EventHandler<SessionConnectedEventArgs<SocketSession>> Connected;
+		public event EventHandler<SessionEventArgs<SocketSession<TConfig>, TConfig>> Connected;
 
 		/// <summary>
 		/// This event fires when a connection has been shutdown.
 		/// </summary>
-		public event EventHandler<SessionClosedEventArgs<SocketSession>> Closed;
+		public event EventHandler<SessionClosedEventArgs<SocketSession<TConfig>, TConfig>> Closed;
+
 
 		/// <summary>
 		/// Creates a new socket session with a new Id.
@@ -123,7 +125,7 @@ namespace DtronixMessageQueue.Socket {
 		/// <param name="socket">Socket this session is to use.</param>
 		/// <param name="args_pool">Argument pool for this session to use.  Pulls two asyncevents for reading and writing and returns them at the end of this socket's life.</param>
 		/// <param name="config">Socket configurations this session is to use.</param>
-		public static void Setup(SocketSession session, System.Net.Sockets.Socket socket, SocketAsyncEventArgsPool args_pool, SocketConfig config) {
+		public static void Setup(SocketSession<TConfig> session, System.Net.Sockets.Socket socket, SocketAsyncEventArgsPool args_pool, TConfig config) {
 			session.config = config;
 			session.args_pool = args_pool;
 			session.send_args = args_pool.Pop();
@@ -146,12 +148,16 @@ namespace DtronixMessageQueue.Socket {
 			socket.NoDelay = true;
 			socket.SetSocketOption(SocketOptionLevel.Socket, SocketOptionName.DontLinger, true);
 
-			// Start receiving data.
-			socket.ReceiveAsync(session.receive_args);
-
-			session.CurrentState = State.Connected;
-
 			session.OnSetup();
+		}
+
+		internal void Start() {
+			if (CurrentState == State.Connecting) {
+				// Start receiving data.
+				CurrentState = State.Connected;
+				socket.ReceiveAsync(receive_args);
+				
+			}
 		}
 
 		/// <summary>
@@ -166,7 +172,7 @@ namespace DtronixMessageQueue.Socket {
 		/// </summary>
 		protected void OnConnected() {
 			//logger.Info("Session {0}: Connected", Id);
-			Connected?.Invoke(this, new SessionConnectedEventArgs<SocketSession>(this));
+			Connected?.Invoke(this, new SessionEventArgs<SocketSession<TConfig>, TConfig>(this));
 		}
 
 		/// <summary>
@@ -174,7 +180,7 @@ namespace DtronixMessageQueue.Socket {
 		/// </summary>
 		/// <param name="reason">Reason this socket is disconnecting</param>
 		protected void OnDisconnected(SocketCloseReason reason) {
-			Closed?.Invoke(this, new SessionClosedEventArgs<SocketSession>(this, reason));
+			Closed?.Invoke(this, new SessionClosedEventArgs<SocketSession<TConfig>, TConfig>(this, reason));
 		}
 
 		/// <summary>

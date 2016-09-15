@@ -6,7 +6,7 @@ namespace DtronixMessageQueue.Tests.Mq {
 		private MqFrame actual_frame;
 		private byte[] actual_bytes;
 		private byte[] expected_bytes;
-		MqSocketConfig config = new MqSocketConfig();
+		MqConfig config = new MqConfig();
 
 		public MqFrameTests() {
 		}

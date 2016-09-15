@@ -6,8 +6,9 @@ namespace DtronixMessageQueue {
 	/// <summary>
 	/// Event args for when a new message has been processed and is ready for usage.
 	/// </summary>
-	public class IncomingMessageEventArgs<TSession> : EventArgs
-		where TSession : MqSession<TSession>, new() {
+	public class IncomingMessageEventArgs<TSession, TConfig> : EventArgs
+		where TSession : MqSession<TSession, TConfig>, new()
+		where TConfig : MqConfig {
 
 		/// <summary>
 		/// Messages ready to be read.

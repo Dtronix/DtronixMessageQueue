@@ -23,7 +23,7 @@ namespace DtronixMessageQueue.Tests.Rpc {
 		[Fact]
 		public void Client_calls_proxy_method() {
 
-			Server.Connected += (sender, args) => {
+			Server.SessionSetup += (sender, args) => {
 				args.Session.AddService(new CalculatorService());
 			};
 
@@ -46,8 +46,8 @@ namespace DtronixMessageQueue.Tests.Rpc {
 		[Fact]
 		public void Client_calls_proxy_method_sequential() {
 
-			Server.Connected += (sender, args) => {
-				args.Session.AddService<ICalculatorService>(new CalculatorService());
+			Server.SessionSetup += (sender, args) => {
+				args.Session.AddService(new CalculatorService());
 			};
 
 
@@ -71,7 +71,7 @@ namespace DtronixMessageQueue.Tests.Rpc {
 		[Fact]
 		public void Client_calls_proxy_method_and_canceles() {
 
-			Server.Connected += (sender, args) => {
+			Server.SessionSetup += (sender, args) => {
 				var service = new CalculatorService();
 				args.Session.AddService<ICalculatorService>(service);
 

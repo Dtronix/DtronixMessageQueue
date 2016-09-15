@@ -10,8 +10,9 @@ namespace DtronixMessageQueue.Socket {
 	/// Base functionality for handling connection requests.
 	/// </summary>
 	/// <typeparam name="TSession">Session type.</typeparam>
-	public class SocketServer<TSession> : SocketBase<TSession>
-		where TSession : SocketSession, new() {
+	public class SocketServer<TSession, TConfig> : SocketBase<TSession, TConfig>
+		where TSession : SocketSession<TConfig>, new()
+		where TConfig : SocketConfig {
 
 		/// <summary>
 		/// Limits the number of active connections.
@@ -37,7 +38,7 @@ namespace DtronixMessageQueue.Socket {
 		/// Creates a socket server with the specified configurations.
 		/// </summary>
 		/// <param name="config">Configurations for this socket.</param>
-		public SocketServer(SocketConfig config) : base(config) {
+		public SocketServer(TConfig config) : base(config) {
 			connection_limit = new Semaphore(config.MaxConnections, config.MaxConnections);
 		}
 
@@ -106,8 +107,11 @@ namespace DtronixMessageQueue.Socket {
 			// Add this session to the list of connected sessions.
 			ConnectedSessions.TryAdd(session.Id, session);
 
+			// Start the session.
+			session.Start();
+
 			// Invoke the events.
-			Task.Run(() => OnConnect(session));
+			OnConnect(session);
 
 			// Accept the next connection request
 			StartAccept(e);
@@ -118,7 +122,7 @@ namespace DtronixMessageQueue.Socket {
 		/// </summary>
 		/// <param name="sender">Sender of the disconnection event.</param>
 		/// <param name="e">Session events.</param>
-		private void RemoveClientEvent(object sender, SessionClosedEventArgs<SocketSession> e) {
+		private void RemoveClientEvent(object sender, SessionClosedEventArgs<SocketSession<TConfig>, TConfig> e) {
 			TSession session_out;
 			ConnectedSessions.TryRemove(e.Session.Id, out session_out);
 			e.Session.Closed -= RemoveClientEvent;

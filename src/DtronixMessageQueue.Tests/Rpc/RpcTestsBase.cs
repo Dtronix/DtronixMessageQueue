@@ -11,11 +11,11 @@ namespace DtronixMessageQueue.Tests.Rpc {
 		private Random random = new Random();
 		public ITestOutputHelper Output;
 
-		public RpcServer<SimpleRpcSession> Server { get; protected set; }
-		public RpcClient<SimpleRpcSession> Client { get; protected set; }
+		public RpcServer<SimpleRpcSession, RpcConfig> Server { get; protected set; }
+		public RpcClient<SimpleRpcSession, RpcConfig> Client { get; protected set; }
 		public int Port { get; }
 
-		protected MqSocketConfig Config;
+		protected RpcConfig Config;
 
 		public Exception LastException { get; set; }
 
@@ -27,13 +27,13 @@ namespace DtronixMessageQueue.Tests.Rpc {
 			this.Output = output;
 			Port = FreeTcpPort();
 
-			Config = new MqSocketConfig {
+			Config = new RpcConfig {
 				Ip = "127.0.0.1",
 				Port = Port
 			};
 
-			Server = new RpcServer<SimpleRpcSession>(Config);
-			Client = new RpcClient<SimpleRpcSession>(Config);
+			Server = new RpcServer<SimpleRpcSession, RpcConfig>(Config);
+			Client = new RpcClient<SimpleRpcSession, RpcConfig>(Config);
 		}
 
 

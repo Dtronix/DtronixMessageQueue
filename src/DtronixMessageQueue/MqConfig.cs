@@ -2,7 +2,7 @@
 using DtronixMessageQueue.Socket;
 
 namespace DtronixMessageQueue {
-	public class MqSocketConfig : SocketConfig {
+	public class MqConfig : SocketConfig {
 		private int max_read_write_workers = 4;
 
 		/// <summary>

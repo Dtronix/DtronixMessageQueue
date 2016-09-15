@@ -10,8 +10,9 @@ namespace DtronixMessageQueue {
 	/// <summary>
 	/// Session to handle all reading/writing for a socket session.
 	/// </summary>
-	public abstract class MqSession<TSession> : SocketSession
-		where TSession : MqSession<TSession>, new() {
+	public abstract class MqSession<TSession, TConfig> : SocketSession<TConfig>
+		where TSession : MqSession<TSession, TConfig>, new()
+		where TConfig : MqConfig {
 
 		/// <summary>
 		/// True if the socket is currently running.
@@ -21,7 +22,7 @@ namespace DtronixMessageQueue {
 		/// <summary>
 		/// The Postmaster for this client/server.
 		/// </summary>
-		public MqPostmaster<TSession> Postmaster { get; set; }
+		public MqPostmaster<TSession, TConfig> Postmaster { get; set; }
 
 		/// <summary>
 		/// Total bytes the inbox has remaining to process.
@@ -51,15 +52,15 @@ namespace DtronixMessageQueue {
 		/// <summary>
 		/// Event fired when a new message has been processed by the Postmaster and ready to be read.
 		/// </summary>
-		public event EventHandler<IncomingMessageEventArgs<TSession>> IncomingMessage;
+		public event EventHandler<IncomingMessageEventArgs<TSession, TConfig>> IncomingMessage;
 
 		/// <summary>
 		/// Base socket for this session.
 		/// </summary>
-		public SocketBase<TSession> BaseSocket { get; set; }
+		public SocketBase<TSession, TConfig> BaseSocket { get; set; }
 
 		protected override void OnSetup() {
-			frame_builder = new MqFrameBuilder((MqSocketConfig)Config);
+			frame_builder = new MqFrameBuilder((MqConfig)Config);
 
 			base.OnSetup();
 		}
@@ -132,7 +133,7 @@ namespace DtronixMessageQueue {
 					var frame_size = frame.FrameSize;
 
 					// If this would overflow the max client buffer size, send the full buffer queue.
-					if (length + frame_size > ((MqSocketConfig)Config).FrameBufferSize + MqFrame.HeaderLength) {
+					if (length + frame_size > ((MqConfig)Config).FrameBufferSize + MqFrame.HeaderLength) {
 						SendBufferQueue(buffer_queue, length);
 
 						// Reset the length to 0;
@@ -215,7 +216,7 @@ namespace DtronixMessageQueue {
 				return false;
 			}
 
-			OnIncomingMessage(this, new IncomingMessageEventArgs<TSession>(messages, (TSession)this));
+			OnIncomingMessage(this, new IncomingMessageEventArgs<TSession, TConfig>(messages, (TSession)this));
 			return true;
 
 		}
@@ -225,7 +226,7 @@ namespace DtronixMessageQueue {
 		/// </summary>
 		/// <param name="sender">Originator of call for this event.</param>
 		/// <param name="e">Event args for the message.</param>
-		public virtual void OnIncomingMessage(object sender, IncomingMessageEventArgs<TSession> e) {
+		public virtual void OnIncomingMessage(object sender, IncomingMessageEventArgs<TSession, TConfig> e) {
 			//logger.Debug("Session {0}: Received {1} messages.", Id, e.Messages.Count);
 			IncomingMessage?.Invoke(sender, e);
 		}
@@ -295,7 +296,7 @@ namespace DtronixMessageQueue {
 		/// <param name="bytes">Bytes to put in the frame.</param>
 		/// <returns>Configured frame.</returns>
 		public MqFrame CreateFrame(byte[] bytes) {
-			return Utilities.CreateFrame(bytes, MqFrameType.Unset, (MqSocketConfig)Config);
+			return Utilities.CreateFrame(bytes, MqFrameType.Unset, (MqConfig)Config);
 		}
 
 		/// <summary>
@@ -305,7 +306,7 @@ namespace DtronixMessageQueue {
 		/// <param name="type">Type of frame to create.</param>
 		/// <returns>Configured frame.</returns>
 		public MqFrame CreateFrame(byte[] bytes, MqFrameType type) {
-			return Utilities.CreateFrame(bytes, type, (MqSocketConfig)Config);
+			return Utilities.CreateFrame(bytes, type, Config);
 		}
 
 

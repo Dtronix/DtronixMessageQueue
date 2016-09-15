@@ -54,9 +54,10 @@
     <Compile Include="MqMessageReader.cs" />
     <Compile Include="MqMessageWriter.cs" />
     <Compile Include="MqSession.cs" />
-    <Compile Include="MqSocketConfig.cs" />
+    <Compile Include="MqConfig.cs" />
     <Compile Include="Rpc\IRemoteService.cs" />
     <Compile Include="Rpc\RpcClient.cs" />
+    <Compile Include="Rpc\RpcConfig.cs" />
     <Compile Include="Rpc\RpcMessageType.cs" />
     <Compile Include="Rpc\RpcProxy.cs" />
     <Compile Include="Rpc\RpcRemoteException.cs" />
@@ -66,7 +67,7 @@
     <Compile Include="Rpc\RpcSession.cs" />
     <Compile Include="Rpc\SerializationStore.cs" />
     <Compile Include="Socket\BufferManager.cs" />
-    <Compile Include="Socket\SessionConnectedEventArgs.cs" />
+    <Compile Include="Socket\SessionEventArgs.cs" />
     <Compile Include="Socket\SessionClosedEventArgs.cs" />
     <Compile Include="Socket\SocketAsyncEventArgsPool.cs" />
     <Compile Include="Socket\SocketBase.cs" />

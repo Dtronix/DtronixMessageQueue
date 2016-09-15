@@ -1,4 +1,5 @@
-﻿using System.Net.Sockets;
+﻿using System;
+using System.Net.Sockets;
 using Amib.Threading;
 
 namespace DtronixMessageQueue.Rpc {
@@ -7,8 +8,9 @@ namespace DtronixMessageQueue.Rpc {
 	/// Rpc class for containing server logic.
 	/// </summary>
 	/// <typeparam name="TSession">Session type for the client.</typeparam>
-	public class RpcServer<TSession> : MqServer<TSession>
-		where TSession : RpcSession<TSession>, new() {
+	public class RpcServer<TSession, TConfig> : MqServer<TSession, TConfig>
+		where TSession : RpcSession<TSession, TConfig>, new()
+		where TConfig : RpcConfig {
 
 		/// <summary>
 		/// Thread pool for all the Rpc call workers.
@@ -19,7 +21,7 @@ namespace DtronixMessageQueue.Rpc {
 		/// Creates a new instance of the server with the specified configurations.
 		/// </summary>
 		/// <param name="config">Configurations for this server.</param>
-		public RpcServer(MqSocketConfig config) : base(config) {
+		public RpcServer(TConfig config) : base(config) {
 			WorkerThreadPool = new SmartThreadPool(config.IdleWorkerTimeout, config.MaxReadWriteWorkers, 1);
 		}
 

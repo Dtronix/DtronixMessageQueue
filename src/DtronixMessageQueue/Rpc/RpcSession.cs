@@ -5,15 +5,15 @@ using System.Linq;
 using System.Reflection;
 using System.Runtime.Remoting.Proxies;
 using System.Threading;
-using System.Threading.Tasks;
 using Amib.Threading;
 using DtronixMessageQueue.Socket;
 using ProtoBuf;
 using ProtoBuf.Meta;
 
 namespace DtronixMessageQueue.Rpc {
-	public class RpcSession<TSession> : MqSession<TSession>
-		where TSession : RpcSession<TSession>, new() {
+	public class RpcSession<TSession, TConfig> : MqSession<TSession, TConfig>
+		where TSession : RpcSession<TSession, TConfig>, new()
+		where TConfig : RpcConfig {
 
 		/// <summary>
 		/// Current call Id wich gets incremented for each call return request.
@@ -30,6 +30,9 @@ namespace DtronixMessageQueue.Rpc {
 		/// </summary>
 		public SerializationStore Store { get; private set; }
 
+		/// <summary>
+		/// Thread pool for performing tasks on this session.
+		/// </summary>
 		private SmartThreadPool worker_thread_pool;
 
 		/// <summary>
@@ -42,17 +45,17 @@ namespace DtronixMessageQueue.Rpc {
 		/// </summary>
 		private readonly ConcurrentDictionary<ushort, RpcOperationWait> ongoing_operations = new ConcurrentDictionary<ushort, RpcOperationWait>();
 
-		private readonly Dictionary<string, IRemoteService<TSession>> services = new Dictionary<string, IRemoteService<TSession>>();
-		private readonly Dictionary<Type, IRemoteService<TSession>> remote_services_proxy = new Dictionary<Type, IRemoteService<TSession>>();
+		private readonly Dictionary<string, IRemoteService<TSession, TConfig>> services = new Dictionary<string, IRemoteService<TSession, TConfig>>();
+		private readonly Dictionary<Type, IRemoteService<TSession, TConfig>> remote_services_proxy = new Dictionary<Type, IRemoteService<TSession, TConfig>>();
 		private readonly Dictionary<Type, RealProxy> remote_service_realproxy = new Dictionary<Type, RealProxy>();
 
 
-		public RpcServer<TSession> Server { get; set; }
+		public RpcServer<TSession, TConfig> Server { get; set; }
 
 		protected override void OnSetup() {
 			base.OnSetup();
 
-			var config = (MqSocketConfig) Config;
+			var config = (MqConfig) Config;
 
 			if (Server != null) {
 				worker_thread_pool = Server.WorkerThreadPool;
@@ -64,15 +67,13 @@ namespace DtronixMessageQueue.Rpc {
 		}
 
 
-		public override void OnIncomingMessage(object sender, IncomingMessageEventArgs<TSession> e) {
+		public override void OnIncomingMessage(object sender, IncomingMessageEventArgs<TSession, TConfig> e) {
 			MqMessage message;
 			while (e.Messages.Count > 0) {
 				message = e.Messages.Dequeue();
 
 				// Read the type of message.
 				var message_type = (RpcMessageType) message[0].ReadByte(0);
-
-				//var message_type = Enum ;
 
 				switch (message_type) {
 					case RpcMessageType.Command:
@@ -105,17 +106,17 @@ namespace DtronixMessageQueue.Rpc {
 		}
 
 
-		public void AddProxy<T>(T instance) where T : IRemoteService<TSession> {
-			var proxy = new RpcProxy<T, TSession>(instance, this);
+		public void AddProxy<T>(T instance) where T : IRemoteService<TSession, TConfig> {
+			var proxy = new RpcProxy<T, TSession, TConfig>(instance, this);
 			remote_service_realproxy.Add(typeof(T), proxy);
 			remote_services_proxy.Add(typeof(T), (T)proxy.GetTransparentProxy());
 		}
 
-		public T GetProxy<T>() where T : IRemoteService<TSession> {
+		public T GetProxy<T>() where T : IRemoteService<TSession, TConfig> {
 			return (T)remote_services_proxy[typeof(T)];
 		}
 
-		public void AddService<T>(T instance) where T : IRemoteService<TSession>{
+		public void AddService<T>(T instance) where T : IRemoteService<TSession, TConfig> {
 			services.Add(instance.Name, instance);
 			instance.Session = (TSession)this;
 		}
@@ -272,7 +273,7 @@ namespace DtronixMessageQueue.Rpc {
 			RpcOperationWait call_wait;
 			outstanding_waits.TryRemove(id, out call_wait);
 
-			var frame = new MqFrame(new byte[3], MqFrameType.Last, (MqSocketConfig) Config);
+			var frame = new MqFrame(new byte[3], MqFrameType.Last, (MqConfig) Config);
 			frame.Write(0, (byte)RpcMessageType.RpcCallCancellation);
 			frame.Write(1, id);
 
@@ -303,7 +304,7 @@ namespace DtronixMessageQueue.Rpc {
 		}
 
 
-		private void ProcessRpcCommand(MqMessage mq_message, IncomingMessageEventArgs<TSession> incoming_message_event_args) {
+		private void ProcessRpcCommand(MqMessage mq_message, IncomingMessageEventArgs<TSession, TConfig> incoming_message_event_args) {
 			throw new NotImplementedException();
 		}
 	}

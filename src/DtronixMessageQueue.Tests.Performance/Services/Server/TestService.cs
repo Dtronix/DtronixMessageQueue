@@ -57,7 +57,7 @@ namespace DtronixMessageQueue.Tests.Performance.Services.Server {
 
 	}
 
-	internal interface ITestService : IRemoteService<SimpleRpcSession> {
+	internal interface ITestService : IRemoteService<SimpleRpcSession, RpcConfig> {
 		void TestNoReturn();
 		int TestIncrement();
 		void TestSetup(int calls);
