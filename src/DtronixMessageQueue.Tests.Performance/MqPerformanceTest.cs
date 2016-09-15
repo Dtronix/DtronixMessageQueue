@@ -67,7 +67,7 @@ namespace DtronixMessageQueue.Tests.Performance {
 
 
 		private static void StartClient(int total_loops, int total_messages, int total_frames, int frame_size) {
-			var cl = new MqClient<SimpleMqSession>(new MqSocketConfig() {
+			var cl = new MqClient<SimpleMqSession, MqConfig>(new MqConfig() {
 				Ip = "127.0.0.1",
 				Port = 2828
 			});
@@ -79,7 +79,7 @@ namespace DtronixMessageQueue.Tests.Performance {
 			double[] total_values = {0, 0, 0};
 
 			for (int i = 0; i < total_frames; i++) {
-				message.Add(new MqFrame(SequentialBytes(frame_size), MqFrameType.More, (MqSocketConfig)cl.Config));
+				message.Add(new MqFrame(SequentialBytes(frame_size), MqFrameType.More, (MqConfig)cl.Config));
 			}
 
 			cl.IncomingMessage += (sender, args) => {
@@ -133,12 +133,12 @@ namespace DtronixMessageQueue.Tests.Performance {
 		}
 
 		private static void StartServer(int total_messages, int total_clients) {
-			var server = new MqServer<SimpleMqSession>(new MqSocketConfig() {
+			var server = new MqServer<SimpleMqSession, MqConfig>(new MqConfig() {
 				Ip = "127.0.0.1",
 				Port = 2828
 			});
 
-			var builder = new MqMessageWriter((MqSocketConfig) server.Config);
+			var builder = new MqMessageWriter((MqConfig) server.Config);
 			builder.Write("COMPLETE");
 
 			var complete_message = builder.ToMessage(true);
@@ -190,7 +190,7 @@ namespace DtronixMessageQueue.Tests.Performance {
 
 
 		static void MqInProcessTest() {
-			var config = new MqSocketConfig {
+			var config = new MqConfig {
 				Ip = "127.0.0.1",
 				Port = 2828
 			};
@@ -230,8 +230,8 @@ namespace DtronixMessageQueue.Tests.Performance {
 			Console.ReadLine();
 		}
 
-		private static void MqInProcessPerformanceTests(int runs, int loops, MqMessage message, MqSocketConfig config) {
-			var server = new MqServer<SimpleMqSession>(config);
+		private static void MqInProcessPerformanceTests(int runs, int loops, MqMessage message, MqConfig config) {
+			var server = new MqServer<SimpleMqSession, MqConfig>(config);
 			server.Start();
 
 			double[] total_values = {0, 0, 0};
@@ -241,7 +241,7 @@ namespace DtronixMessageQueue.Tests.Performance {
 			var wait = new AutoResetEvent(false);
 			var complete_test = new AutoResetEvent(false);
 
-			var client = new MqClient<SimpleMqSession>(config);
+			var client = new MqClient<SimpleMqSession, MqConfig>(config);
 
 			Console.WriteLine("|   Build |   Messages | Msg Bytes | Milliseconds |    Msg/sec |     MBps |");
 			Console.WriteLine("|---------|------------|-----------|--------------|------------|----------|");

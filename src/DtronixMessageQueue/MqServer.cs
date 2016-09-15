@@ -7,18 +7,19 @@ namespace DtronixMessageQueue {
 	/// <summary>
 	/// Message Queue Server to handle incoming clients
 	/// </summary>
-	public class MqServer<TSession> : SocketServer<TSession>
-		where TSession : MqSession<TSession>, new() {
+	public class MqServer<TSession, TConfig> : SocketServer<TSession, TConfig>
+		where TSession : MqSession<TSession, TConfig>, new()
+		where TConfig : MqConfig{
 
 		/// <summary>
 		/// Handles all incoming and outgoing messages
 		/// </summary>
-		private readonly MqPostmaster<TSession> postmaster;
+		private readonly MqPostmaster<TSession, TConfig> postmaster;
 
 		/// <summary>
 		/// Event fired when a new message arrives at a session's mailbox.
 		/// </summary>
-		public event EventHandler<IncomingMessageEventArgs<TSession>> IncomingMessage;
+		public event EventHandler<IncomingMessageEventArgs<TSession, TConfig>> IncomingMessage;
 
 		/// <summary>
 		/// True if the timeout timer is running.  False otherwise.
@@ -33,10 +34,10 @@ namespace DtronixMessageQueue {
 		/// <summary>
 		/// Initializes a new instance of a message queue.
 		/// </summary>
-		public MqServer(MqSocketConfig config) : base(config) {
+		public MqServer(TConfig config) : base(config) {
 			timeout_timer = new Timer(TimeoutCallback);
 
-			postmaster = new MqPostmaster<TSession>(config);
+			postmaster = new MqPostmaster<TSession, TConfig>(config);
 
 			Setup();
 		}
@@ -46,7 +47,7 @@ namespace DtronixMessageQueue {
 		/// </summary>
 		/// <param name="state">Concurrent dictionary of the sessions.</param>
 		private void TimeoutCallback(object state) {
-			var timout_int = ((MqSocketConfig) Config).PingTimeout;
+			var timout_int = ((MqConfig) Config).PingTimeout;
 			var timeout_time = DateTime.UtcNow.Subtract(new TimeSpan(0, 0, 0, 0, timout_int));
 
 			foreach (var session in ConnectedSessions.Values) {
@@ -62,7 +63,7 @@ namespace DtronixMessageQueue {
 		/// </summary>
 		/// <param name="sender">The source of the event.</param>
 		/// <param name="e">The event object containing the mailbox to retrieve the message from.</param>
-		private void OnIncomingMessage(object sender, IncomingMessageEventArgs<TSession> e) {
+		private void OnIncomingMessage(object sender, IncomingMessageEventArgs<TSession, TConfig> e) {
 			IncomingMessage?.Invoke(sender, e);
 		}
 
@@ -78,7 +79,7 @@ namespace DtronixMessageQueue {
 		protected override void OnConnect(TSession session) {
 			// Start the timeout timer if it is not already running.
 			if (timeout_timer_running == false) {
-				timeout_timer.Change(0, ((MqSocketConfig)Config).PingTimeout);
+				timeout_timer.Change(0, ((MqConfig)Config).PingTimeout);
 				timeout_timer_running = true;
 			}
 

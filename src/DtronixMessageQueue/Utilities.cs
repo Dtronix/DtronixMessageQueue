@@ -19,7 +19,7 @@ namespace DtronixMessageQueue {
 		/// <param name="type">Type of frame to create.</param>
 		/// <param name="config">Socket configurations for the frame to use.</param>
 		/// <returns>Configured frame.</returns>
-		public static MqFrame CreateFrame(byte[] bytes, MqFrameType type, MqSocketConfig config) {
+		public static MqFrame CreateFrame(byte[] bytes, MqFrameType type, MqConfig config) {
 			if (type == MqFrameType.Ping || type == MqFrameType.Empty || type == MqFrameType.EmptyLast) {
 				bytes = null;
 			}

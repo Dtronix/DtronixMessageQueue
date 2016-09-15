@@ -31,7 +31,7 @@ namespace DtronixMessageQueue {
 		/// </summary>
 		public const int HeaderLength = 3;
 
-		private MqSocketConfig config;
+		private MqConfig config;
 
 		/// <summary>
 		/// Total bytes that this frame contains.
@@ -64,7 +64,7 @@ namespace DtronixMessageQueue {
 		/// </summary>
 		/// <param name="bytes">Byte buffer to use for this frame.</param>
 		/// <param name="config">Socket configurations used for creating and finalizing this frame.</param>
-		public MqFrame(byte[] bytes, MqSocketConfig config) : this(bytes, MqFrameType.Unset, config) {
+		public MqFrame(byte[] bytes, MqConfig config) : this(bytes, MqFrameType.Unset, config) {
 		}
 
 		/// <summary>
@@ -73,7 +73,7 @@ namespace DtronixMessageQueue {
 		/// <param name="bytes">Byte buffer to use for this frame.</param>
 		/// <param name="type">Initial type of frame to create.</param>
 		/// <param name="config">Socket configurations used for creating and finalizing this frame.</param>
-		public MqFrame(byte[] bytes, MqFrameType type, MqSocketConfig config) {
+		public MqFrame(byte[] bytes, MqFrameType type, MqConfig config) {
 			if (config == null) {
 				throw new ArgumentNullException(nameof(config), "Configurations can not be null.");
 			}

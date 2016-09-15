@@ -6,8 +6,9 @@ namespace DtronixMessageQueue.Socket {
 	/// Event args used when the session has connected to a remote endpoint.
 	/// </summary>
 	/// <typeparam name="TSession">Session type.</typeparam>
-	public class SessionConnectedEventArgs<TSession> : EventArgs
-		where TSession : SocketSession {
+	public class SessionConnectedEventArgs<TSession, TConfig> : EventArgs
+		where TSession : SocketSession<TConfig>
+		where TConfig : SocketConfig {
 
 		/// <summary>
 		/// Connected session.

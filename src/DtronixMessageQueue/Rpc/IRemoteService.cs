@@ -4,8 +4,9 @@
 	/// Represents a remote service accessible through a RpcProxy object.
 	/// </summary>
 	/// <typeparam name="TSession">Session type.</typeparam>
-	public interface IRemoteService<TSession>
-		where TSession : RpcSession<TSession>, new() {
+	public interface IRemoteService<TSession, TConfig>
+		where TSession : RpcSession<TSession, TConfig>, new()
+		where TConfig : RpcConfig {
 
 		/// <summary>
 		/// Name of this service.

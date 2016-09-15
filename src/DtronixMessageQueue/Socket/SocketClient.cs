@@ -7,8 +7,9 @@ namespace DtronixMessageQueue.Socket {
 	/// Base functionality for all client connections to a remote server.
 	/// </summary>
 	/// <typeparam name="TSession">Session to use for this client's connection.</typeparam>
-	public class SocketClient<TSession> : SocketBase<TSession>
-		where TSession : SocketSession, new() {
+	public class SocketClient<TSession, TConfig> : SocketBase<TSession, TConfig>
+		where TSession : SocketSession<TConfig>, new()
+		where TConfig : SocketConfig {
 
 		/// <summary>
 		/// True if the client is connected to a server.
@@ -24,7 +25,7 @@ namespace DtronixMessageQueue.Socket {
 		/// Creates a socket client with the specified configurations.
 		/// </summary>
 		/// <param name="config">Configurations to use.</param>
-		public SocketClient(SocketConfig config) : base(config) {
+		public SocketClient(TConfig config) : base(config) {
 		}
 
 		/// <summary>
@@ -51,6 +52,7 @@ namespace DtronixMessageQueue.Socket {
 				if (args.LastOperation == SocketAsyncOperation.Connect) {
 					Session = CreateSession(MainSocket);
 					OnConnect(Session);
+					Session.Start();
 				}
 			};
 

@@ -53,7 +53,7 @@ namespace DtronixMessageQueue {
 		/// <summary>
 		/// Configurations for the connected session.
 		/// </summary>
-		private readonly MqSocketConfig config;
+		private readonly MqConfig config;
 
 		/// <summary>
 		/// Size in bytes of the header of a frame.
@@ -70,7 +70,7 @@ namespace DtronixMessageQueue {
 		/// Creates a new instance of the frame builder to handle parsing of incoming byte stream.
 		/// </summary>
 		/// <param name="config">Socket configurations for this session.</param>
-		public MqFrameBuilder(MqSocketConfig config) {
+		public MqFrameBuilder(MqConfig config) {
 			this.config = config;
 			internal_buffer = new byte[config.FrameBufferSize + MqFrame.HeaderLength];
 

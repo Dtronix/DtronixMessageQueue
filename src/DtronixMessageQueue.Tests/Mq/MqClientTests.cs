@@ -186,17 +186,17 @@ namespace DtronixMessageQueue.Tests.Mq {
 
 		[Fact]
 		public void Client_times_out() {
-			var client_config = new MqSocketConfig {
+			var client_config = new MqConfig {
 				Ip = Config.Ip,
 				Port = Config.Port,
 				PingFrequency = 60000
 			};
 
 			
-			Client = new MqClient<SimpleMqSession> (client_config);
+			Client = new MqClient<SimpleMqSession, MqConfig> (client_config);
 
 			Config.PingTimeout = 500;
-			Server = new MqServer<SimpleMqSession>(Config);
+			Server = new MqServer<SimpleMqSession, MqConfig>(Config);
 
 
 			Client.Closed += (sender, args) => {
@@ -217,17 +217,17 @@ namespace DtronixMessageQueue.Tests.Mq {
 
 		[Fact]
 		public void Client_prevents_times_out() {
-			var client_config = new MqSocketConfig {
+			var client_config = new MqConfig {
 				Ip = Config.Ip,
 				Port = Config.Port,
 				PingFrequency = 100
 			};
 
 
-			Client = new MqClient<SimpleMqSession>(client_config);
+			Client = new MqClient<SimpleMqSession, MqConfig>(client_config);
 
 			Config.PingTimeout = 200;
-			Server = new MqServer<SimpleMqSession>(Config);
+			Server = new MqServer<SimpleMqSession, MqConfig>(Config);
 
 
 			Client.Closed += (sender, args) => {

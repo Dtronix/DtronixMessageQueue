@@ -11,7 +11,7 @@ using DtronixMessageQueue.Tests.Performance.Services.Server;
 namespace DtronixMessageQueue.Tests.Performance {
 	class RpcPerformanceTest {
 		public RpcPerformanceTest(string[] args) {
-			var config = new MqSocketConfig() {
+			var config = new RpcConfig {
 				Ip = "127.0.0.1",
 				Port = 2828
 			};
@@ -26,18 +26,19 @@ namespace DtronixMessageQueue.Tests.Performance {
 		}
 
 
-		private void RpcSingleProcessTest(int runs, int loops, MqSocketConfig config, RpcTestType type) {
-			var server = new RpcServer<SimpleRpcSession>(config);
+		private void RpcSingleProcessTest(int runs, int loops, RpcConfig config, RpcTestType type) {
+			var server = new RpcServer<SimpleRpcSession, RpcConfig>(config);
 			TestService test_service;
 			double[] total_values = { 0, 0 };
 			var sw = new Stopwatch();
 			var wait = new AutoResetEvent(false);
 			var complete_test = new AutoResetEvent(false);
-			var client = new RpcClient<SimpleRpcSession>(config);
+			var client = new RpcClient<SimpleRpcSession, RpcConfig>(config);
 
 			server.Connected += (sender, args) => {
-				
 				test_service = new TestService();
+				args.Session.AddService(test_service);
+
 				test_service.Completed += (o, session) => {
 					sw.Stop();
 					var mode = "Release";
@@ -53,7 +54,7 @@ namespace DtronixMessageQueue.Tests.Performance {
 
 					wait.Set();
 				};
-				args.Session.AddService(test_service);
+				
 			};
 
 

@@ -8,8 +8,9 @@ namespace DtronixMessageQueue {
 	/// <summary>
 	/// Postmaster to handle worker creation/deletion and parsing of all incoming and outgoing messages.
 	/// </summary>
-	public class MqPostmaster<TSession> : IDisposable
-		where TSession : MqSession<TSession>, new() {
+	public class MqPostmaster<TSession, TConfig> : IDisposable
+		where TSession : MqSession<TSession, TConfig>, new()
+		where TConfig : MqConfig {
 
 		/// <summary>
 		/// Internal thread pool for this instance.
@@ -22,42 +23,42 @@ namespace DtronixMessageQueue {
 				Reader,
 				Writer
 			}
-			public BlockingCollection<MqSession<TSession>> Operations;
-			public ConcurrentDictionary<MqSession<TSession>, bool> OngoingOperations;
+			public BlockingCollection<MqSession<TSession, TConfig>> Operations;
+			public ConcurrentDictionary<MqSession<TSession, TConfig>, bool> OngoingOperations;
 			public WorkerType Type;
 		}
 
 		/// <summary>
 		/// Dictionary to prevent multiple writes occurring on the same session concurrently.
 		/// </summary>
-		private readonly ConcurrentDictionary<MqSession<TSession>, bool> ongoing_write_operations = new ConcurrentDictionary<MqSession<TSession>, bool>();
+		private readonly ConcurrentDictionary<MqSession<TSession, TConfig>, bool> ongoing_write_operations = new ConcurrentDictionary<MqSession<TSession, TConfig>, bool>();
 
 		/// <summary>
 		/// Collection used to hold onto sessions pending write operations.
 		/// </summary>
-		private readonly BlockingCollection<MqSession<TSession>> write_operations = new BlockingCollection<MqSession<TSession>>();
+		private readonly BlockingCollection<MqSession<TSession, TConfig>> write_operations = new BlockingCollection<MqSession<TSession, TConfig>>();
 
 		/// <summary>
 		/// Dictionary to prevent multiple reads occurring on the same session concurrently.
 		/// </summary>
-		private readonly ConcurrentDictionary<MqSession<TSession>, bool> ongoing_read_operations = new ConcurrentDictionary<MqSession<TSession>, bool>();
+		private readonly ConcurrentDictionary<MqSession<TSession, TConfig>, bool> ongoing_read_operations = new ConcurrentDictionary<MqSession<TSession, TConfig>, bool>();
 
 		/// <summary>
 		/// Collection used to hold onto sessions pending read operations.
 		/// </summary>
-		private readonly BlockingCollection<MqSession<TSession>> read_operations = new BlockingCollection<MqSession<TSession>>();
+		private readonly BlockingCollection<MqSession<TSession, TConfig>> read_operations = new BlockingCollection<MqSession<TSession, TConfig>>();
 
 		/// <summary>
 		/// Configurations for this socket.
 		/// </summary>
-		private readonly MqSocketConfig config;
+		private readonly MqConfig config;
 
 		private readonly CancellationTokenSource cancellation_token_source = new CancellationTokenSource();
 
 		/// <summary>
 		/// Creates a new postmaster instance to handle reading and writing of all sessions.
 		/// </summary>
-		public MqPostmaster(MqSocketConfig config) {
+		public MqPostmaster(MqConfig config) {
 			this.config = config;
 
 			thread_pool = new SmartThreadPool(config.IdleWorkerTimeout, config.MaxReadWriteWorkers, 4);
@@ -85,7 +86,7 @@ namespace DtronixMessageQueue {
 		/// </summary>
 		/// <param name="session">Session to send data on.</param>
 		/// <returns>True if write was queued.  False if the write action was already queued.</returns>
-		public bool SignalWrite(MqSession<TSession> session) {
+		public bool SignalWrite(MqSession<TSession, TConfig> session) {
 			return ongoing_write_operations.TryAdd(session, true) && write_operations.TryAdd(session);
 		}
 
@@ -95,13 +96,13 @@ namespace DtronixMessageQueue {
 		/// </summary>
 		/// <param name="session">Session to read from.</param>
 		/// <returns>True if write was queued.  False if the read action was already queued.</returns>
-		public bool SignalRead(MqSession<TSession> session) {
+		public bool SignalRead(MqSession<TSession, TConfig> session) {
 			return ongoing_read_operations.TryAdd(session, true) && read_operations.TryAdd(session);
 		}
 
 
 		private void ProcessReadWrite(WorkerInfo info, CancellationToken token) {
-			MqSession<TSession> session = null;
+			MqSession<TSession, TConfig> session = null;
 			var more_work = false;
 			do {
 				// Only queue this item up one time per method call.
