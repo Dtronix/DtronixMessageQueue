@@ -5,7 +5,10 @@ DtronixMessageQueue is a small .net TCP/UDP message queueing system using the mi
 The purpose of this project is to provide a simple transport protocol for multiple systems, mostly being the DtronixRpc system.
 
 ### Performance
-Sample performance tests.  Numbers are averages from 5 loops of the performance test program. [Full Performance Test](DtronixMessageQueue.Tests.Performance/Results/i5-3470-8GB-16KB.md)
+
+#### DtronixMessageQueue
+
+Sample performance tests.  Numbers are averages from 5 loops of the performance test program. [Full Performance Test](docs/performance-results/i5-3470-8GB-16KB.md)
 
 |   Build |   Messages | Msg Bytes | Milliseconds |        MPS |     MBps |
 |---------|------------|-----------|--------------|------------|----------|
@@ -20,6 +23,17 @@ Sample performance tests.  Numbers are averages from 5 loops of the performance 
 [Desktop Intel i5-3470 8GB 16KB Buffer](docs/performance-results/i5-3470-8GB-16KB.md)
 
 [Desktop Intel i7-6700K 32GB 8KB Buffer](docs/performance-results/i7-6700K-32GB.md)
+
+#### DtronixMessageQueue.Rpc
+
+Sample performance tests for RPC calls.  Numbers are averages from 4 loops of the Rpc performance test program. [Full Performance Test](docs/performance-results/rpc/i5-3470-8GB-rpc.md)
+
+|   Build | Type      |   Calls    | Milliseconds |    RPC/sec |
+|---------|-----------|------------|--------------|------------|
+| Release |  NoRetrun |    200,000 |        1,537 |    130,134 |
+| Release |    Return |     10,000 |        1,128 |      8,869 |
+| Release | Exception |     10,000 |        2,484 |      4,026 |
+
 
 ### License
 Released under [MIT license](LICENSE)
