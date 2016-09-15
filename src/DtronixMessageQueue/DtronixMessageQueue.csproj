@@ -67,6 +67,7 @@
     <Compile Include="Rpc\RpcSession.cs" />
     <Compile Include="Rpc\SerializationStore.cs" />
     <Compile Include="Socket\BufferManager.cs" />
+    <Compile Include="Socket\ISetupSocketSession.cs" />
     <Compile Include="Socket\SessionEventArgs.cs" />
     <Compile Include="Socket\SessionClosedEventArgs.cs" />
     <Compile Include="Socket\SocketAsyncEventArgsPool.cs" />

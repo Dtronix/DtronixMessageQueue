@@ -47,7 +47,6 @@ namespace DtronixMessageQueue.Tests.Performance {
 
 
 			} else if (mode == "client") {
-				WriteSysInfo();
 				Console.WriteLine("|   Messages | Msg Bytes | Milliseconds |    Msg/sec |     MBps |");
 				Console.WriteLine("|------------|-----------|--------------|------------|----------|");
 
@@ -57,10 +56,7 @@ namespace DtronixMessageQueue.Tests.Performance {
 				StartServer(total_messages, total_clients);
 
 			} else if (mode == "single-process") {
-				using (var cc = new ConsoleCopy("MessageQueuePerformanceTest.txt")) {
-					WriteSysInfo();
-					MqInProcessTest();
-				}
+				MqInProcessTest();
 
 			}
 		}

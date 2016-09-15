@@ -109,7 +109,7 @@ namespace DtronixMessageQueue.Socket {
 			ConnectedSessions.TryAdd(session.Id, session);
 
 			// Start the session.
-			session.Start();
+			((ISetupSocketSession<TConfig>)session).Start();
 
 			// Invoke the events.
 			OnConnect(session);

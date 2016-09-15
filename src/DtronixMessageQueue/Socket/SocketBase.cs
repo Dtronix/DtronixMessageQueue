@@ -112,7 +112,9 @@ namespace DtronixMessageQueue.Socket {
 		/// <returns>New session instance.</returns>
 		protected virtual TSession CreateSession(System.Net.Sockets.Socket socket) {
 			var session = new TSession();
-			SocketSession<TConfig>.Setup(session, socket, AsyncPool, Config);
+
+			((ISetupSocketSession<TConfig>) session).Setup(socket, AsyncPool, Config);
+
 			SessionSetup?.Invoke(this, new SessionEventArgs<TSession, TConfig>(session));
 			session.Closed += (sender, args) => OnClose(session, args.CloseReason);
 			return session;

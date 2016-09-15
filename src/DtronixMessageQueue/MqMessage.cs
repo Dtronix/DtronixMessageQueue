@@ -12,13 +12,13 @@ namespace DtronixMessageQueue {
 		/// <summary>
 		/// Internal frames for this message.
 		/// </summary>
-		internal readonly List<MqFrame> Frames = new List<MqFrame>();
+		private readonly List<MqFrame> frames = new List<MqFrame>();
 
 
 		/// <summary>
 		/// Total number of frames in this message.
 		/// </summary>
-		public int Count => Frames.Count;
+		public int Count => frames.Count;
 
 		/// <summary>
 		/// Whether or not this is a read only message.  Always returns false.
@@ -32,15 +32,15 @@ namespace DtronixMessageQueue {
 		/// <param name="index">The zero-based index of the frame to get or set.</param>
 		/// <exception cref="T:System.ArgumentOutOfRangeException"><paramref name="index" /> is not a valid index in the message.</exception>
 		public MqFrame this[int index] {
-			get { return Frames[index]; }
-			set { Frames[index] = value; }
+			get { return frames[index]; }
+			set { frames[index] = value; }
 		}
 
 
 		/// <summary>
 		/// The total size of the raw frames (headers + body) contained in this message.
 		/// </summary>
-		public int Size => Frames.Sum(frame => frame.FrameSize);
+		public int Size => frames.Sum(frame => frame.FrameSize);
 
 		public MqMessage() {
 		}
@@ -53,7 +53,7 @@ namespace DtronixMessageQueue {
 		/// Fixes any mistakes for the frames' FrameType set.  Called before frames are processed by the outbox.
 		/// </summary>
 		public void PrepareSend() {
-			var mq_frames = Frames.ToArray();
+			var mq_frames = frames.ToArray();
 
 			// Set frame's FrameType appropriately.
 			foreach (var frame in mq_frames) {
@@ -73,7 +73,7 @@ namespace DtronixMessageQueue {
 		/// </summary>
 		/// <returns>An enumerator for the frames</returns>
 		public IEnumerator<MqFrame> GetEnumerator() {
-			return new List<MqFrame>(Frames).GetEnumerator();
+			return new List<MqFrame>(frames).GetEnumerator();
 		}
 
 		/// <summary>
@@ -81,7 +81,7 @@ namespace DtronixMessageQueue {
 		/// </summary>
 		/// <returns>An enumerator for the frames</returns>
 		IEnumerator IEnumerable.GetEnumerator() {
-			return new List<MqFrame>(Frames).GetEnumerator();
+			return new List<MqFrame>(frames).GetEnumerator();
 		}
 
 		/// <summary>
@@ -89,7 +89,7 @@ namespace DtronixMessageQueue {
 		/// </summary>
 		/// <param name="frame">Frame to add</param>
 		public void Add(MqFrame frame) {
-			Frames.Add(frame);
+			frames.Add(frame);
 		}
 
 		/// <summary>
@@ -98,7 +98,7 @@ namespace DtronixMessageQueue {
 		/// <param name="frames">Frames to add</param>
 		public void AddRange(IEnumerable<MqFrame> frames) {
 			foreach (var frame in frames) {
-				Frames.Add(frame);
+				this.frames.Add(frame);
 			}
 		}
 
@@ -106,7 +106,7 @@ namespace DtronixMessageQueue {
 		/// Removes all frames from the message.
 		/// </summary>
 		public void Clear() {
-			Frames.Clear();
+			frames.Clear();
 		}
 
 		/// <summary>
@@ -115,7 +115,7 @@ namespace DtronixMessageQueue {
 		/// <param name="frame">The frame to locate in the message.</param>
 		/// <returns>True if the frame is in the message; otherwise false.</returns>
 		public bool Contains(MqFrame frame) {
-			return Frames.Contains(frame);
+			return frames.Contains(frame);
 		}
 
 		/// <summary>
@@ -127,7 +127,7 @@ namespace DtronixMessageQueue {
 		/// <exception cref="T:System.ArgumentOutOfRangeException"><paramref name="array_index" /> is less than 0.</exception>
 		/// <exception cref="T:System.ArgumentException">The number of elements in the source message is greater than the available space from <paramref name="array_index" /> to the end of the destination <paramref name="array" />.</exception>
 		public void CopyTo(MqFrame[] array, int array_index) {
-			Frames.CopyTo(array, array_index);
+			frames.CopyTo(array, array_index);
 		}
 
 		/// <summary>
@@ -136,7 +136,7 @@ namespace DtronixMessageQueue {
 		/// <param name="frame">Frame to remove</param>
 		/// <returns></returns>
 		public bool Remove(MqFrame frame) {
-			return Frames.Remove(frame);
+			return frames.Remove(frame);
 		}
 
 		/// <summary>
@@ -145,7 +145,7 @@ namespace DtronixMessageQueue {
 		/// <returns>The zero-based index of the first occurrence of frame within the message, if found; otherwise, –1.</returns>
 		/// <param name="frame">The object to locate in the message.</param>
 		public int IndexOf(MqFrame frame) {
-			return Frames.IndexOf(frame);
+			return frames.IndexOf(frame);
 		}
 
 
@@ -156,7 +156,7 @@ namespace DtronixMessageQueue {
 		/// <param name="frame">The object to insert. The value can be null for reference types.</param>
 		/// <exception cref="T:System.ArgumentOutOfRangeException"><paramref name="index" /> is less than 0.-or-<paramref name="index" /> is greater than the total frames.</exception>
 		public void Insert(int index, MqFrame frame) {
-			Frames.Insert(index, frame);
+			frames.Insert(index, frame);
 		}
 
 		/// <summary>
@@ -166,7 +166,7 @@ namespace DtronixMessageQueue {
 		/// <exception cref="T:System.ArgumentOutOfRangeException">
 		/// <paramref name="index" /> is less than 0.-or-<paramref name="index" /> is equal to or greater than the total frames.</exception>
 		public void RemoveAt(int index) {
-			Frames.RemoveAt(index);
+			frames.RemoveAt(index);
 		}
 
 		/// <summary>
@@ -174,8 +174,8 @@ namespace DtronixMessageQueue {
 		/// </summary>
 		/// <returns>string representation of this message.</returns>
 		public override string ToString() {
-			var size = Frames.Sum(frame => frame.DataLength);
-			return $"MqMessage with {Frames.Count} frames totaling {size:N0} bytes.";
+			var size = frames.Sum(frame => frame.DataLength);
+			return $"MqMessage with {frames.Count} frames totaling {size:N0} bytes.";
 		}
 
 	}

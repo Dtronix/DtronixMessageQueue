@@ -125,13 +125,13 @@ namespace DtronixMessageQueue {
 		/// </summary>
 		/// <returns>True if messages were sent.  False if nothing was sent.</returns>
 		internal bool ProcessOutbox() {
-			MqMessage result;
+			MqMessage message;
 			var length = 0;
 			var buffer_queue = new Queue<byte[]>();
 
-			while (outbox.TryDequeue(out result)) {
-				result.PrepareSend();
-				foreach (var frame in result.Frames) {
+			while (outbox.TryDequeue(out message)) {
+				message.PrepareSend();
+				foreach (var frame in message) {
 					var frame_size = frame.FrameSize;
 
 					// If this would overflow the max client buffer size, send the full buffer queue.

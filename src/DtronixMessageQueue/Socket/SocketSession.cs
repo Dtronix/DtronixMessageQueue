@@ -9,7 +9,7 @@ namespace DtronixMessageQueue.Socket {
 	/// Base socket session to be sub-classes by the implementer.
 	/// </summary>
 	/// <typeparam name="TConfig">Configuration for this connection.</typeparam>
-	public abstract class SocketSession<TConfig> : IDisposable
+	public abstract class SocketSession<TConfig> : IDisposable, ISetupSocketSession<TConfig>
 		where TConfig : SocketConfig {
 
 		/// <summary>
@@ -119,25 +119,25 @@ namespace DtronixMessageQueue.Socket {
 			CurrentState = State.Connecting;
 		}
 
+
 		/// <summary>
 		/// Sets up this socket with the specified configurations.
 		/// </summary>
-		/// <param name="session">The session to setup.</param>
-		/// <param name="socket">Socket this session is to use.</param>
-		/// <param name="args_pool">Argument pool for this session to use.  Pulls two asyncevents for reading and writing and returns them at the end of this socket's life.</param>
-		/// <param name="config">Socket configurations this session is to use.</param>
-		public static void Setup(SocketSession<TConfig> session, System.Net.Sockets.Socket socket, SocketAsyncEventArgsPool args_pool, TConfig config) {
-			session.config = config;
-			session.args_pool = args_pool;
-			session.send_args = args_pool.Pop();
-			session.send_args.Completed += session.IoCompleted;
-			session.receive_args = args_pool.Pop();
-			session.receive_args.Completed += session.IoCompleted;
+		/// <param name="session_socket">Socket this session is to use.</param>
+		/// <param name="socket_args_pool">Argument pool for this session to use.  Pulls two asyncevents for reading and writing and returns them at the end of this socket's life.</param>
+		/// <param name="session_config">Socket configurations this session is to use.</param>
+		void ISetupSocketSession<TConfig>.Setup(System.Net.Sockets.Socket session_socket, SocketAsyncEventArgsPool socket_args_pool, TConfig session_config) {
+			config = session_config;
+			args_pool = socket_args_pool;
+			send_args = args_pool.Pop();
+			send_args.Completed += IoCompleted;
+			receive_args = args_pool.Pop();
+			receive_args.Completed += IoCompleted;
 
-			session.socket = socket;
-			session.write_semaphore = new SemaphoreSlim(1, 1);
+			socket = session_socket;
+			write_semaphore = new SemaphoreSlim(1, 1);
 
-			if(config.SendTimeout > 0)
+			if (config.SendTimeout > 0)
 				socket.SendTimeout = config.SendTimeout;
 
 			if (config.SendAndReceiveBufferSize > 0)
@@ -149,15 +149,15 @@ namespace DtronixMessageQueue.Socket {
 			socket.NoDelay = true;
 			socket.SetSocketOption(SocketOptionLevel.Socket, SocketOptionName.DontLinger, true);
 
-			session.OnSetup();
+			OnSetup();
 		}
 
-		internal void Start() {
+		void ISetupSocketSession<TConfig>.Start() {
 			if (CurrentState == State.Connecting) {
 				// Start receiving data.
 				CurrentState = State.Connected;
 				socket.ReceiveAsync(receive_args);
-				
+
 			}
 		}
 
