@@ -12,7 +12,7 @@ namespace DtronixMessageQueue {
 	/// </summary>
 	/// <typeparam name="TSession">Session type for this connection.</typeparam>
 	/// <typeparam name="TConfig">Configuration for this connection.</typeparam>
-	public abstract class MqSession<TSession, TConfig> : SocketSession<TConfig>
+	public abstract class MqSession<TSession, TConfig> : SocketSession<TConfig>, IProcessSession
 		where TSession : MqSession<TSession, TConfig>, new()
 		where TConfig : MqConfig {
 
@@ -124,7 +124,7 @@ namespace DtronixMessageQueue {
 		/// Internally called method by the Postmaster on a different thread to send all messages in the outbox.
 		/// </summary>
 		/// <returns>True if messages were sent.  False if nothing was sent.</returns>
-		internal bool ProcessOutbox() {
+		bool IProcessSession.ProcessOutbox() {
 			MqMessage message;
 			var length = 0;
 			var buffer_queue = new Queue<byte[]>();
@@ -161,7 +161,7 @@ namespace DtronixMessageQueue {
 		/// Internal method called by the Postmaster on a different thread to process all bytes in the inbox.
 		/// </summary>
 		/// <returns>True if incoming queue was processed; False if nothing was available for process.</returns>
-		internal bool ProcessIncomingQueue() {
+		bool IProcessSession.ProcessIncomingQueue() {
 			if (message == null) {
 				message = new MqMessage();
 			}
@@ -266,7 +266,8 @@ namespace DtronixMessageQueue {
 				msg = new MqMessage(close_frame);
 				outbox.Enqueue(msg);
 
-				ProcessOutbox();
+				// Process the last bit of data.
+				((IProcessSession) this).ProcessOutbox();
 			}
 
 			base.Close(reason);
@@ -335,5 +336,20 @@ namespace DtronixMessageQueue {
 		public override string ToString() {
 			return $"MqSession; Reading {inbox_byte_count} bytes; Sending {outbox.Count} messages.";
 		}
+	}
+
+	public interface IProcessSession {
+
+		/// <summary>
+		/// Internal method called by the Postmaster on a different thread to process all bytes in the inbox.
+		/// </summary>
+		/// <returns>True if incoming queue was processed; False if nothing was available for process.</returns>
+		bool ProcessIncomingQueue();
+
+		/// <summary>
+		/// Internally called method by the Postmaster on a different thread to send all messages in the outbox.
+		/// </summary>
+		/// <returns>True if messages were sent.  False if nothing was sent.</returns>
+		bool ProcessOutbox();
 	}
 }
