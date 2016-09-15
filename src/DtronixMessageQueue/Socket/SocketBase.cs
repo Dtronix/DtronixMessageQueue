@@ -18,12 +18,17 @@ namespace DtronixMessageQueue.Socket {
 		/// <summary>
 		/// This event fires when a connection has been established.
 		/// </summary>
-		public event EventHandler<SessionConnectedEventArgs<TSession, TConfig>> Connected;
+		public event EventHandler<SessionEventArgs<TSession, TConfig>> Connected;
 
 		/// <summary>
 		/// This event fires when a connection has been closed.
 		/// </summary>
 		public event EventHandler<SessionClosedEventArgs<TSession, TConfig>> Closed;
+		
+		/// <summary>
+		/// Event called when a new session is created and is being setup but before the session is active.
+		/// </summary>
+		public event EventHandler<SessionEventArgs<TSession, TConfig>> SessionSetup;
 
 		/// <summary>
 		/// Configurations of this socket.
@@ -60,7 +65,7 @@ namespace DtronixMessageQueue.Socket {
 		/// </summary>
 		/// <param name="session">Session that connected.</param>
 		protected virtual void OnConnect(TSession session) {
-			Connected?.Invoke(this, new SessionConnectedEventArgs<TSession, TConfig>(session));
+			Connected?.Invoke(this, new SessionEventArgs<TSession, TConfig>(session));
 		}
 
 
@@ -107,6 +112,7 @@ namespace DtronixMessageQueue.Socket {
 		protected virtual TSession CreateSession(System.Net.Sockets.Socket socket) {
 			var session = new TSession();
 			SocketSession<TConfig>.Setup(session, socket, AsyncPool, Config);
+			SessionSetup?.Invoke(this, new SessionEventArgs<TSession, TConfig>(session));
 			session.Closed += (sender, args) => OnClose(session, args.CloseReason);
 			return session;
 		}

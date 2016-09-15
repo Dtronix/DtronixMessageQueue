@@ -5,7 +5,6 @@ using System.Linq;
 using System.Reflection;
 using System.Runtime.Remoting.Proxies;
 using System.Threading;
-using System.Threading.Tasks;
 using Amib.Threading;
 using DtronixMessageQueue.Socket;
 using ProtoBuf;
@@ -31,6 +30,9 @@ namespace DtronixMessageQueue.Rpc {
 		/// </summary>
 		public SerializationStore Store { get; private set; }
 
+		/// <summary>
+		/// Thread pool for performing tasks on this session.
+		/// </summary>
 		private SmartThreadPool worker_thread_pool;
 
 		/// <summary>
@@ -72,8 +74,6 @@ namespace DtronixMessageQueue.Rpc {
 
 				// Read the type of message.
 				var message_type = (RpcMessageType) message[0].ReadByte(0);
-
-				//var message_type = Enum ;
 
 				switch (message_type) {
 					case RpcMessageType.Command:

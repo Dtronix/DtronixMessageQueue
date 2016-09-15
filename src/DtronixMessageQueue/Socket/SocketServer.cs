@@ -107,11 +107,11 @@ namespace DtronixMessageQueue.Socket {
 			// Add this session to the list of connected sessions.
 			ConnectedSessions.TryAdd(session.Id, session);
 
-			// Invoke the events.
-			OnConnect(session);
-
 			// Start the session.
 			session.Start();
+
+			// Invoke the events.
+			OnConnect(session);
 
 			// Accept the next connection request
 			StartAccept(e);

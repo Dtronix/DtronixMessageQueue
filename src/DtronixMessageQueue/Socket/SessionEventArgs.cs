@@ -6,7 +6,7 @@ namespace DtronixMessageQueue.Socket {
 	/// Event args used when the session has connected to a remote endpoint.
 	/// </summary>
 	/// <typeparam name="TSession">Session type.</typeparam>
-	public class SessionConnectedEventArgs<TSession, TConfig> : EventArgs
+	public class SessionEventArgs<TSession, TConfig> : EventArgs
 		where TSession : SocketSession<TConfig>
 		where TConfig : SocketConfig {
 
@@ -19,7 +19,7 @@ namespace DtronixMessageQueue.Socket {
 		/// Creates a new instance of the session connected event args.
 		/// </summary>
 		/// <param name="session">Connected session.</param>
-		public SessionConnectedEventArgs(TSession session) {
+		public SessionEventArgs(TSession session) {
 			Session = session;
 		}
 

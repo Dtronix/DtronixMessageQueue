@@ -102,12 +102,13 @@ namespace DtronixMessageQueue.Socket {
 		/// <summary>
 		/// This event fires when a connection has been established.
 		/// </summary>
-		public event EventHandler<SessionConnectedEventArgs<SocketSession<TConfig>, TConfig>> Connected;
+		public event EventHandler<SessionEventArgs<SocketSession<TConfig>, TConfig>> Connected;
 
 		/// <summary>
 		/// This event fires when a connection has been shutdown.
 		/// </summary>
 		public event EventHandler<SessionClosedEventArgs<SocketSession<TConfig>, TConfig>> Closed;
+
 
 		/// <summary>
 		/// Creates a new socket session with a new Id.
@@ -147,15 +148,15 @@ namespace DtronixMessageQueue.Socket {
 			socket.NoDelay = true;
 			socket.SetSocketOption(SocketOptionLevel.Socket, SocketOptionName.DontLinger, true);
 
-			session.CurrentState = State.Connecting;
-
 			session.OnSetup();
 		}
 
 		internal void Start() {
 			if (CurrentState == State.Connecting) {
 				// Start receiving data.
+				CurrentState = State.Connected;
 				socket.ReceiveAsync(receive_args);
+				
 			}
 		}
 
@@ -171,7 +172,7 @@ namespace DtronixMessageQueue.Socket {
 		/// </summary>
 		protected void OnConnected() {
 			//logger.Info("Session {0}: Connected", Id);
-			Connected?.Invoke(this, new SessionConnectedEventArgs<SocketSession<TConfig>, TConfig>(this));
+			Connected?.Invoke(this, new SessionEventArgs<SocketSession<TConfig>, TConfig>(this));
 		}
 
 		/// <summary>
