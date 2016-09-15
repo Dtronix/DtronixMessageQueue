@@ -7,6 +7,8 @@ namespace DtronixMessageQueue {
 	/// <summary>
 	/// Message Queue Server to handle incoming clients
 	/// </summary>
+	/// <typeparam name="TSession">Session type for this connection.</typeparam>
+	/// <typeparam name="TConfig">Configuration for this connection.</typeparam>
 	public class MqServer<TSession, TConfig> : SocketServer<TSession, TConfig>
 		where TSession : MqSession<TSession, TConfig>, new()
 		where TConfig : MqConfig{

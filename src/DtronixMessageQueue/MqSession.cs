@@ -10,6 +10,8 @@ namespace DtronixMessageQueue {
 	/// <summary>
 	/// Session to handle all reading/writing for a socket session.
 	/// </summary>
+	/// <typeparam name="TSession">Session type for this connection.</typeparam>
+	/// <typeparam name="TConfig">Configuration for this connection.</typeparam>
 	public abstract class MqSession<TSession, TConfig> : SocketSession<TConfig>
 		where TSession : MqSession<TSession, TConfig>, new()
 		where TConfig : MqConfig {

@@ -4,7 +4,7 @@ using ProtoBuf;
 namespace DtronixMessageQueue.Rpc {
 
 	/// <summary>
-	/// Class containing the information about a remote exception occuring.
+	/// Class containing the information about a remote exception occurring.
 	/// </summary>
 	[ProtoContract]
 	public class RpcRemoteExceptionDataContract {

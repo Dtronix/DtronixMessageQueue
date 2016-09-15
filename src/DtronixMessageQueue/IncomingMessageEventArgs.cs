@@ -6,6 +6,8 @@ namespace DtronixMessageQueue {
 	/// <summary>
 	/// Event args for when a new message has been processed and is ready for usage.
 	/// </summary>
+	/// <typeparam name="TSession">Session type for this connection.</typeparam>
+	/// <typeparam name="TConfig">Configuration for this connection.</typeparam>
 	public class IncomingMessageEventArgs<TSession, TConfig> : EventArgs
 		where TSession : MqSession<TSession, TConfig>, new()
 		where TConfig : MqConfig {

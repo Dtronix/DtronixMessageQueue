@@ -8,6 +8,8 @@ namespace DtronixMessageQueue {
 	/// <summary>
 	/// Postmaster to handle worker creation/deletion and parsing of all incoming and outgoing messages.
 	/// </summary>
+	/// <typeparam name="TSession">Session type for this connection.</typeparam>
+	/// <typeparam name="TConfig">Configuration for this connection.</typeparam>
 	public class MqPostmaster<TSession, TConfig> : IDisposable
 		where TSession : MqSession<TSession, TConfig>, new()
 		where TConfig : MqConfig {

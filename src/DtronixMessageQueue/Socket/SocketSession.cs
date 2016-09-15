@@ -8,6 +8,7 @@ namespace DtronixMessageQueue.Socket {
 	/// <summary>
 	/// Base socket session to be sub-classes by the implementer.
 	/// </summary>
+	/// <typeparam name="TConfig">Configuration for this connection.</typeparam>
 	public abstract class SocketSession<TConfig> : IDisposable
 		where TConfig : SocketConfig {
 

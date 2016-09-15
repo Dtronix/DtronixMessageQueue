@@ -11,6 +11,14 @@ using ProtoBuf;
 using ProtoBuf.Meta;
 
 namespace DtronixMessageQueue.Rpc {
+
+
+
+	/// <summary>
+	/// Session to handle all Rpc call reading/writing for a socket session.
+	/// </summary>
+	/// <typeparam name="TSession">Session type for this connection.</typeparam>
+	/// <typeparam name="TConfig">Configuration for this connection.</typeparam>
 	public class RpcSession<TSession, TConfig> : MqSession<TSession, TConfig>
 		where TSession : RpcSession<TSession, TConfig>, new()
 		where TConfig : RpcConfig {

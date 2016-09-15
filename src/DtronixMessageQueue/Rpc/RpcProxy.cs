@@ -16,6 +16,7 @@ namespace DtronixMessageQueue.Rpc {
 	/// </summary>
 	/// <typeparam name="T">Type of class to proxy. method calls.</typeparam>
 	/// <typeparam name="TSession">Session to proxy the method calls over.</typeparam>
+	/// <typeparam name="TConfig">Configuration for this connection</typeparam>
 	public class RpcProxy<T, TSession, TConfig> : RealProxy
 		where T : IRemoteService<TSession, TConfig>
 		where TSession : RpcSession<TSession, TConfig>, new()

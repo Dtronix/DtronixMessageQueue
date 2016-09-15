@@ -3,7 +3,8 @@
 	/// <summary>
 	/// Rpc class for containing client logic.
 	/// </summary>
-	/// <typeparam name="TSession">Session type for the client.</typeparam>
+	/// <typeparam name="TSession">Session type for this connection.</typeparam>
+	/// <typeparam name="TConfig">Configuration for this connection.</typeparam>
 	public class RpcClient<TSession, TConfig> : MqClient<TSession, TConfig>
 		where TSession : RpcSession<TSession, TConfig>, new()
 		where TConfig : RpcConfig {

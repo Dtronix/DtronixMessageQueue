@@ -9,6 +9,8 @@ namespace DtronixMessageQueue {
 	/// <summary>
 	/// Client used to connect to a remote message queue server.
 	/// </summary>
+	/// <typeparam name="TSession">Session type for this connection.</typeparam>
+	/// <typeparam name="TConfig">Configuration for this connection.</typeparam>
 	public class MqClient<TSession, TConfig> : SocketClient<TSession, TConfig>
 		where TSession : MqSession<TSession, TConfig>, new()
 		where TConfig : MqConfig {

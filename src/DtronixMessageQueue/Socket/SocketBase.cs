@@ -5,7 +5,8 @@ namespace DtronixMessageQueue.Socket {
 	/// <summary>
 	/// Base socket for all server and client sockets.
 	/// </summary>
-	/// <typeparam name="TSession">Session type for this</typeparam>
+	/// <typeparam name="TSession">Session type for this connection.</typeparam>
+	/// <typeparam name="TConfig">Configuration for this connection.</typeparam>
 	public abstract class SocketBase<TSession, TConfig>
 		where TSession : SocketSession<TConfig>, new()
 		where TConfig : SocketConfig {
