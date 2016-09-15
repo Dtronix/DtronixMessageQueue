@@ -114,7 +114,7 @@ namespace DtronixMessageQueue.Socket {
 		/// <summary>
 		/// Creates a new socket session with a new Id.
 		/// </summary>
-		protected SocketSession() {
+		public SocketSession() {
 			Id = Guid.NewGuid();
 			CurrentState = State.Connecting;
 		}

@@ -26,17 +26,5 @@ namespace DtronixMessageQueue.Rpc {
 			WorkerThreadPool = new SmartThreadPool(config.IdleWorkerTimeout, config.MaxReadWriteWorkers, 1);
 		}
 
-		/// <summary>
-		/// Override for the server.  Attaches the server to the session's Server property.
-		/// </summary>
-		/// <param name="socket">Socket which is attempting to connect.</param>
-		/// <returns>New session.</returns>
-		protected override TSession CreateSession(System.Net.Sockets.Socket socket) {
-			var session = base.CreateSession(socket);
-			session.Server = this;
-			return session;
-		}
-
-
 	}
 }

@@ -75,6 +75,8 @@ namespace DtronixMessageQueue {
 			session.IncomingMessage += OnIncomingMessage;
 			session.BaseSocket = this;
 
+			((ISetupSocketSession<TConfig>)session).Setup(socket, AsyncPool, Config);
+
 			return session;
 		}
 

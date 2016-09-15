@@ -39,7 +39,7 @@ namespace DtronixMessageQueue.Socket {
 		/// Creates a socket server with the specified configurations.
 		/// </summary>
 		/// <param name="config">Configurations for this socket.</param>
-		public SocketServer(TConfig config) : base(config) {
+		public SocketServer(TConfig config) : base(config, SocketMode.Server) {
 			connection_limit = new Semaphore(config.MaxConnections, config.MaxConnections);
 		}
 

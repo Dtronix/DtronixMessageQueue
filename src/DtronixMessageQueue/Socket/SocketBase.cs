@@ -12,6 +12,11 @@ namespace DtronixMessageQueue.Socket {
 		where TConfig : SocketConfig {
 
 		/// <summary>
+		/// Mode that this socket is running as.
+		/// </summary>
+		public SocketMode Mode { get; }
+
+		/// <summary>
 		/// True if the socket is connected/listening.
 		/// </summary>
 		public abstract bool IsRunning { get; }
@@ -56,7 +61,9 @@ namespace DtronixMessageQueue.Socket {
 		/// Base constructor to all socket classes.
 		/// </summary>
 		/// <param name="config">Configurations for this socket.</param>
-		protected SocketBase(TConfig config) {
+		/// <param name="mode">Mode of that this socket is running in.</param>
+		protected SocketBase(TConfig config, SocketMode mode) {
+			Mode = mode;
 			Config = config;
 		}
 

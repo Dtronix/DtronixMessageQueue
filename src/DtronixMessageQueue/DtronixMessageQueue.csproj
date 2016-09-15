@@ -76,6 +76,7 @@
     <Compile Include="Socket\SocketClient.cs" />
     <Compile Include="Socket\SocketCloseReason.cs" />
     <Compile Include="Socket\SocketConfig.cs" />
+    <Compile Include="Socket\SocketMode.cs" />
     <Compile Include="Socket\SocketServer.cs" />
     <Compile Include="Socket\SocketSession.cs" />
     <Compile Include="Utilities.cs" />

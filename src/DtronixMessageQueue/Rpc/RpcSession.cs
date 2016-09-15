@@ -57,16 +57,13 @@ namespace DtronixMessageQueue.Rpc {
 		private readonly Dictionary<Type, IRemoteService<TSession, TConfig>> remote_services_proxy = new Dictionary<Type, IRemoteService<TSession, TConfig>>();
 		private readonly Dictionary<Type, RealProxy> remote_service_realproxy = new Dictionary<Type, RealProxy>();
 
-
-		public RpcServer<TSession, TConfig> Server { get; set; }
-
 		protected override void OnSetup() {
 			base.OnSetup();
 
 			var config = (MqConfig) Config;
 
-			if (Server != null) {
-				worker_thread_pool = Server.WorkerThreadPool;
+			if (BaseSocket.Mode == SocketMode.Server) {
+				worker_thread_pool = ((RpcServer<TSession, TConfig>)BaseSocket).WorkerThreadPool;
 			} else {
 				worker_thread_pool = new SmartThreadPool(config.IdleWorkerTimeout, config.MaxReadWriteWorkers, 1);
 			}
