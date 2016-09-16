@@ -69,13 +69,11 @@ namespace DtronixMessageQueue {
 			IncomingMessage?.Invoke(sender, e);
 		}
 
-		protected override TSession CreateSession(System.Net.Sockets.Socket socket) {
-			var session = base.CreateSession(socket);
+		protected override TSession CreateSession() {
+			var session = base.CreateSession();
 			session.Postmaster = postmaster;
 			session.IncomingMessage += OnIncomingMessage;
 			session.BaseSocket = this;
-
-			((ISetupSocketSession<TConfig>)session).Setup(socket, AsyncPool, Config);
 
 			return session;
 		}

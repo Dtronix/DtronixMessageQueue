@@ -51,7 +51,8 @@ namespace DtronixMessageQueue.Socket {
 
 			event_arg.Completed += (sender, args) => {
 				if (args.LastOperation == SocketAsyncOperation.Connect) {
-					Session = CreateSession(MainSocket);
+					Session = CreateSession();
+					((ISetupSocketSession<TConfig>)Session).Setup(MainSocket, AsyncPool, Config);
 
 					((ISetupSocketSession<TConfig>)Session).Start();
 

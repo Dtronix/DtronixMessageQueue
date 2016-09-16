@@ -100,7 +100,9 @@ namespace DtronixMessageQueue.Socket {
 
 			e.AcceptSocket.NoDelay = true;
 
-			var session = CreateSession(e.AcceptSocket);
+			var session = CreateSession();
+
+			((ISetupSocketSession<TConfig>)session).Setup(e.AcceptSocket, AsyncPool, Config);
 
 			// Add event to remove this session from the active client list.
 			session.Closed += RemoveClientEvent;

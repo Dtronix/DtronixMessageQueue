@@ -63,8 +63,6 @@ namespace DtronixMessageQueue {
 
 		protected override void OnSetup() {
 			frame_builder = new MqFrameBuilder(Config);
-
-			base.OnSetup();
 		}
 
 		/// <summary>

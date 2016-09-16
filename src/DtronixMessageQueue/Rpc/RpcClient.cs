@@ -1,4 +1,6 @@
-﻿namespace DtronixMessageQueue.Rpc {
+﻿using Amib.Threading;
+
+namespace DtronixMessageQueue.Rpc {
 
 	/// <summary>
 	/// Rpc class for containing client logic.
@@ -10,10 +12,16 @@
 		where TConfig : RpcConfig {
 
 		/// <summary>
+		/// Thread pool for all the Rpc call workers.
+		/// </summary>
+		public SmartThreadPool WorkerThreadPool { get; }
+
+		/// <summary>
 		/// Initializes a new instance of a Rpc client.
 		/// </summary>
 		/// <param name="config">Configurations for this client to use.</param>
 		public RpcClient(TConfig config) : base(config) {
+			WorkerThreadPool = new SmartThreadPool(config.IdleWorkerTimeout, config.MaxReadWriteWorkers, 1);
 		}
 
 

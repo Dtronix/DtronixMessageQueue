@@ -115,12 +115,9 @@ namespace DtronixMessageQueue.Socket {
 		/// <summary>
 		/// Method called when new sessions are created.  Override to change behavior.
 		/// </summary>
-		/// <param name="socket">Socket this session will be using.</param>
 		/// <returns>New session instance.</returns>
-		protected virtual TSession CreateSession(System.Net.Sockets.Socket socket) {
-			var session = new TSession();
-
-			((ISetupSocketSession<TConfig>) session).Setup(socket, AsyncPool, Config);
+		protected virtual TSession CreateSession() {
+	 		var session = new TSession();
 
 			SessionSetup?.Invoke(this, new SessionEventArgs<TSession, TConfig>(session));
 			session.Closed += (sender, args) => OnClose(session, args.CloseReason);

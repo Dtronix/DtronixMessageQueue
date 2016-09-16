@@ -65,7 +65,7 @@ namespace DtronixMessageQueue.Rpc {
 			if (BaseSocket.Mode == SocketMode.Server) {
 				worker_thread_pool = ((RpcServer<TSession, TConfig>)BaseSocket).WorkerThreadPool;
 			} else {
-				worker_thread_pool = new SmartThreadPool(config.IdleWorkerTimeout, config.MaxReadWriteWorkers, 1);
+				worker_thread_pool = ((RpcClient<TSession, TConfig>)BaseSocket).WorkerThreadPool;
 			}
 
 			Store = new SerializationStore(config);

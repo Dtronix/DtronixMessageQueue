@@ -168,9 +168,7 @@ namespace DtronixMessageQueue.Socket {
 		/// <summary>
 		/// Called after the initial setup has occurred on the session.
 		/// </summary>
-		protected virtual void OnSetup() {
-
-		}
+		protected abstract void OnSetup();
 
 		/// <summary>
 		/// Called when this session is connected to the socket.
