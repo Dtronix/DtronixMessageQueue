@@ -113,6 +113,7 @@ namespace DtronixMessageQueue {
 			var buffer_queue = new Queue<byte[]>();
 
 			while (outbox.TryDequeue(out message)) {
+				//Console.WriteLine("Wrote " + message);
 				message.PrepareSend();
 				foreach (var frame in message) {
 					var frame_size = frame.FrameSize;
@@ -132,11 +133,15 @@ namespace DtronixMessageQueue {
 			}
 
 			if (buffer_queue.Count == 0) {
+				Console.WriteLine("No work");
 				return false;
 			}
 
+			
+
 			// Send the last of the buffer queue.
 			SendBufferQueue(buffer_queue, length);
+			//Console.WriteLine("Work");
 			return true;
 		}
 
