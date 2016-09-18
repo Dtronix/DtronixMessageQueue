@@ -6,5 +6,10 @@ using System.Threading.Tasks;
 
 namespace DtronixMessageQueue.Rpc {
 	public class RpcConfig : MqConfig {
+
+		/// <summary>
+		/// Number of threads used for executing RPC calls.
+		/// </summary>
+		public int MaxExecutionThreads { get; set; } = 10;
 	}
 }

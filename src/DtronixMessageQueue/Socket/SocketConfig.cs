@@ -39,5 +39,21 @@
 		/// Port to bind or connect to.
 		/// </summary>
 		public int Port { get; set; }
+
+		/// <summary>
+		/// Time it takes for the thread pool to timeout idle threads.
+		/// </summary>
+		public int ThreadPoolTimeout { get; set; } = 60000;
+
+		/// <summary>
+		/// Minimum number of threads used to read and write.
+		/// </summary>
+		public int MinWorkingThreads { get; set; } = 2;
+
+		/// <summary>
+		/// Maximum number of threads used to read and write.
+		/// </summary>
+		public int MaxWorkingThreads { get; set; } = 20;
+
 	}
 }

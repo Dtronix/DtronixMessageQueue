@@ -102,7 +102,7 @@ namespace DtronixMessageQueue.Socket {
 
 			var session = CreateSession();
 
-			((ISetupSocketSession<TConfig>)session).Setup(e.AcceptSocket, AsyncPool, Config);
+			((ISetupSocketSession<TConfig>)session).Setup(e.AcceptSocket, AsyncPool, Config, ThreadPool);
 
 			// Add event to remove this session from the active client list.
 			session.Closed += RemoveClientEvent;

@@ -51,12 +51,10 @@
     <Reference Include="System.Xml" />
   </ItemGroup>
   <ItemGroup>
-    <Compile Include="IProcessMqSession.cs" />
     <Compile Include="MqMessageReader.cs" />
     <Compile Include="MqMessageWriter.cs" />
     <Compile Include="MqSession.cs" />
     <Compile Include="MqConfig.cs" />
-    <Compile Include="MqWorker.cs" />
     <Compile Include="Rpc\IRemoteService.cs" />
     <Compile Include="Rpc\RpcClient.cs" />
     <Compile Include="Rpc\RpcConfig.cs" />
@@ -86,7 +84,6 @@
     </Content>
     <None Include="packages.config" />
     <Compile Include="MqFrameBuilder.cs" />
-    <Compile Include="MqPostmaster.cs" />
     <Compile Include="IncomingMessageEventArgs.cs" />
     <Compile Include="MqClient.cs" />
     <Compile Include="MqFrame.cs" />

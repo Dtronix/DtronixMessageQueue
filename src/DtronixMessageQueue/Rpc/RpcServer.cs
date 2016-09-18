@@ -23,7 +23,7 @@ namespace DtronixMessageQueue.Rpc {
 		/// </summary>
 		/// <param name="config">Configurations for this server.</param>
 		public RpcServer(TConfig config) : base(config) {
-			WorkerThreadPool = new SmartThreadPool(config.IdleWorkerTimeout, config.MaxReadWriteWorkers, 1);
+			WorkerThreadPool = new SmartThreadPool(config.ThreadPoolTimeout, config.MaxExecutionThreads, 1);
 		}
 
 	}

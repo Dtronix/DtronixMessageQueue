@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Net.Sockets;
+using Amib.Threading;
 
 namespace DtronixMessageQueue.Socket {
 	/// <summary>
@@ -56,6 +57,10 @@ namespace DtronixMessageQueue.Socket {
 		/// </summary>
 		protected BufferManager BufferManager;  // represents a large reusable set of buffers for all socket operations
 
+		/// <summary>
+		/// Base read-write pool for the sessions to utilize.
+		/// </summary>
+		protected SmartThreadPool ThreadPool;
 
 		/// <summary>
 		/// Base constructor to all socket classes.
@@ -110,6 +115,8 @@ namespace DtronixMessageQueue.Socket {
 				// add SocketAsyncEventArg to the pool
 				AsyncPool.Push(event_arg);
 			}
+
+			ThreadPool = new SmartThreadPool(Config.ThreadPoolTimeout, Config.MaxWorkingThreads, Config.MinWorkingThreads);
 		}
 
 		/// <summary>

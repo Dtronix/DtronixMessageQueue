@@ -3,6 +3,7 @@ using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.IO;
 using System.Threading;
+using Amib.Threading;
 using DtronixMessageQueue.Socket;
 
 namespace DtronixMessageQueue {
@@ -12,7 +13,7 @@ namespace DtronixMessageQueue {
 	/// </summary>
 	/// <typeparam name="TSession">Session type for this connection.</typeparam>
 	/// <typeparam name="TConfig">Configuration for this connection.</typeparam>
-	public abstract class MqSession<TSession, TConfig> : SocketSession<TConfig>, IProcessMqSession
+	public abstract class MqSession<TSession, TConfig> : SocketSession<TConfig>
 		where TSession : MqSession<TSession, TConfig>, new()
 		where TConfig : MqConfig {
 
@@ -20,11 +21,6 @@ namespace DtronixMessageQueue {
 		/// True if the socket is currently running.
 		/// </summary>
 		private bool is_running = true;
-
-		/// <summary>
-		/// The Postmaster for this client/server.
-		/// </summary>
-		public MqPostmaster<TSession, TConfig> Postmaster { get; set; }
 
 		/// <summary>
 		/// Total bytes the inbox has remaining to process.
@@ -74,10 +70,13 @@ namespace DtronixMessageQueue {
 				return;
 			}
 
-			inbox_bytes.Enqueue(buffer);
-			Interlocked.Add(ref inbox_byte_count, buffer.Length);
+			var inbox_was_empty = outbox.IsEmpty;
 
-			Postmaster.SignalRead(this);
+			inbox_bytes.Enqueue(buffer);
+
+			if (inbox_was_empty || reader_pool.IsIdle) {
+				reader_pool.QueueWorkItem(ProcessIncomingQueue, WorkItemPriority.Normal);
+			}
 		}
 
 		/// <summary>
@@ -107,7 +106,7 @@ namespace DtronixMessageQueue {
 		/// Internally called method by the Postmaster on a different thread to send all messages in the outbox.
 		/// </summary>
 		/// <returns>True if messages were sent.  False if nothing was sent.</returns>
-		bool IProcessMqSession.ProcessOutbox() {
+		private void ProcessOutbox() {
 			MqMessage message;
 			var length = 0;
 			var buffer_queue = new Queue<byte[]>();
@@ -133,23 +132,18 @@ namespace DtronixMessageQueue {
 			}
 
 			if (buffer_queue.Count == 0) {
-				Console.WriteLine("No work");
-				return false;
+				return;
 			}
-
-			
 
 			// Send the last of the buffer queue.
 			SendBufferQueue(buffer_queue, length);
-			//Console.WriteLine("Work");
-			return true;
 		}
 
 		/// <summary>
 		/// Internal method called by the Postmaster on a different thread to process all bytes in the inbox.
 		/// </summary>
 		/// <returns>True if incoming queue was processed; False if nothing was available for process.</returns>
-		bool IProcessMqSession.ProcessIncomingQueue() {
+		private void ProcessIncomingQueue() {
 			if (process_message == null) {
 				process_message = new MqMessage();
 			}
@@ -200,18 +194,14 @@ namespace DtronixMessageQueue {
 					process_message = new MqMessage();
 				}
 			}
-			//Postmaster.SignalReadComplete(this);
 
 			if (messages == null) {
-				return false;
+				return;
 			}
 
 
 
 			OnIncomingMessage(this, new IncomingMessageEventArgs<TSession, TConfig>(messages, (TSession) this));
-
-			return true;
-
 		}
 
 
@@ -258,7 +248,7 @@ namespace DtronixMessageQueue {
 				outbox.Enqueue(msg);
 
 				// Process the last bit of data.
-				((IProcessMqSession) this).ProcessOutbox();
+				ProcessOutbox();
 			}
 
 			base.Close(reason);
@@ -284,10 +274,13 @@ namespace DtronixMessageQueue {
 				return;
 			}
 
+			var outbox_was_empty = outbox.IsEmpty;
+
 			outbox.Enqueue(message);
 
-			// Signal the workers that work is to be done.
-			Postmaster.SignalWrite(this);
+			if (outbox_was_empty || writer_pool.IsIdle) {
+				writer_pool.QueueWorkItem(ProcessOutbox, WorkItemPriority.Normal);
+			}
 		}
 
 		/// <summary>

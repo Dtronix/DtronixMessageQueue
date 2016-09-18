@@ -16,11 +16,6 @@ namespace DtronixMessageQueue {
 		where TConfig : MqConfig {
 
 		/// <summary>
-		/// Internal postmaster.
-		/// </summary>
-		private readonly MqPostmaster<TSession, TConfig> postmaster;
-
-		/// <summary>
 		/// Event fired when a new message arrives at the mailbox.
 		/// </summary>
 		public event EventHandler<IncomingMessageEventArgs<TSession, TConfig>> IncomingMessage;
@@ -37,10 +32,8 @@ namespace DtronixMessageQueue {
 
 			// Override the default connection limit and read/write workers.
 			config.MaxConnections = 1;
-			config.MaxReadWriteWorkers = 4;
+			config.MaxWorkingThreads = 2;
 			timeout_timer = new Timer(TimeoutCallback);
-			postmaster = new MqPostmaster<TSession, TConfig>(config);
-
 			Setup();
 		}
 
@@ -82,7 +75,6 @@ namespace DtronixMessageQueue {
 
 		protected override TSession CreateSession() {
 			var session = base.CreateSession();
-			session.Postmaster = postmaster;
 			session.IncomingMessage += OnIncomingMessage;
 			session.BaseSocket = this;
 			return session;
@@ -116,9 +108,8 @@ namespace DtronixMessageQueue {
 		/// Disposes of all resources associated with this client.
 		/// </summary>
 		public void Dispose() {
-			postmaster.Dispose();
 			timeout_timer.Dispose();
-
+			Session.Dispose();
 		}
 
 	}
