@@ -189,7 +189,7 @@ namespace DtronixMessageQueue.Socket {
 		/// <summary>
 		/// Called when this session is connected to the socket.
 		/// </summary>
-		protected void OnConnected() {
+		protected virtual void OnConnected() {
 			//logger.Info("Session {0}: Connected", Id);
 			Connected?.Invoke(this, new SessionEventArgs<SocketSession<TConfig>, TConfig>(this));
 		}
@@ -198,7 +198,7 @@ namespace DtronixMessageQueue.Socket {
 		/// Called when this session is disconnected from the socket.
 		/// </summary>
 		/// <param name="reason">Reason this socket is disconnecting</param>
-		protected void OnDisconnected(SocketCloseReason reason) {
+		protected virtual void OnDisconnected(SocketCloseReason reason) {
 			Closed?.Invoke(this, new SessionClosedEventArgs<SocketSession<TConfig>, TConfig>(this, reason));
 		}
 

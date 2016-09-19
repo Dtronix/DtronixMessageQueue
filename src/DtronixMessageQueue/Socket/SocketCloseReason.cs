@@ -48,5 +48,15 @@
 		/// MessageQueue internal error
 		/// </summary>
 		InternalError = 8,
+
+		/// <summary>
+		/// Occurs when the session does not supply the proper connection information.
+		/// </summary>
+		AuthenticationFailure = 9,
+
+		/// <summary>
+		/// Occurs when the session does not pass an authorization check.
+		/// </summary>
+		AuthorizationFailure = 10
 	}
 }
