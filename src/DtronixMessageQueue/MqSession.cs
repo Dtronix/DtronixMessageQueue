@@ -217,7 +217,7 @@ namespace DtronixMessageQueue {
 
 		/// <summary>
 		/// Closes this session with the specified reason.
-		/// Notifies the other end of this connection the reason for the session's closure.
+		/// Notifies the recipient connection the reason for the session's closure.
 		/// </summary>
 		/// <param name="reason">Reason for closing this session.</param>
 		public override void Close(SocketCloseReason reason) {

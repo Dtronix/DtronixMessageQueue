@@ -55,6 +55,7 @@
     <Compile Include="MqMessageWriter.cs" />
     <Compile Include="MqSession.cs" />
     <Compile Include="MqConfig.cs" />
+    <Compile Include="Rpc\IProcessRpcSession.cs" />
     <Compile Include="Rpc\IRemoteService.cs" />
     <Compile Include="Rpc\RpcClient.cs" />
     <Compile Include="Rpc\RpcConfig.cs" />
@@ -65,7 +66,7 @@
     <Compile Include="Rpc\RpcOperationWait.cs" />
     <Compile Include="Rpc\RpcServer.cs" />
     <Compile Include="Rpc\RpcSession.cs" />
-    <Compile Include="Rpc\SerializationStore.cs" />
+    <Compile Include="Rpc\SerializationCache.cs" />
     <Compile Include="Socket\BufferManager.cs" />
     <Compile Include="Socket\ISetupSocketSession.cs" />
     <Compile Include="Socket\SessionEventArgs.cs" />

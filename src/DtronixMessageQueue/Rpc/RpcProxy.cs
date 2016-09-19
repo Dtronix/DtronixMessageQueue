@@ -51,7 +51,7 @@ namespace DtronixMessageQueue.Rpc {
 			var method_call = msg as IMethodCallMessage;
 			var method_info = method_call.MethodBase as MethodInfo;
 
-			var store = session.Store.Get();
+			var store = session.SerializationCache.Get();
 
 			// Get the called method's arguments.
 			object[] arguments = method_call.Args;
@@ -180,7 +180,7 @@ namespace DtronixMessageQueue.Rpc {
 			} finally {
 				
 				// Always return the store to the holder.
-				session.Store.Put(store);
+				session.SerializationCache.Put(store);
 			}
 		}
 	}

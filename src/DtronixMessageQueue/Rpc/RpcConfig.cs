@@ -5,6 +5,9 @@ using System.Text;
 using System.Threading.Tasks;
 
 namespace DtronixMessageQueue.Rpc {
+	/// <summary>
+	/// Configurations used by the Rpc sessions.
+	/// </summary>
 	public class RpcConfig : MqConfig {
 
 		/// <summary>
