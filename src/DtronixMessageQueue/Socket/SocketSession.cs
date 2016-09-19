@@ -114,13 +114,13 @@ namespace DtronixMessageQueue.Socket {
 		/// <summary>
 		/// Work group used to write on the session.
 		/// </summary>
-		public IWorkItemsGroup writer_pool;
+		protected IWorkItemsGroup writer_pool;
 
 
 		/// <summary>
 		/// Work group used to read from the session.
 		/// </summary>
-		public IWorkItemsGroup reader_pool;
+		protected IWorkItemsGroup reader_pool;
 
 
 		/// <summary>
