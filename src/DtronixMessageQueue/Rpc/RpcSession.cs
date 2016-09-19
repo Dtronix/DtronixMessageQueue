@@ -19,7 +19,7 @@ namespace DtronixMessageQueue.Rpc {
 	/// </summary>
 	/// <typeparam name="TSession">Session type for this connection.</typeparam>
 	/// <typeparam name="TConfig">Configuration for this connection.</typeparam>
-	public class RpcSession<TSession, TConfig> : MqSession<TSession, TConfig>
+	public class RpcSession<TSession, TConfig> : MqSession<TSession, TConfig>, IProcessRpcSession
 		where TSession : RpcSession<TSession, TConfig>, new()
 		where TConfig : RpcConfig {
 
@@ -57,25 +57,26 @@ namespace DtronixMessageQueue.Rpc {
 		private readonly Dictionary<Type, IRemoteService<TSession, TConfig>> remote_services_proxy = new Dictionary<Type, IRemoteService<TSession, TConfig>>();
 		private readonly Dictionary<Type, RealProxy> remote_service_realproxy = new Dictionary<Type, RealProxy>();
 
-
-		public RpcServer<TSession, TConfig> Server { get; set; }
-
 		protected override void OnSetup() {
 			base.OnSetup();
 
 			var config = (MqConfig) Config;
 
-			if (Server != null) {
-				worker_thread_pool = Server.WorkerThreadPool;
+			if (BaseSocket.Mode == SocketMode.Server) {
+				worker_thread_pool = ((RpcServer<TSession, TConfig>)BaseSocket).WorkerThreadPool;
 			} else {
-				worker_thread_pool = new SmartThreadPool(config.IdleWorkerTimeout, config.MaxReadWriteWorkers, 1);
+				worker_thread_pool = ((RpcClient<TSession, TConfig>)BaseSocket).WorkerThreadPool;
 			}
 
 			Store = new SerializationStore(config);
 		}
 
-
-		public override void OnIncomingMessage(object sender, IncomingMessageEventArgs<TSession, TConfig> e) {
+		/// <summary>
+		/// Event fired when one or more new messages are ready for use.
+		/// </summary>
+		/// <param name="sender">Originator of call for this event.</param>
+		/// <param name="e">Event args for the message.</param>
+		protected override void OnIncomingMessage(object sender, IncomingMessageEventArgs<TSession, TConfig> e) {
 			MqMessage message;
 			while (e.Messages.Count > 0) {
 				message = e.Messages.Dequeue();
@@ -110,6 +111,8 @@ namespace DtronixMessageQueue.Rpc {
 						e.Session.Close(SocketCloseReason.ProtocolError);
 						break;
 				}
+
+
 			}
 		}
 
@@ -258,7 +261,7 @@ namespace DtronixMessageQueue.Rpc {
 
 		}
 
-		public RpcOperationWait CreateWaitOperation() {
+		RpcOperationWait IProcessRpcSession.CreateWaitOperation() {
 			var return_wait = new RpcOperationWait {
 				ReturnResetEvent = new ManualResetEventSlim()
 			};
@@ -277,7 +280,7 @@ namespace DtronixMessageQueue.Rpc {
 			return return_wait;
 		}
 
-		public void CancelWaitOperation(ushort id) {
+		void IProcessRpcSession.CancelWaitOperation(ushort id) {
 			RpcOperationWait call_wait;
 			outstanding_waits.TryRemove(id, out call_wait);
 
@@ -315,5 +318,10 @@ namespace DtronixMessageQueue.Rpc {
 		private void ProcessRpcCommand(MqMessage mq_message, IncomingMessageEventArgs<TSession, TConfig> incoming_message_event_args) {
 			throw new NotImplementedException();
 		}
+	}
+
+	public interface IProcessRpcSession {
+		void CancelWaitOperation(ushort id);
+		RpcOperationWait CreateWaitOperation();
 	}
 }

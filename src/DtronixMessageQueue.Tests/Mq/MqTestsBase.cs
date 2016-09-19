@@ -18,7 +18,7 @@ namespace DtronixMessageQueue.Tests.Mq {
 
 		public Exception LastException { get; set; }
 
-		public TimeSpan TestTimeout { get; set; } = new TimeSpan(0, 0, 0, 0, 60000);
+		public TimeSpan TestTimeout { get; set; } = new TimeSpan(0, 0, 0, 0, 2000);
 
 		public ManualResetEventSlim TestStatus { get; set; } = new ManualResetEventSlim(false);
 

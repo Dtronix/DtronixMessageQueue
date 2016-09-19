@@ -278,7 +278,7 @@ namespace DtronixMessageQueue {
 		/// <param name="value">Value to write to the message.</param>
 		public void Write(MqMessage value) {
 			InternalFinalizeFrame();
-			frames.AddRange(value.Frames);
+			frames.AddRange(value);
 		}
 
 		/// <summary>

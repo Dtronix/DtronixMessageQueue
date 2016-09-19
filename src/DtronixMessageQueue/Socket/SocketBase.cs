@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Net.Sockets;
+using Amib.Threading;
 
 namespace DtronixMessageQueue.Socket {
 	/// <summary>
@@ -10,6 +11,11 @@ namespace DtronixMessageQueue.Socket {
 	public abstract class SocketBase<TSession, TConfig>
 		where TSession : SocketSession<TConfig>, new()
 		where TConfig : SocketConfig {
+
+		/// <summary>
+		/// Mode that this socket is running as.
+		/// </summary>
+		public SocketMode Mode { get; }
 
 		/// <summary>
 		/// True if the socket is connected/listening.
@@ -51,12 +57,18 @@ namespace DtronixMessageQueue.Socket {
 		/// </summary>
 		protected BufferManager BufferManager;  // represents a large reusable set of buffers for all socket operations
 
+		/// <summary>
+		/// Base read-write pool for the sessions to utilize.
+		/// </summary>
+		protected SmartThreadPool ThreadPool;
 
 		/// <summary>
 		/// Base constructor to all socket classes.
 		/// </summary>
 		/// <param name="config">Configurations for this socket.</param>
-		protected SocketBase(TConfig config) {
+		/// <param name="mode">Mode of that this socket is running in.</param>
+		protected SocketBase(TConfig config, SocketMode mode) {
+			Mode = mode;
 			Config = config;
 		}
 
@@ -103,16 +115,17 @@ namespace DtronixMessageQueue.Socket {
 				// add SocketAsyncEventArg to the pool
 				AsyncPool.Push(event_arg);
 			}
+
+			ThreadPool = new SmartThreadPool(Config.ThreadPoolTimeout, Config.MaxWorkingThreads, Config.MinWorkingThreads);
 		}
 
 		/// <summary>
 		/// Method called when new sessions are created.  Override to change behavior.
 		/// </summary>
-		/// <param name="socket">Socket this session will be using.</param>
 		/// <returns>New session instance.</returns>
-		protected virtual TSession CreateSession(System.Net.Sockets.Socket socket) {
-			var session = new TSession();
-			SocketSession<TConfig>.Setup(session, socket, AsyncPool, Config);
+		protected virtual TSession CreateSession() {
+	 		var session = new TSession();
+
 			SessionSetup?.Invoke(this, new SessionEventArgs<TSession, TConfig>(session));
 			session.Closed += (sender, args) => OnClose(session, args.CloseReason);
 			return session;

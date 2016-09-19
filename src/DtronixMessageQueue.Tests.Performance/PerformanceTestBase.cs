@@ -26,7 +26,7 @@ namespace DtronixMessageQueue.Tests.Performance {
 
 			long mem_kb;
 			GetPhysicallyInstalledSystemMemory(out mem_kb);
-			Console.WriteLine(" with " + (mem_kb / 1024 / 1024) + " GB of RAM installed.\r\n");
+			Console.WriteLine(" with " + (mem_kb / 1024 / 1024) + " GB of RAM installed.");
 		}
 
 

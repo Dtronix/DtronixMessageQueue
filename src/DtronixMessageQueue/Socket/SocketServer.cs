@@ -39,7 +39,7 @@ namespace DtronixMessageQueue.Socket {
 		/// Creates a socket server with the specified configurations.
 		/// </summary>
 		/// <param name="config">Configurations for this socket.</param>
-		public SocketServer(TConfig config) : base(config) {
+		public SocketServer(TConfig config) : base(config, SocketMode.Server) {
 			connection_limit = new Semaphore(config.MaxConnections, config.MaxConnections);
 		}
 
@@ -100,7 +100,9 @@ namespace DtronixMessageQueue.Socket {
 
 			e.AcceptSocket.NoDelay = true;
 
-			var session = CreateSession(e.AcceptSocket);
+			var session = CreateSession();
+
+			((ISetupSocketSession<TConfig>)session).Setup(e.AcceptSocket, AsyncPool, Config, ThreadPool);
 
 			// Add event to remove this session from the active client list.
 			session.Closed += RemoveClientEvent;
@@ -109,7 +111,7 @@ namespace DtronixMessageQueue.Socket {
 			ConnectedSessions.TryAdd(session.Id, session);
 
 			// Start the session.
-			session.Start();
+			((ISetupSocketSession<TConfig>)session).Start();
 
 			// Invoke the events.
 			OnConnect(session);

@@ -16,11 +16,6 @@ namespace DtronixMessageQueue {
 		where TConfig : MqConfig {
 
 		/// <summary>
-		/// Internal postmaster.
-		/// </summary>
-		private readonly MqPostmaster<TSession, TConfig> postmaster;
-
-		/// <summary>
 		/// Event fired when a new message arrives at the mailbox.
 		/// </summary>
 		public event EventHandler<IncomingMessageEventArgs<TSession, TConfig>> IncomingMessage;
@@ -37,10 +32,8 @@ namespace DtronixMessageQueue {
 
 			// Override the default connection limit and read/write workers.
 			config.MaxConnections = 1;
-			config.MaxReadWriteWorkers = 4;
+			config.MaxWorkingThreads = 2;
 			timeout_timer = new Timer(TimeoutCallback);
-			postmaster = new MqPostmaster<TSession, TConfig>(config);
-
 			Setup();
 		}
 
@@ -80,9 +73,8 @@ namespace DtronixMessageQueue {
 			IncomingMessage?.Invoke(sender, e);
 		}
 
-		protected override TSession CreateSession(System.Net.Sockets.Socket socket) {
-			var session = base.CreateSession(socket);
-			session.Postmaster = postmaster;
+		protected override TSession CreateSession() {
+			var session = base.CreateSession();
 			session.IncomingMessage += OnIncomingMessage;
 			session.BaseSocket = this;
 			return session;
@@ -102,12 +94,8 @@ namespace DtronixMessageQueue {
 		/// </summary>
 		/// <param name="message">Message to send.</param>
 		public void Send(MqMessage message) {
-			if (message.Count == 0) {
-				return;
-			}
-
-			// Enqueue the outgoing message to be processed by the postmaster.
-			Session.EnqueueOutgoingMessage(message);
+			// Send the outgoing message to the session to be processed by the postmaster.
+			Session.Send(message);
 		}
 
 		public void Close() {
@@ -120,9 +108,8 @@ namespace DtronixMessageQueue {
 		/// Disposes of all resources associated with this client.
 		/// </summary>
 		public void Dispose() {
-			postmaster.Dispose();
 			timeout_timer.Dispose();
-
+			Session.Dispose();
 		}
 
 	}

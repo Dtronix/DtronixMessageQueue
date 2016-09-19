@@ -67,6 +67,7 @@
     <Compile Include="Rpc\RpcSession.cs" />
     <Compile Include="Rpc\SerializationStore.cs" />
     <Compile Include="Socket\BufferManager.cs" />
+    <Compile Include="Socket\ISetupSocketSession.cs" />
     <Compile Include="Socket\SessionEventArgs.cs" />
     <Compile Include="Socket\SessionClosedEventArgs.cs" />
     <Compile Include="Socket\SocketAsyncEventArgsPool.cs" />
@@ -74,6 +75,7 @@
     <Compile Include="Socket\SocketClient.cs" />
     <Compile Include="Socket\SocketCloseReason.cs" />
     <Compile Include="Socket\SocketConfig.cs" />
+    <Compile Include="Socket\SocketMode.cs" />
     <Compile Include="Socket\SocketServer.cs" />
     <Compile Include="Socket\SocketSession.cs" />
     <Compile Include="Utilities.cs" />
@@ -82,7 +84,6 @@
     </Content>
     <None Include="packages.config" />
     <Compile Include="MqFrameBuilder.cs" />
-    <Compile Include="MqPostmaster.cs" />
     <Compile Include="IncomingMessageEventArgs.cs" />
     <Compile Include="MqClient.cs" />
     <Compile Include="MqFrame.cs" />

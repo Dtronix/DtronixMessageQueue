@@ -89,7 +89,7 @@ namespace DtronixMessageQueue {
 		/// <summary>
 		/// Total length of the bytes in this message.
 		/// </summary>
-		public int Length => message.Frames.Sum(frm => frm.DataLength);
+		public int Length => message.Sum(frm => frm.DataLength);
 
 		/// <summary>
 		/// Unused. Stream.Null
@@ -101,7 +101,7 @@ namespace DtronixMessageQueue {
 		/// </summary>
 		public bool IsAtEnd {
 			get {
-				var last_frame = message.Frames[message.Frames.Count - 1];
+				var last_frame = message[message.Count - 1];
 				return current_frame == last_frame && last_frame.DataLength == frame_position;
 			}
 		}

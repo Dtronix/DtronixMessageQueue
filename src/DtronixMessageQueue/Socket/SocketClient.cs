@@ -26,7 +26,7 @@ namespace DtronixMessageQueue.Socket {
 		/// Creates a socket client with the specified configurations.
 		/// </summary>
 		/// <param name="config">Configurations to use.</param>
-		public SocketClient(TConfig config) : base(config) {
+		public SocketClient(TConfig config) : base(config, SocketMode.Client) {
 		}
 
 		/// <summary>
@@ -51,9 +51,11 @@ namespace DtronixMessageQueue.Socket {
 
 			event_arg.Completed += (sender, args) => {
 				if (args.LastOperation == SocketAsyncOperation.Connect) {
-					Session = CreateSession(MainSocket);
-					
-					Session.Start();
+					Session = CreateSession();
+					((ISetupSocketSession<TConfig>)Session).Setup(MainSocket, AsyncPool, Config, ThreadPool);
+
+					((ISetupSocketSession<TConfig>)Session).Start();
+
 					OnConnect(Session);
 				}
 			};

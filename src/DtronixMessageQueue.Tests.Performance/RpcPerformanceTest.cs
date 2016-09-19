@@ -16,7 +16,7 @@ namespace DtronixMessageQueue.Tests.Performance {
 				Port = 2828
 			};
 
-			RpcSingleProcessTest(100000, 4, config, RpcTestType.NoRetrun);
+			RpcSingleProcessTest(200000, 4, config, RpcTestType.NoRetrun);
 
 			RpcSingleProcessTest(10000, 4, config, RpcTestType.Return);
 
@@ -35,7 +35,7 @@ namespace DtronixMessageQueue.Tests.Performance {
 			var complete_test = new AutoResetEvent(false);
 			var client = new RpcClient<SimpleRpcSession, RpcConfig>(config);
 
-			server.Connected += (sender, args) => {
+			server.SessionSetup += (sender, args) => {
 				test_service = new TestService();
 				args.Session.AddService(test_service);
 
@@ -100,6 +100,7 @@ namespace DtronixMessageQueue.Tests.Performance {
 
 
 			client.Connected += (sender, args) => {
+				Thread.Sleep(300);
 				args.Session.AddProxy<ITestService>(new TestService());
 				var service = client.Session.GetProxy<ITestService>();
 				service.TestSetup(runs);

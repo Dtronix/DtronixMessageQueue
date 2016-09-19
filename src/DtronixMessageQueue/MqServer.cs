@@ -14,11 +14,6 @@ namespace DtronixMessageQueue {
 		where TConfig : MqConfig{
 
 		/// <summary>
-		/// Handles all incoming and outgoing messages
-		/// </summary>
-		private readonly MqPostmaster<TSession, TConfig> postmaster;
-
-		/// <summary>
 		/// Event fired when a new message arrives at a session's mailbox.
 		/// </summary>
 		public event EventHandler<IncomingMessageEventArgs<TSession, TConfig>> IncomingMessage;
@@ -38,8 +33,6 @@ namespace DtronixMessageQueue {
 		/// </summary>
 		public MqServer(TConfig config) : base(config) {
 			timeout_timer = new Timer(TimeoutCallback);
-
-			postmaster = new MqPostmaster<TSession, TConfig>(config);
 
 			Setup();
 		}
@@ -69,9 +62,8 @@ namespace DtronixMessageQueue {
 			IncomingMessage?.Invoke(sender, e);
 		}
 
-		protected override TSession CreateSession(System.Net.Sockets.Socket socket) {
-			var session = base.CreateSession(socket);
-			session.Postmaster = postmaster;
+		protected override TSession CreateSession() {
+			var session = base.CreateSession();
 			session.IncomingMessage += OnIncomingMessage;
 			session.BaseSocket = this;
 

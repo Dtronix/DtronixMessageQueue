@@ -2,6 +2,7 @@
 using System.Net.Sockets;
 using System.Security.AccessControl;
 using System.Threading;
+using Amib.Threading;
 
 namespace DtronixMessageQueue.Socket {
 
@@ -9,7 +10,7 @@ namespace DtronixMessageQueue.Socket {
 	/// Base socket session to be sub-classes by the implementer.
 	/// </summary>
 	/// <typeparam name="TConfig">Configuration for this connection.</typeparam>
-	public abstract class SocketSession<TConfig> : IDisposable
+	public abstract class SocketSession<TConfig> : IDisposable, ISetupSocketSession<TConfig>
 		where TConfig : SocketConfig {
 
 		/// <summary>
@@ -110,34 +111,46 @@ namespace DtronixMessageQueue.Socket {
 		/// </summary>
 		public event EventHandler<SessionClosedEventArgs<SocketSession<TConfig>, TConfig>> Closed;
 
+		/// <summary>
+		/// Work group used to write on the session.
+		/// </summary>
+		protected IWorkItemsGroup writer_pool;
+
+
+		/// <summary>
+		/// Work group used to read from the session.
+		/// </summary>
+		protected IWorkItemsGroup reader_pool;
+
 
 		/// <summary>
 		/// Creates a new socket session with a new Id.
 		/// </summary>
-		protected SocketSession() {
+		public SocketSession() {
 			Id = Guid.NewGuid();
 			CurrentState = State.Connecting;
 		}
 
+
 		/// <summary>
 		/// Sets up this socket with the specified configurations.
 		/// </summary>
-		/// <param name="session">The session to setup.</param>
-		/// <param name="socket">Socket this session is to use.</param>
-		/// <param name="args_pool">Argument pool for this session to use.  Pulls two asyncevents for reading and writing and returns them at the end of this socket's life.</param>
-		/// <param name="config">Socket configurations this session is to use.</param>
-		public static void Setup(SocketSession<TConfig> session, System.Net.Sockets.Socket socket, SocketAsyncEventArgsPool args_pool, TConfig config) {
-			session.config = config;
-			session.args_pool = args_pool;
-			session.send_args = args_pool.Pop();
-			session.send_args.Completed += session.IoCompleted;
-			session.receive_args = args_pool.Pop();
-			session.receive_args.Completed += session.IoCompleted;
+		/// <param name="session_socket">Socket this session is to use.</param>
+		/// <param name="socket_args_pool">Argument pool for this session to use.  Pulls two asyncevents for reading and writing and returns them at the end of this socket's life.</param>
+		/// <param name="session_config">Socket configurations this session is to use.</param>
+		/// <param name="thread_pool">Thread pool used by the socket to read and write.</param>
+		void ISetupSocketSession<TConfig>.Setup(System.Net.Sockets.Socket session_socket, SocketAsyncEventArgsPool socket_args_pool, TConfig session_config, SmartThreadPool thread_pool) {
+			config = session_config;
+			args_pool = socket_args_pool;
+			send_args = args_pool.Pop();
+			send_args.Completed += IoCompleted;
+			receive_args = args_pool.Pop();
+			receive_args.Completed += IoCompleted;
 
-			session.socket = socket;
-			session.write_semaphore = new SemaphoreSlim(1, 1);
+			socket = session_socket;
+			write_semaphore = new SemaphoreSlim(1, 1);
 
-			if(config.SendTimeout > 0)
+			if (config.SendTimeout > 0)
 				socket.SendTimeout = config.SendTimeout;
 
 			if (config.SendAndReceiveBufferSize > 0)
@@ -149,24 +162,29 @@ namespace DtronixMessageQueue.Socket {
 			socket.NoDelay = true;
 			socket.SetSocketOption(SocketOptionLevel.Socket, SocketOptionName.DontLinger, true);
 
-			session.OnSetup();
+			writer_pool = thread_pool.CreateWorkItemsGroup(1);
+			reader_pool = thread_pool.CreateWorkItemsGroup(1);
+
+			OnSetup();
 		}
 
-		internal void Start() {
-			if (CurrentState == State.Connecting) {
-				// Start receiving data.
-				CurrentState = State.Connected;
-				socket.ReceiveAsync(receive_args);
-				
+		/// <summary>
+		/// Start the session's receive events.
+		/// </summary>
+		void ISetupSocketSession<TConfig>.Start() {
+			if (CurrentState != State.Connecting) {
+				return;
 			}
+
+			// Start receiving data.
+			CurrentState = State.Connected;
+			socket.ReceiveAsync(receive_args);
 		}
 
 		/// <summary>
 		/// Called after the initial setup has occurred on the session.
 		/// </summary>
-		protected virtual void OnSetup() {
-
-		}
+		protected abstract void OnSetup();
 
 		/// <summary>
 		/// Called when this session is connected to the socket.
@@ -343,6 +361,8 @@ namespace DtronixMessageQueue.Socket {
 		public void Dispose() {
 			if (CurrentState == State.Connected) {
 				Close(SocketCloseReason.ClientClosing);
+				writer_pool.Cancel(true);
+				reader_pool.Cancel(true);
 			}
 		}
 	}
