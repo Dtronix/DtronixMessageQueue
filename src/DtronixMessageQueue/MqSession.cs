@@ -308,12 +308,16 @@ namespace DtronixMessageQueue {
 		/// </summary>
 		/// <param name="frame">Command frame to process.</param>
 		protected virtual void ProcessCommand(MqFrame frame) {
-			var command_type = frame.ReadByte(0);
+			var command_type = (MqCommandType)frame.ReadByte(0);
 
 			switch (command_type) {
-				case 0: // Closed
+				case MqCommandType.Disconnect:
 					CurrentState = State.Closing;
 					Close((SocketCloseReason)frame.ReadByte(1));
+					break;
+
+				default:
+					Close(SocketCloseReason.ProtocolError);
 					break;
 
 			}

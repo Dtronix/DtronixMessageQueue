@@ -1,4 +1,6 @@
-﻿using Amib.Threading;
+﻿using System;
+using Amib.Threading;
+using DtronixMessageQueue.Rpc.DataContract;
 
 namespace DtronixMessageQueue.Rpc {
 
@@ -15,6 +17,16 @@ namespace DtronixMessageQueue.Rpc {
 		/// Thread pool for all the Rpc call workers.
 		/// </summary>
 		public SmartThreadPool WorkerThreadPool { get; }
+
+		/// <summary>
+		/// Information about the connected server.
+		/// </summary>
+		public RpcServerInfoDataContract ServerInfo { get; set; }
+
+		/// <summary>
+		/// VCalled to send authentication data to the server.
+		/// </summary>
+		public event EventHandler<RpcAuthenticateEventArgs> Authenticate;
 
 		/// <summary>
 		/// Initializes a new instance of a Rpc client.

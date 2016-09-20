@@ -1,0 +1,16 @@
+﻿using System;
+using System.Collections.Generic;
+using System.Linq;
+using System.Text;
+using System.Threading.Tasks;
+
+namespace DtronixMessageQueue.Rpc {
+	public class RpcAuthenticateEventArgs : EventArgs { 
+
+		/// <summary>
+		/// Authentication frame to be passed to the server for verification.
+		/// </summary>
+		public MqFrame AuthFrame { get; set; }
+
+	}
+}

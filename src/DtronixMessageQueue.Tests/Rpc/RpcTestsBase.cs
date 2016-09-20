@@ -32,7 +32,7 @@ namespace DtronixMessageQueue.Tests.Rpc {
 				Port = Port
 			};
 
-			Server = new RpcServer<SimpleRpcSession, RpcConfig>(Config);
+			Server = new RpcServer<SimpleRpcSession, RpcConfig>(Config, null);
 			Client = new RpcClient<SimpleRpcSession, RpcConfig>(Config);
 		}
 

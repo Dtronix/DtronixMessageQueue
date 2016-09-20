@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
+using DtronixMessageQueue.Rpc.DataContract;
 
 namespace DtronixMessageQueue.Rpc {
 

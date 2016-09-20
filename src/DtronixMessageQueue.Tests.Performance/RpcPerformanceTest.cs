@@ -27,7 +27,7 @@ namespace DtronixMessageQueue.Tests.Performance {
 
 
 		private void RpcSingleProcessTest(int runs, int loops, RpcConfig config, RpcTestType type) {
-			var server = new RpcServer<SimpleRpcSession, RpcConfig>(config);
+			var server = new RpcServer<SimpleRpcSession, RpcConfig>(config, null);
 			TestService test_service;
 			double[] total_values = { 0, 0 };
 			var sw = new Stopwatch();
