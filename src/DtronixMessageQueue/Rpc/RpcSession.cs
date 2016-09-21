@@ -86,6 +86,21 @@ namespace DtronixMessageQueue.Rpc {
 		public RpcClient<TSession, TConfig> Client { get; private set; }
 
 		/// <summary>
+		/// Verify the authenticity of the newly connected client.
+		/// </summary>
+		public event EventHandler<RpcAuthenticateEventArgs<TSession, TConfig>> Authenticate;
+
+		/// <summary>
+		/// Verify the authenticity of the newly connected client.
+		/// </summary>
+		public event EventHandler<SessionEventArgs<TSession, TConfig>> AuthenticationResult;
+
+		/// <summary>
+		/// True if this session has passed authentication;  False otherwise.
+		/// </summary>
+		public bool Authenticated { get; set; }
+
+		/// <summary>
 		/// Called when this session is being setup.
 		/// </summary>
 		protected override void OnSetup() {
@@ -115,34 +130,76 @@ namespace DtronixMessageQueue.Rpc {
 			try {
 				var rpc_command_type = frame.ReadByte(1);
 
-				// Process the rpc sub-command
-				switch (rpc_command_type) {
-					case 0: // Welcome message.
-							// Verify that this is executing on the client.
-						if (BaseSocket.Mode != SocketMode.Client) {
-							Close(SocketCloseReason.ProtocolError);
-							return;
-						}
-
-						var serializer = SerializationCache.Get();
-
-						serializer.MessageReader.Message = new MqMessage(frame);
-
-						// Try to read the information from the server about the server.
-						Client.ServerInfo = serializer.DeserializeFromReader(typeof(RpcServerInfoDataContract), 0) as RpcServerInfoDataContract;
-
-						SerializationCache.Put(serializer);
-
-						break;
-
-					default:
+				if (rpc_command_type == 0) {
+					// Welcome message.
+					if (BaseSocket.Mode != SocketMode.Client) {
 						Close(SocketCloseReason.ProtocolError);
-						break;
+						return;
+					}
+
+					var serializer = SerializationCache.Get();
+
+					serializer.MessageReader.Message = new MqMessage(frame);
+
+					// Try to read the information from the server about the server.
+					Client.ServerInfo =
+						serializer.DeserializeFromReader(typeof(RpcServerInfoDataContract), 0) as RpcServerInfoDataContract;
+
+					SerializationCache.Put(serializer);
+
+					var auth_args = new RpcAuthenticateEventArgs<TSession, TConfig>(this);
+
+					Authenticate?.Invoke(this, auth_args);
+
+					if (auth_args.AuthData != null) {
+						var auth_frame = CreateFrame(new byte[auth_args.AuthData.Length + 2], MqFrameType.Command);
+						auth_frame.Write(0, (byte) MqCommandType.RpcCommand);
+						auth_frame.Write(1, 1);
+						auth_frame.Write(2, auth_args.AuthData, 0, auth_args.AuthData.Length);
+						Send(auth_frame);
+					}
+
+				} else if (rpc_command_type == 1) {
+					// Authentication request
+					if (BaseSocket.Mode != SocketMode.Server) {
+						Close(SocketCloseReason.ProtocolError);
+						return;
+					}
+
+					byte[] auth_bytes = new byte[frame.DataLength - 1];
+					frame.Read(1, auth_bytes, 0, auth_bytes.Length);
+
+					var auth_args = new RpcAuthenticateEventArgs();
+
+					Authenticate?.Invoke(this, auth_args);
+
+					Authenticated = auth_args.Authenticated;
+
+					if (Authenticated == false) {
+						Close(SocketCloseReason.AuthenticationFailure);
+					} else {
+						var auth_frame = CreateFrame(new byte[auth_args.AuthData.Length + 2], MqFrameType.Command);
+						auth_frame.Write(0, (byte) MqCommandType.RpcCommand);
+						auth_frame.Write(1, 2);
+
+						Send(auth_frame);
+					}
+
+				} else if (rpc_command_type == 2) {
+					if (BaseSocket.Mode != SocketMode.Client) {
+						Close(SocketCloseReason.ProtocolError);
+						return;
+					}
+
+					Authenticated = true;
+				} else {
+					Close(SocketCloseReason.ProtocolError);
 				}
+
 			} catch (Exception) {
 				Close(SocketCloseReason.ProtocolError);
 			}
-			
+
 
 		}
 
@@ -491,24 +548,6 @@ namespace DtronixMessageQueue.Rpc {
 
 				Send(frame);
 			}
-		}
-
-		/// <summary>
-		/// Called by the RpcServer to verify the authentication request by the client.
-		/// </summary>
-		/// <param name="message">Message received from the client to validate.</param>
-		/// <returns>True if the client has been authenticated; False otherwise.</returns>
-		protected virtual bool Authenticate(MqMessage message) {
-			return true;
-		}
-
-		/// <summary>
-		/// Called by the RpcClient to request authentication from the RpcServer.
-		/// Override to specify custom authentication 
-		/// </summary>
-		/// <returns>Returned MqMessage is passed to the server and then validated.</returns>
-		protected virtual MqMessage RequestAuthentication() {
-			return null;
 		}
 
 	}

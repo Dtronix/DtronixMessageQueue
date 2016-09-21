@@ -25,11 +25,6 @@ namespace DtronixMessageQueue.Rpc {
 		public SmartThreadPool WorkerThreadPool { get; }
 
 		/// <summary>
-		/// Verify the authenticity of the newly connected client.
-		/// </summary>
-		public event EventHandler<RpcAuthenticateEventArgs> Authenticate;
-
-		/// <summary>
 		/// Creates a new instance of the server with the specified configurations.
 		/// </summary>
 		/// <param name="config">Configurations for this server.</param>

@@ -36,7 +36,9 @@ namespace DtronixMessageQueue.Rpc {
 			WorkerThreadPool = new SmartThreadPool(config.ThreadPoolTimeout, config.MaxExecutionThreads, 1);
 		}
 
-
-
+		protected override TSession CreateSession() {
+			var session = base.CreateSession();
+			return session;
+		}
 	}
 }

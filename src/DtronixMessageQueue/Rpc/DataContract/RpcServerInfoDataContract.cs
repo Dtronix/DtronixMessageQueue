@@ -30,5 +30,11 @@ namespace DtronixMessageQueue.Rpc.DataContract {
 		/// </summary>
 		[ProtoMember(3)]
 		public byte[] Data { get; set; }
+
+		/// <summary>
+		/// True if the server requires authentication before proceeding; False otherwise.
+		/// </summary>
+		[ProtoMember(4)]
+		public byte[] RequireAuthentication { get; set; }
 	}
 }
