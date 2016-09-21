@@ -93,7 +93,7 @@ namespace DtronixMessageQueue.Rpc {
 		/// <summary>
 		/// Verify the authenticity of the newly connected client.
 		/// </summary>
-		public event EventHandler<SessionEventArgs<TSession, TConfig>> AuthenticationResult;
+		public event EventHandler<RpcAuthenticateEventArgs<TSession, TConfig>> AuthenticationResult;
 
 		/// <summary>
 		/// True if this session has passed authentication;  False otherwise.
@@ -137,27 +137,43 @@ namespace DtronixMessageQueue.Rpc {
 						return;
 					}
 
-					var serializer = SerializationCache.Get();
+					var serializer = SerializationCache.Get(new MqMessage(frame));
 
-					serializer.MessageReader.Message = new MqMessage(frame);
+					// Forward the reader two bytes to the data.
+					serializer.MessageReader.ReadBytes(2);
+
+					serializer.PrepareDeserializeReader();
 
 					// Try to read the information from the server about the server.
 					Client.ServerInfo =
-						serializer.DeserializeFromReader(typeof(RpcServerInfoDataContract), 0) as RpcServerInfoDataContract;
+						serializer.DeserializeFromReader(typeof(RpcServerInfoDataContract)) as RpcServerInfoDataContract;
+
+
+					if (Client.ServerInfo.RequireAuthentication) {
+						var auth_args = new RpcAuthenticateEventArgs<TSession, TConfig>(this);
+
+						Authenticate?.Invoke(this, auth_args);
+
+						if (auth_args.AuthData != null) {
+							
+						}
+
+						serializer.MessageWriter.Write((byte)MqCommandType.RpcCommand);
+						serializer.MessageWriter.Write((byte)1);
+
+						if (auth_args.AuthData == null) {
+							auth_args.AuthData = new byte[] {0};
+						}
+
+						serializer.MessageWriter.Write(auth_args.AuthData, 0, auth_args.AuthData.Length);
+
+						var auth_message = serializer.MessageWriter.ToMessage(true);
+						auth_message[0].FrameType = MqFrameType.Command;
+						
+						Send(auth_message);
+					}
 
 					SerializationCache.Put(serializer);
-
-					var auth_args = new RpcAuthenticateEventArgs<TSession, TConfig>(this);
-
-					Authenticate?.Invoke(this, auth_args);
-
-					if (auth_args.AuthData != null) {
-						var auth_frame = CreateFrame(new byte[auth_args.AuthData.Length + 2], MqFrameType.Command);
-						auth_frame.Write(0, (byte) MqCommandType.RpcCommand);
-						auth_frame.Write(1, 1);
-						auth_frame.Write(2, auth_args.AuthData, 0, auth_args.AuthData.Length);
-						Send(auth_frame);
-					}
 
 				} else if (rpc_command_type == 1) {
 					// Authentication request
@@ -166,32 +182,56 @@ namespace DtronixMessageQueue.Rpc {
 						return;
 					}
 
-					byte[] auth_bytes = new byte[frame.DataLength - 1];
-					frame.Read(1, auth_bytes, 0, auth_bytes.Length);
+					if (Server.Config.RequireAuthentication == false) {
+						Close(SocketCloseReason.ProtocolError);
+						return;
+					}
 
-					var auth_args = new RpcAuthenticateEventArgs();
+					byte[] auth_bytes = new byte[frame.DataLength - 2];
+					frame.Read(2, auth_bytes, 0, auth_bytes.Length);
 
+					var auth_args = new RpcAuthenticateEventArgs<TSession, TConfig>(this) {
+						AuthData = auth_bytes
+					};
+
+					
 					Authenticate?.Invoke(this, auth_args);
 
 					Authenticated = auth_args.Authenticated;
 
+					var auth_frame = CreateFrame(new byte[auth_args.AuthData.Length + 2], MqFrameType.Command);
+					auth_frame.Write(0, (byte)MqCommandType.RpcCommand);
+					auth_frame.Write(1, 2);
+
+					// State of the authentication
+					auth_frame.Write(2, Authenticated);
+
+					Send(auth_frame);
+
 					if (Authenticated == false) {
 						Close(SocketCloseReason.AuthenticationFailure);
-					} else {
-						var auth_frame = CreateFrame(new byte[auth_args.AuthData.Length + 2], MqFrameType.Command);
-						auth_frame.Write(0, (byte) MqCommandType.RpcCommand);
-						auth_frame.Write(1, 2);
-
-						Send(auth_frame);
 					}
 
 				} else if (rpc_command_type == 2) {
+					// Authentication result
 					if (BaseSocket.Mode != SocketMode.Client) {
 						Close(SocketCloseReason.ProtocolError);
 						return;
 					}
 
+					if (Client.Config.RequireAuthentication == false) {
+						Close(SocketCloseReason.ProtocolError);
+						return;
+					}
+
 					Authenticated = true;
+
+					var auth_args = new RpcAuthenticateEventArgs<TSession, TConfig>(this) {
+						Authenticated = frame.ReadBoolean(2)
+					};
+
+					AuthenticationResult?.Invoke(this, auth_args);
+
 				} else {
 					Close(SocketCloseReason.ProtocolError);
 				}
@@ -207,9 +247,22 @@ namespace DtronixMessageQueue.Rpc {
 		/// Called when this RpcSession is connected to the socket.
 		/// </summary>
 		protected override void OnConnected() {
+
+			// If this is a new session on the server, send the welcome message.
 			if (BaseSocket.Mode == SocketMode.Server) {
+				Server.ServerInfo.RequireAuthentication = Config.RequireAuthentication;
+
 				var serializer = SerializationCache.Get();
+
+				serializer.MessageWriter.Write((byte)MqCommandType.RpcCommand);
+				serializer.MessageWriter.Write((byte)0);
 				serializer.SerializeToWriter(Server.ServerInfo);
+
+				var message = serializer.MessageWriter.ToMessage(true);
+
+				message[0].FrameType = MqFrameType.Command;
+
+				Send(message);
 			}
 
 			base.OnConnected();
@@ -311,12 +364,10 @@ namespace DtronixMessageQueue.Rpc {
 			worker_thread_pool.QueueWorkItem(() => {
 
 				// Retrieve a serialization cache to work with.
-				var serialization = SerializationCache.Get();
+				var serialization = SerializationCache.Get(message);
 				ushort rec_message_return_id = 0;
 
 				try {
-					serialization.MessageReader.Message = message;
-
 					// Skip RpcMessageType
 					serialization.MessageReader.ReadByte();
 
@@ -455,9 +506,8 @@ namespace DtronixMessageQueue.Rpc {
 			worker_thread_pool.QueueWorkItem(() => {
 
 				// Retrieve a serialization cache to work with.
-				var serialization = SerializationCache.Get();
+				var serialization = SerializationCache.Get(mq_message);
 				try {
-					serialization.MessageReader.Message = mq_message;
 
 					// Skip message type byte.
 					serialization.MessageReader.ReadByte();

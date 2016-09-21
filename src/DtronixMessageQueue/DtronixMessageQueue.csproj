@@ -59,7 +59,7 @@
     <Compile Include="Rpc\DataContract\RpcServerInfoDataContract.cs" />
     <Compile Include="Rpc\IProcessRpcSession.cs" />
     <Compile Include="Rpc\IRemoteService.cs" />
-    <Compile Include="Rpc\RpcAuthenticateEventArgs.cs" />
+    <Compile Include="Rpc\RpcAuthEventArgs.cs" />
     <Compile Include="Rpc\RpcClient.cs" />
     <Compile Include="Rpc\RpcConfig.cs" />
     <Compile Include="Rpc\RpcMessageType.cs" />

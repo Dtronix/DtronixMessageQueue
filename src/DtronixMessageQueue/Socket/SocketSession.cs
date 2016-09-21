@@ -179,6 +179,7 @@ namespace DtronixMessageQueue.Socket {
 			// Start receiving data.
 			CurrentState = State.Connected;
 			socket.ReceiveAsync(receive_args);
+			OnConnected();
 		}
 
 		/// <summary>
@@ -216,9 +217,6 @@ namespace DtronixMessageQueue.Socket {
 		protected virtual void IoCompleted(object sender, SocketAsyncEventArgs e) {
 			// determine which type of operation just completed and call the associated handler
 			switch (e.LastOperation) {
-				case SocketAsyncOperation.Connect:
-					OnConnected();
-					break;
 
 				case SocketAsyncOperation.Disconnect:
 					Close(SocketCloseReason.ClientClosing);

@@ -25,6 +25,11 @@ namespace DtronixMessageQueue.Rpc {
 		public SmartThreadPool WorkerThreadPool { get; }
 
 		/// <summary>
+		/// Called to send authentication data to the server.
+		/// </summary>
+		public event EventHandler<RpcAuthenticateEventArgs<TSession, TConfig>> Authenticate;
+
+		/// <summary>
 		/// Creates a new instance of the server with the specified configurations.
 		/// </summary>
 		/// <param name="config">Configurations for this server.</param>
@@ -39,6 +44,13 @@ namespace DtronixMessageQueue.Rpc {
 		public RpcServer(TConfig config, RpcServerInfoDataContract server_info) : base(config) {
 			WorkerThreadPool = new SmartThreadPool(config.ThreadPoolTimeout, config.MaxExecutionThreads, 1);
 			ServerInfo = server_info ?? new RpcServerInfoDataContract();
+		}
+
+		protected override TSession CreateSession() {
+			var session = base.CreateSession();
+
+			session.Authenticate += (sender, e) => { Authenticate?.Invoke(sender, e); };
+			return session;
 		}
 
 	}

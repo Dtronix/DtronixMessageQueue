@@ -1,6 +1,7 @@
 ﻿using System;
 using Amib.Threading;
 using DtronixMessageQueue.Rpc.DataContract;
+using DtronixMessageQueue.Socket;
 
 namespace DtronixMessageQueue.Rpc {
 
@@ -24,9 +25,14 @@ namespace DtronixMessageQueue.Rpc {
 		public RpcServerInfoDataContract ServerInfo { get; set; }
 
 		/// <summary>
-		/// VCalled to send authentication data to the server.
+		/// Called to send authentication data to the server.
 		/// </summary>
-		public event EventHandler<RpcAuthenticateEventArgs> Authenticate;
+		public event EventHandler<RpcAuthenticateEventArgs<TSession,TConfig>> Authenticate;
+
+		/// <summary>
+		/// Called when the authentication process concludes.
+		/// </summary>
+		public event EventHandler<RpcAuthenticateEventArgs<TSession, TConfig>> AuthenticationResult;
 
 		/// <summary>
 		/// Initializes a new instance of a Rpc client.
@@ -38,6 +44,9 @@ namespace DtronixMessageQueue.Rpc {
 
 		protected override TSession CreateSession() {
 			var session = base.CreateSession();
+
+			session.Authenticate += (sender, e) => { Authenticate?.Invoke(sender, e); };
+			session.AuthenticationResult += (sender, e) => { AuthenticationResult?.Invoke(sender, e); };
 			return session;
 		}
 	}

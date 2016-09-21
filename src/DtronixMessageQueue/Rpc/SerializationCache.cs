@@ -78,7 +78,7 @@ namespace DtronixMessageQueue.Rpc {
 				if (field_number != -1) {
 					RuntimeTypeModel.Default.SerializeWithLengthPrefix(Stream, value, value.GetType(), PrefixStyle.Base128, field_number);
 				} else {
-					RuntimeTypeModel.Default.Serialize(Stream, value.GetType());
+					RuntimeTypeModel.Default.Serialize(Stream, value);
 				}
 
 				// Write the stream data to the message.
@@ -102,8 +102,9 @@ namespace DtronixMessageQueue.Rpc {
 		/// <summary>
 		/// Gets an available cached instance of the serializer.  If one is not cached, generate a new one.
 		/// </summary>
-		/// <returns></returns>
-		public Serializer Get() {
+		/// <param name="message">Message to initialize the MqReader with.  Null to just reset.</param>
+		/// <returns>Cached serializer.</returns>
+		public Serializer Get(MqMessage message = null) {
 			Serializer serializer;
 
 			// Try to get an existing cached serializer.
@@ -121,6 +122,8 @@ namespace DtronixMessageQueue.Rpc {
 				serializer.Stream.SetLength(0);
 				serializer.MessageWriter.Clear();
 			}
+
+			serializer.MessageReader.Message = message;
 			
 			return serializer;
 		}

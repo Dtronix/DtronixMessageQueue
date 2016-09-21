@@ -2,6 +2,7 @@
 using System.Diagnostics;
 using System.Threading;
 using System.Threading.Tasks;
+using DtronixMessageQueue.Socket;
 using DtronixMessageQueue.Tests.Rpc.Services.Server;
 using Xunit;
 using Xunit.Abstractions;
@@ -97,13 +98,193 @@ namespace DtronixMessageQueue.Tests.Rpc {
 				if (threw != true) {
 					LastException = new Exception("Operation did not cancel.");
 				}
-				
-				
+
+
 			};
 
 			StartAndWait();
 		}
 
+		[Fact]
+		public void Server_requests_authentication() {
+
+			Server.Config.RequireAuthentication = true;
+
+
+			Client.Authenticate += (sender, e) => {
+				TestStatus.Set();
+			};
+
+
+			StartAndWait();
+		}
+
+		[Fact]
+		public void Server_does_not_request_authentication() {
+
+			Server.Config.RequireAuthentication = false;
+
+			Server.SessionSetup += (sender, args) => {
+				args.Session.AddService<ICalculatorService>(new CalculatorService());
+			};
+
+			Client.Authenticate += (sender, e) => {
+
+			};
+
+
+			Client.Connected += (sender, e) => {
+				e.Session.AddProxy<ICalculatorService>(new CalculatorService());
+				var service = Client.Session.GetProxy<ICalculatorService>();
+
+				var result = service.Add(100, 200);
+
+				if (result != 300) {
+					LastException = new Exception("Client authenticated.");
+				}
+				TestStatus.Set();
+			};
+
+
+			StartAndWait();
+		}
+
+
+		[Fact]
+		public void Server_verifies_authentication() {
+			var auth_data = new byte[] { 1, 2, 3, 4, 5 };
+			
+			Server.Config.RequireAuthentication = true;
+
+			Server.SessionSetup += (sender, args) => {
+				args.Session.AddService<ICalculatorService>(new CalculatorService());
+			};
+
+			Server.Authenticate += (sender, e) => {
+				try {
+					Assert.Equal(auth_data, e.AuthData);
+				} catch (Exception ex) {
+					LastException = ex;
+				} finally {
+					TestStatus.Set();
+				}
+				
+			};
+
+			Client.Authenticate += (sender, e) => {
+				e.AuthData = auth_data;
+			};
+
+
+			StartAndWait();
+		}
+
+		[Fact]
+		public void Server_disconnectes_from_failed_authentication() {
+			Server.Config.RequireAuthentication = true;
+
+			Server.SessionSetup += (sender, args) => {
+				args.Session.AddService<ICalculatorService>(new CalculatorService());
+			};
+
+			Server.Authenticate += (sender, e) => {
+				e.Authenticated = false;
+
+			};
+
+			Server.Closed += (sender, e) => {
+				if (e.CloseReason != SocketCloseReason.AuthenticationFailure) {
+					LastException = new Exception("Server closed session for invalid reason");
+				}
+				TestStatus.Set();
+			};
+
+			Client.Authenticate += (sender, e) => {
+				e.AuthData = new byte[] {5, 4, 3, 2, 1};
+			};
+
+			StartAndWait();
+		}
+
+		[Fact]
+		public void Client_disconnectes_from_failed_authentication() {
+			Server.Config.RequireAuthentication = true;
+
+			Server.SessionSetup += (sender, args) => {
+				args.Session.AddService<ICalculatorService>(new CalculatorService());
+			};
+
+			Server.Authenticate += (sender, e) => {
+				e.Authenticated = false;
+
+			};
+
+			Client.Closed += (sender, e) => {
+				if (e.CloseReason != SocketCloseReason.AuthenticationFailure) {
+					LastException = new Exception("Server closed session for invalid reason");
+				}
+				TestStatus.Set();
+			};
+
+			Client.Authenticate += (sender, e) => {
+				e.AuthData = new byte[] { 5, 4, 3, 2, 1 };
+			};
+
+			StartAndWait();
+		}
+
+		[Fact]
+		public void Client_notified_of_authentication_failure() {
+			Server.Config.RequireAuthentication = true;
+
+			Server.SessionSetup += (sender, args) => {
+				args.Session.AddService<ICalculatorService>(new CalculatorService());
+			};
+
+			Server.Authenticate += (sender, e) => {
+				e.Authenticated = false;
+			};
+
+			Client.AuthenticationResult += (sender, e) => {
+				if (e.Authenticated) {
+					LastException = new Exception("Client notified of authentication wrongly.");
+				}
+				TestStatus.Set();
+			};
+
+			Client.Authenticate += (sender, e) => {
+				e.AuthData = new byte[] {5, 4, 3, 2, 1};
+			};
+
+			StartAndWait();
+		}
+
+
+		[Fact]
+		public void Client_notified_of_authentication_success() {
+			Server.Config.RequireAuthentication = true;
+
+			Server.SessionSetup += (sender, args) => {
+				args.Session.AddService<ICalculatorService>(new CalculatorService());
+			};
+
+			Server.Authenticate += (sender, e) => {
+				e.Authenticated = true;
+			};
+
+			Client.AuthenticationResult += (sender, e) => {
+				if (e.Authenticated == false) {
+					LastException = new Exception("Client notified of authentication wrongly.");
+				}
+				TestStatus.Set();
+			};
+
+			Client.Authenticate += (sender, e) => {
+				e.AuthData = new byte[] { 5, 4, 3, 2, 1 };
+			};
+
+			StartAndWait();
+		}
 
 	}
 }

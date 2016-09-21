@@ -17,7 +17,7 @@ namespace DtronixMessageQueue.Rpc.DataContract {
 		/// Version of this server.
 		/// </summary>
 		[ProtoMember(1)]
-		public Version Version { get; set; } = new Version(1, 0);
+		public string Version { get; set; } = new Version(1, 0).ToString();
 
 		/// <summary>
 		/// Message that the server send to the client.
@@ -35,6 +35,6 @@ namespace DtronixMessageQueue.Rpc.DataContract {
 		/// True if the server requires authentication before proceeding; False otherwise.
 		/// </summary>
 		[ProtoMember(4)]
-		public byte[] RequireAuthentication { get; set; }
+		public bool RequireAuthentication { get; set; }
 	}
 }
