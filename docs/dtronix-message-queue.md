@@ -16,9 +16,24 @@ Messages are intended to group information together.  **Frames inside messages a
 ### Frames
 Messages are broken up into individual frames.  In-fact, the wire protocol has no concept of messages at all, it sees only individual frames. which means that frame types need to define the end of messages. Frames are structured as follows.
 
-| MqFrameType |  Message Length  | Payload |
-|:-----------:|:----------------:|:-------:|
-|     byte    | ushort[2 bytes]? | byte[]? |
+### Standard MqFrame
+<table>
+  <tr align="center">
+    <td colspan="8">0</td> <td colspan="8">1</td> <td colspan="8">2</td>
+  </tr>
+  <tr>
+    <td>0</td><td>1</td><td>2</td><td>3</td><td>4</td><td>5</td><td>6</td><td>7</td>
+    <td>0</td><td>1</td><td>2</td><td>3</td><td>4</td><td>5</td><td>6</td><td>7</td>
+    <td>0</td><td>1</td><td>2</td><td>3</td><td>4</td><td>5</td><td>6</td><td>7</td>
+  </tr>
+  <tr align="center">
+    <td colspan="8">Frame Type (byte) [8]</td><td colspan="16">Frame Length (uint16) [16]</td>
+  </tr>
+  <tr align="center">
+    <td colspan="24">Frame Data (byte[]) [...]</td>
+  </tr>
+</table>
+
 
 Each frame contains at the very minimum 1 byte.  This byte is used to determine what type of frame is being read.  Depending on the MqFrameType, the frame might be 1 or more bytes long.  See Types of Frames below for all the types of frames and their payload.
 
@@ -37,3 +52,94 @@ There are seven types of frames, but only six that are used to send across the w
 |  Command  |    \>= 3    |      5      | ushort [2 bytes] |  byte[] | Command to be processed and consumed internally.       |
 |    Ping   |      1      |      6      |         -        |    -    | Same as EmptyLast frame but consumed internally.       |
 
+
+##### MqFrame Type Empty
+<table>
+  <tr align="center">
+    <td colspan="8">0</td>
+  </tr>
+  <tr>
+    <td>0</td><td>1</td><td>2</td><td>3</td><td>4</td><td>5</td><td>6</td><td>7</td>
+  </tr>
+  <tr align="center">
+    <td colspan="8">1 (byte) [8]</td>
+</table>
+
+##### MqFrame Type More
+<table>
+  <tr align="center">
+    <td colspan="8">0</td> <td colspan="8">1</td> <td colspan="8">2</td>
+  </tr>
+  <tr>
+    <td>0</td><td>1</td><td>2</td><td>3</td><td>4</td><td>5</td><td>6</td><td>7</td>
+    <td>0</td><td>1</td><td>2</td><td>3</td><td>4</td><td>5</td><td>6</td><td>7</td>
+    <td>0</td><td>1</td><td>2</td><td>3</td><td>4</td><td>5</td><td>6</td><td>7</td>
+  </tr>
+  <tr align="center">
+    <td colspan="8">2 (byte) [8]</td><td colspan="16">Frame Length (uint16) [16]</td>
+  </tr>
+  <tr align="center">
+    <td colspan="24">Frame Data (byte[]) [...]</td>
+  </tr>
+</table>
+
+##### MqFrame Type Last
+<table>
+  <tr align="center">
+    <td colspan="8">0</td> <td colspan="8">1</td> <td colspan="8">2</td>
+  </tr>
+  <tr>
+    <td>0</td><td>1</td><td>2</td><td>3</td><td>4</td><td>5</td><td>6</td><td>7</td>
+    <td>0</td><td>1</td><td>2</td><td>3</td><td>4</td><td>5</td><td>6</td><td>7</td>
+    <td>0</td><td>1</td><td>2</td><td>3</td><td>4</td><td>5</td><td>6</td><td>7</td>
+  </tr>
+  <tr align="center">
+    <td colspan="8">3 (byte) [8]</td><td colspan="16">Frame Length (uint16) [16]</td>
+  </tr>
+  <tr align="center">
+    <td colspan="24">Frame Data (byte[]) [...]</td>
+  </tr>
+</table>
+
+##### MqFrame Type EmptyLast
+<table>
+  <tr align="center">
+    <td colspan="8">0</td>
+  </tr>
+  <tr>
+    <td>0</td><td>1</td><td>2</td><td>3</td><td>4</td><td>5</td><td>6</td><td>7</td>
+  </tr>
+  <tr align="center">
+    <td colspan="8">4 (byte) [8]</td>
+</table>
+
+##### MqFrame Type Command
+<table>
+  <tr align="center">
+    <td colspan="8">0</td> <td colspan="8">1</td> <td colspan="8">2</td>
+  </tr>
+  <tr>
+    <td>0</td><td>1</td><td>2</td><td>3</td><td>4</td><td>5</td><td>6</td><td>7</td>
+    <td>0</td><td>1</td><td>2</td><td>3</td><td>4</td><td>5</td><td>6</td><td>7</td>
+    <td>0</td><td>1</td><td>2</td><td>3</td><td>4</td><td>5</td><td>6</td><td>7</td>
+  </tr>
+  <tr align="center">
+    <td colspan="8">5 (byte) [8]</td><td colspan="16">Frame Length (uint16) [16]</td>
+  </tr>
+  <tr align="center">
+    <td colspan="24">Frame Data (byte[]) [...]</td>
+  </tr>
+</table>
+
+
+##### MqFrame Type Ping
+<table>
+  <tr align="center">
+    <td colspan="8">0</td>
+  </tr>
+  <tr>
+    <td>0</td><td>1</td><td>2</td><td>3</td><td>4</td><td>5</td><td>6</td><td>7</td>
+  </tr>
+  <tr align="center">
+    <td colspan="8">6 (byte) [8]</td>
+</table>
