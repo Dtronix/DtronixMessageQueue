@@ -252,6 +252,10 @@ namespace DtronixMessageQueue.Tests.Rpc {
 				TestStatus.Set();
 			};
 
+			Client.Closed += (sender, e) => {
+
+			};
+
 			Client.Authenticate += (sender, e) => {
 				e.AuthData = new byte[] {5, 4, 3, 2, 1};
 			};

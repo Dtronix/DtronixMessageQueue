@@ -239,7 +239,9 @@ namespace DtronixMessageQueue {
 			// If we are passed a closing frame, then send it to the other connection.
 			if (close_frame != null) {
 				MqMessage msg;
-				if (outbox.IsEmpty == false) {
+				// If we have an authentication error, we are simultaneously notifying the client of this and a session close.
+				// So this means we do not clear the queue since it contains an auth failure message and it should already be at the top of the stack.
+				if (outbox.IsEmpty == false && reason != SocketCloseReason.AuthenticationFailure) {
 					while (outbox.TryDequeue(out msg)) {
 					}
 				}
