@@ -1,5 +1,7 @@
 ﻿using System;
+using System.Collections.Concurrent;
 using System.Net.Sockets;
+using System.Threading;
 using Amib.Threading;
 
 namespace DtronixMessageQueue.Socket {
@@ -63,13 +65,45 @@ namespace DtronixMessageQueue.Socket {
 		protected SmartThreadPool ThreadPool;
 
 		/// <summary>
+		/// True if the timeout timer is running.  False otherwise.
+		/// </summary>
+		protected bool TimeoutTimerRunning;
+
+		/// <summary>
+		/// Timer used to verify that the sessions are still connected.
+		/// </summary>
+		protected readonly Timer TimeoutTimer;
+
+		/// <summary>
+		/// Dictionary of all connected clients.
+		/// </summary>
+		protected readonly ConcurrentDictionary<Guid, TSession> ConnectedSessions = new ConcurrentDictionary<Guid, TSession>();
+
+		/// <summary>
 		/// Base constructor to all socket classes.
 		/// </summary>
 		/// <param name="config">Configurations for this socket.</param>
 		/// <param name="mode">Mode of that this socket is running in.</param>
 		protected SocketBase(TConfig config, SocketMode mode) {
+			TimeoutTimer = new Timer(TimeoutCallback);
 			Mode = mode;
 			Config = config;
+		}
+
+
+		/// <summary>
+		/// Called by the timer to verify that the session is still connected.  If it has timed out, close it.
+		/// </summary>
+		/// <param name="state">Concurrent dictionary of the sessions.</param>
+		protected virtual void TimeoutCallback(object state) {
+			var timout_int = Config.PingTimeout;
+			var timeout_time = DateTime.UtcNow.Subtract(new TimeSpan(0, 0, 0, 0, timout_int));
+
+			foreach (var session in ConnectedSessions.Values) {
+				if (session.LastReceived < timeout_time) {
+					session.Close(SocketCloseReason.TimeOut);
+				}
+			}
 		}
 
 
@@ -78,6 +112,12 @@ namespace DtronixMessageQueue.Socket {
 		/// </summary>
 		/// <param name="session">Session that connected.</param>
 		protected virtual void OnConnect(TSession session) {
+			// Start the timeout timer if it is not already running.
+			if (TimeoutTimerRunning == false) {
+				TimeoutTimer.Change(0, Config.PingTimeout);
+				TimeoutTimerRunning = true;
+			}
+
 			Connected?.Invoke(this, new SessionEventArgs<TSession, TConfig>(session));
 		}
 
@@ -88,6 +128,12 @@ namespace DtronixMessageQueue.Socket {
 		/// <param name="session">Session that closed.</param>
 		/// <param name="reason">Reason for the closing of the session.</param>
 		protected virtual void OnClose(TSession session, SocketCloseReason reason) {
+			// If there are no clients connected, stop the timer.
+			if (ConnectedSessions.IsEmpty) {
+				TimeoutTimer.Change(Timeout.Infinite, Timeout.Infinite);
+				TimeoutTimerRunning = false;
+			}
+
 			Closed?.Invoke(this, new SessionClosedEventArgs<TSession, TConfig>(session, reason));
 		}
 

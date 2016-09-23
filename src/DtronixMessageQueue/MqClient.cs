@@ -21,9 +21,9 @@ namespace DtronixMessageQueue {
 		public event EventHandler<IncomingMessageEventArgs<TSession, TConfig>> IncomingMessage;
 
 		/// <summary>
-		/// Timer used to verify that the sessions are still connected.
+		/// Timer used to ping the server and verify that the sessions are still connected.
 		/// </summary>
-		private readonly Timer timeout_timer;
+		private readonly Timer ping_timer;
 
 		/// <summary>
 		/// Initializes a new instance of a message queue.
@@ -33,7 +33,7 @@ namespace DtronixMessageQueue {
 			// Override the default connection limit and read/write workers.
 			config.MaxConnections = 1;
 			config.MaxWorkingThreads = 2;
-			timeout_timer = new Timer(TimeoutCallback);
+			ping_timer = new Timer(PingCallback);
 			Setup();
 		}
 
@@ -42,7 +42,12 @@ namespace DtronixMessageQueue {
 			var ping_frequency = Config.PingFrequency;
 
 			if (ping_frequency > 0) {
-				timeout_timer.Change(ping_frequency/2, ping_frequency);
+				ping_timer.Change(ping_frequency/2, ping_frequency);
+			}
+
+			if (TimeoutTimerRunning == false) {
+				TimeoutTimer.Change(0, Config.PingTimeout);
+				TimeoutTimerRunning = true;
 			}
 
 			base.OnConnect(session);
@@ -50,17 +55,17 @@ namespace DtronixMessageQueue {
 
 		protected override void OnClose(TSession session, SocketCloseReason reason) {
 			// Stop the timeout timer.
-			timeout_timer.Change(Timeout.Infinite, Timeout.Infinite);
+			ping_timer.Change(Timeout.Infinite, Timeout.Infinite);
 
 			base.OnClose(session, reason);
 		}
 
 
 		/// <summary>
-		/// Called by the timer to verify that the session is still connected.  If it has timed out, close it.
+		/// Called by the ping timer to send a ping packet to the server.
 		/// </summary>
 		/// <param name="state">Concurrent dictionary of the sessions.</param>
-		private void TimeoutCallback(object state) {
+		private void PingCallback(object state) {
 			Session.Send(Session.CreateFrame(null, MqFrameType.Ping));
 		}
 
@@ -108,7 +113,7 @@ namespace DtronixMessageQueue {
 		/// Disposes of all resources associated with this client.
 		/// </summary>
 		public void Dispose() {
-			timeout_timer.Dispose();
+			ping_timer.Dispose();
 			Session.Dispose();
 		}
 

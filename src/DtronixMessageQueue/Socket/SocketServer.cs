@@ -26,11 +26,6 @@ namespace DtronixMessageQueue.Socket {
 		public override bool IsRunning => is_stopped == false && (MainSocket?.IsBound ?? false);
 
 		/// <summary>
-		/// Dictionary of all connected clients.
-		/// </summary>
-		protected readonly ConcurrentDictionary<Guid, TSession> ConnectedSessions = new ConcurrentDictionary<Guid, TSession>();
-
-		/// <summary>
 		/// Set to true of this socket is stopped.
 		/// </summary>
 		private bool is_stopped = true;
@@ -42,6 +37,8 @@ namespace DtronixMessageQueue.Socket {
 		public SocketServer(TConfig config) : base(config, SocketMode.Server) {
 			connection_limit = new Semaphore(config.MaxConnections, config.MaxConnections);
 		}
+
+
 
 		/// <summary>
 		/// Starts the server and begins listening for incoming connections.

@@ -15,12 +15,5 @@ namespace DtronixMessageQueue {
 		/// 0 disables pings.
 		/// </summary>
 		public int PingFrequency { get; set; } = 0;
-
-		/// <summary>
-		/// (Server)
-		/// Max milliseconds since the last received packet before the session is disconnected.
-		/// 0 disables the automatic disconnection functionality.
-		/// </summary>
-		public int PingTimeout { get; set; } = 60000;
 	}
 }

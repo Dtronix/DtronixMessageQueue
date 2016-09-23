@@ -171,6 +171,10 @@ namespace DtronixMessageQueue {
 
 					// Do nothing if this is a ping frame.
 					if (frame.FrameType == MqFrameType.Ping) {
+						if (BaseSocket.Mode == SocketMode.Server) {
+							// Re-send ping frame back to the client to refresh client connection timeout timer.
+							Send(CreateFrame(null, MqFrameType.Ping));
+						}
 						continue;
 					}
 

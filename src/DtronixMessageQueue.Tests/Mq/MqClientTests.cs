@@ -245,5 +245,34 @@ namespace DtronixMessageQueue.Tests.Mq {
 			}
 		}
 
+		[Fact]
+		public void Client_times_out_after_server_dropped_session() {
+			Config.PingTimeout = 500;
+			Client = new MqClient<SimpleMqSession, MqConfig>(Config);
+
+			
+			Server = new MqServer<SimpleMqSession, MqConfig>(Config);
+
+			Server.Connected += (sender, args) => {
+				args.Session.Socket.Close();
+			};
+
+
+			Client.Closed += (sender, args) => {
+				if (args.CloseReason == SocketCloseReason.TimeOut) {
+					TestStatus.Set();
+				} else {
+					LastException = new Exception("Client closed for reason other than timeout.");
+				}
+			};
+
+			StartAndWait(false, 1000);
+
+			if (TestStatus.IsSet == false) {
+				throw new Exception("Socket did not timeout.");
+			}
+
+		}
+
 	}
 }

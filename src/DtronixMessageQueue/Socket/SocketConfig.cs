@@ -55,5 +55,12 @@
 		/// </summary>
 		public int MaxWorkingThreads { get; set; } = 20;
 
+		/// <summary>
+		/// (Server/Client)
+		/// Max milliseconds since the last received packet before the session is disconnected.
+		/// 0 disables the automatic disconnection functionality.
+		/// </summary>
+		public int PingTimeout { get; set; } = 60000;
+
 	}
 }

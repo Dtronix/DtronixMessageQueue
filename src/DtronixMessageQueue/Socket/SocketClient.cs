@@ -1,4 +1,5 @@
-﻿using System.Net;
+﻿using System;
+using System.Net;
 using System.Net.Sockets;
 
 namespace DtronixMessageQueue.Socket {
@@ -16,6 +17,7 @@ namespace DtronixMessageQueue.Socket {
 		/// True if the client is connected to a server.
 		/// </summary>
 		public override bool IsRunning => MainSocket?.Connected ?? false;
+
 
 		/// <summary>
 		/// Session for this client.
@@ -56,11 +58,20 @@ namespace DtronixMessageQueue.Socket {
 
 					((ISetupSocketSession<TConfig>)Session).Start();
 
+					ConnectedSessions.TryAdd(Session.Id, Session);
+
 					OnConnect(Session);
 				}
 			};
 
 			MainSocket.ConnectAsync(event_arg);
+		}
+
+		protected override void OnClose(TSession session, SocketCloseReason reason) {
+			TSession sess_out;
+			ConnectedSessions.TryRemove(Session.Id, out sess_out);
+
+			base.OnClose(session, reason);
 		}
 	}
 }
