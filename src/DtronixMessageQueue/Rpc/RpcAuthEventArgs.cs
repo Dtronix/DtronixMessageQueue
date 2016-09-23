@@ -35,7 +35,7 @@ namespace DtronixMessageQueue.Rpc {
 		/// Creates new authentication arguments for this authentication event.
 		/// </summary>
 		/// <param name="session">Session type for this connection.</param>
-		public RpcAuthenticateEventArgs(RpcSession<TSession, TConfig> session) {
+		public RpcAuthenticateEventArgs(TSession session) {
 			Session = session;
 		}
 	}

@@ -8,8 +8,6 @@ using System.Threading;
 using Amib.Threading;
 using DtronixMessageQueue.Rpc.DataContract;
 using DtronixMessageQueue.Socket;
-using ProtoBuf;
-using ProtoBuf.Meta;
 
 namespace DtronixMessageQueue.Rpc {
 
@@ -96,9 +94,14 @@ namespace DtronixMessageQueue.Rpc {
 		public event EventHandler<RpcAuthenticateEventArgs<TSession, TConfig>> AuthenticationResult;
 
 		/// <summary>
+		/// Event invoked once when the RpcSession has been authenticated and is ready for usage.
+		/// </summary>
+		public event EventHandler<SessionEventArgs<TSession, TConfig>> Ready;
+
+		/// <summary>
 		/// True if this session has passed authentication;  False otherwise.
 		/// </summary>
-		public bool Authenticated { get; set; }
+		public bool Authenticated { get; private set; }
 
 		/// <summary>
 		/// Called when this session is being setup.
@@ -119,19 +122,27 @@ namespace DtronixMessageQueue.Rpc {
 			SerializationCache = new SerializationCache(Config);
 		}
 
+		/// <summary>
+		/// Processes an incoming command frame from the connection.
+		/// Captures the call if it is a Rpc command.
+		/// </summary>
+		/// <param name="frame">Command frame to process.</param>
 		protected override void ProcessCommand(MqFrame frame) {
 			var command_type = (MqCommandType) frame.ReadByte(0);
 
+			// If this is a base MqCommand, pass this directly on to the base command handler.
 			if (command_type != MqCommandType.RpcCommand) {
 				base.ProcessCommand(frame);
 				return;
 			}
 
 			try {
-				var rpc_command_type = frame.ReadByte(1);
+				var rpc_command_type = (RpcCommandType) frame.ReadByte(1);
 
-				if (rpc_command_type == 0) {
-					// Welcome message.
+				if (rpc_command_type == RpcCommandType.WelcomeMessage) {
+					// RpcCommand:byte; RpcCommandType:byte; RpcServerInfoDataContract:byte[];
+
+					// Ensure that this command is running on the client.
 					if (BaseSocket.Mode != SocketMode.Client) {
 						Close(SocketCloseReason.ProtocolError);
 						return;
@@ -148,72 +159,95 @@ namespace DtronixMessageQueue.Rpc {
 					Client.ServerInfo =
 						serializer.DeserializeFromReader(typeof(RpcServerInfoDataContract)) as RpcServerInfoDataContract;
 
+					if (Client.ServerInfo == null) {
+						Close(SocketCloseReason.ProtocolError);
+						return;
+					}
 
+					// Check to see if the server requires authentication.  If so, send a auth check.
 					if (Client.ServerInfo.RequireAuthentication) {
-						var auth_args = new RpcAuthenticateEventArgs<TSession, TConfig>(this);
+						var auth_args = new RpcAuthenticateEventArgs<TSession, TConfig>((TSession) this);
 
+						// Start the authentication event to get the auth data.
 						Authenticate?.Invoke(this, auth_args);
 
-						if (auth_args.AuthData != null) {
-							
-						}
-
-						serializer.MessageWriter.Write((byte)MqCommandType.RpcCommand);
-						serializer.MessageWriter.Write((byte)1);
+						serializer.MessageWriter.Write((byte) MqCommandType.RpcCommand);
+						serializer.MessageWriter.Write((byte) RpcCommandType.AuthenticationRequest);
 
 						if (auth_args.AuthData == null) {
 							auth_args.AuthData = new byte[] {0};
 						}
 
+
 						serializer.MessageWriter.Write(auth_args.AuthData, 0, auth_args.AuthData.Length);
 
 						var auth_message = serializer.MessageWriter.ToMessage(true);
 						auth_message[0].FrameType = MqFrameType.Command;
-						
+
+						// RpcCommand:byte; RpcCommandType:byte; AuthData:byte[];
 						Send(auth_message);
+					} else {
+						// If no authentication is required, set this client to authenticated.
+						Authenticated = true;
 					}
+
+					// Alert the server that this session is ready for usage.
+					worker_thread_pool.QueueWorkItem(() => {
+						Ready?.Invoke(this, new SessionEventArgs<TSession, TConfig>((TSession)this));
+					});
 
 					SerializationCache.Put(serializer);
 
-				} else if (rpc_command_type == 1) {
-					// Authentication request
+				} else if (rpc_command_type == RpcCommandType.AuthenticationRequest) {
+					// RpcCommand:byte; RpcCommandType:byte; AuthData:byte[];
+
+					// If this is not run on the server, quit.
 					if (BaseSocket.Mode != SocketMode.Server) {
 						Close(SocketCloseReason.ProtocolError);
 						return;
 					}
 
+					// Ensure that the server requires authentication.
 					if (Server.Config.RequireAuthentication == false) {
 						Close(SocketCloseReason.ProtocolError);
 						return;
 					}
-
+					
 					byte[] auth_bytes = new byte[frame.DataLength - 2];
 					frame.Read(2, auth_bytes, 0, auth_bytes.Length);
 
-					var auth_args = new RpcAuthenticateEventArgs<TSession, TConfig>(this) {
+					var auth_args = new RpcAuthenticateEventArgs<TSession, TConfig>((TSession) this) {
 						AuthData = auth_bytes
 					};
 
-					
+
 					Authenticate?.Invoke(this, auth_args);
 
 					Authenticated = auth_args.Authenticated;
 
 					var auth_frame = CreateFrame(new byte[auth_args.AuthData.Length + 2], MqFrameType.Command);
-					auth_frame.Write(0, (byte)MqCommandType.RpcCommand);
-					auth_frame.Write(1, 2);
+					auth_frame.Write(0, (byte) MqCommandType.RpcCommand);
+					auth_frame.Write(1, (byte) RpcCommandType.AuthenticationResult);
 
 					// State of the authentication
 					auth_frame.Write(2, Authenticated);
 
+					// RpcCommand:byte; RpcCommandType:byte; AuthResult:bool;
 					Send(auth_frame);
 
 					if (Authenticated == false) {
 						Close(SocketCloseReason.AuthenticationFailure);
+					} else {
+						// Alert the server that this session is ready for usage.
+						worker_thread_pool.QueueWorkItem(() => {
+							Ready?.Invoke(this, new SessionEventArgs<TSession, TConfig>((TSession)this));
+						});
 					}
 
-				} else if (rpc_command_type == 2) {
-					// Authentication result
+				} else if (rpc_command_type == RpcCommandType.AuthenticationResult) {
+					// RpcCommand:byte; RpcCommandType:byte; AuthResult:bool;
+
+					// Ensure that this command is running on the client.
 					if (BaseSocket.Mode != SocketMode.Client) {
 						Close(SocketCloseReason.ProtocolError);
 						return;
@@ -226,11 +260,17 @@ namespace DtronixMessageQueue.Rpc {
 
 					Authenticated = true;
 
-					var auth_args = new RpcAuthenticateEventArgs<TSession, TConfig>(this) {
+					var auth_args = new RpcAuthenticateEventArgs<TSession, TConfig>((TSession) this) {
 						Authenticated = frame.ReadBoolean(2)
 					};
 
+					// Alert the client that the sesion has been authenticated.
 					AuthenticationResult?.Invoke(this, auth_args);
+
+					// Alert the client that this session is ready for usage.
+					worker_thread_pool.QueueWorkItem(() => {
+						Ready?.Invoke(this, new SessionEventArgs<TSession, TConfig>((TSession)this));
+					});
 
 				} else {
 					Close(SocketCloseReason.ProtocolError);
@@ -254,18 +294,25 @@ namespace DtronixMessageQueue.Rpc {
 
 				var serializer = SerializationCache.Get();
 
-				serializer.MessageWriter.Write((byte)MqCommandType.RpcCommand);
-				serializer.MessageWriter.Write((byte)0);
+				serializer.MessageWriter.Write((byte) MqCommandType.RpcCommand);
+				serializer.MessageWriter.Write((byte) RpcCommandType.WelcomeMessage);
 				serializer.SerializeToWriter(Server.ServerInfo);
 
 				var message = serializer.MessageWriter.ToMessage(true);
 
 				message[0].FrameType = MqFrameType.Command;
 
+				// RpcCommand:byte; RpcCommandType:byte; RpcServerInfoDataContract:byte[];
 				Send(message);
 			}
 
 			base.OnConnected();
+
+			// If the server does not require authentication, alert the server session that it is ready.
+			if (BaseSocket.Mode == SocketMode.Server && Config.RequireAuthentication == false) {
+				Authenticated = true;
+				Ready?.Invoke(this, new SessionEventArgs<TSession, TConfig>((TSession)this));
+			}
 		}
 
 
@@ -329,7 +376,7 @@ namespace DtronixMessageQueue.Rpc {
 		public void AddProxy<T>(T instance) where T : IRemoteService<TSession, TConfig> {
 			var proxy = new RpcProxy<T, TSession, TConfig>(instance, this);
 			remote_service_realproxy.Add(typeof(T), proxy);
-			remote_services_proxy.Add(typeof(T), (T)proxy.GetTransparentProxy());
+			remote_services_proxy.Add(typeof(T), (T) proxy.GetTransparentProxy());
 		}
 
 		/// <summary>
@@ -338,7 +385,7 @@ namespace DtronixMessageQueue.Rpc {
 		/// <typeparam name="T">Interface of the proxy to retrieve.</typeparam>
 		/// <returns>Proxied interface methods.</returns>
 		public T GetProxy<T>() where T : IRemoteService<TSession, TConfig> {
-			return (T)remote_services_proxy[typeof(T)];
+			return (T) remote_services_proxy[typeof(T)];
 		}
 
 		/// <summary>
@@ -348,7 +395,7 @@ namespace DtronixMessageQueue.Rpc {
 		/// <param name="instance">Instance to execute methods on.</param>
 		public void AddService<T>(T instance) where T : IRemoteService<TSession, TConfig> {
 			services.Add(instance.Name, instance);
-			instance.Session = (TSession)this;
+			instance.Session = (TSession) this;
 		}
 
 
@@ -438,7 +485,7 @@ namespace DtronixMessageQueue.Rpc {
 								PrefixStyle.Base128, i);*/
 						}
 					}
-					
+
 					// Add the cancellation token to the parameters.
 					if (cancellation_token_param > 0) {
 						parameters[parameters.Length - 1] = cancellation_source.Token;
@@ -479,7 +526,7 @@ namespace DtronixMessageQueue.Rpc {
 
 						// Send the return value message to the recipient.
 						Send(serialization.MessageWriter.ToMessage(true));
-					} 
+					}
 
 					// Return the serialization to the cache to be reused.
 					SerializationCache.Put(serialization);
@@ -544,7 +591,7 @@ namespace DtronixMessageQueue.Rpc {
 			serialization.MessageWriter.Clear();
 
 			// Writer the Rpc call type and the return Id.
-			serialization.MessageWriter.Write((byte)RpcMessageType.RpcCallException);
+			serialization.MessageWriter.Write((byte) RpcMessageType.RpcCallException);
 			serialization.MessageWriter.Write(message_return_id);
 
 			// Get the exception information in a format that we can serialize.
@@ -572,7 +619,7 @@ namespace DtronixMessageQueue.Rpc {
 				if (++rpc_call_id > ushort.MaxValue) {
 					rpc_call_id = 0;
 				}
-				return_wait.Id = (ushort)rpc_call_id;
+				return_wait.Id = (ushort) rpc_call_id;
 			}
 
 			// Add the wait to the outstanding wait dictionary for retrieval later.

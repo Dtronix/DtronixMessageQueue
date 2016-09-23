@@ -24,12 +24,16 @@ namespace DtronixMessageQueue.Tests.Rpc {
 		[Fact]
 		public void Client_calls_proxy_method() {
 
-			Server.SessionSetup += (sender, args) => {
+			Server.Ready += (sender, args) => {
 				args.Session.AddService(new CalculatorService());
 			};
 
+			Client.Authenticate += (sender, args) => {
 
-			Client.Connected += (sender, args) => {
+			};
+
+
+			Client.Ready += (sender, args) => {
 				args.Session.AddProxy<ICalculatorService>(new CalculatorService());
 				var service = Client.Session.GetProxy<ICalculatorService>();
 				var result = service.Add(100, 200);
@@ -52,7 +56,7 @@ namespace DtronixMessageQueue.Tests.Rpc {
 			};
 
 
-			Client.Connected += (sender, args) => {
+			Client.Ready += (sender, args) => {
 				args.Session.AddProxy<ICalculatorService>(new CalculatorService());
 				var service = Client.Session.GetProxy<ICalculatorService>();
 				Stopwatch stopwatch = Stopwatch.StartNew();
@@ -82,7 +86,7 @@ namespace DtronixMessageQueue.Tests.Rpc {
 			};
 
 
-			Client.Connected += (sender, args) => {
+			Client.Ready += (sender, args) => {
 				args.Session.AddProxy<ICalculatorService>(new CalculatorService());
 				var service = Client.Session.GetProxy<ICalculatorService>();
 				var token_source = new CancellationTokenSource();
@@ -133,7 +137,7 @@ namespace DtronixMessageQueue.Tests.Rpc {
 			};
 
 
-			Client.Connected += (sender, e) => {
+			Client.Ready += (sender, e) => {
 				e.Session.AddProxy<ICalculatorService>(new CalculatorService());
 				var service = Client.Session.GetProxy<ICalculatorService>();
 
@@ -285,6 +289,33 @@ namespace DtronixMessageQueue.Tests.Rpc {
 
 			Client.Authenticate += (sender, e) => {
 				e.AuthData = new byte[] { 5, 4, 3, 2, 1 };
+			};
+
+			StartAndWait();
+		}
+
+		[Fact]
+		public void Client_times_out_on_auth_failure() {
+			Server.Config.RequireAuthentication = true;
+			Server.Config.ConnectionTimeout = 100;
+			bool auth_failure_called = false;
+
+			Client.AuthenticationResult += (sender, e) => {
+				auth_failure_called = !e.Authenticated;
+			};
+
+			Client.Closed += (sender, e) => {
+				if (auth_failure_called == false) {
+					LastException = new Exception("Client was not notified that the authentication failed.");
+				}
+				if (e.CloseReason != SocketCloseReason.AuthenticationFailure) {
+					LastException = new Exception("Client was disconnected for invalid reason.");
+				}
+				TestStatus.Set();
+			};
+
+			Client.Authenticate += (sender, e) => {
+				Thread.Sleep(200);
 			};
 
 			StartAndWait();

@@ -229,8 +229,7 @@ namespace DtronixMessageQueue {
 			if (CurrentState == State.Connected) {
 				CurrentState = State.Closing;
 				
-				close_frame = CreateFrame(new byte[2]);
-				close_frame.FrameType = MqFrameType.Command;
+				close_frame = CreateFrame(new byte[2], MqFrameType.Command);
 
 				close_frame.Write(0, (byte) 0);
 				close_frame.Write(1, (byte) reason);

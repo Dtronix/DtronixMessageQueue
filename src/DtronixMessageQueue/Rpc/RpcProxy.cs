@@ -52,6 +52,10 @@ namespace DtronixMessageQueue.Rpc {
 			var method_call = msg as IMethodCallMessage;
 			var method_info = method_call.MethodBase as MethodInfo;
 
+			if (session.Authenticated == false) {
+				return new ReturnMessage(new InvalidOperationException("Session is not authenticated.  Must be authenticated before calling proxy methods."), method_call);
+			}
+
 			var serializer = session.SerializationCache.Get();
 
 			// Get the called method's arguments.
