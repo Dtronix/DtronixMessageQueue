@@ -70,6 +70,7 @@
     <Compile Include="Rpc\RpcOperationWait.cs" />
     <Compile Include="Rpc\RpcServer.cs" />
     <Compile Include="Rpc\RpcSession.cs" />
+    <Compile Include="Rpc\RpcStream.cs" />
     <Compile Include="Rpc\SerializationCache.cs" />
     <Compile Include="Socket\BufferManager.cs" />
     <Compile Include="Socket\ISetupSocketSession.cs" />

@@ -24,5 +24,17 @@ namespace DtronixMessageQueue.Rpc {
 		/// Server is sending the result of the authentication request.
 		/// </summary>
 		AuthenticationResult = 2,
+
+
+
+		/// <summary>
+		/// Sends a request to the client/server session for a stream handle to be created to write to.
+		/// </summary>
+		RequestStreamHandle = 10,
+
+		/// <summary>
+		/// Sends a request to the client/server session for a stream handle be closed.
+		/// </summary>
+		CloseStreamHandle = 11,
 	}
 }

@@ -72,6 +72,12 @@ namespace DtronixMessageQueue.Rpc {
 		private readonly Dictionary<Type, RealProxy> remote_service_realproxy = new Dictionary<Type, RealProxy>();
 
 		/// <summary>
+		/// Contains all active stream handles for this session.
+		/// </summary>
+		private readonly ConcurrentDictionary<ushort, RpcOperationWait> stream_handles =
+			new ConcurrentDictionary<ushort, RpcOperationWait>();
+
+		/// <summary>
 		/// Server base socket for this session.
 		/// Null if the BaseSocket is not running in server mode.
 		/// </summary>
@@ -193,7 +199,7 @@ namespace DtronixMessageQueue.Rpc {
 
 					// Alert the server that this session is ready for usage.
 					worker_thread_pool.QueueWorkItem(() => {
-						Ready?.Invoke(this, new SessionEventArgs<TSession, TConfig>((TSession)this));
+						Ready?.Invoke(this, new SessionEventArgs<TSession, TConfig>((TSession) this));
 					});
 
 					SerializationCache.Put(serializer);
@@ -212,7 +218,7 @@ namespace DtronixMessageQueue.Rpc {
 						Close(SocketCloseReason.ProtocolError);
 						return;
 					}
-					
+
 					byte[] auth_bytes = new byte[frame.DataLength - 2];
 					frame.Read(2, auth_bytes, 0, auth_bytes.Length);
 
@@ -240,7 +246,7 @@ namespace DtronixMessageQueue.Rpc {
 					} else {
 						// Alert the server that this session is ready for usage.
 						worker_thread_pool.QueueWorkItem(() => {
-							Ready?.Invoke(this, new SessionEventArgs<TSession, TConfig>((TSession)this));
+							Ready?.Invoke(this, new SessionEventArgs<TSession, TConfig>((TSession) this));
 						});
 					}
 
@@ -269,8 +275,15 @@ namespace DtronixMessageQueue.Rpc {
 
 					// Alert the client that this session is ready for usage.
 					worker_thread_pool.QueueWorkItem(() => {
-						Ready?.Invoke(this, new SessionEventArgs<TSession, TConfig>((TSession)this));
+						Ready?.Invoke(this, new SessionEventArgs<TSession, TConfig>((TSession) this));
 					});
+
+				} else if (rpc_command_type == RpcCommandType.RequestStreamHandle) {
+					// RpcCommand:byte; RpcCommandType:byte; AuthResult:bool;
+					Send(new MqFrame());
+					var sream_handle_id = frame.ReadUInt16(2);
+
+				} else if (rpc_command_type == RpcCommandType.RequestStreamHandle) {
 
 				} else {
 					Close(SocketCloseReason.ProtocolError);
