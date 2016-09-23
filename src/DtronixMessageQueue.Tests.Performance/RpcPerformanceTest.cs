@@ -27,7 +27,7 @@ namespace DtronixMessageQueue.Tests.Performance {
 
 
 		private void RpcSingleProcessTest(int runs, int loops, RpcConfig config, RpcTestType type) {
-			var server = new RpcServer<SimpleRpcSession, RpcConfig>(config);
+			var server = new RpcServer<SimpleRpcSession, RpcConfig>(config, null);
 			TestService test_service;
 			double[] total_values = { 0, 0 };
 			var sw = new Stopwatch();
@@ -99,7 +99,7 @@ namespace DtronixMessageQueue.Tests.Performance {
 			});
 
 
-			client.Connected += (sender, args) => {
+			client.Ready += (sender, args) => {
 				Thread.Sleep(300);
 				args.Session.AddProxy<ITestService>(new TestService());
 				var service = client.Session.GetProxy<ITestService>();

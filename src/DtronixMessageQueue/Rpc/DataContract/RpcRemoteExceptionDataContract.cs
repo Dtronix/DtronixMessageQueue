@@ -1,7 +1,7 @@
 ﻿using System;
 using ProtoBuf;
 
-namespace DtronixMessageQueue.Rpc {
+namespace DtronixMessageQueue.Rpc.DataContract {
 
 	/// <summary>
 	/// Class containing the information about a remote exception occurring.

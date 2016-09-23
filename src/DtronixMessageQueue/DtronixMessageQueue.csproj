@@ -51,18 +51,22 @@
     <Reference Include="System.Xml" />
   </ItemGroup>
   <ItemGroup>
+    <Compile Include="MqCommandType.cs" />
     <Compile Include="MqMessageReader.cs" />
     <Compile Include="MqMessageWriter.cs" />
     <Compile Include="MqSession.cs" />
     <Compile Include="MqConfig.cs" />
+    <Compile Include="Rpc\DataContract\RpcServerInfoDataContract.cs" />
     <Compile Include="Rpc\IProcessRpcSession.cs" />
     <Compile Include="Rpc\IRemoteService.cs" />
+    <Compile Include="Rpc\RpcAuthEventArgs.cs" />
     <Compile Include="Rpc\RpcClient.cs" />
+    <Compile Include="Rpc\RpcCommandType.cs" />
     <Compile Include="Rpc\RpcConfig.cs" />
     <Compile Include="Rpc\RpcMessageType.cs" />
     <Compile Include="Rpc\RpcProxy.cs" />
     <Compile Include="Rpc\RpcRemoteException.cs" />
-    <Compile Include="Rpc\RpcRemoteExceptionDataContract.cs" />
+    <Compile Include="Rpc\DataContract\RpcRemoteExceptionDataContract.cs" />
     <Compile Include="Rpc\RpcOperationWait.cs" />
     <Compile Include="Rpc\RpcServer.cs" />
     <Compile Include="Rpc\RpcSession.cs" />

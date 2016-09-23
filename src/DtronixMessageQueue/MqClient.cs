@@ -39,7 +39,7 @@ namespace DtronixMessageQueue {
 
 		protected override void OnConnect(TSession session) {
 			// Start the timeout timer.
-			var ping_frequency = ((MqConfig) Config).PingFrequency;
+			var ping_frequency = Config.PingFrequency;
 
 			if (ping_frequency > 0) {
 				timeout_timer.Change(ping_frequency/2, ping_frequency);

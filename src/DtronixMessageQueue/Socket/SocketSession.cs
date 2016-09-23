@@ -74,6 +74,11 @@ namespace DtronixMessageQueue.Socket {
 		/// </summary>
 		public DateTime LastReceived => last_received;
 
+		/// <summary>
+		/// Time that this session connected to the server.
+		/// </summary>
+		public DateTime ConnectedTime { get; private set; }
+
 		private System.Net.Sockets.Socket socket;
 
 		/// <summary>
@@ -176,9 +181,13 @@ namespace DtronixMessageQueue.Socket {
 				return;
 			}
 
-			// Start receiving data.
+			
 			CurrentState = State.Connected;
+			ConnectedTime = DateTime.UtcNow;
+
+			// Start receiving data.
 			socket.ReceiveAsync(receive_args);
+			OnConnected();
 		}
 
 		/// <summary>
@@ -216,9 +225,6 @@ namespace DtronixMessageQueue.Socket {
 		protected virtual void IoCompleted(object sender, SocketAsyncEventArgs e) {
 			// determine which type of operation just completed and call the associated handler
 			switch (e.LastOperation) {
-				case SocketAsyncOperation.Connect:
-					OnConnected();
-					break;
 
 				case SocketAsyncOperation.Disconnect:
 					Close(SocketCloseReason.ClientClosing);
@@ -294,8 +300,6 @@ namespace DtronixMessageQueue.Socket {
 				return;
 			}
 			if (e.BytesTransferred > 0 && e.SocketError == SocketError.Success) {
-
-				//logger.Debug("Session {0}: Received {1} bytes", Id, e.BytesTransferred);
 
 				// Update the last time this session was active to prevent timeout.
 				last_received = DateTime.UtcNow;

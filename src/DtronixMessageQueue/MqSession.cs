@@ -229,8 +229,7 @@ namespace DtronixMessageQueue {
 			if (CurrentState == State.Connected) {
 				CurrentState = State.Closing;
 				
-				close_frame = CreateFrame(new byte[2]);
-				close_frame.FrameType = MqFrameType.Command;
+				close_frame = CreateFrame(new byte[2], MqFrameType.Command);
 
 				close_frame.Write(0, (byte) 0);
 				close_frame.Write(1, (byte) reason);
@@ -239,7 +238,9 @@ namespace DtronixMessageQueue {
 			// If we are passed a closing frame, then send it to the other connection.
 			if (close_frame != null) {
 				MqMessage msg;
-				if (outbox.IsEmpty == false) {
+				// If we have an authentication error, we are simultaneously notifying the client of this and a session close.
+				// So this means we do not clear the queue since it contains an auth failure message and it should already be at the top of the stack.
+				if (outbox.IsEmpty == false && reason != SocketCloseReason.AuthenticationFailure) {
 					while (outbox.TryDequeue(out msg)) {
 					}
 				}
@@ -308,12 +309,16 @@ namespace DtronixMessageQueue {
 		/// </summary>
 		/// <param name="frame">Command frame to process.</param>
 		protected virtual void ProcessCommand(MqFrame frame) {
-			var command_type = frame.ReadByte(0);
+			var command_type = (MqCommandType)frame.ReadByte(0);
 
 			switch (command_type) {
-				case 0: // Closed
+				case MqCommandType.Disconnect:
 					CurrentState = State.Closing;
 					Close((SocketCloseReason)frame.ReadByte(1));
+					break;
+
+				default:
+					Close(SocketCloseReason.ProtocolError);
 					break;
 
 			}
