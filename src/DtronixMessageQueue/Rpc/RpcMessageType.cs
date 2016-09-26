@@ -11,7 +11,7 @@
 		Unset = 0,
 
 		/// <summary>
-		/// Type is a Rpc command and consumed internally.
+		/// Type is a Rpc command and consumed internally. (Currently unused)
 		/// </summary>
 		Command = 1,
 
@@ -39,6 +39,21 @@
 		/// <summary>
 		/// Message used to cancel a pending operation.
 		/// </summary>
-		RpcCallCancellation = 6
+		RpcCallCancellation = 6,
+
+		/// <summary>
+		/// Sends a request to the client/server session for a stream handle to be created to write to.
+		/// </summary>
+		RequestStreamHandle = 10,
+
+		/// <summary>
+		/// Sends a request to the client/server session for a stream handle to be created to write to.
+		/// </summary>
+		RespondStreamHandle = 11,
+
+		/// <summary>
+		/// Sends a request to the client/server session for a stream handle be closed.
+		/// </summary>
+		CloseStreamHandle = 12,
 	}
 }

@@ -77,7 +77,7 @@ namespace DtronixMessageQueue.Rpc {
 			}
 
 
-			RpcOperationWait return_wait = null;
+			RpcWaitHandle return_wait = null;
 
 			// Determine what kind of method we are calling.
 			if (method_info.ReturnType == typeof(void)) {
@@ -90,7 +90,7 @@ namespace DtronixMessageQueue.Rpc {
 				serializer.MessageWriter.Write((byte) RpcMessageType.RpcCall);
 
 				// Create a wait operation to wait for the response.
-				return_wait = ((IProcessRpcSession)session).CreateWaitOperation();
+				return_wait = ((IProcessRpcSession)session).CreateWaitHandle();
 
 				// Byte[1,2] Wait Id which is used for returning the value and cancellation.
 				serializer.MessageWriter.Write(return_wait.Id);
@@ -125,7 +125,7 @@ namespace DtronixMessageQueue.Rpc {
 			} catch (OperationCanceledException) {
 
 				// If the operation was canceled, cancel the wait on this end and notify the other end.
-				((IProcessRpcSession)session).CancelWaitOperation(return_wait.Id);
+				((IProcessRpcSession)session).CancelWaitHandle(return_wait.Id);
 				throw new OperationCanceledException("Wait handle was canceled while waiting for a response.");
 			}
 			
@@ -155,7 +155,6 @@ namespace DtronixMessageQueue.Rpc {
 					case RpcMessageType.RpcCallReturn:
 
 						// Deserialize the return value and return it to the local method call.
-
 						var return_value = serializer.DeserializeFromReader(method_info.ReturnType, 0);
 						return new ReturnMessage(return_value, null, 0, method_call.LogicalCallContext, method_call);
 

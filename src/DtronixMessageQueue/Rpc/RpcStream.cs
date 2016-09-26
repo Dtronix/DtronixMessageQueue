@@ -30,8 +30,6 @@ namespace DtronixMessageQueue.Rpc {
 		/// <param name="session">Session to write to.</param>
 		public RpcStream(RpcSession<TSession, TConfig> session) {
 			this.session = session;
-
-			session.
 		}
 
 

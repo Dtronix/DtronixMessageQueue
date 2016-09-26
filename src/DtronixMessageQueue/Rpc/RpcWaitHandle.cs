@@ -6,7 +6,7 @@ namespace DtronixMessageQueue.Rpc {
 	/// <summary>
 	/// Class which represents a task which is waiting on another event to occur.
 	/// </summary>
-	public class RpcOperationWait {
+	public class RpcWaitHandle {
 
 		/// <summary>
 		/// Id of this wait operation.  Used to coordinate between client/server.
