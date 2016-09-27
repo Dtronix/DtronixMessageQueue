@@ -22,7 +22,7 @@ namespace DtronixMessageQueue.Rpc {
 		where TSession : RpcSession<TSession, TConfig>, new()
 		where TConfig : RpcConfig {
 
-		public List<MessageHandler<TSession, TConfig>> MessageHandlers { get; }
+		public Dictionary<byte, MessageHandler<TSession, TConfig>> MessageHandlers { get; }
 
 		protected RpcCallMessageHandler<TSession, TConfig> RpcCallHandler;
 		/// <summary>
@@ -74,7 +74,7 @@ namespace DtronixMessageQueue.Rpc {
 		public bool Authenticated { get; private set; }
 
 		protected RpcSession() {
-			MessageHandlers = new List<MessageHandler<TSession, TConfig>>();
+			MessageHandlers = new Dictionary<byte, MessageHandler<TSession, TConfig>>();
 		}
 
 		/// <summary>
@@ -97,7 +97,7 @@ namespace DtronixMessageQueue.Rpc {
 
 			RpcCallHandler = new RpcCallMessageHandler<TSession, TConfig>((TSession)this, WorkerThreadPool);
 
-			MessageHandlers.Add(RpcCallHandler);
+			MessageHandlers.Add(RpcCallHandler.Id, RpcCallHandler);
 
 		}
 
@@ -306,13 +306,11 @@ namespace DtronixMessageQueue.Rpc {
 			// Continue to parse the messages in this queue.
 			while (e.Messages.Count > 0) {
 				message = e.Messages.Dequeue();
-				// Check to see if this can be handled by the main RpcCallHandler.  If not, 
-				if (RpcCallHandler.HandleMessage(message) == false) {
-					foreach (var message_handler in MessageHandlers) {
-						if (message_handler.HandleMessage(message)) {
-							break;
-						}
-					}
+
+				var handler_id = message[0].ReadByte(0);
+
+				if (MessageHandlers.ContainsKey(handler_id)) {
+					MessageHandlers[handler_id].HandleMessage(message);
 				}
 			}
 		}

@@ -28,7 +28,7 @@ namespace DtronixMessageQueue.Rpc {
 		/// </summary>
 		private readonly T decorated;
 
-		private readonly RpcCallMessageHandler<TSession, TConfig> message_handler;
+		private readonly RpcCallMessageHandler<TSession, TConfig> call_message_handler;
 
 		/// <summary>
 		/// Session used to convey the proxied methods over.
@@ -40,9 +40,9 @@ namespace DtronixMessageQueue.Rpc {
 		/// </summary>
 		/// <param name="decorated">Class to proxy method calls from.</param>
 		/// <param name="session">Session to convey proxied method calls over.</param>
-		public RpcProxy(T decorated, RpcSession<TSession, TConfig> session, RpcCallMessageHandler<TSession, TConfig> message_handler) : base(typeof(T)) {
+		public RpcProxy(T decorated, RpcSession<TSession, TConfig> session, RpcCallMessageHandler<TSession, TConfig> call_message_handler) : base(typeof(T)) {
 			this.decorated = decorated;
-			this.message_handler = message_handler;
+			this.call_message_handler = call_message_handler;
 			this.session = (TSession) session;
 		}
 
@@ -81,19 +81,20 @@ namespace DtronixMessageQueue.Rpc {
 
 
 			RpcWaitHandle return_wait = null;
+			serializer.MessageWriter.Write(call_message_handler.Id);
 
 			// Determine what kind of method we are calling.
 			if (method_info.ReturnType == typeof(void)) {
 
 				// Byte[0] The call has no return value so we are not waiting.
-				serializer.MessageWriter.Write((byte) RpcMessageType.RpcCallNoReturn);
+				serializer.MessageWriter.Write((byte) RpcCallMessageType.MethodCallNoReturn);
 			} else {
 
 				// Byte[0] The call has a return value so we are going to need to wait on the resposne.
-				serializer.MessageWriter.Write((byte) RpcMessageType.RpcCall);
+				serializer.MessageWriter.Write((byte) RpcCallMessageType.MethodCall);
 
 				// Create a wait operation to wait for the response.
-				return_wait = message_handler.CreateWaitHandle();
+				return_wait = call_message_handler.CreateWaitHandle();
 
 				// Byte[1,2] Wait Id which is used for returning the value and cancellation.
 				serializer.MessageWriter.Write(return_wait.Id);
@@ -128,7 +129,7 @@ namespace DtronixMessageQueue.Rpc {
 			} catch (OperationCanceledException) {
 
 				// If the operation was canceled, cancel the wait on this end and notify the other end.
-				message_handler.CancelWaitHandle(return_wait.Id);
+				call_message_handler.CancelWaitHandle(return_wait.Id);
 				throw new OperationCanceledException("Wait handle was canceled while waiting for a response.");
 			}
 			
@@ -143,9 +144,12 @@ namespace DtronixMessageQueue.Rpc {
 
 				// Start parsing the received message.
 				serializer.MessageReader.Message = return_wait.ReturnMessage;
-				
+
+				// Skip the Handler Id.
+				serializer.MessageReader.ReadByte();
+
 				// Read the first byte which dictates the type of message.
-				var return_type = (RpcMessageType)serializer.MessageReader.ReadByte();
+				var return_type = (RpcCallMessageType)serializer.MessageReader.ReadByte();
 
 				// Skip 2 bytes for the return ID
 				serializer.MessageReader.ReadBytes(2);
@@ -155,13 +159,13 @@ namespace DtronixMessageQueue.Rpc {
 
 
 				switch (return_type) {
-					case RpcMessageType.RpcCallReturn:
+					case RpcCallMessageType.MethodReturn:
 
 						// Deserialize the return value and return it to the local method call.
 						var return_value = serializer.DeserializeFromReader(method_info.ReturnType, 0);
 						return new ReturnMessage(return_value, null, 0, method_call.LogicalCallContext, method_call);
 
-					case RpcMessageType.RpcCallException:
+					case RpcCallMessageType.MethodException:
 
 						// Deserialize the exception and let the local method call receive it.
 						var return_exception = serializer.DeserializeFromReader(method_info.ReturnType, 0);

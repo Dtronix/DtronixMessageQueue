@@ -9,6 +9,11 @@ namespace DtronixMessageQueue.Rpc {
 		where TSession : RpcSession<TSession, TConfig>, new()
 		where TConfig : RpcConfig {
 
+		/// <summary>
+		/// Id byte which precedes all messages all messages of this type.
+		/// </summary>
+		public abstract byte Id { get; } 
+
 		protected TSession Session;
 
 		protected MessageHandler(TSession session) {

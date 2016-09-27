@@ -28,6 +28,11 @@ namespace DtronixMessageQueue.Rpc {
 		private readonly object rpc_call_id_lock = new object();
 
 		/// <summary>
+		/// Id byte which precedes all messages all messages of this type.
+		/// </summary>
+		public override byte Id => 1;
+
+		/// <summary>
 		/// Contains all outstanding call returns pending a return of data from the recipient connection.
 		/// </summary>
 		public readonly ConcurrentDictionary<ushort, RpcWaitHandle> remote_wait_handles =
@@ -60,33 +65,35 @@ namespace DtronixMessageQueue.Rpc {
 			this.thread_pool = thread_pool;
 		}
 
+		
+
 		public override bool HandleMessage(MqMessage message) {
-			if (message[0][0] != 1) {
+			if (message[0][0] != Id) {
 				return false;
 			}
 
 			// Read the type of message.
-			var message_type = (RpcMessageType)message[0].ReadByte(0);
+			var message_type = (RpcCallMessageType)message[0].ReadByte(1);
 
 			switch (message_type) {
 
-				case RpcMessageType.RpcCallCancellation:
+				case RpcCallMessageType.MethodCancel:
 
 					// Remotely called to cancel a rpc call on this session.
-					var cancellation_id = message[0].ReadUInt16(1);
+					var cancellation_id = message[0].ReadUInt16(2);
 					RpcWaitHandle wait_handle;
 					if (remote_wait_handles.TryRemove(cancellation_id, out wait_handle)) {
 						wait_handle.TokenSource.Cancel();
 					}
 					break;
 
-				case RpcMessageType.RpcCallNoReturn:
-				case RpcMessageType.RpcCall:
+				case RpcCallMessageType.MethodCallNoReturn:
+				case RpcCallMessageType.MethodCall:
 					ProcessRpcCall(message, message_type);
 					break;
 
-				case RpcMessageType.RpcCallException:
-				case RpcMessageType.RpcCallReturn:
+				case RpcCallMessageType.MethodException:
+				case RpcCallMessageType.MethodReturn:
 					ProcessRpcReturn(message);
 					break;
 
@@ -105,7 +112,7 @@ namespace DtronixMessageQueue.Rpc {
 		/// </summary>
 		/// <param name="message">Message containing the Rpc call.</param>
 		/// <param name="message_type">Type of call this message is.</param>
-		private void ProcessRpcCall(MqMessage message, RpcMessageType message_type) {
+		private void ProcessRpcCall(MqMessage message, RpcCallMessageType message_type) {
 
 			// Execute the processing on the worker thread.
 			thread_pool.QueueWorkItem(() => {
@@ -115,11 +122,11 @@ namespace DtronixMessageQueue.Rpc {
 				ushort rec_message_return_id = 0;
 
 				try {
-					// Skip RpcMessageType
-					serialization.MessageReader.ReadByte();
+					// Skip Handler.Id & RpcMessageType
+					serialization.MessageReader.ReadBytes(2);
 
 					// Determine if this call has a return value.
-					if (message_type == RpcMessageType.RpcCall) {
+					if (message_type == RpcCallMessageType.MethodCall) {
 						rec_message_return_id = serialization.MessageReader.ReadUInt16();
 					}
 
@@ -211,13 +218,14 @@ namespace DtronixMessageQueue.Rpc {
 
 
 					// Determine what to do with the return value.
-					if (message_type == RpcMessageType.RpcCall) {
+					if (message_type == RpcCallMessageType.MethodCall) {
 						// Reset the stream.
 						serialization.Stream.SetLength(0);
 
 						// Write the Rpc call type and the id.
 						serialization.MessageWriter.Clear();
-						serialization.MessageWriter.Write((byte)RpcMessageType.RpcCallReturn);
+						serialization.MessageWriter.Write(Id);
+						serialization.MessageWriter.Write((byte)RpcCallMessageType.MethodReturn);
 						serialization.MessageWriter.Write(rec_message_return_id);
 
 						// Serialize the return value and add it to the stream.
@@ -255,8 +263,8 @@ namespace DtronixMessageQueue.Rpc {
 				var serialization = Session.SerializationCache.Get(message);
 				try {
 
-					// Skip message type byte.
-					serialization.MessageReader.ReadByte();
+					// Skip message type byte and message type.
+					serialization.MessageReader.ReadBytes(2);
 
 					// Read the return Id.
 					var return_id = serialization.MessageReader.ReadUInt16();
@@ -290,7 +298,8 @@ namespace DtronixMessageQueue.Rpc {
 			serialization.MessageWriter.Clear();
 
 			// Writer the Rpc call type and the return Id.
-			serialization.MessageWriter.Write((byte)RpcMessageType.RpcCallException);
+			serialization.MessageWriter.Write(Id);
+			serialization.MessageWriter.Write((byte)RpcCallMessageType.MethodException);
 			serialization.MessageWriter.Write(message_return_id);
 
 			// Get the exception information in a format that we can serialize.
@@ -339,9 +348,10 @@ namespace DtronixMessageQueue.Rpc {
 
 			// Try to get the wait.  If the Id does not exist, the wait operation has already been completed or removed.
 			if (local_wait_handles.TryRemove(id, out call_wait_handle)) {
-				var frame = new MqFrame(new byte[3], MqFrameType.Last, Session.Config);
-				frame.Write(0, (byte)RpcMessageType.RpcCallCancellation);
-				frame.Write(1, id);
+				var frame = new MqFrame(new byte[4], MqFrameType.Last, Session.Config);
+				frame.Write(0, Id);
+				frame.Write(1, (byte)RpcCallMessageType.MethodCancel);
+				frame.Write(2, id);
 
 				Session.Send(frame);
 			}
