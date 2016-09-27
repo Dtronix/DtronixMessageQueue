@@ -52,8 +52,8 @@ namespace DtronixMessageQueue.Rpc {
 			ServerInfo = server_info ?? new RpcServerInfoDataContract();
 		}
 
-		protected override TSession CreateSession() {
-			var session = base.CreateSession();
+		protected override TSession CreateSession(System.Net.Sockets.Socket session_socket) {
+			var session = base.CreateSession(session_socket);
 
 			session.Ready += (sender, e) => { Ready?.Invoke(sender, e); };
 			session.Authenticate += (sender, e) => { Authenticate?.Invoke(sender, e); };

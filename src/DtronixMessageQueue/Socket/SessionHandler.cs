@@ -10,8 +10,8 @@ namespace DtronixMessageQueue.Socket {
 	/// </summary>
 	/// <typeparam name="TSession">Session type for this connection.</typeparam>
 	/// <typeparam name="TConfig">Configuration for this connection.</typeparam>
-	public abstract class SocketBase<TSession, TConfig>
-		where TSession : SocketSession<TConfig>, new()
+	public abstract class SessionHandler<TSession, TConfig>
+		where TSession : SocketSession<TSession, TConfig>, new()
 		where TConfig : SocketConfig {
 
 		/// <summary>
@@ -84,7 +84,7 @@ namespace DtronixMessageQueue.Socket {
 		/// </summary>
 		/// <param name="config">Configurations for this socket.</param>
 		/// <param name="mode">Mode of that this socket is running in.</param>
-		protected SocketBase(TConfig config, SocketMode mode) {
+		protected SessionHandler(TConfig config, SocketMode mode) {
 			TimeoutTimer = new Timer(TimeoutCallback);
 			Mode = mode;
 			Config = config;
@@ -169,9 +169,9 @@ namespace DtronixMessageQueue.Socket {
 		/// Method called when new sessions are created.  Override to change behavior.
 		/// </summary>
 		/// <returns>New session instance.</returns>
-		protected virtual TSession CreateSession() {
-	 		var session = new TSession();
-
+		protected virtual TSession CreateSession(System.Net.Sockets.Socket socket) {
+			var session = SocketSession<TSession, TConfig>.Create(socket, AsyncPool, Config, ThreadPool, this);
+			
 			SessionSetup?.Invoke(this, new SessionEventArgs<TSession, TConfig>(session));
 			session.Closed += (sender, args) => OnClose(session, args.CloseReason);
 			return session;

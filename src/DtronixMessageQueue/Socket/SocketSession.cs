@@ -10,7 +10,8 @@ namespace DtronixMessageQueue.Socket {
 	/// Base socket session to be sub-classes by the implementer.
 	/// </summary>
 	/// <typeparam name="TConfig">Configuration for this connection.</typeparam>
-	public abstract class SocketSession<TConfig> : IDisposable, ISetupSocketSession<TConfig>
+	public abstract class SocketSession<TSession, TConfig> : IDisposable, ISetupSocketSession
+		where TSession : SocketSession<TSession, TConfig>, new()
 		where TConfig : SocketConfig {
 
 		/// <summary>
@@ -79,6 +80,13 @@ namespace DtronixMessageQueue.Socket {
 		/// </summary>
 		public DateTime ConnectedTime { get; private set; }
 
+
+		/// <summary>
+		/// Base socket for this session.
+		/// </summary>
+		public SessionHandler<TSession, TConfig> BaseSocket { get; private set; }
+
+
 		private System.Net.Sockets.Socket socket;
 
 		/// <summary>
@@ -97,7 +105,7 @@ namespace DtronixMessageQueue.Socket {
 		private SocketAsyncEventArgs receive_args;
 
 		/// <summary>
-		/// Pool used by all the sessions on this SocketBase.
+		/// Pool used by all the sessions on this SessionHandler.
 		/// </summary>
 		private SocketAsyncEventArgsPool args_pool;
 
@@ -109,12 +117,12 @@ namespace DtronixMessageQueue.Socket {
 		/// <summary>
 		/// This event fires when a connection has been established.
 		/// </summary>
-		public event EventHandler<SessionEventArgs<SocketSession<TConfig>, TConfig>> Connected;
+		public event EventHandler<SessionEventArgs<TSession, TConfig>> Connected;
 
 		/// <summary>
 		/// This event fires when a connection has been shutdown.
 		/// </summary>
-		public event EventHandler<SessionClosedEventArgs<SocketSession<TConfig>, TConfig>> Closed;
+		public event EventHandler<SessionClosedEventArgs<TSession, TConfig>> Closed;
 
 		/// <summary>
 		/// Work group used to write on the session.
@@ -131,7 +139,7 @@ namespace DtronixMessageQueue.Socket {
 		/// <summary>
 		/// Creates a new socket session with a new Id.
 		/// </summary>
-		public SocketSession() {
+		protected SocketSession() {
 			Id = Guid.NewGuid();
 			CurrentState = State.Connecting;
 		}
@@ -144,39 +152,45 @@ namespace DtronixMessageQueue.Socket {
 		/// <param name="socket_args_pool">Argument pool for this session to use.  Pulls two asyncevents for reading and writing and returns them at the end of this socket's life.</param>
 		/// <param name="session_config">Socket configurations this session is to use.</param>
 		/// <param name="thread_pool">Thread pool used by the socket to read and write.</param>
-		void ISetupSocketSession<TConfig>.Setup(System.Net.Sockets.Socket session_socket, SocketAsyncEventArgsPool socket_args_pool, TConfig session_config, SmartThreadPool thread_pool) {
-			config = session_config;
-			args_pool = socket_args_pool;
-			send_args = args_pool.Pop();
-			send_args.Completed += IoCompleted;
-			receive_args = args_pool.Pop();
-			receive_args.Completed += IoCompleted;
+		/// <param name="session_handler">Handler base which is handling this session.</param>
+		public static TSession Create(System.Net.Sockets.Socket session_socket, SocketAsyncEventArgsPool socket_args_pool,
+			TConfig session_config, SmartThreadPool thread_pool, SessionHandler<TSession, TConfig> session_handler) {
+			var session = new TSession {
+				config = session_config,
+				args_pool = socket_args_pool,
+				socket = session_socket,
+				write_semaphore = new SemaphoreSlim(1, 1),
+				writer_pool = thread_pool.CreateWorkItemsGroup(1),
+				reader_pool = thread_pool.CreateWorkItemsGroup(1),
+				BaseSocket = session_handler
+			};
 
-			socket = session_socket;
-			write_semaphore = new SemaphoreSlim(1, 1);
+			session.send_args = session.args_pool.Pop();
+			session.send_args.Completed += session.IoCompleted;
+			session.receive_args = session.args_pool.Pop();
+			session.receive_args.Completed += session.IoCompleted;
 
-			if (config.SendTimeout > 0)
-				socket.SendTimeout = config.SendTimeout;
+			if (session.config.SendTimeout > 0)
+				session.socket.SendTimeout = session.config.SendTimeout;
 
-			if (config.SendAndReceiveBufferSize > 0)
-				socket.ReceiveBufferSize = config.SendAndReceiveBufferSize;
+			if (session.config.SendAndReceiveBufferSize > 0)
+				session.socket.ReceiveBufferSize = session.config.SendAndReceiveBufferSize;
 
-			if (config.SendAndReceiveBufferSize > 0)
-				socket.SendBufferSize = config.SendAndReceiveBufferSize;
+			if (session.config.SendAndReceiveBufferSize > 0)
+				session.socket.SendBufferSize = session.config.SendAndReceiveBufferSize;
 
-			socket.NoDelay = true;
-			socket.SetSocketOption(SocketOptionLevel.Socket, SocketOptionName.DontLinger, true);
+			session.socket.NoDelay = true;
+			session.socket.SetSocketOption(SocketOptionLevel.Socket, SocketOptionName.DontLinger, true);
 
-			writer_pool = thread_pool.CreateWorkItemsGroup(1);
-			reader_pool = thread_pool.CreateWorkItemsGroup(1);
+			session.OnSetup();
 
-			OnSetup();
+			return session;
 		}
 
 		/// <summary>
 		/// Start the session's receive events.
 		/// </summary>
-		void ISetupSocketSession<TConfig>.Start() {
+		void ISetupSocketSession.Start() {
 			if (CurrentState != State.Connecting) {
 				return;
 			}
@@ -200,7 +214,7 @@ namespace DtronixMessageQueue.Socket {
 		/// </summary>
 		protected virtual void OnConnected() {
 			//logger.Info("Session {0}: Connected", Id);
-			Connected?.Invoke(this, new SessionEventArgs<SocketSession<TConfig>, TConfig>(this));
+			Connected?.Invoke(this, new SessionEventArgs<TSession, TConfig>((TSession)this));
 		}
 
 		/// <summary>
@@ -208,7 +222,7 @@ namespace DtronixMessageQueue.Socket {
 		/// </summary>
 		/// <param name="reason">Reason this socket is disconnecting</param>
 		protected virtual void OnDisconnected(SocketCloseReason reason) {
-			Closed?.Invoke(this, new SessionClosedEventArgs<SocketSession<TConfig>, TConfig>(this, reason));
+			Closed?.Invoke(this, new SessionClosedEventArgs<TSession, TConfig>((TSession)this, reason));
 		}
 
 		/// <summary>

@@ -11,8 +11,8 @@ namespace DtronixMessageQueue.Socket {
 	/// </summary>
 	/// <typeparam name="TSession">Session type for this connection.</typeparam>
 	/// <typeparam name="TConfig">Configuration for this connection.</typeparam>
-	public class SocketServer<TSession, TConfig> : SocketBase<TSession, TConfig>
-		where TSession : SocketSession<TConfig>, new()
+	public class SocketServer<TSession, TConfig> : SessionHandler<TSession, TConfig>
+		where TSession : SocketSession<TSession, TConfig>, new()
 		where TConfig : SocketConfig {
 
 		/// <summary>
@@ -97,9 +97,10 @@ namespace DtronixMessageQueue.Socket {
 
 			e.AcceptSocket.NoDelay = true;
 
-			var session = CreateSession();
+			var session = CreateSession(e.AcceptSocket);
 
-			((ISetupSocketSession<TConfig>)session).Setup(e.AcceptSocket, AsyncPool, Config, ThreadPool);
+
+			//((ISetupSocketSession<TConfig>)session).Setup(, AsyncPool, Config, ThreadPool);
 
 			// Add event to remove this session from the active client list.
 			session.Closed += RemoveClientEvent;
@@ -108,7 +109,7 @@ namespace DtronixMessageQueue.Socket {
 			ConnectedSessions.TryAdd(session.Id, session);
 
 			// Start the session.
-			((ISetupSocketSession<TConfig>)session).Start();
+			((ISetupSocketSession)session).Start();
 
 			// Invoke the events.
 			OnConnect(session);
@@ -122,7 +123,7 @@ namespace DtronixMessageQueue.Socket {
 		/// </summary>
 		/// <param name="sender">Sender of the disconnection event.</param>
 		/// <param name="e">Session events.</param>
-		private void RemoveClientEvent(object sender, SessionClosedEventArgs<SocketSession<TConfig>, TConfig> e) {
+		private void RemoveClientEvent(object sender, SessionClosedEventArgs<TSession, TConfig> e) {
 			TSession session_out;
 			ConnectedSessions.TryRemove(e.Session.Id, out session_out);
 			e.Session.Closed -= RemoveClientEvent;

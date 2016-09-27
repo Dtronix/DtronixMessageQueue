@@ -132,7 +132,7 @@ namespace DtronixMessageQueue.Tests.Mq {
 
 			Client.Closed += (sender, args) => TestStatus.Set();
 
-			StartAndWait();
+			StartAndWait(true, 500000);
 		}
 
 		[Fact]
