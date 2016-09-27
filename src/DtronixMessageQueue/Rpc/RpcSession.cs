@@ -307,10 +307,19 @@ namespace DtronixMessageQueue.Rpc {
 			while (e.Messages.Count > 0) {
 				message = e.Messages.Dequeue();
 
+				// Read the first byte for the ID.
 				var handler_id = message[0].ReadByte(0);
+				var handled_message = false;
 
+				// See if we have a handler for the requested Id.
 				if (MessageHandlers.ContainsKey(handler_id)) {
-					MessageHandlers[handler_id].HandleMessage(message);
+					handled_message = MessageHandlers[handler_id].HandleMessage(message);
+				}
+
+				// If the we can not handle this message, disconnect the session.
+				if (handled_message == false) {
+					Close(SocketCloseReason.ProtocolError);
+					return;
 				}
 			}
 		}
