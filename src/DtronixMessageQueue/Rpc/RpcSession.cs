@@ -324,8 +324,8 @@ namespace DtronixMessageQueue.Rpc {
 		public void AddProxy<T>(T instance) where T : IRemoteService<TSession, TConfig> {
 			var proxy = new RpcProxy<T, TSession, TConfig>(instance, this, RpcCallHandler);
 
-			RpcCallHandler.remote_service_realproxy.Add(typeof(T), proxy);
-			RpcCallHandler.remote_services_proxy.Add(typeof(T), (T) proxy.GetTransparentProxy());
+			RpcCallHandler.RemoteServiceRealproxy.Add(typeof(T), proxy);
+			RpcCallHandler.RemoteServicesProxy.Add(typeof(T), (T) proxy.GetTransparentProxy());
 		}
 
 		/// <summary>
@@ -334,7 +334,7 @@ namespace DtronixMessageQueue.Rpc {
 		/// <typeparam name="T">Interface of the proxy to retrieve.</typeparam>
 		/// <returns>Proxied interface methods.</returns>
 		public T GetProxy<T>() where T : IRemoteService<TSession, TConfig> {
-			return (T)RpcCallHandler.remote_services_proxy[typeof(T)];
+			return (T)RpcCallHandler.RemoteServicesProxy[typeof(T)];
 		}
 
 		/// <summary>
@@ -343,7 +343,7 @@ namespace DtronixMessageQueue.Rpc {
 		/// <typeparam name="T">Interface of this type.</typeparam>
 		/// <param name="instance">Instance to execute methods on.</param>
 		public void AddService<T>(T instance) where T : IRemoteService<TSession, TConfig> {
-			RpcCallHandler.services.Add(instance.Name, instance);
+			RpcCallHandler.Services.Add(instance.Name, instance);
 			instance.Session = (TSession) this;
 		}
 

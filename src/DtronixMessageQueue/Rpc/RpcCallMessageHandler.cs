@@ -35,31 +35,31 @@ namespace DtronixMessageQueue.Rpc {
 		/// <summary>
 		/// Contains all outstanding call returns pending a return of data from the recipient connection.
 		/// </summary>
-		public readonly ConcurrentDictionary<ushort, RpcWaitHandle> remote_wait_handles =
+		public readonly ConcurrentDictionary<ushort, RpcWaitHandle> RemoteWaitHandles =
 			new ConcurrentDictionary<ushort, RpcWaitHandle>();
 
 		/// <summary>
 		/// Contains all operations running on this session which are cancellable.
 		/// </summary>
-		public readonly ConcurrentDictionary<ushort, RpcWaitHandle> local_wait_handles =
+		public readonly ConcurrentDictionary<ushort, RpcWaitHandle> LocalWaitHandles =
 			new ConcurrentDictionary<ushort, RpcWaitHandle>();
 
 		/// <summary>
 		/// Contains all services that can be remotely executed on this session.
 		/// </summary>
-		public readonly Dictionary<string, IRemoteService<TSession, TConfig>> services =
+		public readonly Dictionary<string, IRemoteService<TSession, TConfig>> Services =
 			new Dictionary<string, IRemoteService<TSession, TConfig>>();
 
 		/// <summary>
 		/// Proxy objects to be invoked on this session and proxied to the recipient session.
 		/// </summary>
-		public readonly Dictionary<Type, IRemoteService<TSession, TConfig>> remote_services_proxy =
+		public readonly Dictionary<Type, IRemoteService<TSession, TConfig>> RemoteServicesProxy =
 			new Dictionary<Type, IRemoteService<TSession, TConfig>>();
 
 		/// <summary>
 		///  Base proxy to the used for servicing of the proxy interface.
 		/// </summary>
-		public readonly Dictionary<Type, RealProxy> remote_service_realproxy = new Dictionary<Type, RealProxy>();
+		public readonly Dictionary<Type, RealProxy> RemoteServiceRealproxy = new Dictionary<Type, RealProxy>();
 
 		public RpcCallMessageHandler(TSession session, IWorkItemsGroup thread_pool) : base(session) {
 			this.thread_pool = thread_pool;
@@ -82,7 +82,7 @@ namespace DtronixMessageQueue.Rpc {
 					// Remotely called to cancel a rpc call on this session.
 					var cancellation_id = message[0].ReadUInt16(2);
 					RpcWaitHandle wait_handle;
-					if (remote_wait_handles.TryRemove(cancellation_id, out wait_handle)) {
+					if (RemoteWaitHandles.TryRemove(cancellation_id, out wait_handle)) {
 						wait_handle.TokenSource.Cancel();
 					}
 					break;
@@ -136,12 +136,12 @@ namespace DtronixMessageQueue.Rpc {
 					var rec_argument_count = serialization.MessageReader.ReadByte();
 
 					// Verify that the requested service exists.
-					if (services.ContainsKey(rec_service_name) == false) {
+					if (Services.ContainsKey(rec_service_name) == false) {
 						throw new Exception($"Service '{rec_service_name}' does not exist.");
 					}
 
 					// Get the service from the instance list.
-					var service = services[rec_service_name];
+					var service = Services[rec_service_name];
 
 					// Get the actual method.  TODO: Might want to cache this for performance purposes.
 					var method_info = service.GetType().GetMethod(rec_method_name);
@@ -168,7 +168,7 @@ namespace DtronixMessageQueue.Rpc {
 						cancellation_token_param = 1;
 
 						// Add it to the main list of ongoing operations.
-						remote_wait_handles.TryAdd(rec_message_return_id, cancellation_wait);
+						RemoteWaitHandles.TryAdd(rec_message_return_id, cancellation_wait);
 					}
 
 					// Setup the parameters to pass to the invoked method.
@@ -212,7 +212,7 @@ namespace DtronixMessageQueue.Rpc {
 						return;
 					} finally {
 						// Remove the cancellation wait if it exists.
-						local_wait_handles.TryRemove(rec_message_return_id, out cancellation_wait);
+						LocalWaitHandles.TryRemove(rec_message_return_id, out cancellation_wait);
 
 					}
 
@@ -271,7 +271,7 @@ namespace DtronixMessageQueue.Rpc {
 
 					RpcWaitHandle call_wait_handle;
 					// Try to get the outstanding wait from the return id.  If it does not exist, the has already completed.
-					if (local_wait_handles.TryRemove(return_id, out call_wait_handle)) {
+					if (LocalWaitHandles.TryRemove(return_id, out call_wait_handle)) {
 						call_wait_handle.ReturnMessage = message;
 
 						// Release the wait event.
@@ -332,7 +332,7 @@ namespace DtronixMessageQueue.Rpc {
 			}
 
 			// Add the wait to the outstanding wait dictionary for retrieval later.
-			if (local_wait_handles.TryAdd(return_wait.Id, return_wait) == false) {
+			if (LocalWaitHandles.TryAdd(return_wait.Id, return_wait) == false) {
 				throw new InvalidOperationException($"Id {return_wait.Id} already exists in the return_wait_handles dictionary.");
 			}
 
@@ -347,7 +347,7 @@ namespace DtronixMessageQueue.Rpc {
 			RpcWaitHandle call_wait_handle;
 
 			// Try to get the wait.  If the Id does not exist, the wait operation has already been completed or removed.
-			if (local_wait_handles.TryRemove(id, out call_wait_handle)) {
+			if (LocalWaitHandles.TryRemove(id, out call_wait_handle)) {
 				var frame = new MqFrame(new byte[4], MqFrameType.Last, Session.Config);
 				frame.Write(0, Id);
 				frame.Write(1, (byte)RpcCallMessageType.MethodCancel);
