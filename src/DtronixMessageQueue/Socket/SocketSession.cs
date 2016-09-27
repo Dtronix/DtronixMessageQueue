@@ -10,7 +10,7 @@ namespace DtronixMessageQueue.Socket {
 	/// Base socket session to be sub-classes by the implementer.
 	/// </summary>
 	/// <typeparam name="TConfig">Configuration for this connection.</typeparam>
-	public abstract class SocketSession<TSession, TConfig> : IDisposable, ISetupSocketSession<TConfig>
+	public abstract class SocketSession<TSession, TConfig> : IDisposable, ISetupSocketSession
 		where TSession : SocketSession<TSession, TConfig>, new()
 		where TConfig : SocketConfig {
 
@@ -84,7 +84,7 @@ namespace DtronixMessageQueue.Socket {
 		/// <summary>
 		/// Base socket for this session.
 		/// </summary>
-		public SocketBase<TSession, TConfig> BaseSocket { get; set; }
+		public SessionHandler<TSession, TConfig> BaseSocket { get; private set; }
 
 
 		private System.Net.Sockets.Socket socket;
@@ -105,7 +105,7 @@ namespace DtronixMessageQueue.Socket {
 		private SocketAsyncEventArgs receive_args;
 
 		/// <summary>
-		/// Pool used by all the sessions on this SocketBase.
+		/// Pool used by all the sessions on this SessionHandler.
 		/// </summary>
 		private SocketAsyncEventArgsPool args_pool;
 
@@ -152,9 +152,9 @@ namespace DtronixMessageQueue.Socket {
 		/// <param name="socket_args_pool">Argument pool for this session to use.  Pulls two asyncevents for reading and writing and returns them at the end of this socket's life.</param>
 		/// <param name="session_config">Socket configurations this session is to use.</param>
 		/// <param name="thread_pool">Thread pool used by the socket to read and write.</param>
-		/// <param name="socket_base">Socket base which is handling this session.</param>
+		/// <param name="session_handler">Handler base which is handling this session.</param>
 		public static TSession Create(System.Net.Sockets.Socket session_socket, SocketAsyncEventArgsPool socket_args_pool,
-			TConfig session_config, SmartThreadPool thread_pool, SocketBase<TSession, TConfig> socket_base) {
+			TConfig session_config, SmartThreadPool thread_pool, SessionHandler<TSession, TConfig> session_handler) {
 			var session = new TSession {
 				config = session_config,
 				args_pool = socket_args_pool,
@@ -162,7 +162,7 @@ namespace DtronixMessageQueue.Socket {
 				write_semaphore = new SemaphoreSlim(1, 1),
 				writer_pool = thread_pool.CreateWorkItemsGroup(1),
 				reader_pool = thread_pool.CreateWorkItemsGroup(1),
-				BaseSocket = socket_base
+				BaseSocket = session_handler
 			};
 
 			session.send_args = session.args_pool.Pop();
@@ -190,7 +190,7 @@ namespace DtronixMessageQueue.Socket {
 		/// <summary>
 		/// Start the session's receive events.
 		/// </summary>
-		void ISetupSocketSession<TConfig>.Start() {
+		void ISetupSocketSession.Start() {
 			if (CurrentState != State.Connecting) {
 				return;
 			}

@@ -78,10 +78,10 @@ namespace DtronixMessageQueue {
 			IncomingMessage?.Invoke(sender, e);
 		}
 
-		protected override TSession CreateSession() {
-			var session = base.CreateSession();
+		protected override TSession CreateSession(System.Net.Sockets.Socket session_socket) {
+			var session = base.CreateSession(session_socket);
 			session.IncomingMessage += OnIncomingMessage;
-			session.BaseSocket = this;
+
 			return session;
 		}
 

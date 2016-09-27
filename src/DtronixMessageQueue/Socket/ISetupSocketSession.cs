@@ -6,8 +6,7 @@ namespace DtronixMessageQueue.Socket {
 	/// Class to implement on classes which have setup events.
 	/// </summary>
 	/// <typeparam name="TConfig"></typeparam>
-	public interface ISetupSocketSession<TConfig>
-		where TConfig : SocketConfig {
+	public interface ISetupSocketSession {
 
 		/// <summary>
 		/// Start the session's receive events.

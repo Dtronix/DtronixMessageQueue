@@ -11,7 +11,7 @@ namespace DtronixMessageQueue.Socket {
 	/// </summary>
 	/// <typeparam name="TSession">Session type for this connection.</typeparam>
 	/// <typeparam name="TConfig">Configuration for this connection.</typeparam>
-	public class SocketServer<TSession, TConfig> : SocketBase<TSession, TConfig>
+	public class SocketServer<TSession, TConfig> : SessionHandler<TSession, TConfig>
 		where TSession : SocketSession<TSession, TConfig>, new()
 		where TConfig : SocketConfig {
 
@@ -97,11 +97,10 @@ namespace DtronixMessageQueue.Socket {
 
 			e.AcceptSocket.NoDelay = true;
 
-			var session = SocketSession<TSession, TConfig>.Create(MainSocket, AsyncPool, Config, ThreadPool, this);
-			//var session = CreateSession();
+			var session = CreateSession(e.AcceptSocket);
 
 
-			//((ISetupSocketSession<TConfig>)session).Setup(e.AcceptSocket, AsyncPool, Config, ThreadPool);
+			//((ISetupSocketSession<TConfig>)session).Setup(, AsyncPool, Config, ThreadPool);
 
 			// Add event to remove this session from the active client list.
 			session.Closed += RemoveClientEvent;
@@ -110,7 +109,7 @@ namespace DtronixMessageQueue.Socket {
 			ConnectedSessions.TryAdd(session.Id, session);
 
 			// Start the session.
-			((ISetupSocketSession<TConfig>)session).Start();
+			((ISetupSocketSession)session).Start();
 
 			// Invoke the events.
 			OnConnect(session);
