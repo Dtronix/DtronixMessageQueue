@@ -13,7 +13,7 @@ namespace DtronixMessageQueue {
 	/// </summary>
 	/// <typeparam name="TSession">Session type for this connection.</typeparam>
 	/// <typeparam name="TConfig">Configuration for this connection.</typeparam>
-	public abstract class MqSession<TSession, TConfig> : SocketSession<TConfig>
+	public abstract class MqSession<TSession, TConfig> : SocketSession<TSession, TConfig>
 		where TSession : MqSession<TSession, TConfig>, new()
 		where TConfig : MqConfig {
 
@@ -51,11 +51,6 @@ namespace DtronixMessageQueue {
 		/// Event fired when a new message has been processed by the Postmaster and ready to be read.
 		/// </summary>
 		public event EventHandler<IncomingMessageEventArgs<TSession, TConfig>> IncomingMessage;
-
-		/// <summary>
-		/// Base socket for this session.
-		/// </summary>
-		public SocketBase<TSession, TConfig> BaseSocket { get; set; }
 
 		protected override void OnSetup() {
 			frame_builder = new MqFrameBuilder(Config);

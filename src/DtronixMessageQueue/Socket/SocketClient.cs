@@ -10,7 +10,7 @@ namespace DtronixMessageQueue.Socket {
 	/// <typeparam name="TSession">Session type for this connection.</typeparam>
 	/// <typeparam name="TConfig">Configuration for this connection.</typeparam>
 	public class SocketClient<TSession, TConfig> : SocketBase<TSession, TConfig>
-		where TSession : SocketSession<TConfig>, new()
+		where TSession : SocketSession<TSession, TConfig>, new()
 		where TConfig : SocketConfig {
 
 		/// <summary>
@@ -53,8 +53,9 @@ namespace DtronixMessageQueue.Socket {
 
 			event_arg.Completed += (sender, args) => {
 				if (args.LastOperation == SocketAsyncOperation.Connect) {
-					Session = CreateSession();
-					((ISetupSocketSession<TConfig>)Session).Setup(MainSocket, AsyncPool, Config, ThreadPool);
+					Session = SocketSession<TSession, TConfig>.Create(MainSocket, AsyncPool, Config, ThreadPool, this);
+					//Session = CreateSession();
+					
 
 					((ISetupSocketSession<TConfig>)Session).Start();
 

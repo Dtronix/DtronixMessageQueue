@@ -28,6 +28,8 @@ namespace DtronixMessageQueue.Rpc {
 		/// </summary>
 		private readonly T decorated;
 
+		private readonly RpcCallMessageHandler<TSession, TConfig> message_handler;
+
 		/// <summary>
 		/// Session used to convey the proxied methods over.
 		/// </summary>
@@ -38,8 +40,9 @@ namespace DtronixMessageQueue.Rpc {
 		/// </summary>
 		/// <param name="decorated">Class to proxy method calls from.</param>
 		/// <param name="session">Session to convey proxied method calls over.</param>
-		public RpcProxy(T decorated, RpcSession<TSession, TConfig> session) : base(typeof(T)) {
+		public RpcProxy(T decorated, RpcSession<TSession, TConfig> session, RpcCallMessageHandler<TSession, TConfig> message_handler) : base(typeof(T)) {
 			this.decorated = decorated;
+			this.message_handler = message_handler;
 			this.session = (TSession) session;
 		}
 
@@ -90,7 +93,7 @@ namespace DtronixMessageQueue.Rpc {
 				serializer.MessageWriter.Write((byte) RpcMessageType.RpcCall);
 
 				// Create a wait operation to wait for the response.
-				return_wait = ((IProcessRpcSession)session).CreateWaitHandle();
+				return_wait = message_handler.CreateWaitHandle();
 
 				// Byte[1,2] Wait Id which is used for returning the value and cancellation.
 				serializer.MessageWriter.Write(return_wait.Id);
@@ -125,7 +128,7 @@ namespace DtronixMessageQueue.Rpc {
 			} catch (OperationCanceledException) {
 
 				// If the operation was canceled, cancel the wait on this end and notify the other end.
-				((IProcessRpcSession)session).CancelWaitHandle(return_wait.Id);
+				message_handler.CancelWaitHandle(return_wait.Id);
 				throw new OperationCanceledException("Wait handle was canceled while waiting for a response.");
 			}
 			
