@@ -123,7 +123,7 @@ namespace DtronixMessageQueue.Rpc {
 
 				try {
 					// Skip Handler.Id & RpcMessageType
-					serialization.MessageReader.ReadBytes(2);
+					serialization.MessageReader.Skip(2);
 
 					// Determine if this call has a return value.
 					if (message_type == RpcCallMessageType.MethodCall) {
@@ -179,17 +179,10 @@ namespace DtronixMessageQueue.Rpc {
 
 						serialization.PrepareDeserializeReader();
 
-						// Write all the rest of the message to the stream to parse into parameters.
-						/*var param_bytes = serilization.MessageReader.ReadToEnd();
-						serilization.Stream.Write(param_bytes, 0, param_bytes.Length);
-						serilization.Stream.Position = 0;*/
 
 						// Parse each parameter to the parameter list.
 						for (int i = 0; i < rec_argument_count; i++) {
 							parameters[i] = serialization.DeserializeFromReader(method_parameters[i].ParameterType, i);
-							/*parameters[i] = RuntimeTypeModel.Default.DeserializeWithLengthPrefix(serialization.Stream, null,
-								method_parameters[i].ParameterType,
-								PrefixStyle.Base128, i);*/
 						}
 					}
 
@@ -264,7 +257,7 @@ namespace DtronixMessageQueue.Rpc {
 				try {
 
 					// Skip message type byte and message type.
-					serialization.MessageReader.ReadBytes(2);
+					serialization.MessageReader.Skip(2);
 
 					// Read the return Id.
 					var return_id = serialization.MessageReader.ReadUInt16();

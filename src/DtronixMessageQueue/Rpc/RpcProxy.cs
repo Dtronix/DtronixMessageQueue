@@ -146,13 +146,13 @@ namespace DtronixMessageQueue.Rpc {
 				serializer.MessageReader.Message = return_wait.ReturnMessage;
 
 				// Skip the Handler Id.
-				serializer.MessageReader.ReadByte();
+				serializer.MessageReader.Skip(1);
 
 				// Read the first byte which dictates the type of message.
 				var return_type = (RpcCallMessageType)serializer.MessageReader.ReadByte();
 
 				// Skip 2 bytes for the return ID
-				serializer.MessageReader.ReadBytes(2);
+				serializer.MessageReader.Skip(2);
 
 				// Reads the rest of the message for the return value.
 				serializer.PrepareDeserializeReader();
