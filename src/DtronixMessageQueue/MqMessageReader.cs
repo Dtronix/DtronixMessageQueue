@@ -82,9 +82,22 @@ namespace DtronixMessageQueue {
 		}
 
 		/// <summary>
-		/// Byte position in the message.
+		/// Get or set the byte position in the message.
 		/// </summary>
-		public int Position => absolute_position;
+		public int Position {
+			get {
+				return absolute_position;
+			}
+			set {
+				current_frame = message?[0];
+				frame_position = 0;
+				message_position = 0;
+				absolute_position = 0;
+				if (value != 0) {
+					Skip(value);
+				}
+			}
+		} 
 
 		/// <summary>
 		/// Total length of the bytes in this message.
