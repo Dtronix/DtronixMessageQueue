@@ -44,7 +44,14 @@ namespace DtronixMessageQueue.Rpc {
 		/// </summary>
 		/// <param name="config">Configurations for this client to use.</param>
 		public RpcClient(TConfig config) : base(config) {
-			WorkerThreadPool = new SmartThreadPool(config.ThreadPoolTimeout, config.MaxExecutionThreads, 1);
+			var start_info = new STPStartInfo {
+				ThreadPoolName = $"dmq-rpc-{Mode}-pool",
+				IdleTimeout = config.ThreadPoolTimeout,
+				MaxWorkerThreads = config.MaxExecutionThreads,
+				MinWorkerThreads = 1
+			};
+
+			WorkerThreadPool = new SmartThreadPool(start_info);
 		}
 
 		protected override TSession CreateSession(System.Net.Sockets.Socket session_socket) {

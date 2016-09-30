@@ -48,7 +48,14 @@ namespace DtronixMessageQueue.Rpc {
 		/// <param name="config">Configurations for this server.</param>
 		/// <param name="server_info">Information to be passed to the client.</param>
 		public RpcServer(TConfig config, RpcServerInfoDataContract server_info) : base(config) {
-			WorkerThreadPool = new SmartThreadPool(config.ThreadPoolTimeout, config.MaxExecutionThreads, 1);
+			var start_info = new STPStartInfo {
+				ThreadPoolName = $"dmq-rpc-{Mode}-pool",
+				IdleTimeout = config.ThreadPoolTimeout,
+				MaxWorkerThreads = config.MaxExecutionThreads,
+				MinWorkerThreads = 1
+			};
+
+			WorkerThreadPool = new SmartThreadPool(start_info);
 			ServerInfo = server_info ?? new RpcServerInfoDataContract();
 		}
 

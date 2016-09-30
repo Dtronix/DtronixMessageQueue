@@ -162,7 +162,14 @@ namespace DtronixMessageQueue.Socket {
 				AsyncPool.Push(event_arg);
 			}
 
-			ThreadPool = new SmartThreadPool(Config.ThreadPoolTimeout, Config.MaxWorkingThreads, Config.MinWorkingThreads);
+			var start_info = new STPStartInfo {
+				ThreadPoolName = $"dmq-{Mode}-pool",
+				IdleTimeout = Config.ThreadPoolTimeout,
+				MaxWorkerThreads = Config.MaxWorkingThreads,
+				MinWorkerThreads = Config.MinWorkingThreads,
+			};
+
+			ThreadPool = new SmartThreadPool(start_info);
 		}
 
 		/// <summary>
