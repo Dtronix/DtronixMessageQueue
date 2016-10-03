@@ -7,7 +7,6 @@ using System.Runtime.Remoting.Proxies;
 using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
-using Amib.Threading;
 using DtronixMessageQueue.Rpc.DataContract;
 using DtronixMessageQueue.Socket;
 
@@ -15,7 +14,6 @@ namespace DtronixMessageQueue.Rpc {
 	public class RpcCallMessageHandler<TSession, TConfig> : MessageHandler<TSession, TConfig>
 		where TSession : RpcSession<TSession, TConfig>, new()
 		where TConfig : RpcConfig {
-		private readonly IWorkItemsGroup thread_pool;
 
 		/// <summary>
 		/// Current call Id wich gets incremented for each call return request.
@@ -61,8 +59,7 @@ namespace DtronixMessageQueue.Rpc {
 		/// </summary>
 		public readonly Dictionary<Type, RealProxy> RemoteServiceRealproxy = new Dictionary<Type, RealProxy>();
 
-		public RpcCallMessageHandler(TSession session, IWorkItemsGroup thread_pool) : base(session) {
-			this.thread_pool = thread_pool;
+		public RpcCallMessageHandler(TSession session) : base(session) {
 		}
 
 		
@@ -115,7 +112,7 @@ namespace DtronixMessageQueue.Rpc {
 		private void ProcessRpcCall(MqMessage message, RpcCallMessageType message_type) {
 
 			// Execute the processing on the worker thread.
-			thread_pool.QueueWorkItem(() => {
+			Task.Factory.StartNew(() => {
 
 				// Retrieve a serialization cache to work with.
 				var serialization = Session.SerializationCache.Get(message);
@@ -250,7 +247,7 @@ namespace DtronixMessageQueue.Rpc {
 		private void ProcessRpcReturn(MqMessage message) {
 
 			// Execute the processing on the worker thread.
-			thread_pool.QueueWorkItem(() => {
+			Task.Factory.StartNew(() => {
 
 				// Retrieve a serialization cache to work with.
 				var serialization = Session.SerializationCache.Get(message);

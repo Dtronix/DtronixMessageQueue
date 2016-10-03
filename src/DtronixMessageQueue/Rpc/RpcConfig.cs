@@ -13,7 +13,7 @@ namespace DtronixMessageQueue.Rpc {
 		/// <summary>
 		/// Number of threads used for executing RPC calls.
 		/// </summary>
-		public int MaxExecutionThreads { get; set; } = 10;
+		public int MaxExecutionThreads { get; set; } = 5;
 
 		/// <summary>
 		/// Number of threads each session is allowed to use at a time from the main thread pool.

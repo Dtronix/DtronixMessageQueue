@@ -1,5 +1,4 @@
 ﻿using System;
-using Amib.Threading;
 using DtronixMessageQueue.Rpc.DataContract;
 using DtronixMessageQueue.Socket;
 
@@ -13,11 +12,6 @@ namespace DtronixMessageQueue.Rpc {
 	public class RpcClient<TSession, TConfig> : MqClient<TSession, TConfig>
 		where TSession : RpcSession<TSession, TConfig>, new()
 		where TConfig : RpcConfig {
-
-		/// <summary>
-		/// Thread pool for all the Rpc call workers.
-		/// </summary>
-		public SmartThreadPool WorkerThreadPool { get; }
 
 		/// <summary>
 		/// Information about the connected server.
@@ -44,14 +38,6 @@ namespace DtronixMessageQueue.Rpc {
 		/// </summary>
 		/// <param name="config">Configurations for this client to use.</param>
 		public RpcClient(TConfig config) : base(config) {
-			var start_info = new STPStartInfo {
-				ThreadPoolName = $"dmq-rpc-{Mode}-pool",
-				IdleTimeout = config.ThreadPoolTimeout,
-				MaxWorkerThreads = config.MaxExecutionThreads,
-				MinWorkerThreads = 1
-			};
-
-			WorkerThreadPool = new SmartThreadPool(start_info);
 		}
 
 		protected override TSession CreateSession(System.Net.Sockets.Socket session_socket) {

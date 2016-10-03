@@ -1,6 +1,4 @@
-﻿using Amib.Threading;
-
-namespace DtronixMessageQueue.Socket {
+﻿namespace DtronixMessageQueue.Socket {
 
 	/// <summary>
 	/// Class to implement on classes which have setup events.

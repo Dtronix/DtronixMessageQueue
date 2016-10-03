@@ -2,7 +2,6 @@
 using System.Collections.Concurrent;
 using System.Net.Sockets;
 using System.Threading;
-using Amib.Threading;
 
 namespace DtronixMessageQueue.Socket {
 	/// <summary>
@@ -58,11 +57,6 @@ namespace DtronixMessageQueue.Socket {
 		/// Reusable buffer set for all the connected sessions.
 		/// </summary>
 		protected BufferManager BufferManager;  // represents a large reusable set of buffers for all socket operations
-
-		/// <summary>
-		/// Base read-write pool for the sessions to utilize.
-		/// </summary>
-		protected SmartThreadPool ThreadPool;
 
 		/// <summary>
 		/// True if the timeout timer is running.  False otherwise.
@@ -161,15 +155,6 @@ namespace DtronixMessageQueue.Socket {
 				// add SocketAsyncEventArg to the pool
 				AsyncPool.Push(event_arg);
 			}
-
-			var start_info = new STPStartInfo {
-				ThreadPoolName = $"dmq-{Mode}-pool",
-				IdleTimeout = Config.ThreadPoolTimeout,
-				MaxWorkerThreads = Config.MaxWorkingThreads,
-				MinWorkerThreads = Config.MinWorkingThreads,
-			};
-
-			ThreadPool = new SmartThreadPool(start_info);
 		}
 
 		/// <summary>
@@ -177,7 +162,7 @@ namespace DtronixMessageQueue.Socket {
 		/// </summary>
 		/// <returns>New session instance.</returns>
 		protected virtual TSession CreateSession(System.Net.Sockets.Socket socket) {
-			var session = SocketSession<TSession, TConfig>.Create(socket, AsyncPool, Config, ThreadPool, this);
+			var session = SocketSession<TSession, TConfig>.Create(socket, AsyncPool, Config, this);
 			
 			SessionSetup?.Invoke(this, new SessionEventArgs<TSession, TConfig>(session));
 			session.Closed += (sender, args) => OnClose(session, args.CloseReason);

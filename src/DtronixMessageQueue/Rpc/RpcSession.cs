@@ -5,7 +5,7 @@ using System.Linq;
 using System.Reflection;
 using System.Runtime.Remoting.Proxies;
 using System.Threading;
-using Amib.Threading;
+using System.Threading.Tasks;
 using DtronixMessageQueue.Rpc.DataContract;
 using DtronixMessageQueue.Socket;
 
@@ -29,11 +29,6 @@ namespace DtronixMessageQueue.Rpc {
 		/// Store which contains instances of all classes for serialization and destabilization of data.
 		/// </summary>
 		public SerializationCache SerializationCache { get; set; }
-
-		/// <summary>
-		/// Thread pool for performing tasks on this session.
-		/// </summary>
-		IWorkItemsGroup WorkerThreadPool { get; set; }
 
 		/// <summary>
 		/// Contains all active stream handles for this session.
@@ -86,16 +81,14 @@ namespace DtronixMessageQueue.Rpc {
 			// Determine if this session is running on the server or client to retrieve the worker thread pool.
 			if (BaseSocket.Mode == SocketMode.Server) {
 				Server = (RpcServer<TSession, TConfig>) BaseSocket;
-				WorkerThreadPool = Server.WorkerThreadPool;
 
 			} else {
 				Client = (RpcClient<TSession, TConfig>) BaseSocket;
-				WorkerThreadPool = Client.WorkerThreadPool;
 			}
 
 			SerializationCache = new SerializationCache(Config);
 
-			RpcCallHandler = new RpcCallMessageHandler<TSession, TConfig>((TSession)this, WorkerThreadPool);
+			RpcCallHandler = new RpcCallMessageHandler<TSession, TConfig>((TSession)this);
 
 			MessageHandlers.Add(RpcCallHandler.Id, RpcCallHandler);
 
@@ -171,7 +164,7 @@ namespace DtronixMessageQueue.Rpc {
 					}
 
 					// Alert the server that this session is ready for usage.
-					WorkerThreadPool.QueueWorkItem(() => {
+					Task.Factory.StartNew(() => {
 						Ready?.Invoke(this, new SessionEventArgs<TSession, TConfig>((TSession) this));
 					});
 
@@ -218,7 +211,7 @@ namespace DtronixMessageQueue.Rpc {
 						Close(SocketCloseReason.AuthenticationFailure);
 					} else {
 						// Alert the server that this session is ready for usage.
-						WorkerThreadPool.QueueWorkItem(() => {
+						Task.Factory.StartNew(() => {
 							Ready?.Invoke(this, new SessionEventArgs<TSession, TConfig>((TSession) this));
 						});
 					}
@@ -247,7 +240,7 @@ namespace DtronixMessageQueue.Rpc {
 					AuthenticationResult?.Invoke(this, auth_args);
 
 					// Alert the client that this session is ready for usage.
-					WorkerThreadPool.QueueWorkItem(() => {
+					Task.Factory.StartNew(() => {
 						Ready?.Invoke(this, new SessionEventArgs<TSession, TConfig>((TSession) this));
 					});
 

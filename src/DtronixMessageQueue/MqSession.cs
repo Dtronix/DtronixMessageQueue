@@ -3,7 +3,7 @@ using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.IO;
 using System.Threading;
-using Amib.Threading;
+using System.Threading.Tasks;
 using DtronixMessageQueue.Socket;
 
 namespace DtronixMessageQueue {
@@ -47,6 +47,14 @@ namespace DtronixMessageQueue {
 		/// </summary>
 		private readonly ConcurrentQueue<byte[]> inbox_bytes = new ConcurrentQueue<byte[]>();
 
+		private Task outbox_task;
+
+		private Task inbox_task;
+
+		private readonly object inbox_lock = new object();
+
+		private readonly object outbox_lock = new object();
+
 		/// <summary>
 		/// Event fired when a new message has been processed by the Postmaster and ready to be read.
 		/// </summary>
@@ -65,12 +73,13 @@ namespace DtronixMessageQueue {
 				return;
 			}
 
-			var inbox_was_empty = outbox.IsEmpty;
+			lock (inbox_lock) {
+				inbox_bytes.Enqueue(buffer);
+			}
+			
 
-			inbox_bytes.Enqueue(buffer);
-
-			if (inbox_was_empty || reader_pool.IsIdle) {
-				reader_pool.QueueWorkItem(ProcessIncomingQueue, WorkItemPriority.Normal);
+			if (inbox_task == null || inbox_task.IsCompleted) {
+				inbox_task = Task.Factory.StartNew(ProcessIncomingQueue);
 			}
 		}
 
@@ -132,6 +141,13 @@ namespace DtronixMessageQueue {
 
 			// Send the last of the buffer queue.
 			SendBufferQueue(buffer_queue, length);
+
+			lock (outbox_lock) {
+				if (outbox.IsEmpty == false) {
+					outbox_task = Task.Factory.StartNew(ProcessOutbox);
+				}
+			}
+			
 		}
 
 		/// <summary>
@@ -146,10 +162,11 @@ namespace DtronixMessageQueue {
 			Queue<MqMessage> messages = null;
 			byte[] buffer;
 			while (inbox_bytes.TryDequeue(out buffer)) {
-				// Update the total bytes this 
-				Interlocked.Add(ref inbox_byte_count, -buffer.Length);
+				lock (inbox_lock) {
 
-				try {
+}
+
+					try {
 					frame_builder.Write(buffer, 0, buffer.Length);
 				} catch (InvalidDataException) {
 					//logger.Error(ex, "Connector {0}: Client send invalid data.", Connection.Id);
@@ -201,6 +218,13 @@ namespace DtronixMessageQueue {
 
 
 			OnIncomingMessage(this, new IncomingMessageEventArgs<TSession, TConfig>(messages, (TSession) this));
+
+			lock (inbox_lock) {
+				if (inbox_bytes.IsEmpty == false) {
+					inbox_task = Task.Factory.StartNew(ProcessIncomingQueue);
+				}
+			}
+			
 		}
 
 
@@ -273,14 +297,15 @@ namespace DtronixMessageQueue {
 			if (is_running == false) {
 				return;
 			}
-
-			var outbox_was_empty = outbox.IsEmpty;
-
-			outbox.Enqueue(message);
-
-			if (outbox_was_empty || writer_pool.IsIdle) {
-				writer_pool.QueueWorkItem(ProcessOutbox, WorkItemPriority.Normal);
+			lock (outbox_lock) {
+				outbox.Enqueue(message);
 			}
+
+			if (outbox_task == null || outbox_task.IsCompleted) {
+				outbox_task = Task.Factory.StartNew(ProcessOutbox);
+			}
+
+
 		}
 
 		/// <summary>
