@@ -1,5 +1,7 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Configuration;
+using System.Diagnostics;
 using System.Linq;
 using System.Text;
 using System.Threading;
@@ -20,7 +22,15 @@ namespace DtronixMessageQueue.Tests.Performance.Services.Server {
 
 		public void TestNoReturn() {
 			var number = Interlocked.Increment(ref call_count);
-			//Console.Write(number + " ");
+			//Console.Write($"{Thread.CurrentThread.ManagedThreadId} ");
+
+			VerifyComplete();
+
+		}
+
+		public async void TestNoReturnBlock() {
+			var number = Interlocked.Increment(ref call_count);
+			await Task.Delay(1000);
 			VerifyComplete();
 
 		}
@@ -59,6 +69,7 @@ namespace DtronixMessageQueue.Tests.Performance.Services.Server {
 
 	internal interface ITestService : IRemoteService<SimpleRpcSession, RpcConfig> {
 		void TestNoReturn();
+		void TestNoReturnBlock();
 		int TestIncrement();
 		void TestSetup(int calls);
 		bool ResetTest();
