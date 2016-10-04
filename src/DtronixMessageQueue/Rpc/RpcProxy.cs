@@ -168,7 +168,7 @@ namespace DtronixMessageQueue.Rpc {
 					case RpcCallMessageType.MethodException:
 
 						// Deserialize the exception and let the local method call receive it.
-						var return_exception = serializer.DeserializeFromReader(method_info.ReturnType, 0);
+						var return_exception = serializer.DeserializeFromReader(typeof(RpcRemoteExceptionDataContract), 0);
 						return new ReturnMessage(new RpcRemoteException((RpcRemoteExceptionDataContract)return_exception), method_call);
 
 					default:
