@@ -164,7 +164,7 @@ namespace DtronixMessageQueue.Rpc {
 					}
 
 					// Alert the server that this session is ready for usage.
-					Task.Factory.StartNew(() => {
+					Task.Run(() => {
 						Ready?.Invoke(this, new SessionEventArgs<TSession, TConfig>((TSession) this));
 					});
 
@@ -211,7 +211,7 @@ namespace DtronixMessageQueue.Rpc {
 						Close(SocketCloseReason.AuthenticationFailure);
 					} else {
 						// Alert the server that this session is ready for usage.
-						Task.Factory.StartNew(() => {
+						Task.Run(() => {
 							Ready?.Invoke(this, new SessionEventArgs<TSession, TConfig>((TSession) this));
 						});
 					}
@@ -240,7 +240,7 @@ namespace DtronixMessageQueue.Rpc {
 					AuthenticationResult?.Invoke(this, auth_args);
 
 					// Alert the client that this session is ready for usage.
-					Task.Factory.StartNew(() => {
+					Task.Run(() => {
 						Ready?.Invoke(this, new SessionEventArgs<TSession, TConfig>((TSession) this));
 					});
 

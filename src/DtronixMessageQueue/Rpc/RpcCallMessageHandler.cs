@@ -112,7 +112,7 @@ namespace DtronixMessageQueue.Rpc {
 		private void ProcessRpcCall(MqMessage message, RpcCallMessageType message_type) {
 
 			// Execute the processing on the worker thread.
-			Task.Factory.StartNew(() => {
+			Task.Run(() => {
 
 				// Retrieve a serialization cache to work with.
 				var serialization = Session.SerializationCache.Get(message);
@@ -247,7 +247,7 @@ namespace DtronixMessageQueue.Rpc {
 		private void ProcessRpcReturn(MqMessage message) {
 
 			// Execute the processing on the worker thread.
-			Task.Factory.StartNew(() => {
+			Task.Run(() => {
 
 				// Retrieve a serialization cache to work with.
 				var serialization = Session.SerializationCache.Get(message);

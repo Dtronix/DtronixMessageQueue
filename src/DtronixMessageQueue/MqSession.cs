@@ -79,7 +79,7 @@ namespace DtronixMessageQueue {
 			
 
 			if (inbox_task == null || inbox_task.IsCompleted) {
-				inbox_task = Task.Factory.StartNew(ProcessIncomingQueue);
+				inbox_task = Task.Run((Action)ProcessIncomingQueue);
 			}
 		}
 
@@ -144,7 +144,7 @@ namespace DtronixMessageQueue {
 
 			lock (outbox_lock) {
 				if (outbox.IsEmpty == false) {
-					outbox_task = Task.Factory.StartNew(ProcessOutbox);
+					outbox_task = Task.Run((Action)ProcessOutbox);
 				}
 			}
 			
@@ -221,7 +221,7 @@ namespace DtronixMessageQueue {
 
 			lock (inbox_lock) {
 				if (inbox_bytes.IsEmpty == false) {
-					inbox_task = Task.Factory.StartNew(ProcessIncomingQueue);
+					inbox_task = Task.Run((Action)ProcessIncomingQueue);
 				}
 			}
 			
@@ -302,7 +302,7 @@ namespace DtronixMessageQueue {
 			}
 
 			if (outbox_task == null || outbox_task.IsCompleted) {
-				outbox_task = Task.Factory.StartNew(ProcessOutbox);
+				outbox_task = Task.Run((Action)ProcessOutbox);
 			}
 
 
