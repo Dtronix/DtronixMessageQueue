@@ -37,6 +37,16 @@ namespace DtronixMessageQueue.Tests.Performance.Services.Server {
 
 		}
 
+		public void TestNoReturnLongBlocking() {
+			var number = Interlocked.Increment(ref call_count);
+			Console.WriteLine($"Started {number}");
+			Thread.Sleep(10000);
+			Console.WriteLine($"Completed {number}");
+
+			VerifyComplete();
+
+		}
+
 
 		public void TestNoReturnBlock() {
 			Task.Factory.StartNew(() => {
@@ -83,6 +93,7 @@ namespace DtronixMessageQueue.Tests.Performance.Services.Server {
 		void TestNoReturn();
 		void TestNoReturnAwait();
 		void TestNoReturnBlock();
+		void TestNoReturnLongBlocking();
 		int TestIncrement();
 		void TestSetup(int calls);
 		bool ResetTest();
