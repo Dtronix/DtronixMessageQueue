@@ -7,6 +7,7 @@ using System.Runtime.Remoting.Proxies;
 using System.Threading;
 using System.Threading.Tasks;
 using DtronixMessageQueue.Rpc.DataContract;
+using DtronixMessageQueue.Rpc.MessageHandlers;
 using DtronixMessageQueue.Socket;
 
 namespace DtronixMessageQueue.Rpc {

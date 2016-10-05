@@ -11,7 +11,7 @@ using DtronixMessageQueue.Rpc.DataContract;
 using DtronixMessageQueue.Socket;
 
 namespace DtronixMessageQueue.Rpc {
-	public class RpcCallMessageHandler<TSession, TConfig> : MessageHandler<TSession, TConfig>
+	public class RpcByteTransportMessageHandler<TSession, TConfig> : MessageHandler<TSession, TConfig>
 		where TSession : RpcSession<TSession, TConfig>, new()
 		where TConfig : RpcConfig {
 
@@ -42,24 +42,8 @@ namespace DtronixMessageQueue.Rpc {
 		public readonly ConcurrentDictionary<ushort, RpcWaitHandle> LocalWaitHandles =
 			new ConcurrentDictionary<ushort, RpcWaitHandle>();
 
-		/// <summary>
-		/// Contains all services that can be remotely executed on this session.
-		/// </summary>
-		public readonly Dictionary<string, IRemoteService<TSession, TConfig>> Services =
-			new Dictionary<string, IRemoteService<TSession, TConfig>>();
 
-		/// <summary>
-		/// Proxy objects to be invoked on this session and proxied to the recipient session.
-		/// </summary>
-		public readonly Dictionary<Type, IRemoteService<TSession, TConfig>> RemoteServicesProxy =
-			new Dictionary<Type, IRemoteService<TSession, TConfig>>();
-
-		/// <summary>
-		///  Base proxy to the used for servicing of the proxy interface.
-		/// </summary>
-		public readonly Dictionary<Type, RealProxy> RemoteServiceRealproxy = new Dictionary<Type, RealProxy>();
-
-		public RpcCallMessageHandler(TSession session) : base(session) {
+		public RpcByteTransportMessageHandler(TSession session) : base(session) {
 		}
 
 		

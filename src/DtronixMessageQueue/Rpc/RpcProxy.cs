@@ -7,6 +7,7 @@ using System.Runtime.Remoting.Messaging;
 using System.Runtime.Remoting.Proxies;
 using System.Threading;
 using DtronixMessageQueue.Rpc.DataContract;
+using DtronixMessageQueue.Rpc.MessageHandlers;
 using ProtoBuf;
 using ProtoBuf.Meta;
 

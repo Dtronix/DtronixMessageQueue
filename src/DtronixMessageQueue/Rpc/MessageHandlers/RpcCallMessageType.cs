@@ -1,4 +1,4 @@
-﻿namespace DtronixMessageQueue.Rpc {
+﻿namespace DtronixMessageQueue.Rpc.MessageHandlers {
 
 	/// <summary>
 	/// Type of message which is being sent.
@@ -35,20 +35,5 @@
 		/// Message used to cancel a pending operation.
 		/// </summary>
 		MethodCancel = 5,
-
-		/// <summary>
-		/// Sends a request to the client/server session for a stream handle to be created to write to.
-		/// </summary>
-		RequestStreamHandle = 10,
-
-		/// <summary>
-		/// Sends a request to the client/server session for a stream handle to be created to write to.
-		/// </summary>
-		RespondStreamHandle = 11,
-
-		/// <summary>
-		/// Sends a request to the client/server session for a stream handle be closed.
-		/// </summary>
-		CloseStreamHandle = 12,
 	}
 }
