@@ -19,13 +19,16 @@ namespace DtronixMessageQueue.Rpc.MessageHandlers {
 
 		private ConcurrentQueue<MqMessage> read_buffer;
 
-		private SemaphoreSlim read_semaphore;
+		private readonly SemaphoreSlim read_semaphore;
+
+		private readonly object read_lock = new object();
 
 		public event EventHandler<ByteTransportReceiveEventArgs> Receive;
 
 		public ByteTransport(TSession session, ushort id) {
 			this.session = session;
 			this.id = id;
+			message_reader = new MqMessageReader();
 			read_semaphore = new SemaphoreSlim(0, 1);
 		}
 
@@ -36,23 +39,39 @@ namespace DtronixMessageQueue.Rpc.MessageHandlers {
 
 		public void OnReceive(MqMessage message) {
 			read_buffer.Enqueue(message);
+
+			lock (read_lock) {
+				if (read_semaphore.CurrentCount == 0) {
+					read_semaphore.Release();
+				}
+			}
+			
 		}
 
 		/// <summary>
-		/// 
+		/// Reads data from the byte transport.
 		/// </summary>
-		/// <param name="buffer">Buffer to write to the message.</param>
-		/// <param name="offset">Offset in the buffer to write from</param>
-		/// <param name="count">Number of bytes to write to the message from the buffer.</param>
-		public async void ReadAsync(byte[] buffer, int offset, int count, CancellationToken cancellation_token) {
+		/// <param name="buffer">Buffer to read into.</param>
+		/// <param name="offset">Offset in the buffer to start copying to.</param>
+		/// <param name="count">Number of bytes to try to read into the buffer.</param>
+		public async Task<int> ReadAsync(byte[] buffer, int offset, int count, CancellationToken cancellation_token) {
 			if (read_semaphore == null) {
 				throw new InvalidOperationException("Byte transport is set to write mode.  Can not read when in write more.");
 			}
 
-			await read_semaphore.WaitAsync(cancellation_token);
+			if (read_buffer.IsEmpty) {
+				// ReSharper disable once InconsistentlySynchronizedField
+				await read_semaphore.WaitAsync(cancellation_token);
+			}
 
-			// If we are at the beginning, skip the handler id, type and id.
-			if (message_reader.Position == 0) {
+
+			if (message_reader.Message == null) {
+				MqMessage message;
+				if (read_buffer.TryDequeue(out message) == false) {
+					return 0;
+				}
+
+				message_reader.Message = message;
 				message_reader.Skip(3);
 			}
 
@@ -62,8 +81,8 @@ namespace DtronixMessageQueue.Rpc.MessageHandlers {
 				message_reader.Message = null;
 			}
 
+			return total_read;
 
-			message_writer.Write(buffer, index, count);
 		}
 
 		/// <summary>
@@ -73,7 +92,7 @@ namespace DtronixMessageQueue.Rpc.MessageHandlers {
 		/// <param name="index">Offset in the buffer to write from</param>
 		/// <param name="count">Number of bytes to write to the message from the buffer.</param>
 		public void Write(byte[] buffer, int index, int count) {
-			message_writer.Write(2);
+			message_writer.Write((byte) 2);
 			message_writer.Write((byte) ByteTransportMessageType.Write);
 			message_writer.Write(id);
 			message_writer.Write(buffer, index, count);

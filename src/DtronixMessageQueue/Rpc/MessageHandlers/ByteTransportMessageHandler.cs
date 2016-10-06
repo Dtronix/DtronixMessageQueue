@@ -9,12 +9,12 @@ namespace DtronixMessageQueue.Rpc.MessageHandlers {
 		/// <summary>
 		/// Current call Id wich gets incremented for each call return request.
 		/// </summary>
-		private int stream_id;
+		private int transport_id;
 
 		/// <summary>
 		/// Lock to increment and loop return ID.
 		/// </summary>
-		private readonly object stream_id_lock = new object();
+		private readonly object transport_id_lock = new object();
 
 		/// <summary>
 		/// Id byte which precedes all messages all messages of this type.
@@ -24,14 +24,8 @@ namespace DtronixMessageQueue.Rpc.MessageHandlers {
 		/// <summary>
 		/// Contains all local transports.
 		/// </summary>
-		public readonly ConcurrentDictionary<ushort, RpcWaitHandle> LocalTransports =
-			new ConcurrentDictionary<ushort, RpcWaitHandle>();
-
-		/// <summary>
-		/// Contains all remote transports.
-		/// </summary>
-		public readonly ConcurrentDictionary<ushort, RpcWaitHandle> RemoteTransports =
-			new ConcurrentDictionary<ushort, RpcWaitHandle>();
+		public readonly ConcurrentDictionary<ushort, ByteTransport<TSession, TConfig>> RemoteTransports =
+			new ConcurrentDictionary<ushort, ByteTransport<TSession, TConfig>>();
 
 
 		public ByteTransportMessageHandler(TSession session) : base(session) {
@@ -50,13 +44,32 @@ namespace DtronixMessageQueue.Rpc.MessageHandlers {
 			switch (message_type) {
 
 				case ByteTransportMessageType.RequestTransportHandle:
+					ushort handle_id;
 
-					// Remotely called to cancel a rpc call on this session.
-					var cancellation_id = message[0].ReadUInt16(2);
-					RpcWaitHandle wait_handle;
-					if (RemoteWaitHandles.TryRemove(cancellation_id, out wait_handle)) {
-						wait_handle.TokenSource.Cancel();
+					lock (transport_id_lock) {
+						if (++transport_id > ushort.MaxValue) {
+							transport_id = 1;
+						}
+						handle_id = (ushort)transport_id;
 					}
+					var remote_transport = new ByteTransport<TSession, TConfig>(Session);
+
+					RemoteTransports.TryAdd(handle_id, remote_transport);
+
+					// Create response.
+					var response_frame = Session.CreateFrame(new byte[4], MqFrameType.Last);
+					response_frame.Write(0, Id);
+					response_frame.Write(1, (byte)ByteTransportMessageType.ResponseTransportHandle);
+					response_frame.Write(2, handle_id);
+
+					Session.Send(response_frame);
+
+					break;
+
+				case ByteTransportMessageType.ResponseTransportHandle:
+					var id = message[0].ReadUInt16(2);
+
+					message_writer.Write((byte)ByteTransportMessageType.Write);
 					break;
 
 				default:
