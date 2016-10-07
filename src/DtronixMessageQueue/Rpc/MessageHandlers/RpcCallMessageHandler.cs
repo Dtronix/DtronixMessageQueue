@@ -15,31 +15,9 @@ namespace DtronixMessageQueue.Rpc.MessageHandlers {
 		where TConfig : RpcConfig {
 
 		/// <summary>
-		/// Current call Id wich gets incremented for each call return request.
-		/// </summary>
-		private int rpc_call_id;
-
-		/// <summary>
-		/// Lock to increment and loop return ID.
-		/// </summary>
-		private readonly object rpc_call_id_lock = new object();
-
-		/// <summary>
 		/// Id byte which precedes all messages all messages of this type.
 		/// </summary>
 		public override byte Id => 1;
-
-		/// <summary>
-		/// Contains all outstanding call returns pending a return of data from the recipient connection.
-		/// </summary>
-		public readonly ConcurrentDictionary<ushort, RpcWaitHandle> RemoteWaitHandles =
-			new ConcurrentDictionary<ushort, RpcWaitHandle>();
-
-		/// <summary>
-		/// Contains all operations running on this session which are cancellable.
-		/// </summary>
-		public readonly ConcurrentDictionary<ushort, RpcWaitHandle> LocalWaitHandles =
-			new ConcurrentDictionary<ushort, RpcWaitHandle>();
 
 		/// <summary>
 		/// Contains all services that can be remotely executed on this session.
@@ -77,7 +55,7 @@ namespace DtronixMessageQueue.Rpc.MessageHandlers {
 
 					// Remotely called to cancel a rpc call on this session.
 					var cancellation_id = message[0].ReadUInt16(2);
-					RpcWaitHandle wait_handle;
+					ResponseWaitHandle wait_handle;
 					if (RemoteWaitHandles.TryRemove(cancellation_id, out wait_handle)) {
 						wait_handle.TokenSource.Cancel();
 					}
@@ -146,15 +124,15 @@ namespace DtronixMessageQueue.Rpc.MessageHandlers {
 					// Determine if the last parameter is a cancellation token.
 					var last_param = method_info.GetParameters().LastOrDefault();
 
-					var cancellation_source = new CancellationTokenSource();
+					//var cancellation_source = new CancellationTokenSource();
 
 					// Number used to increase the number of parameters if there is a cancellation token.
 					int cancellation_token_param = 0;
-					RpcWaitHandle cancellation_wait;
+					ResponseWaitHandle cancellation_wait;
 
 					// If the past parameter is a cancellation token, setup a return wait for this call to allow for remote cancellation.
 					if (rec_message_return_id != 0 && last_param?.ParameterType == typeof(CancellationToken)) {
-						cancellation_wait = new RpcWaitHandle {
+						cancellation_wait = new ResponseWaitHandle {
 							Token = cancellation_source.Token,
 							TokenSource = cancellation_source,
 							Id = rec_message_return_id
@@ -258,7 +236,7 @@ namespace DtronixMessageQueue.Rpc.MessageHandlers {
 					// Read the return Id.
 					var return_id = serialization.MessageReader.ReadUInt16();
 
-					RpcWaitHandle call_wait_handle;
+					ResponseWaitHandle call_wait_handle;
 					// Try to get the outstanding wait from the return id.  If it does not exist, the has already completed.
 					if (LocalWaitHandles.TryRemove(return_id, out call_wait_handle)) {
 						call_wait_handle.ReturnMessage = message;
@@ -303,47 +281,5 @@ namespace DtronixMessageQueue.Rpc.MessageHandlers {
 		}
 
 
-		/// <summary>
-		/// Creates a waiting operation for this session.  Could be a remote cancellation request or a pending result request.
-		/// </summary>
-		/// <returns>Wait operation to wait on.</returns>
-		public RpcWaitHandle CreateWaitHandle() {
-			var return_wait = new RpcWaitHandle {
-				ReturnResetEvent = new ManualResetEventSlim()
-			};
-
-			// Lock the id incrementation to prevent duplicates.
-			lock (rpc_call_id_lock) {
-				if (++rpc_call_id > ushort.MaxValue) {
-					rpc_call_id = 0;
-				}
-				return_wait.Id = (ushort)rpc_call_id;
-			}
-
-			// Add the wait to the outstanding wait dictionary for retrieval later.
-			if (LocalWaitHandles.TryAdd(return_wait.Id, return_wait) == false) {
-				throw new InvalidOperationException($"Id {return_wait.Id} already exists in the return_wait_handles dictionary.");
-			}
-
-			return return_wait;
-		}
-
-		/// <summary>
-		/// Called to cancel a remote waiting operation on the recipient connection.
-		/// </summary>
-		/// <param name="id">Id of the waiting operation to cancel.</param>
-		public void CancelWaitHandle(ushort id) {
-			RpcWaitHandle call_wait_handle;
-
-			// Try to get the wait.  If the Id does not exist, the wait operation has already been completed or removed.
-			if (LocalWaitHandles.TryRemove(id, out call_wait_handle)) {
-				var frame = new MqFrame(new byte[4], MqFrameType.Last, Session.Config);
-				frame.Write(0, Id);
-				frame.Write(1, (byte)RpcCallMessageType.MethodCancel);
-				frame.Write(2, id);
-
-				Session.Send(frame);
-			}
-		}
 	}
 }

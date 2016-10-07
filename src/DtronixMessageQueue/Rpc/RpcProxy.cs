@@ -81,7 +81,7 @@ namespace DtronixMessageQueue.Rpc {
 			}
 
 
-			RpcWaitHandle return_wait = null;
+			ResponseWaitHandle return_wait = null;
 			serializer.MessageWriter.Write(call_message_handler.Id);
 
 			// Determine what kind of method we are calling.

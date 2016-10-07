@@ -6,7 +6,7 @@ namespace DtronixMessageQueue.Rpc {
 	/// <summary>
 	/// Class which represents a task which is waiting on another event to occur.
 	/// </summary>
-	public class RpcWaitHandle {
+	public class ResponseWaitHandle {
 
 		/// <summary>
 		/// Id of this wait operation.  Used to coordinate between client/server.
@@ -26,16 +26,28 @@ namespace DtronixMessageQueue.Rpc {
 		/// <summary>
 		/// Cancellation token for the request.
 		/// </summary>
-		public CancellationToken Token { get; set; }
+		public CancellationToken Token { get; }
 
 		/// <summary>
 		/// Cancellation token source for the request.
 		/// </summary>
-		public CancellationTokenSource TokenSource { get; set; }
+		private CancellationTokenSource token_source;
 
 		/// <summary>
 		/// Contains the time that this call wait was created to check for timeouts.
 		/// </summary>
 		public DateTime Created { get; } = DateTime.UtcNow;
+
+		public ResponseWaitHandle() : this(new CancellationTokenSource()) {
+		}
+
+		public ResponseWaitHandle(CancellationTokenSource cancellation_token_source) {
+			token_source = cancellation_token_source;
+			Token = cancellation_token_source.Token;
+		}
+
+		public void Cancel() {
+			token_source.Cancel();
+		}
 	}
 }

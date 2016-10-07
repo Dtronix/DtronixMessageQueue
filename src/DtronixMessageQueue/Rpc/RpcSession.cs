@@ -34,8 +34,8 @@ namespace DtronixMessageQueue.Rpc {
 		/// <summary>
 		/// Contains all active stream handles for this session.
 		/// </summary>
-		private readonly ConcurrentDictionary<ushort, RpcWaitHandle> stream_handles =
-			new ConcurrentDictionary<ushort, RpcWaitHandle>();
+		private readonly ConcurrentDictionary<ushort, ResponseWaitHandle> stream_handles =
+			new ConcurrentDictionary<ushort, ResponseWaitHandle>();
 
 		/// <summary>
 		/// Server base socket for this session.

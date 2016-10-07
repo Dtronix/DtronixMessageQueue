@@ -58,6 +58,7 @@
     <Compile Include="Rpc\IRemoteService.cs" />
     <Compile Include="Rpc\MessageHandler.cs" />
     <Compile Include="Rpc\MessageHandlers\ByteTransportReceiveEventArgs.cs" />
+    <Compile Include="Rpc\ResponseWait.cs" />
     <Compile Include="Rpc\RpcAuthEventArgs.cs" />
     <Compile Include="Rpc\MessageHandlers\ByteTransportMessageHandler.cs" />
     <Compile Include="Rpc\MessageHandlers\RpcCallMessageHandler.cs" />
@@ -68,7 +69,7 @@
     <Compile Include="Rpc\RpcProxy.cs" />
     <Compile Include="Rpc\RpcRemoteException.cs" />
     <Compile Include="Rpc\DataContract\RpcRemoteExceptionDataContract.cs" />
-    <Compile Include="Rpc\RpcWaitHandle.cs" />
+    <Compile Include="Rpc\ResponseWaitHandle.cs" />
     <Compile Include="Rpc\RpcServer.cs" />
     <Compile Include="Rpc\RpcSession.cs" />
     <Compile Include="Rpc\RpcStream.cs" />
