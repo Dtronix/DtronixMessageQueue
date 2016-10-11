@@ -39,10 +39,7 @@ namespace DtronixMessageQueue.Tests.Performance.Services.Server {
 
 		public void TestNoReturnLongBlocking() {
 			var number = Interlocked.Increment(ref call_count);
-			Console.WriteLine($"Started {number}");
 			Thread.Sleep(10000);
-			Console.WriteLine($"Completed {number}");
-
 			VerifyComplete();
 
 		}

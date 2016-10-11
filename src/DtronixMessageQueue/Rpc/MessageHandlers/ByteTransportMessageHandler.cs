@@ -69,7 +69,7 @@ namespace DtronixMessageQueue.Rpc.MessageHandlers {
 				case ByteTransportMessageType.ResponseTransportHandle:
 					var id = message[0].ReadUInt16(2);
 
-					message_writer.Write((byte)ByteTransportMessageType.Write);
+					//message_writer.Write((byte)ByteTransportMessageType.Write);
 					break;
 
 				default:

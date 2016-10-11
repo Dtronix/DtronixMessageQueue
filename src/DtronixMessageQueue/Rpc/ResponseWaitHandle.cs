@@ -26,28 +26,17 @@ namespace DtronixMessageQueue.Rpc {
 		/// <summary>
 		/// Cancellation token for the request.
 		/// </summary>
-		public CancellationToken Token { get; }
+		public CancellationToken Token { get; set; }
 
 		/// <summary>
 		/// Cancellation token source for the request.
 		/// </summary>
-		private CancellationTokenSource token_source;
+		public CancellationTokenSource TokenSource { get; set; }
 
 		/// <summary>
 		/// Contains the time that this call wait was created to check for timeouts.
 		/// </summary>
 		public DateTime Created { get; } = DateTime.UtcNow;
 
-		public ResponseWaitHandle() : this(new CancellationTokenSource()) {
-		}
-
-		public ResponseWaitHandle(CancellationTokenSource cancellation_token_source) {
-			token_source = cancellation_token_source;
-			Token = cancellation_token_source.Token;
-		}
-
-		public void Cancel() {
-			token_source.Cancel();
-		}
 	}
 }

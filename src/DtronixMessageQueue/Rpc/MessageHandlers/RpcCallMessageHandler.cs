@@ -17,7 +17,7 @@ namespace DtronixMessageQueue.Rpc.MessageHandlers {
 		/// <summary>
 		/// Id byte which precedes all messages all messages of this type.
 		/// </summary>
-		public override byte Id => 1;
+		public sealed override byte Id => 1;
 
 		/// <summary>
 		/// Contains all services that can be remotely executed on this session.
@@ -36,7 +36,10 @@ namespace DtronixMessageQueue.Rpc.MessageHandlers {
 		/// </summary>
 		public readonly Dictionary<Type, RealProxy> RemoteServiceRealproxy = new Dictionary<Type, RealProxy>();
 
+		public readonly ResponseWait<TSession, TConfig> WaitOperations;
+
 		public RpcCallMessageHandler(TSession session) : base(session) {
+			WaitOperations = new ResponseWait<TSession, TConfig>(Id, Session);
 		}
 
 		
@@ -55,10 +58,7 @@ namespace DtronixMessageQueue.Rpc.MessageHandlers {
 
 					// Remotely called to cancel a rpc call on this session.
 					var cancellation_id = message[0].ReadUInt16(2);
-					ResponseWaitHandle wait_handle;
-					if (RemoteWaitHandles.TryRemove(cancellation_id, out wait_handle)) {
-						wait_handle.TokenSource.Cancel();
-					}
+					WaitOperations.RemoteCancel(cancellation_id);
 					break;
 
 				case RpcCallMessageType.MethodCallNoReturn:
@@ -124,29 +124,19 @@ namespace DtronixMessageQueue.Rpc.MessageHandlers {
 					// Determine if the last parameter is a cancellation token.
 					var last_param = method_info.GetParameters().LastOrDefault();
 
-					//var cancellation_source = new CancellationTokenSource();
-
-					// Number used to increase the number of parameters if there is a cancellation token.
-					int cancellation_token_param = 0;
-					ResponseWaitHandle cancellation_wait;
+					ResponseWaitHandle cancellation_wait = null;
 
 					// If the past parameter is a cancellation token, setup a return wait for this call to allow for remote cancellation.
 					if (rec_message_return_id != 0 && last_param?.ParameterType == typeof(CancellationToken)) {
-						cancellation_wait = new ResponseWaitHandle {
-							Token = cancellation_source.Token,
-							TokenSource = cancellation_source,
-							Id = rec_message_return_id
-						};
+						
+						cancellation_wait = WaitOperations.CreateRemoteWaitHandle(rec_message_return_id);
 
-						// Set the number to 1 to increase the parameter number by one.
-						cancellation_token_param = 1;
-
-						// Add it to the main list of ongoing operations.
-						RemoteWaitHandles.TryAdd(rec_message_return_id, cancellation_wait);
+						cancellation_wait.TokenSource = new CancellationTokenSource();
+						cancellation_wait.Token = cancellation_wait.TokenSource.Token;
 					}
 
 					// Setup the parameters to pass to the invoked method.
-					object[] parameters = new object[rec_argument_count + cancellation_token_param];
+					object[] parameters = new object[rec_argument_count + (cancellation_wait == null ? 0 : 1)];
 
 					// Determine if we have any parameters to pass to the invoked method.
 					if (rec_argument_count > 0) {
@@ -161,8 +151,8 @@ namespace DtronixMessageQueue.Rpc.MessageHandlers {
 					}
 
 					// Add the cancellation token to the parameters.
-					if (cancellation_token_param > 0) {
-						parameters[parameters.Length - 1] = cancellation_source.Token;
+					if (cancellation_wait != null) {
+						parameters[parameters.Length - 1] = cancellation_wait.Token;
 					}
 
 
@@ -178,9 +168,7 @@ namespace DtronixMessageQueue.Rpc.MessageHandlers {
 						}
 						return;
 					} finally {
-						// Remove the cancellation wait if it exists.
-						LocalWaitHandles.TryRemove(rec_message_return_id, out cancellation_wait);
-
+						WaitOperations.RemoteComplete(rec_message_return_id);
 					}
 
 
@@ -236,9 +224,10 @@ namespace DtronixMessageQueue.Rpc.MessageHandlers {
 					// Read the return Id.
 					var return_id = serialization.MessageReader.ReadUInt16();
 
-					ResponseWaitHandle call_wait_handle;
+
+					ResponseWaitHandle call_wait_handle = WaitOperations.LocalGet(return_id);
 					// Try to get the outstanding wait from the return id.  If it does not exist, the has already completed.
-					if (LocalWaitHandles.TryRemove(return_id, out call_wait_handle)) {
+					if (call_wait_handle != null) {
 						call_wait_handle.ReturnMessage = message;
 
 						// Release the wait event.
