@@ -76,7 +76,7 @@ namespace DtronixMessageQueue.Rpc {
 			};
 
 			// Add the wait to the outstanding wait dictionary for retrieval later.
-			if (local_wait_handles.TryAdd(return_wait.Id, return_wait) == false) {
+			if (remote_wait_handles.TryAdd(return_wait.Id, return_wait) == false) {
 				throw new InvalidOperationException($"Id {return_wait.Id} already exists in the remote handles dictionary.");
 			}
 

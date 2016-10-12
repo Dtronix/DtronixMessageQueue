@@ -91,9 +91,10 @@ namespace DtronixMessageQueue.Tests.Rpc {
 				var service = Client.Session.GetProxy<ICalculatorService>();
 				var token_source = new CancellationTokenSource();
 
-				token_source.CancelAfter(200);
+				
 				bool threw = false;
 				try {
+					token_source.CancelAfter(500);
 					service.LongRunningTask(1, 2, token_source.Token);
 				} catch (OperationCanceledException) {
 					threw = true;
