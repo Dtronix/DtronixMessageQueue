@@ -21,5 +21,7 @@ namespace DtronixMessageQueue.Rpc {
 		}
 
 		public abstract bool HandleMessage(MqMessage message);
+
+		protected MqMessage HandlerMessage(byte action, )
 	}
 }

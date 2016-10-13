@@ -95,7 +95,7 @@ namespace DtronixMessageQueue.Rpc {
 				serializer.MessageWriter.Write((byte) RpcCallMessageType.MethodCall);
 
 				// Create a wait operation to wait for the response.
-				return_wait = call_message_handler.WaitOperations.CreateLocalWaitHandle();
+				return_wait = call_message_handler.ProxyWaitOperations.CreateWaitHandle(null);
 
 				// Byte[1,2] Wait Id which is used for returning the value and cancellation.
 				serializer.MessageWriter.Write(return_wait.Id);
@@ -130,7 +130,14 @@ namespace DtronixMessageQueue.Rpc {
 			} catch (OperationCanceledException) {
 
 				// If the operation was canceled, cancel the wait on this end and notify the other end.
-				call_message_handler.WaitOperations.LocalCancel(return_wait.Id, true);
+				call_message_handler.ProxyWaitOperations.Cancel(return_wait.Id);
+
+				var frame = new MqFrame(new byte[4], MqFrameType.Last, session.Config);
+				frame.Write(0, call_message_handler.Id);
+				frame.Write(1, (byte)RpcCallMessageType.MethodCancel);
+				frame.Write(2, return_wait.Id);
+
+				session.Send(frame);
 				throw new OperationCanceledException("Wait handle was canceled while waiting for a response.");
 			}
 			
@@ -144,7 +151,7 @@ namespace DtronixMessageQueue.Rpc {
 			try {
 
 				// Start parsing the received message.
-				serializer.MessageReader.Message = return_wait.ReturnMessage;
+				serializer.MessageReader.Message = return_wait.Message;
 
 				// Skip the Handler Id.
 				serializer.MessageReader.Skip(1);

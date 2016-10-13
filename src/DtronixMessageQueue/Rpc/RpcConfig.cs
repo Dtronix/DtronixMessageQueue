@@ -24,5 +24,10 @@ namespace DtronixMessageQueue.Rpc {
 		/// Set to true if the client needs to pass authentication data to the server to connect.
 		/// </summary>
 		public bool RequireAuthentication { get; set; } = false;
+
+		/// <summary>
+		/// Set to the maximum stream of bytes that is allowed to be sent to the session.
+		/// </summary>
+		public long MaxByteTransportLength { get; set; } = Int64.MaxValue;
 	}
 }

@@ -36,10 +36,12 @@ namespace DtronixMessageQueue.Rpc.MessageHandlers {
 		/// </summary>
 		public readonly Dictionary<Type, RealProxy> RemoteServiceRealproxy = new Dictionary<Type, RealProxy>();
 
-		public readonly ResponseWait<TSession, TConfig> WaitOperations;
+		public readonly ResponseWait<ResponseWaitHandle> ProxyWaitOperations = new ResponseWait<ResponseWaitHandle>();
+
+		private readonly ResponseWait<ResponseWaitHandle> remote_wait_operations = new ResponseWait<ResponseWaitHandle>();
 
 		public RpcCallMessageHandler(TSession session) : base(session) {
-			WaitOperations = new ResponseWait<TSession, TConfig>(Id, Session);
+
 		}
 
 		
@@ -58,7 +60,7 @@ namespace DtronixMessageQueue.Rpc.MessageHandlers {
 
 					// Remotely called to cancel a rpc call on this session.
 					var cancellation_id = message[0].ReadUInt16(2);
-					WaitOperations.RemoteCancel(cancellation_id);
+					remote_wait_operations.Cancel(cancellation_id);
 					break;
 
 				case RpcCallMessageType.MethodCallNoReturn:
@@ -129,7 +131,7 @@ namespace DtronixMessageQueue.Rpc.MessageHandlers {
 					// If the past parameter is a cancellation token, setup a return wait for this call to allow for remote cancellation.
 					if (rec_message_return_id != 0 && last_param?.ParameterType == typeof(CancellationToken)) {
 						
-						cancellation_wait = WaitOperations.CreateRemoteWaitHandle(rec_message_return_id);
+						cancellation_wait = remote_wait_operations.CreateWaitHandle(rec_message_return_id);
 
 						cancellation_wait.TokenSource = new CancellationTokenSource();
 						cancellation_wait.Token = cancellation_wait.TokenSource.Token;
@@ -168,7 +170,7 @@ namespace DtronixMessageQueue.Rpc.MessageHandlers {
 						}
 						return;
 					} finally {
-						WaitOperations.RemoteComplete(rec_message_return_id);
+						remote_wait_operations.Remove(rec_message_return_id);
 					}
 
 
@@ -213,29 +215,17 @@ namespace DtronixMessageQueue.Rpc.MessageHandlers {
 
 			// Execute the processing on the worker thread.
 			Task.Run(() => {
-
-				// Retrieve a serialization cache to work with.
-				var serialization = Session.SerializationCache.Get(message);
-				try {
-
-					// Skip message type byte and message type.
-					serialization.MessageReader.Skip(2);
-
-					// Read the return Id.
-					var return_id = serialization.MessageReader.ReadUInt16();
+				// Read the return Id.
+				var return_id = message[0].ReadUInt16(2);
 
 
-					ResponseWaitHandle call_wait_handle = WaitOperations.LocalGet(return_id);
-					// Try to get the outstanding wait from the return id.  If it does not exist, the has already completed.
-					if (call_wait_handle != null) {
-						call_wait_handle.ReturnMessage = message;
+				ResponseWaitHandle call_wait_handle = ProxyWaitOperations.Remove(return_id);
+				// Try to get the outstanding wait from the return id.  If it does not exist, the has already completed.
+				if (call_wait_handle != null) {
+					call_wait_handle.Message = message;
 
-						// Release the wait event.
-						call_wait_handle.ReturnResetEvent.Set();
-					}
-
-				} finally {
-					Session.SerializationCache.Put(serialization);
+					// Release the wait event.
+					call_wait_handle.ReturnResetEvent.Set();
 				}
 			});
 		}

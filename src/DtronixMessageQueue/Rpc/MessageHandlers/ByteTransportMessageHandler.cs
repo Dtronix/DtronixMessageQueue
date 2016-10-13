@@ -1,4 +1,5 @@
-﻿using System.Collections.Concurrent;
+﻿using System;
+using System.Collections.Concurrent;
 using DtronixMessageQueue.Socket;
 
 namespace DtronixMessageQueue.Rpc.MessageHandlers {
@@ -7,19 +8,13 @@ namespace DtronixMessageQueue.Rpc.MessageHandlers {
 		where TConfig : RpcConfig {
 
 		/// <summary>
-		/// Current call Id wich gets incremented for each call return request.
-		/// </summary>
-		private int transport_id;
-
-		/// <summary>
-		/// Lock to increment and loop return ID.
-		/// </summary>
-		private readonly object transport_id_lock = new object();
-
-		/// <summary>
 		/// Id byte which precedes all messages all messages of this type.
 		/// </summary>
 		public override byte Id => 2;
+
+		private readonly ResponseWait<ResponseWaitHandle> send_operation = new ResponseWait<ResponseWaitHandle>();
+
+		private readonly ResponseWait<ResponseWaitHandle> receive_operation = new ResponseWait<ResponseWaitHandle>();
 
 		/// <summary>
 		/// Contains all local transports.
@@ -31,7 +26,7 @@ namespace DtronixMessageQueue.Rpc.MessageHandlers {
 		public ByteTransportMessageHandler(TSession session) : base(session) {
 		}
 
-		
+
 
 		public override bool HandleMessage(MqMessage message) {
 			if (message[0][0] != Id) {
@@ -39,20 +34,30 @@ namespace DtronixMessageQueue.Rpc.MessageHandlers {
 			}
 
 			// Read the type of message.
-			var message_type = (ByteTransportMessageType)message[0].ReadByte(1);
+			var message_type = (ByteTransportMessageType) message[0].ReadByte(1);
 
 			switch (message_type) {
 
 				case ByteTransportMessageType.RequestTransportHandle:
-					ushort handle_id;
+					ushort handle_id = message[0].ReadUInt16(2);
+					long size = message[0].ReadInt64(4);
+					ByteTransport<TSession, TConfig> transport;
 
-					lock (transport_id_lock) {
-						if (++transport_id > ushort.MaxValue) {
-							transport_id = 1;
-						}
-						handle_id = (ushort)transport_id;
+					if (size > Session.Config.MaxByteTransportLength) {
+						var error_frame = Session.CreateFrame(new byte[2], MqFrameType.Last);
+						error_frame.Write(0, Id);
+						error_frame.Write(1, (byte)ByteTransportMessageType.ResponseTransportHandle);
 					}
-					var remote_transport = new ByteTransport<TSession, TConfig>(Session);
+
+					try {
+						transport = new ByteTransport<TSession, TConfig>(Session, handle_id, size);
+					} catch (Exception) {
+						
+						throw;
+					}
+
+
+					receive_operation.CreateWaitHandle(handle_id);
 
 					RemoteTransports.TryAdd(handle_id, remote_transport);
 

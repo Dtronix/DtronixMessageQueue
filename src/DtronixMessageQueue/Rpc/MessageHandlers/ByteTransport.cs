@@ -10,6 +10,7 @@ namespace DtronixMessageQueue.Rpc.MessageHandlers {
 	public class ByteTransport<TSession, TConfig>
 		where TSession : RpcSession<TSession, TConfig>, new()
 		where TConfig : RpcConfig {
+		public long Length { get; set; }
 
 		private readonly TSession session;
 		private readonly ushort id;
@@ -25,7 +26,8 @@ namespace DtronixMessageQueue.Rpc.MessageHandlers {
 
 		public event EventHandler<ByteTransportReceiveEventArgs> Receive;
 
-		public ByteTransport(TSession session, ushort id) {
+		public ByteTransport(TSession session, ushort id, long length) {
+			Length = length;
 			this.session = session;
 			this.id = id;
 			message_reader = new MqMessageReader();

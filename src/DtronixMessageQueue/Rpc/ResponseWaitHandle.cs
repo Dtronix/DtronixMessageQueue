@@ -21,7 +21,7 @@ namespace DtronixMessageQueue.Rpc {
 		/// <summary>
 		/// Message that the other session receives from the connection that is associated with the return value for this request.
 		/// </summary>
-		public MqMessage ReturnMessage { get; set; }
+		public MqMessage Message { get; set; }
 
 		/// <summary>
 		/// Cancellation token for the request.
