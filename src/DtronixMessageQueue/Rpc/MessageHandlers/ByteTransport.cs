@@ -95,7 +95,7 @@ namespace DtronixMessageQueue.Rpc.MessageHandlers {
 		/// <param name="count">Number of bytes to write to the message from the buffer.</param>
 		public void Write(byte[] buffer, int index, int count) {
 			message_writer.Write((byte) 2);
-			message_writer.Write((byte) ByteTransportMessageType.Write);
+			message_writer.Write((byte) ByteTransportMessageAction.Write);
 			message_writer.Write(id);
 			message_writer.Write(buffer, index, count);
 

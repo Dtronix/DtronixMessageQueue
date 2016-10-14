@@ -238,7 +238,7 @@ namespace DtronixMessageQueue.Tests.Mq {
 				}
 			};
 
-			StartAndWait(false, 2000);
+			StartAndWait(false, 1500);
 
 			if (TestStatus.IsSet) {
 				throw new Exception("Client timed out.");

@@ -24,6 +24,11 @@ namespace DtronixMessageQueue.Rpc {
 		public MqMessage Message { get; set; }
 
 		/// <summary>
+		/// Byte if of the returned message.
+		/// </summary>
+		public byte MessageActionId { get; set; }
+
+		/// <summary>
 		/// Cancellation token for the request.
 		/// </summary>
 		public CancellationToken Token { get; set; }

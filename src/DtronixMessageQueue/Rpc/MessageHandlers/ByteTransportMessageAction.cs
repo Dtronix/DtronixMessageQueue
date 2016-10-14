@@ -4,7 +4,7 @@
 	/// <summary>
 	/// Type of message which is being sent.
 	/// </summary>
-	public enum ByteTransportMessageType : byte {
+	public enum ByteTransportMessageAction : byte {
 
 		/// <summary>
 		/// Unknown default type.

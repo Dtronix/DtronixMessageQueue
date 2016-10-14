@@ -3,7 +3,7 @@
 	/// <summary>
 	/// Type of message which is being sent.
 	/// </summary>
-	public enum RpcCallMessageType : byte {
+	public enum RpcCallMessageAction : byte {
 
 		/// <summary>
 		/// Unknown default type.

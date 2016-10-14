@@ -24,9 +24,9 @@ namespace DtronixMessageQueue.Rpc {
 		public event EventHandler<RpcAuthenticateEventArgs<TSession,TConfig>> Authenticate;
 
 		/// <summary>
-		/// Called when the authentication process concludes.
+		/// Called when the authentication process succeeds.
 		/// </summary>
-		public event EventHandler<RpcAuthenticateEventArgs<TSession, TConfig>> AuthenticationResult;
+		public event EventHandler<RpcAuthenticateEventArgs<TSession, TConfig>> AuthenticationSuccess;
 
 		/// <summary>
 		/// Event invoked once when the RpcSession has been authenticated and is ready for usage.
@@ -45,7 +45,7 @@ namespace DtronixMessageQueue.Rpc {
 
 			session.Ready += (sender, e) => { Ready?.Invoke(sender, e); };
 			session.Authenticate += (sender, e) => { Authenticate?.Invoke(sender, e); };
-			session.AuthenticationResult += (sender, e) => { AuthenticationResult?.Invoke(sender, e); };
+			session.AuthenticationSuccess += (sender, e) => { AuthenticationSuccess?.Invoke(sender, e); };
 			return session;
 		}
 	}

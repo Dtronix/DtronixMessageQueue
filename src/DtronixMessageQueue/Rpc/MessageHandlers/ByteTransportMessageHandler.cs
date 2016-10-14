@@ -24,19 +24,19 @@ namespace DtronixMessageQueue.Rpc.MessageHandlers {
 
 
 		public ByteTransportMessageHandler(TSession session) : base(session) {
-			handlers.Add((byte)ByteTransportMessageType.RequestTransportHandle, RequestTransportHandle);
+			Handlers.Add((byte)ByteTransportMessageAction.RequestTransportHandle, RequestTransportHandle);
 		}
 
-		private void RequestTransportHandle(MqMessage message) {
-			ushort handle_id = message[0].ReadUInt16(2);
-			long size = message[0].ReadInt64(4);
+		private void RequestTransportHandle(byte action_id, MqMessage message) {
+			ushort handle_id = message[0].ReadUInt16(0);
+			long size = message[0].ReadInt64(2);
 			
 			
 
 			if (size > Session.Config.MaxByteTransportLength) {
 				var error_frame = Session.CreateFrame(new byte[2], MqFrameType.Last);
 				error_frame.Write(0, Id);
-				error_frame.Write(1, (byte)ByteTransportMessageType.ResponseTransportHandle);
+				error_frame.Write(1, (byte)ByteTransportMessageAction.ResponseTransportHandle);
 			}
 
 			ByteTransport<TSession, TConfig> transport = new ByteTransport<TSession, TConfig>(Session, handle_id, size);
@@ -44,12 +44,12 @@ namespace DtronixMessageQueue.Rpc.MessageHandlers {
 
 			receive_operation.CreateWaitHandle(handle_id);
 
-			RemoteTransports.TryAdd(handle_id, remote_transport);
+			//RemoteTransports.TryAdd(handle_id, remote_transport);
 
 			// Create response.
 			var response_frame = Session.CreateFrame(new byte[4], MqFrameType.Last);
 			response_frame.Write(0, Id);
-			response_frame.Write(1, (byte)ByteTransportMessageType.ResponseTransportHandle);
+			response_frame.Write(1, (byte)ByteTransportMessageAction.ResponseTransportHandle);
 			response_frame.Write(2, handle_id);
 
 			Session.Send(response_frame);

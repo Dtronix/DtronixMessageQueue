@@ -238,36 +238,6 @@ namespace DtronixMessageQueue.Tests.Rpc {
 			StartAndWait();
 		}
 
-		[Fact]
-		public void Client_notified_of_authentication_failure() {
-			Server.Config.RequireAuthentication = true;
-
-			Server.SessionSetup += (sender, args) => {
-				args.Session.AddService<ICalculatorService>(new CalculatorService());
-			};
-
-			Server.Authenticate += (sender, e) => {
-				e.Authenticated = false;
-			};
-
-			Client.AuthenticationResult += (sender, e) => {
-				if (e.Authenticated) {
-					LastException = new Exception("Client notified of authentication wrongly.");
-				}
-				TestStatus.Set();
-			};
-
-			Client.Closed += (sender, e) => {
-
-			};
-
-			Client.Authenticate += (sender, e) => {
-				e.AuthData = new byte[] {5, 4, 3, 2, 1};
-			};
-
-			StartAndWait();
-		}
-
 
 		[Fact]
 		public void Client_notified_of_authentication_success() {
@@ -281,7 +251,7 @@ namespace DtronixMessageQueue.Tests.Rpc {
 				e.Authenticated = true;
 			};
 
-			Client.AuthenticationResult += (sender, e) => {
+			Client.AuthenticationSuccess += (sender, e) => {
 				if (e.Authenticated == false) {
 					LastException = new Exception("Client notified of authentication wrongly.");
 				}
@@ -299,18 +269,10 @@ namespace DtronixMessageQueue.Tests.Rpc {
 		public void Client_times_out_on_auth_failure() {
 			Server.Config.RequireAuthentication = true;
 			Server.Config.ConnectionTimeout = 100;
-			bool auth_failure_called = false;
-
-			Client.AuthenticationResult += (sender, e) => {
-				auth_failure_called = !e.Authenticated;
-			};
 
 			Client.Closed += (sender, e) => {
-				if (auth_failure_called == false) {
-					LastException = new Exception("Client was not notified that the authentication failed.");
-				}
 				if (e.CloseReason != SocketCloseReason.AuthenticationFailure) {
-					LastException = new Exception("Client was disconnected for invalid reason.");
+					LastException = new Exception("Client was not notified that the authentication failed.");
 				}
 				TestStatus.Set();
 			};

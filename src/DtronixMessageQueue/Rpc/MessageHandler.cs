@@ -11,6 +11,8 @@ namespace DtronixMessageQueue.Rpc {
 		where TSession : RpcSession<TSession, TConfig>, new()
 		where TConfig : RpcConfig {
 
+		public delegate void ActionHandler(byte action_handler, MqMessage message);
+
 		/// <summary>
 		/// Id byte which precedes all messages all messages of this type.
 		/// </summary>
@@ -18,13 +20,13 @@ namespace DtronixMessageQueue.Rpc {
 
 		protected TSession Session;
 
-		protected Dictionary<byte, Action<MqMessage>> handlers = new Dictionary<byte, Action<MqMessage>>();
+		protected Dictionary<byte, ActionHandler> Handlers = new Dictionary<byte, ActionHandler>();
 
 		protected MessageHandler(TSession session) {
 			Session = session;
 		}
 
-		public void HandleMessage(MqMessage message) {
+		public bool HandleMessage(MqMessage message) {
 			if (message[0][0] != Id) {
 				Session.Close(SocketCloseReason.ProtocolError);
 			}
@@ -32,13 +34,29 @@ namespace DtronixMessageQueue.Rpc {
 			// Read the type of message.
 			var message_type = message[0].ReadByte(1);
 
-			if (handlers.ContainsKey(message_type)) {
-				handlers[message_type].Invoke(message);
-			} else {
-				// Unknown message type passed.  Disconnect the connection.
-				Session.Close(SocketCloseReason.ProtocolError);
+			if (Handlers.ContainsKey(message_type)) {
+				message.RemoveAt(0);
+				Handlers[message_type].Invoke(message_type, message);
+				return true;
 			}
 
+			// Unknown message type passed.  Disconnect the connection.
+			Session.Close(SocketCloseReason.ProtocolError);
+			return false;
+		}
+
+		public void SendHandlerMessage(byte action_id, MqMessage message) {
+			var header_frame = Session.CreateFrame(new byte[2], MqFrameType.More);
+			header_frame.Write(0, Id);
+			header_frame.Write(1, action_id);
+
+			if (message == null) {
+				message = new MqMessage(header_frame);
+			} else {
+				message.Insert(0, header_frame);
+			}
+
+			Session.Send(message);
 		}
 	}
 }

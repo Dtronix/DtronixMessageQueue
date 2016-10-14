@@ -55,9 +55,9 @@ namespace DtronixMessageQueue.Rpc {
 		public event EventHandler<RpcAuthenticateEventArgs<TSession, TConfig>> Authenticate;
 
 		/// <summary>
-		/// Verify the authenticity of the newly connected client.
+		/// Called when the authentication process succeeds.
 		/// </summary>
-		public event EventHandler<RpcAuthenticateEventArgs<TSession, TConfig>> AuthenticationResult;
+		public event EventHandler<RpcAuthenticateEventArgs<TSession, TConfig>> AuthenticationSuccess;
 
 		/// <summary>
 		/// Event invoked once when the RpcSession has been authenticated and is ready for usage.
@@ -198,19 +198,20 @@ namespace DtronixMessageQueue.Rpc {
 
 					Authenticated = auth_args.Authenticated;
 
-					var auth_frame = CreateFrame(new byte[auth_args.AuthData.Length + 2], MqFrameType.Command);
-					auth_frame.Write(0, (byte) MqCommandType.RpcCommand);
-					auth_frame.Write(1, (byte) RpcCommandType.AuthenticationResult);
-
-					// State of the authentication
-					auth_frame.Write(2, Authenticated);
-
-					// RpcCommand:byte; RpcCommandType:byte; AuthResult:bool;
-					Send(auth_frame);
-
 					if (Authenticated == false) {
 						Close(SocketCloseReason.AuthenticationFailure);
 					} else {
+
+						var auth_frame = CreateFrame(new byte[auth_args.AuthData.Length + 2], MqFrameType.Command);
+						auth_frame.Write(0, (byte)MqCommandType.RpcCommand);
+						auth_frame.Write(1, (byte)RpcCommandType.AuthenticationResult);
+
+						// State of the authentication
+						auth_frame.Write(2, Authenticated);
+
+						// RpcCommand:byte; RpcCommandType:byte; AuthResult:bool;
+						Send(auth_frame);
+
 						// Alert the server that this session is ready for usage.
 						Task.Run(() => {
 							Ready?.Invoke(this, new SessionEventArgs<TSession, TConfig>((TSession) this));
@@ -238,7 +239,7 @@ namespace DtronixMessageQueue.Rpc {
 					};
 
 					// Alert the client that the sesion has been authenticated.
-					AuthenticationResult?.Invoke(this, auth_args);
+					AuthenticationSuccess?.Invoke(this, auth_args);
 
 					// Alert the client that this session is ready for usage.
 					Task.Run(() => {

@@ -53,7 +53,7 @@
     <Compile Include="MqSession.cs" />
     <Compile Include="MqConfig.cs" />
     <Compile Include="Rpc\MessageHandlers\ByteTransport.cs" />
-    <Compile Include="Rpc\MessageHandlers\ByteTransportMessageType.cs" />
+    <Compile Include="Rpc\MessageHandlers\ByteTransportMessageAction.cs" />
     <Compile Include="Rpc\DataContract\RpcServerInfoDataContract.cs" />
     <Compile Include="Rpc\IRemoteService.cs" />
     <Compile Include="Rpc\MessageHandler.cs" />
@@ -65,7 +65,7 @@
     <Compile Include="Rpc\RpcClient.cs" />
     <Compile Include="Rpc\RpcCommandType.cs" />
     <Compile Include="Rpc\RpcConfig.cs" />
-    <Compile Include="Rpc\MessageHandlers\RpcCallMessageType.cs" />
+    <Compile Include="Rpc\MessageHandlers\RpcCallMessageAction.cs" />
     <Compile Include="Rpc\RpcProxy.cs" />
     <Compile Include="Rpc\RpcRemoteException.cs" />
     <Compile Include="Rpc\DataContract\RpcRemoteExceptionDataContract.cs" />

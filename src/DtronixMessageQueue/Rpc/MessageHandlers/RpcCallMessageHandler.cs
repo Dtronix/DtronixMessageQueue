@@ -41,68 +41,39 @@ namespace DtronixMessageQueue.Rpc.MessageHandlers {
 		private readonly ResponseWait<ResponseWaitHandle> remote_wait_operations = new ResponseWait<ResponseWaitHandle>();
 
 		public RpcCallMessageHandler(TSession session) : base(session) {
+			Handlers.Add((byte)RpcCallMessageAction.MethodCancel, MethodCancelAction);
 
+			Handlers.Add((byte)RpcCallMessageAction.MethodCallNoReturn, ProcessRpcCallAction);
+			Handlers.Add((byte)RpcCallMessageAction.MethodCall, ProcessRpcCallAction);
+
+			Handlers.Add((byte)RpcCallMessageAction.MethodException, ProcessRpcReturnAction);
+			Handlers.Add((byte)RpcCallMessageAction.MethodReturn, ProcessRpcReturnAction);
 		}
 
-		
-
-		public override bool HandleMessage(MqMessage message) {
-			if (message[0][0] != Id) {
-				return false;
-			}
-
-			// Read the type of message.
-			var message_type = (RpcCallMessageType)message[0].ReadByte(1);
-
-			switch (message_type) {
-
-				case RpcCallMessageType.MethodCancel:
-
-					// Remotely called to cancel a rpc call on this session.
-					var cancellation_id = message[0].ReadUInt16(2);
-					remote_wait_operations.Cancel(cancellation_id);
-					break;
-
-				case RpcCallMessageType.MethodCallNoReturn:
-				case RpcCallMessageType.MethodCall:
-					ProcessRpcCall(message, message_type);
-					break;
-
-				case RpcCallMessageType.MethodException:
-				case RpcCallMessageType.MethodReturn:
-					ProcessRpcReturn(message);
-					break;
-
-				default:
-					// Unknown message type passed.  Disconnect the connection.
-					Session.Close(SocketCloseReason.ProtocolError);
-					break;
-			}
-
-			return true;
-
+		public void MethodCancelAction(byte action_id, MqMessage message) {
+			var cancellation_id = message[0].ReadUInt16(0);
+			remote_wait_operations.Cancel(cancellation_id);
 		}
+
 
 		/// <summary>
 		/// Processes the incoming Rpc call from the recipient connection.
 		/// </summary>
 		/// <param name="message">Message containing the Rpc call.</param>
-		/// <param name="message_type">Type of call this message is.</param>
-		private void ProcessRpcCall(MqMessage message, RpcCallMessageType message_type) {
+		private void ProcessRpcCallAction(byte action_id, MqMessage message) {
 
 			// Execute the processing on the worker thread.
 			Task.Run(() => {
+
+				var message_type = (RpcCallMessageAction)action_id;
 
 				// Retrieve a serialization cache to work with.
 				var serialization = Session.SerializationCache.Get(message);
 				ushort rec_message_return_id = 0;
 
 				try {
-					// Skip Handler.Id & RpcMessageType
-					serialization.MessageReader.Skip(2);
-
 					// Determine if this call has a return value.
-					if (message_type == RpcCallMessageType.MethodCall) {
+					if (message_type == RpcCallMessageAction.MethodCall) {
 						rec_message_return_id = serialization.MessageReader.ReadUInt16();
 					}
 
@@ -130,7 +101,7 @@ namespace DtronixMessageQueue.Rpc.MessageHandlers {
 
 					// If the past parameter is a cancellation token, setup a return wait for this call to allow for remote cancellation.
 					if (rec_message_return_id != 0 && last_param?.ParameterType == typeof(CancellationToken)) {
-						
+
 						cancellation_wait = remote_wait_operations.CreateWaitHandle(rec_message_return_id);
 
 						cancellation_wait.TokenSource = new CancellationTokenSource();
@@ -175,14 +146,12 @@ namespace DtronixMessageQueue.Rpc.MessageHandlers {
 
 
 					// Determine what to do with the return value.
-					if (message_type == RpcCallMessageType.MethodCall) {
+					if (message_type == RpcCallMessageAction.MethodCall) {
 						// Reset the stream.
 						serialization.Stream.SetLength(0);
-
-						// Write the Rpc call type and the id.
 						serialization.MessageWriter.Clear();
-						serialization.MessageWriter.Write(Id);
-						serialization.MessageWriter.Write((byte)RpcCallMessageType.MethodReturn);
+
+						// Write the return id.
 						serialization.MessageWriter.Write(rec_message_return_id);
 
 						// Serialize the return value and add it to the stream.
@@ -190,16 +159,16 @@ namespace DtronixMessageQueue.Rpc.MessageHandlers {
 						serialization.SerializeToWriter(return_value, 0);
 
 						// Send the return value message to the recipient.
-						Session.Send(serialization.MessageWriter.ToMessage(true));
+
+
+						SendHandlerMessage((byte)RpcCallMessageAction.MethodReturn, serialization.MessageWriter.ToMessage(true));
 					}
-
-					// Return the serialization to the cache to be reused.
-					Session.SerializationCache.Put(serialization);
-
 
 				} catch (Exception ex) {
 					// If an exception occurred, notify the recipient connection.
 					SendRpcException(serialization, ex, rec_message_return_id);
+				} finally {
+					// Return the serialization to the cache to be reused.
 					Session.SerializationCache.Put(serialization);
 				}
 			});
@@ -211,18 +180,20 @@ namespace DtronixMessageQueue.Rpc.MessageHandlers {
 		/// Processes the incoming return value message from the recipient connection.
 		/// </summary>
 		/// <param name="message">Message containing the frames for the return value.</param>
-		private void ProcessRpcReturn(MqMessage message) {
+		private void ProcessRpcReturnAction(byte action_id, MqMessage message) {
 
 			// Execute the processing on the worker thread.
 			Task.Run(() => {
 				// Read the return Id.
-				var return_id = message[0].ReadUInt16(2);
+				var return_id = message[0].ReadUInt16(0);
 
 
 				ResponseWaitHandle call_wait_handle = ProxyWaitOperations.Remove(return_id);
 				// Try to get the outstanding wait from the return id.  If it does not exist, the has already completed.
 				if (call_wait_handle != null) {
 					call_wait_handle.Message = message;
+
+					call_wait_handle.MessageActionId = action_id;
 
 					// Release the wait event.
 					call_wait_handle.ReturnResetEvent.Set();
@@ -244,8 +215,6 @@ namespace DtronixMessageQueue.Rpc.MessageHandlers {
 			serialization.MessageWriter.Clear();
 
 			// Writer the Rpc call type and the return Id.
-			serialization.MessageWriter.Write(Id);
-			serialization.MessageWriter.Write((byte)RpcCallMessageType.MethodException);
 			serialization.MessageWriter.Write(message_return_id);
 
 			// Get the exception information in a format that we can serialize.
@@ -255,8 +224,7 @@ namespace DtronixMessageQueue.Rpc.MessageHandlers {
 			serialization.SerializeToWriter(exception, 0);
 
 			// Send the message to the recipient connection.
-			Session.Send(serialization.MessageWriter.ToMessage(true));
-
+			SendHandlerMessage((byte)RpcCallMessageAction.MethodException, serialization.MessageWriter.ToMessage(true));
 		}
 
 
