@@ -7,47 +7,59 @@ using System.Threading;
 using System.Threading.Tasks;
 
 namespace DtronixMessageQueue.Rpc.MessageHandlers {
-	public class ByteTransport<TSession, TConfig>
+	public class ByteTransport<TSession, TConfig> : IByteTransport
 		where TSession : RpcSession<TSession, TConfig>, new()
 		where TConfig : RpcConfig {
-		public long Length { get; set; }
 
-		private readonly TSession session;
+		public enum Mode {
+			Send,
+			Receive
+		}
+
+		private readonly ByteTransportMessageHandler<TSession, TConfig> handler;
 		private readonly ushort id;
+
+		private readonly Mode mode;
 
 		private readonly MqMessageReader message_reader;
 		private readonly MqMessageWriter message_writer;
 
-		private ConcurrentQueue<MqMessage> read_buffer;
+		public MqMessage ReadBuffer { get; set; }
 
-		private readonly SemaphoreSlim read_semaphore;
+		private readonly SemaphoreSlim semaphore;
 
 		private readonly object read_lock = new object();
 
 		public event EventHandler<ByteTransportReceiveEventArgs> Receive;
 
-		public ByteTransport(TSession session, ushort id, long length) {
-			Length = length;
-			this.session = session;
+		public ByteTransport(ByteTransportMessageHandler<TSession, TConfig> handler, ushort id, Mode mode) {
+			this.handler = handler;
 			this.id = id;
-			message_reader = new MqMessageReader();
-			read_semaphore = new SemaphoreSlim(0, 1);
-		}
+			this.mode = mode;
 
-		public ByteTransport(TSession session) {
-			this.session = session;
-			message_writer = new MqMessageWriter(session.Config);
-		}
-
-		public void OnReceive(MqMessage message) {
-			read_buffer.Enqueue(message);
-
-			lock (read_lock) {
-				if (read_semaphore.CurrentCount == 0) {
-					read_semaphore.Release();
-				}
+			if (mode == Mode.Receive) {
+				message_reader = new MqMessageReader();
+			} else {
+				message_writer = new MqMessageWriter(handler.Session.Config);
 			}
 			
+			semaphore = new SemaphoreSlim(0, 1);
+		}
+
+
+		bool IByteTransport.OnReady() {
+			if (semaphore.CurrentCount == 0) {
+				semaphore.Release();
+				return true;
+			}
+
+			return false;
+		}
+
+		
+
+		void IByteTransport.OnReceive(MqMessage message) {
+			ReadBuffer = message;
 		}
 
 		/// <summary>
@@ -57,24 +69,18 @@ namespace DtronixMessageQueue.Rpc.MessageHandlers {
 		/// <param name="offset">Offset in the buffer to start copying to.</param>
 		/// <param name="count">Number of bytes to try to read into the buffer.</param>
 		public async Task<int> ReadAsync(byte[] buffer, int offset, int count, CancellationToken cancellation_token) {
-			if (read_semaphore == null) {
+			if (semaphore == null) {
 				throw new InvalidOperationException("Byte transport is set to write mode.  Can not read when in write more.");
 			}
 
-			if (read_buffer.IsEmpty) {
-				// ReSharper disable once InconsistentlySynchronizedField
-				await read_semaphore.WaitAsync(cancellation_token);
+			if (ReadBuffer == null) {
+				await semaphore.WaitAsync(cancellation_token);
 			}
 
 
 			if (message_reader.Message == null) {
-				MqMessage message;
-				if (read_buffer.TryDequeue(out message) == false) {
-					return 0;
-				}
-
-				message_reader.Message = message;
-				message_reader.Skip(3);
+				message_reader.Message = ReadBuffer;
+				message_reader.Skip(2);
 			}
 
 			var total_read = message_reader.Read(buffer, offset, count);
@@ -93,14 +99,21 @@ namespace DtronixMessageQueue.Rpc.MessageHandlers {
 		/// <param name="buffer">Buffer to write to the message.</param>
 		/// <param name="index">Offset in the buffer to write from</param>
 		/// <param name="count">Number of bytes to write to the message from the buffer.</param>
-		public void Write(byte[] buffer, int index, int count) {
-			message_writer.Write((byte) 2);
-			message_writer.Write((byte) ByteTransportMessageAction.Write);
+		public async void WriteAsync(byte[] buffer, int index, int count, CancellationToken cancellation_token) {
+			// Wait for the server response that we are ready to send the next packet.
+			await semaphore.WaitAsync(cancellation_token);
+
 			message_writer.Write(id);
 			message_writer.Write(buffer, index, count);
+			
+			handler.SendHandlerMessage((byte)ByteTransportMessageAction.Write, message_writer.ToMessage(true));
 
-			session.Send(message_writer.ToMessage(true));
 
 		}
+	}
+
+	public interface IByteTransport {
+		bool OnReady();
+		void OnReceive(MqMessage message);
 	}
 }

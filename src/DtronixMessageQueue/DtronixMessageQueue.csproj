@@ -58,6 +58,7 @@
     <Compile Include="Rpc\IRemoteService.cs" />
     <Compile Include="Rpc\MessageHandler.cs" />
     <Compile Include="Rpc\MessageHandlers\ByteTransportReceiveEventArgs.cs" />
+    <Compile Include="Rpc\MessageHandlers\ByteTransportWaitHandle.cs" />
     <Compile Include="Rpc\ResponseWait.cs" />
     <Compile Include="Rpc\RpcAuthEventArgs.cs" />
     <Compile Include="Rpc\MessageHandlers\ByteTransportMessageHandler.cs" />

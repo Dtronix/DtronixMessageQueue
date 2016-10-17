@@ -31,6 +31,10 @@ namespace DtronixMessageQueue {
 		/// </summary>
 		public const int HeaderLength = 3;
 
+		/// <summary>
+		/// Contains the configuration information about the current client/server.
+		/// Used to determine how large the frames are to be.
+		/// </summary>
 		private MqConfig config;
 
 		/// <summary>
@@ -575,6 +579,14 @@ namespace DtronixMessageQueue {
 		/// <returns>A string representation of this frame.</returns>
 		public override string ToString() {
 			return $"MqFrame totaling {buffer.Length:N0} bytes; Type: {FrameType}";
+		}
+
+		/// <summary>
+		/// Puts this frame inside a message.
+		/// </summary>
+		/// <returns>Message with this frame as the first frame.</returns>
+		public MqMessage ToMessage() {
+			return new MqMessage(this);
 		}
 
 		/// <summary>

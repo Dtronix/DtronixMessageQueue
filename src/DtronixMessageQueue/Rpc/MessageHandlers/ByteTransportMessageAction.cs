@@ -14,22 +14,28 @@
 		/// <summary>
 		/// Sends a request to the client/server session for a stream handle to be created to write to.
 		/// </summary>
-		RequestTransportHandle = 1,
+		Request = 1,
 
 		/// <summary>
-		/// Sends a request to the client/server session for a stream handle to be created to write to.
+		/// Sent when the transport handle is in an error state.
 		/// </summary>
-		ResponseTransportHandle = 2,
+		Error = 2,
+
+		/// <summary>
+		/// Lets the recipient session know it is ok to send the next packet.
+		/// </summary>
+		Ready = 3,
 
 		/// <summary>
 		/// Sends a request to the client/server session for a stream handle be closed.
 		/// </summary>
-		CloseTransportHandle = 3,
+		Close = 4,
 
 		/// <summary>
-		/// Sends data to the client/server.
+		/// This message contains the byte buffer.
 		/// </summary>
-		Write = 4,
+		Write = 5
+		
 	}
 
 

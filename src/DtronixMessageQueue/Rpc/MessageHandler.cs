@@ -18,7 +18,7 @@ namespace DtronixMessageQueue.Rpc {
 		/// </summary>
 		public abstract byte Id { get; } 
 
-		protected TSession Session;
+		public TSession Session;
 
 		protected Dictionary<byte, ActionHandler> Handlers = new Dictionary<byte, ActionHandler>();
 
@@ -43,6 +43,10 @@ namespace DtronixMessageQueue.Rpc {
 			// Unknown message type passed.  Disconnect the connection.
 			Session.Close(SocketCloseReason.ProtocolError);
 			return false;
+		}
+
+		public void SendHandlerMessage(byte action_id) {
+			SendHandlerMessage(action_id, null);
 		}
 
 		public void SendHandlerMessage(byte action_id, MqMessage message) {
