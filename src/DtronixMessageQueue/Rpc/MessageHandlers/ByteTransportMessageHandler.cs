@@ -22,9 +22,8 @@ namespace DtronixMessageQueue.Rpc.MessageHandlers {
 			Handlers.Add((byte)ByteTransportMessageAction.Error, Error);
 			Handlers.Add((byte)ByteTransportMessageAction.Ready, Ready);
 			Handlers.Add((byte)ByteTransportMessageAction.Write, Write);
+			Handlers.Add((byte)ByteTransportMessageAction.Close, Close);
 		}
-
-
 
 
 
@@ -83,6 +82,11 @@ namespace DtronixMessageQueue.Rpc.MessageHandlers {
 				Session.Close(SocketCloseReason.ApplicationError);
 			}
 
+		}
+
+
+		private void Close(byte action_handler, MqMessage message) {
+			throw new NotImplementedException();
 		}
 
 

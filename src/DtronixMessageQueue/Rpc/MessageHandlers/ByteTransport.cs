@@ -30,7 +30,7 @@ namespace DtronixMessageQueue.Rpc.MessageHandlers {
 
 		private readonly object read_lock = new object();
 
-		public event EventHandler<ByteTransportReceiveEventArgs> Receive;
+		private MqMessage ready_message;
 
 		public ByteTransport(ByteTransportMessageHandler<TSession, TConfig> handler, ushort id, Mode mode) {
 			this.handler = handler;
@@ -39,6 +39,10 @@ namespace DtronixMessageQueue.Rpc.MessageHandlers {
 
 			if (mode == Mode.Receive) {
 				message_reader = new MqMessageReader();
+				var ready_frame = handler.Session.CreateFrame(new byte[2], MqFrameType.Last);
+				ready_frame.Write(0, id);
+
+				ready_message = ready_frame.ToMessage();
 			} else {
 				message_writer = new MqMessageWriter(handler.Session.Config);
 			}
@@ -87,7 +91,12 @@ namespace DtronixMessageQueue.Rpc.MessageHandlers {
 
 			if (message_reader.IsAtEnd) {
 				message_reader.Message = null;
+
+				handler.SendHandlerMessage((byte)ByteTransportMessageAction.Ready, ready_message);
+
 			}
+
+
 
 			return total_read;
 
