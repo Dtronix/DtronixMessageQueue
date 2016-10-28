@@ -54,13 +54,12 @@ namespace DtronixMessageQueue.Rpc {
 			header_frame.Write(0, Id);
 			header_frame.Write(1, action_id);
 
-			if (message == null) {
-				message = new MqMessage(header_frame);
-			} else {
-				message.Insert(0, header_frame);
-			}
+			var send_message = new MqMessage {
+				header_frame,
+				message
+			};
 
-			Session.Send(message);
+			Session.Send(send_message);
 		}
 	}
 }

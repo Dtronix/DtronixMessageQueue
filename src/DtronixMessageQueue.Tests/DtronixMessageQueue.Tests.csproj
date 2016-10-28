@@ -78,6 +78,7 @@
     <Compile Include="Mq\MqClientTests.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
     <Compile Include="RepeatAttribute.cs" />
+    <Compile Include="Rpc\RpcByteTransportTests.cs" />
     <Compile Include="Rpc\RpcClientTests.cs" />
     <Compile Include="Rpc\RpcTestsBase.cs" />
     <Compile Include="Rpc\Services\Server\CalculatorService.cs" />

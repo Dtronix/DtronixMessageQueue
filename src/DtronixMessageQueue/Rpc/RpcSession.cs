@@ -26,6 +26,9 @@ namespace DtronixMessageQueue.Rpc {
 		public Dictionary<byte, MessageHandler<TSession, TConfig>> MessageHandlers { get; }
 
 		protected RpcCallMessageHandler<TSession, TConfig> RpcCallHandler;
+
+		protected ByteTransportMessageHandler<TSession, TConfig> ByteTransportHandler { get; set; }
+
 		/// <summary>
 		/// Store which contains instances of all classes for serialization and destabilization of data.
 		/// </summary>
@@ -90,10 +93,13 @@ namespace DtronixMessageQueue.Rpc {
 			SerializationCache = new SerializationCache(Config);
 
 			RpcCallHandler = new RpcCallMessageHandler<TSession, TConfig>((TSession)this);
-
 			MessageHandlers.Add(RpcCallHandler.Id, RpcCallHandler);
 
+			ByteTransportHandler = new ByteTransportMessageHandler<TSession, TConfig>((TSession)this);
+			MessageHandlers.Add(ByteTransportHandler.Id, ByteTransportHandler);
+
 		}
+		
 
 		/// <summary>
 		/// Processes an incoming command frame from the connection.

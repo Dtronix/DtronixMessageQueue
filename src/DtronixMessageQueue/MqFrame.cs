@@ -595,5 +595,25 @@ namespace DtronixMessageQueue {
 		public void Dispose() {
 			buffer = null;
 		}
+
+		/// <summary>
+		/// Shallow copies this frame into a new frame.
+		/// </summary>
+		/// <returns>Shallow copied frame.</returns>
+		public MqFrame ShallowCopy() {
+			return new MqFrame(buffer, frame_type, config);
+		}
+
+
+		/// <summary>
+		/// Deep copies a frame into new buffer.
+		/// </summary>
+		/// <returns>Deep copied frame.</returns>
+		public MqFrame Clone() {
+			var new_buffer = new byte[buffer.Length];
+			System.Buffer.BlockCopy(buffer, 0, new_buffer, 0, buffer.Length);
+
+			return new MqFrame(new_buffer, frame_type, config);
+		}
 	}
 }

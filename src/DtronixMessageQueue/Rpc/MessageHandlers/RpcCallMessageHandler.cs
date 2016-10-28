@@ -119,7 +119,14 @@ namespace DtronixMessageQueue.Rpc.MessageHandlers {
 
 						// Parse each parameter to the parameter list.
 						for (int i = 0; i < rec_argument_count; i++) {
-							parameters[i] = serialization.DeserializeFromReader(method_parameters[i].ParameterType, i);
+							if (method_parameters[i].ParameterType == typeof(RpcStream<TSession, TConfig>)) {
+								var stream_id = (ushort)serialization.DeserializeFromReader(typeof(ushort), i);
+								// If this is a stream, setup the receiving end.
+								parameters[i] = new RpcStream<TSession, TConfig>(Session, stream_id);
+
+							} else {
+								parameters[i] = serialization.DeserializeFromReader(method_parameters[i].ParameterType, i);
+							}
 						}
 					}
 

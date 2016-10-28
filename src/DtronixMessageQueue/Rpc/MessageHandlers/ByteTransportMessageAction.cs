@@ -24,7 +24,7 @@
 		/// <summary>
 		/// Lets the recipient session know it is ok to send the next packet.
 		/// </summary>
-		Ready = 3,
+		ReceiveReady = 3,
 
 		/// <summary>
 		/// Sends a request to the client/server session for a stream handle be closed.

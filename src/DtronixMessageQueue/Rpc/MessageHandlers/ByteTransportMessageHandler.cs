@@ -1,5 +1,7 @@
 ﻿using System;
 using System.Collections.Concurrent;
+using System.Diagnostics;
+using System.Runtime.CompilerServices;
 using DtronixMessageQueue.Socket;
 
 namespace DtronixMessageQueue.Rpc.MessageHandlers {
@@ -12,15 +14,15 @@ namespace DtronixMessageQueue.Rpc.MessageHandlers {
 		/// </summary>
 		public sealed override byte Id => 2;
 
-		private readonly ResponseWait<ByteTransportWaitHandle<TSession, TConfig>> send_operation = new ResponseWait<ByteTransportWaitHandle<TSession, TConfig>>();
+		internal readonly ResponseWait<ByteTransportWaitHandle<TSession, TConfig>> send_operation = new ResponseWait<ByteTransportWaitHandle<TSession, TConfig>>();
 
-		private readonly ResponseWait<ByteTransportWaitHandle<TSession, TConfig>> receive_operation = new ResponseWait<ByteTransportWaitHandle<TSession, TConfig>>();
+		internal readonly ResponseWait<ByteTransportWaitHandle<TSession, TConfig>> receive_operation = new ResponseWait<ByteTransportWaitHandle<TSession, TConfig>>();
 
 
 		public ByteTransportMessageHandler(TSession session) : base(session) {
 			Handlers.Add((byte)ByteTransportMessageAction.Request, Request);
 			Handlers.Add((byte)ByteTransportMessageAction.Error, Error);
-			Handlers.Add((byte)ByteTransportMessageAction.Ready, Ready);
+			Handlers.Add((byte)ByteTransportMessageAction.ReceiveReady, ReceiveReady);
 			Handlers.Add((byte)ByteTransportMessageAction.Write, Write);
 			Handlers.Add((byte)ByteTransportMessageAction.Close, Close);
 		}
@@ -31,12 +33,12 @@ namespace DtronixMessageQueue.Rpc.MessageHandlers {
 			throw new NotImplementedException();
 		}
 
-		public void ReadyReceive(ushort transport_id) {
+		/*public void ReadyReceive(ushort transport_id) {
 			var ready_frame = Session.CreateFrame(new byte[2], MqFrameType.Last);
 			ready_frame.Write(0, transport_id);
 
-			SendHandlerMessage((byte)ByteTransportMessageAction.Ready, ready_frame.ToMessage());
-		}
+			SendHandlerMessage((byte)ByteTransportMessageAction.ReceiveReady, ready_frame.ToMessage());
+		}*/
 
 		public ByteTransport<TSession, TConfig> CreateTransport() {
 			var handle = send_operation.CreateWaitHandle(null);
@@ -50,6 +52,10 @@ namespace DtronixMessageQueue.Rpc.MessageHandlers {
 			return handle.ByteTransport;
 		}
 
+		public ByteTransport<TSession, TConfig> GetRecieveTransport(ushort id) {
+			return receive_operation[id].ByteTransport;
+		}
+
 		private void Request(byte action_id, MqMessage message) {
 			ushort handle_id = message[0].ReadUInt16(0);
 
@@ -58,10 +64,10 @@ namespace DtronixMessageQueue.Rpc.MessageHandlers {
 			var handle = receive_operation.CreateWaitHandle(handle_id);
 			handle.ByteTransport = transport;
 
-			SendHandlerMessage((byte)ByteTransportMessageAction.Ready, message);
+			SendHandlerMessage((byte)ByteTransportMessageAction.ReceiveReady, message);
 		}
 
-		private void Ready(byte action_handler, MqMessage message) {
+		private void ReceiveReady(byte action_handler, MqMessage message) {
 			ushort handle_id = message[0].ReadUInt16(0);
 
 			var transport = (IByteTransport) send_operation[handle_id].ByteTransport;
@@ -74,7 +80,7 @@ namespace DtronixMessageQueue.Rpc.MessageHandlers {
 		private void Write(byte action_handler, MqMessage message) {
 			ushort handle_id = message[0].ReadUInt16(0);
 
-			var transport = (IByteTransport)send_operation[handle_id].ByteTransport;
+			var transport = (IByteTransport)receive_operation[handle_id].ByteTransport;
 
 			transport.OnReceive(message);
 
@@ -86,7 +92,13 @@ namespace DtronixMessageQueue.Rpc.MessageHandlers {
 
 
 		private void Close(byte action_handler, MqMessage message) {
-			throw new NotImplementedException();
+			ushort handle_id = message[0].ReadUInt16(0);
+
+			var transport = (IByteTransport)receive_operation[handle_id].ByteTransport;
+
+			transport.SendClose();
+			transport.OnReady();
+
 		}
 
 
