@@ -52,16 +52,11 @@
     <Compile Include="MqMessageWriter.cs" />
     <Compile Include="MqSession.cs" />
     <Compile Include="MqConfig.cs" />
-    <Compile Include="Rpc\MessageHandlers\ByteTransport.cs" />
-    <Compile Include="Rpc\MessageHandlers\ByteTransportMessageAction.cs" />
     <Compile Include="Rpc\DataContract\RpcServerInfoDataContract.cs" />
     <Compile Include="Rpc\IRemoteService.cs" />
     <Compile Include="Rpc\MessageHandler.cs" />
-    <Compile Include="Rpc\MessageHandlers\ByteTransportReceiveEventArgs.cs" />
-    <Compile Include="Rpc\MessageHandlers\ByteTransportWaitHandle.cs" />
     <Compile Include="Rpc\ResponseWait.cs" />
     <Compile Include="Rpc\RpcAuthEventArgs.cs" />
-    <Compile Include="Rpc\MessageHandlers\ByteTransportMessageHandler.cs" />
     <Compile Include="Rpc\MessageHandlers\RpcCallMessageHandler.cs" />
     <Compile Include="Rpc\RpcClient.cs" />
     <Compile Include="Rpc\RpcCommandType.cs" />
@@ -73,7 +68,6 @@
     <Compile Include="Rpc\ResponseWaitHandle.cs" />
     <Compile Include="Rpc\RpcServer.cs" />
     <Compile Include="Rpc\RpcSession.cs" />
-    <Compile Include="Rpc\RpcStream.cs" />
     <Compile Include="Rpc\SerializationCache.cs" />
     <Compile Include="Socket\BufferManager.cs" />
     <Compile Include="Socket\ISetupSocketSession.cs" />

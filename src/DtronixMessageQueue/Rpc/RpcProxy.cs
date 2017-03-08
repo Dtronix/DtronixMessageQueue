@@ -113,9 +113,7 @@ namespace DtronixMessageQueue.Rpc {
 
 			// Serialize all arguments to the message.
 			for (var i = 0; i < arguments.Length; i++) {
-				// If this argument is a stream, the pass the id along to the recipient.
-				var stream = arguments[i] as RpcStream<TSession, TConfig>;
-				serializer.SerializeToWriter(stream?.Id ?? arguments[i], i);
+				serializer.SerializeToWriter(arguments[i], i);
 			}
 
 			// Send the message over the session.

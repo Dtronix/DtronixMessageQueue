@@ -45,24 +45,6 @@ namespace DtronixMessageQueue.Tests.Rpc.Services.Server {
 			return number_1/number_2;
 		}
 
-		public async void UploadStream(RpcStream<SimpleRpcSession, RpcConfig> stream) {
-
-			var ms = new MemoryStream();
-			int read;
-			byte[] buffer = new byte[128];
-			while ((read = await stream.ReadAsync(buffer, 0, buffer.Length)) > 0) {
-				ms.Write(buffer, 0, read);
-			}
-
-			try {
-				Assert.Equal(StreamBytes, ms.ToArray());
-				SuccessfulStreamTransport?.Invoke(this, EventArgs.Empty);
-			} catch (Exception) {
-				FailedStreamTransport?.Invoke(this, EventArgs.Empty);
-			}
-			
-
-		}
 	}
 
 	public interface ICalculatorService : IRemoteService<SimpleRpcSession, RpcConfig> {
@@ -71,6 +53,5 @@ namespace DtronixMessageQueue.Tests.Rpc.Services.Server {
 		int Multiply(int number_1, int number_2);
 		int Divide(int number_1, int number_2);
 		int LongRunningTask(int number_1, int number_2, CancellationToken token);
-		void UploadStream(RpcStream<SimpleRpcSession, RpcConfig> stream);
 	}
 }

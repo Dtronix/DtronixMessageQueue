@@ -23,11 +23,6 @@ namespace DtronixMessageQueue {
 		private bool is_running = true;
 
 		/// <summary>
-		/// Total bytes the inbox has remaining to process.
-		/// </summary>
-		private int inbox_byte_count;
-
-		/// <summary>
 		/// Reference to the current message being processed by the inbox.
 		/// </summary>
 		private MqMessage process_message;
@@ -69,11 +64,11 @@ namespace DtronixMessageQueue {
 		/// </summary>
 		/// <param name="buffer">Buffer of bytes to read. Does not copy the bytes to the buffer.</param>
 		protected override void HandleIncomingBytes(byte[] buffer) {
-			if (is_running == false) {
+			if (CurrentState != State.Connected) {
 				return;
 			}
 
-			lock (inbox_lock) {
+            lock (inbox_lock) {
 				inbox_bytes.Enqueue(buffer);
 			}
 			
@@ -284,33 +279,30 @@ namespace DtronixMessageQueue {
 			Send(new MqMessage(frame));
 		}
 
-		/// <summary>
-		/// Sends a message to the session's client.
-		/// </summary>
-		/// <param name="message">Message to send.</param>
-		public void Send(MqMessage message) {
-			if (message.Count == 0) {
-				return;
-			}
-			if (is_running == false) {
-				return;
-			}
-			if (CurrentState == State.Closing) {
-				return;
-			}
+	    /// <summary>
+	    /// Sends a message to the session's client.
+	    /// </summary>
+	    /// <param name="message">Message to send.</param>
+	    public void Send(MqMessage message) {
+	        if (message.Count == 0) {
+	            return;
+	        }
+	        if (CurrentState != State.Connected) {
+	            return;
+	        }
 
-			lock (outbox_lock) {
-				outbox.Enqueue(message);
-			}
+	        lock (outbox_lock) {
+	            outbox.Enqueue(message);
+	        }
 
-			if (outbox_task == null || outbox_task.IsCompleted) {
-				outbox_task = Task.Run((Action)ProcessOutbox);
-			}
+	        if (outbox_task == null || outbox_task.IsCompleted) {
+	            outbox_task = Task.Run((Action) ProcessOutbox);
+	        }
 
 
-		}
+	    }
 
-		/// <summary>
+	    /// <summary>
 		/// Creates a frame with the specified bytes and the current configurations.
 		/// </summary>
 		/// <param name="bytes">Bytes to put in the frame.</param>
@@ -355,7 +347,7 @@ namespace DtronixMessageQueue {
 		/// </summary>
 		/// <returns>String representation.</returns>
 		public override string ToString() {
-			return $"MqSession; Reading {inbox_byte_count} bytes; Sending {outbox.Count} messages.";
+			return $"MqSession; Reading {inbox_bytes.Count} byte packets; Sending {outbox.Count} messages.";
 		}
 	}
 }

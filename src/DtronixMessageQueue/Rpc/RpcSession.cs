@@ -27,18 +27,10 @@ namespace DtronixMessageQueue.Rpc {
 
 		protected RpcCallMessageHandler<TSession, TConfig> RpcCallHandler;
 
-		protected ByteTransportMessageHandler<TSession, TConfig> ByteTransportHandler { get; set; }
-
 		/// <summary>
 		/// Store which contains instances of all classes for serialization and destabilization of data.
 		/// </summary>
 		public SerializationCache SerializationCache { get; set; }
-
-		/// <summary>
-		/// Contains all active stream handles for this session.
-		/// </summary>
-		private readonly ConcurrentDictionary<ushort, ResponseWaitHandle> stream_handles =
-			new ConcurrentDictionary<ushort, ResponseWaitHandle>();
 
 		/// <summary>
 		/// Server base socket for this session.
@@ -94,9 +86,6 @@ namespace DtronixMessageQueue.Rpc {
 
 			RpcCallHandler = new RpcCallMessageHandler<TSession, TConfig>((TSession)this);
 			MessageHandlers.Add(RpcCallHandler.Id, RpcCallHandler);
-
-			ByteTransportHandler = new ByteTransportMessageHandler<TSession, TConfig>((TSession)this);
-			MessageHandlers.Add(ByteTransportHandler.Id, ByteTransportHandler);
 
 		}
 		
