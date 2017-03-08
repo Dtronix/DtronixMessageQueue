@@ -82,9 +82,22 @@ namespace DtronixMessageQueue {
 		}
 
 		/// <summary>
-		/// Byte position in the message.
+		/// Get or set the byte position in the message.
 		/// </summary>
-		public int Position => absolute_position;
+		public int Position {
+			get {
+				return absolute_position;
+			}
+			set {
+				current_frame = message?[0];
+				frame_position = 0;
+				message_position = 0;
+				absolute_position = 0;
+				if (value != 0) {
+					Skip(value);
+				}
+			}
+		} 
 
 		/// <summary>
 		/// Total length of the bytes in this message.
@@ -502,6 +515,29 @@ namespace DtronixMessageQueue {
 			}
 
 			return total_read;
+		}
+
+		/// <summary>
+		/// Skips the next number of specified bytes.
+		/// </summary>
+		/// <param name="count">Number of bytes to skip reading.</param>
+		public void Skip(int count) {
+			var total_read = 0;
+			var offset = 0;
+			while (offset < count) {
+				var max_read_length = current_frame.DataLength - frame_position;
+				var read_length = count - total_read < max_read_length ? count - total_read : max_read_length;
+				// If we are at the end of this max frame size, get a new one.
+				if (max_read_length == 0) {
+					NextNonEmptyFrame();
+					continue;
+				}
+
+				frame_position += read_length;
+				absolute_position += read_length;
+				total_read += read_length;
+				offset += read_length;
+			}
 		}
 
 

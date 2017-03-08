@@ -6,7 +6,7 @@ namespace DtronixMessageQueue.Rpc {
 	/// <summary>
 	/// Class which represents a task which is waiting on another event to occur.
 	/// </summary>
-	public class RpcOperationWait {
+	public class ResponseWaitHandle {
 
 		/// <summary>
 		/// Id of this wait operation.  Used to coordinate between client/server.
@@ -21,7 +21,12 @@ namespace DtronixMessageQueue.Rpc {
 		/// <summary>
 		/// Message that the other session receives from the connection that is associated with the return value for this request.
 		/// </summary>
-		public MqMessage ReturnMessage { get; set; }
+		public MqMessage Message { get; set; }
+
+		/// <summary>
+		/// Byte if of the returned message.
+		/// </summary>
+		public byte MessageActionId { get; set; }
 
 		/// <summary>
 		/// Cancellation token for the request.
@@ -37,5 +42,6 @@ namespace DtronixMessageQueue.Rpc {
 		/// Contains the time that this call wait was created to check for timeouts.
 		/// </summary>
 		public DateTime Created { get; } = DateTime.UtcNow;
+
 	}
 }

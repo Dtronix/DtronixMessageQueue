@@ -31,6 +31,10 @@ namespace DtronixMessageQueue {
 		/// </summary>
 		public const int HeaderLength = 3;
 
+		/// <summary>
+		/// Contains the configuration information about the current client/server.
+		/// Used to determine how large the frames are to be.
+		/// </summary>
 		private MqConfig config;
 
 		/// <summary>
@@ -578,10 +582,38 @@ namespace DtronixMessageQueue {
 		}
 
 		/// <summary>
+		/// Puts this frame inside a message.
+		/// </summary>
+		/// <returns>Message with this frame as the first frame.</returns>
+		public MqMessage ToMessage() {
+			return new MqMessage(this);
+		}
+
+		/// <summary>
 		/// Disposes of this object and its resources.
 		/// </summary>
 		public void Dispose() {
 			buffer = null;
+		}
+
+		/// <summary>
+		/// Shallow copies this frame into a new frame.
+		/// </summary>
+		/// <returns>Shallow copied frame.</returns>
+		public MqFrame ShallowCopy() {
+			return new MqFrame(buffer, frame_type, config);
+		}
+
+
+		/// <summary>
+		/// Deep copies a frame into new buffer.
+		/// </summary>
+		/// <returns>Deep copied frame.</returns>
+		public MqFrame Clone() {
+			var new_buffer = new byte[buffer.Length];
+			System.Buffer.BlockCopy(buffer, 0, new_buffer, 0, buffer.Length);
+
+			return new MqFrame(new_buffer, frame_type, config);
 		}
 	}
 }

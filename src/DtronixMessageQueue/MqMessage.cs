@@ -93,6 +93,16 @@ namespace DtronixMessageQueue {
 		}
 
 		/// <summary>
+		/// Adds an existing message's frames to this message.
+		/// </summary>
+		/// <param name="message">Message to add.</param>
+		public void Add(MqMessage message) {
+			foreach (var frame in message) {
+				frames.Add(frame);
+			}
+		}
+
+		/// <summary>
 		/// Adds a frame to this message.
 		/// </summary>
 		/// <param name="frames">Frames to add</param>
@@ -167,6 +177,33 @@ namespace DtronixMessageQueue {
 		/// <paramref name="index" /> is less than 0.-or-<paramref name="index" /> is equal to or greater than the total frames.</exception>
 		public void RemoveAt(int index) {
 			frames.RemoveAt(index);
+		}
+
+		/// <summary>
+		/// Shallow copies this message with shallow copied frames.
+		/// </summary>
+		/// <returns>Shallow copied message.</returns>
+		public MqMessage ShallowCopy() {
+			var message = new MqMessage();
+			foreach (var frame in frames) {
+				message.Add(frame.ShallowCopy());
+			}
+
+			return message;
+		}
+
+
+		/// <summary>
+		/// Deep copies this message with deep copied frames.
+		/// </summary>
+		/// <returns>Deep copied message.</returns>
+		public MqMessage Clone() {
+			var message = new MqMessage();
+			foreach (var frame in frames) {
+				message.Add(frame.Clone());
+			}
+
+			return message;
 		}
 
 		/// <summary>

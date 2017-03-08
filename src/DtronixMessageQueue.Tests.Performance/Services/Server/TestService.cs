@@ -1,9 +1,12 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Configuration;
+using System.Diagnostics;
 using System.Linq;
 using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
+using System.Xml.Serialization;
 using DtronixMessageQueue.Rpc;
 
 namespace DtronixMessageQueue.Tests.Performance.Services.Server {
@@ -20,9 +23,35 @@ namespace DtronixMessageQueue.Tests.Performance.Services.Server {
 
 		public void TestNoReturn() {
 			var number = Interlocked.Increment(ref call_count);
-			//Console.Write(number + " ");
+			//Console.Write($"{Thread.CurrentThread.ManagedThreadId} ");
+
 			VerifyComplete();
 
+		}
+
+		public async void TestNoReturnAwait() {
+			var number = Interlocked.Increment(ref call_count);
+			await Task.Delay(1000);
+
+			VerifyComplete();
+
+		}
+
+		public void TestNoReturnLongBlocking() {
+			var number = Interlocked.Increment(ref call_count);
+			Thread.Sleep(10000);
+			VerifyComplete();
+
+		}
+
+
+		public void TestNoReturnBlock() {
+			Task.Factory.StartNew(() => {
+				var number = Interlocked.Increment(ref call_count);
+
+				Thread.Sleep(1000);
+				VerifyComplete();
+			}, TaskCreationOptions.LongRunning);
 		}
 
 		public int TestIncrement() {
@@ -59,6 +88,9 @@ namespace DtronixMessageQueue.Tests.Performance.Services.Server {
 
 	internal interface ITestService : IRemoteService<SimpleRpcSession, RpcConfig> {
 		void TestNoReturn();
+		void TestNoReturnAwait();
+		void TestNoReturnBlock();
+		void TestNoReturnLongBlocking();
 		int TestIncrement();
 		void TestSetup(int calls);
 		bool ResetTest();

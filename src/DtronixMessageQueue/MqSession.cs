@@ -3,7 +3,7 @@ using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.IO;
 using System.Threading;
-using Amib.Threading;
+using System.Threading.Tasks;
 using DtronixMessageQueue.Socket;
 
 namespace DtronixMessageQueue {
@@ -21,11 +21,6 @@ namespace DtronixMessageQueue {
 		/// True if the socket is currently running.
 		/// </summary>
 		private bool is_running = true;
-
-		/// <summary>
-		/// Total bytes the inbox has remaining to process.
-		/// </summary>
-		private int inbox_byte_count;
 
 		/// <summary>
 		/// Reference to the current message being processed by the inbox.
@@ -47,6 +42,14 @@ namespace DtronixMessageQueue {
 		/// </summary>
 		private readonly ConcurrentQueue<byte[]> inbox_bytes = new ConcurrentQueue<byte[]>();
 
+		private Task outbox_task;
+
+		private Task inbox_task;
+
+		private readonly object inbox_lock = new object();
+
+		private readonly object outbox_lock = new object();
+
 		/// <summary>
 		/// Event fired when a new message has been processed by the Postmaster and ready to be read.
 		/// </summary>
@@ -61,16 +64,17 @@ namespace DtronixMessageQueue {
 		/// </summary>
 		/// <param name="buffer">Buffer of bytes to read. Does not copy the bytes to the buffer.</param>
 		protected override void HandleIncomingBytes(byte[] buffer) {
-			if (is_running == false) {
+			if (CurrentState != State.Connected) {
 				return;
 			}
 
-			var inbox_was_empty = outbox.IsEmpty;
+            lock (inbox_lock) {
+				inbox_bytes.Enqueue(buffer);
+			}
+			
 
-			inbox_bytes.Enqueue(buffer);
-
-			if (inbox_was_empty || reader_pool.IsIdle) {
-				reader_pool.QueueWorkItem(ProcessIncomingQueue, WorkItemPriority.Normal);
+			if (inbox_task == null || inbox_task.IsCompleted) {
+				inbox_task = Task.Run((Action)ProcessIncomingQueue);
 			}
 		}
 
@@ -132,6 +136,13 @@ namespace DtronixMessageQueue {
 
 			// Send the last of the buffer queue.
 			SendBufferQueue(buffer_queue, length);
+
+			lock (outbox_lock) {
+				if (outbox.IsEmpty == false) {
+					outbox_task = Task.Run((Action)ProcessOutbox);
+				}
+			}
+			
 		}
 
 		/// <summary>
@@ -146,10 +157,11 @@ namespace DtronixMessageQueue {
 			Queue<MqMessage> messages = null;
 			byte[] buffer;
 			while (inbox_bytes.TryDequeue(out buffer)) {
-				// Update the total bytes this 
-				Interlocked.Add(ref inbox_byte_count, -buffer.Length);
+				lock (inbox_lock) {
 
-				try {
+}
+
+					try {
 					frame_builder.Write(buffer, 0, buffer.Length);
 				} catch (InvalidDataException) {
 					//logger.Error(ex, "Connector {0}: Client send invalid data.", Connection.Id);
@@ -201,6 +213,13 @@ namespace DtronixMessageQueue {
 
 
 			OnIncomingMessage(this, new IncomingMessageEventArgs<TSession, TConfig>(messages, (TSession) this));
+
+			lock (inbox_lock) {
+				if (inbox_bytes.IsEmpty == false) {
+					inbox_task = Task.Run((Action)ProcessIncomingQueue);
+				}
+			}
+			
 		}
 
 
@@ -237,9 +256,7 @@ namespace DtronixMessageQueue {
 			// If we are passed a closing frame, then send it to the other connection.
 			if (close_frame != null) {
 				MqMessage msg;
-				// If we have an authentication error, we are simultaneously notifying the client of this and a session close.
-				// So this means we do not clear the queue since it contains an auth failure message and it should already be at the top of the stack.
-				if (outbox.IsEmpty == false && reason != SocketCloseReason.AuthenticationFailure) {
+				if (outbox.IsEmpty == false) {
 					while (outbox.TryDequeue(out msg)) {
 					}
 				}
@@ -262,28 +279,30 @@ namespace DtronixMessageQueue {
 			Send(new MqMessage(frame));
 		}
 
-		/// <summary>
-		/// Sends a message to the session's client.
-		/// </summary>
-		/// <param name="message">Message to send.</param>
-		public void Send(MqMessage message) {
-			if (message.Count == 0) {
-				return;
-			}
-			if (is_running == false) {
-				return;
-			}
+	    /// <summary>
+	    /// Sends a message to the session's client.
+	    /// </summary>
+	    /// <param name="message">Message to send.</param>
+	    public void Send(MqMessage message) {
+	        if (message.Count == 0) {
+	            return;
+	        }
+	        if (CurrentState != State.Connected) {
+	            return;
+	        }
 
-			var outbox_was_empty = outbox.IsEmpty;
+	        lock (outbox_lock) {
+	            outbox.Enqueue(message);
+	        }
 
-			outbox.Enqueue(message);
+	        if (outbox_task == null || outbox_task.IsCompleted) {
+	            outbox_task = Task.Run((Action) ProcessOutbox);
+	        }
 
-			if (outbox_was_empty || writer_pool.IsIdle) {
-				writer_pool.QueueWorkItem(ProcessOutbox, WorkItemPriority.Normal);
-			}
-		}
 
-		/// <summary>
+	    }
+
+	    /// <summary>
 		/// Creates a frame with the specified bytes and the current configurations.
 		/// </summary>
 		/// <param name="bytes">Bytes to put in the frame.</param>
@@ -328,7 +347,7 @@ namespace DtronixMessageQueue {
 		/// </summary>
 		/// <returns>String representation.</returns>
 		public override string ToString() {
-			return $"MqSession; Reading {inbox_byte_count} bytes; Sending {outbox.Count} messages.";
+			return $"MqSession; Reading {inbox_bytes.Count} byte packets; Sending {outbox.Count} messages.";
 		}
 	}
 }

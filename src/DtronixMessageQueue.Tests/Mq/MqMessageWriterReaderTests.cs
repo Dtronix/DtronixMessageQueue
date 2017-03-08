@@ -469,6 +469,23 @@ namespace DtronixMessageQueue.Tests.Mq {
 		}
 
 		[Fact]
+		public void MessageReader_reads_to_end_multi_frame_skipping_empty_frame() {
+			var expected_value = new byte[] { 1, 2, 3, 4, 5, 6, 7, 8, 9, 0 };
+
+			message_builder.Write(new byte[] { 1, 2, 3, 4, 5 });
+			message_builder.FinalizeFrame();
+			message_builder.FinalizeFrame();
+
+			message_builder.Write(new byte[] { 6, 7, 8, 9, 0 });
+			var message = message_builder.ToMessage();
+			message_reader.Message = message;
+
+			Assert.Equal(expected_value, message_reader.ReadToEnd());
+			Assert.True(message_reader.IsAtEnd);
+		}
+
+
+		[Fact]
 		public void MessageReader_reads_to_end_partial() {
 			var expected_value = new byte[] { 4, 5, 6, 7, 8, 9, 10 };
 			message_builder.Write(new byte[] { 1, 2, 3, 4, 5, 6, 7, 8, 9, 10 });
@@ -519,6 +536,87 @@ namespace DtronixMessageQueue.Tests.Mq {
 			message_reader.Message = message;
 
 			Assert.Throws<InvalidOperationException>(() => message_reader.ReadInt32());
+		}
+
+		[Fact]
+		public void MessageReader_skips_bytes() {
+			message_builder.Write(new byte[] { 1, 2, 3, 4, 5, 6, 7, 8, 9, 10 });
+			var message = message_builder.ToMessage();
+			message_reader.Message = message;
+
+			message_reader.Skip(4);
+
+			Assert.Equal(4, message_reader.Position);
+			Assert.False(message_reader.IsAtEnd);
+		}
+
+		[Fact]
+		public void MessageReader_skips_empty_frames() {
+			message_builder.Write(new byte[] { 1, 2 });
+			message_builder.FinalizeFrame();
+			message_builder.FinalizeFrame();
+			message_builder.Write(new byte[] { 3, 4 });
+
+			var message = message_builder.ToMessage();
+			message_reader.Message = message;
+
+			message_reader.Skip(3);
+
+			
+
+			Assert.Equal(3, message_reader.Position);
+			Assert.Equal(4, message_reader.ReadByte());
+			Assert.True(message_reader.IsAtEnd);
+		}
+
+		[Fact]
+		public void MessageReader_sets_position() {
+			message_builder.Write(new byte[] { 1, 2, 3, 4, 5, 6, 7, 8, 9 });
+			var message = message_builder.ToMessage();
+			message_reader.Message = message;
+
+			message_reader.Position = 2;
+			Assert.Equal(2, message_reader.Position);
+
+			message_reader.Position = 1;
+			Assert.Equal(1, message_reader.Position);
+
+			message_reader.Position = 3;
+			Assert.Equal(3, message_reader.Position);
+		}
+
+		[Fact]
+		public void MessageReader_sets_position_and_reads() {
+			message_builder.Write(new byte[] {1, 2, 3, 4, 5});
+			var message = message_builder.ToMessage();
+			message_reader.Message = message;
+
+
+			Assert.Equal(new byte[] {1, 2, 3, 4, 5}, message_reader.ReadBytes(5));
+			Assert.Equal(5, message_reader.Position);
+
+
+			message_reader.Position = 2;
+			Assert.Equal(2, message_reader.Position);
+
+			Assert.Equal(new byte[] { 3, 4, 5 }, message_reader.ReadBytes(3));
+			Assert.Equal(5, message_reader.Position);
+			Assert.True(message_reader.IsAtEnd);
+		}
+
+		[Fact]
+		public void MessageReader_sets_position_and_updates_isatend() {
+			message_builder.Write(new byte[] { 1, 2, 3, 4, 5, 6, 7, 8, 9 });
+			var message = message_builder.ToMessage();
+			message_reader.Message = message;
+
+			Assert.False(message_reader.IsAtEnd);
+
+			message_reader.Position = 9;
+			Assert.True(message_reader.IsAtEnd);
+
+			message_reader.Position = 8;
+			Assert.False(message_reader.IsAtEnd);
 		}
 
 

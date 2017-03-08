@@ -1,6 +1,8 @@
 ﻿using System;
+using System.IO;
 using System.Threading;
 using DtronixMessageQueue.Rpc;
+using Xunit;
 
 namespace DtronixMessageQueue.Tests.Rpc.Services.Server {
 	public class CalculatorService : MarshalByRefObject, ICalculatorService {
@@ -8,6 +10,11 @@ namespace DtronixMessageQueue.Tests.Rpc.Services.Server {
 		public SimpleRpcSession Session { get; set; }
 
 		public event EventHandler LongRunningTaskCanceled;
+
+		public event EventHandler SuccessfulStreamTransport;
+		public event EventHandler FailedStreamTransport;
+
+		public byte[] StreamBytes = null;
 
 		public int Add(int number_1, int number_2) {
 			return number_1 + number_2;
@@ -35,8 +42,9 @@ namespace DtronixMessageQueue.Tests.Rpc.Services.Server {
 				throw;
 			}
 
-			return number_1 / number_2;
+			return number_1/number_2;
 		}
+
 	}
 
 	public interface ICalculatorService : IRemoteService<SimpleRpcSession, RpcConfig> {

@@ -16,7 +16,13 @@ namespace DtronixMessageQueue.Tests.Performance {
 				Port = 2828
 			};
 
-			RpcSingleProcessTest(200000, 4, config, RpcTestType.NoRetrun);
+			//RpcSingleProcessTest(20, 4, config, RpcTestType.LngBlock);
+
+			RpcSingleProcessTest(200000, 4, config, RpcTestType.NoReturn);
+
+			RpcSingleProcessTest(200000, 4, config, RpcTestType.Await);
+
+			RpcSingleProcessTest(100, 4, config, RpcTestType.Block);
 
 			RpcSingleProcessTest(10000, 4, config, RpcTestType.Return);
 
@@ -74,8 +80,21 @@ namespace DtronixMessageQueue.Tests.Performance {
 				sw.Restart();
 				for (var i = 0; i < runs; i++) {
 					switch (type) {
-						case RpcTestType.NoRetrun:
-							service.TestNoReturn();
+
+						case RpcTestType.LngBlock:
+							service.TestNoReturnLongBlocking();
+							break;
+
+						case RpcTestType.Block:
+							service.TestNoReturnBlock();
+							break;
+
+						case RpcTestType.NoReturn:
+								service.TestNoReturn();
+							break;
+
+						case RpcTestType.Await:
+							service.TestNoReturnAwait();
 							break;
 
 						case RpcTestType.Return:
@@ -124,8 +143,11 @@ namespace DtronixMessageQueue.Tests.Performance {
 	}
 
 	enum RpcTestType {
-		NoRetrun,
+		NoReturn,
 		Return,
 		Exception,
+		Await,
+		Block,
+		LngBlock
 	}
 }

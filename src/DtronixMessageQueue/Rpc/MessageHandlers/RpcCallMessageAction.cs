@@ -1,9 +1,9 @@
-﻿namespace DtronixMessageQueue.Rpc {
+﻿namespace DtronixMessageQueue.Rpc.MessageHandlers {
 
 	/// <summary>
 	/// Type of message which is being sent.
 	/// </summary>
-	public enum RpcMessageType : byte {
+	public enum RpcCallMessageAction : byte {
 
 		/// <summary>
 		/// Unknown default type.
@@ -11,34 +11,29 @@
 		Unset = 0,
 
 		/// <summary>
-		/// Type is a Rpc command and consumed internally.
-		/// </summary>
-		Command = 1,
-
-		/// <summary>
 		/// Message is a standard Rpc call with a return value.
 		/// </summary>
-		RpcCall = 2,
+		MethodCall = 1,
 
 		/// <summary>
 		/// Message is a Rpc call with no return value.
 		/// </summary>
-		RpcCallNoReturn = 3,
+		MethodCallNoReturn = 2,
 
 		/// <summary>
 		/// Message is a Rpc response with a return value.
 		/// </summary>
-		RpcCallReturn = 4,
+		MethodReturn = 3,
 
 
 		/// <summary>
 		/// Message is a Rpc response.  Message contains information about the exception thrown.
 		/// </summary>
-		RpcCallException = 5,
+		MethodException = 4,
 
 		/// <summary>
 		/// Message used to cancel a pending operation.
 		/// </summary>
-		RpcCallCancellation = 6
+		MethodCancel = 5,
 	}
 }

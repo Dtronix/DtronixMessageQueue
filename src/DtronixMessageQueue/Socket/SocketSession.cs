@@ -2,7 +2,6 @@
 using System.Net.Sockets;
 using System.Security.AccessControl;
 using System.Threading;
-using Amib.Threading;
 
 namespace DtronixMessageQueue.Socket {
 
@@ -124,17 +123,6 @@ namespace DtronixMessageQueue.Socket {
 		/// </summary>
 		public event EventHandler<SessionClosedEventArgs<TSession, TConfig>> Closed;
 
-		/// <summary>
-		/// Work group used to write on the session.
-		/// </summary>
-		protected IWorkItemsGroup writer_pool;
-
-
-		/// <summary>
-		/// Work group used to read from the session.
-		/// </summary>
-		protected IWorkItemsGroup reader_pool;
-
 
 		/// <summary>
 		/// Creates a new socket session with a new Id.
@@ -151,17 +139,14 @@ namespace DtronixMessageQueue.Socket {
 		/// <param name="session_socket">Socket this session is to use.</param>
 		/// <param name="socket_args_pool">Argument pool for this session to use.  Pulls two asyncevents for reading and writing and returns them at the end of this socket's life.</param>
 		/// <param name="session_config">Socket configurations this session is to use.</param>
-		/// <param name="thread_pool">Thread pool used by the socket to read and write.</param>
 		/// <param name="session_handler">Handler base which is handling this session.</param>
 		public static TSession Create(System.Net.Sockets.Socket session_socket, SocketAsyncEventArgsPool socket_args_pool,
-			TConfig session_config, SmartThreadPool thread_pool, SessionHandler<TSession, TConfig> session_handler) {
+			TConfig session_config, SessionHandler<TSession, TConfig> session_handler) {
 			var session = new TSession {
 				config = session_config,
 				args_pool = socket_args_pool,
 				socket = session_socket,
 				write_semaphore = new SemaphoreSlim(1, 1),
-				writer_pool = thread_pool.CreateWorkItemsGroup(1),
-				reader_pool = thread_pool.CreateWorkItemsGroup(1),
 				BaseSocket = session_handler
 			};
 
@@ -379,8 +364,6 @@ namespace DtronixMessageQueue.Socket {
 		public void Dispose() {
 			if (CurrentState == State.Connected) {
 				Close(SocketCloseReason.ClientClosing);
-				writer_pool.Cancel(true);
-				reader_pool.Cancel(true);
 			}
 		}
 	}
