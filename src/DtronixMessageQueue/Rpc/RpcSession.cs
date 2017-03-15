@@ -4,6 +4,7 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Reflection;
 using System.Runtime.Remoting.Proxies;
+using System.Security.Cryptography;
 using System.Threading;
 using System.Threading.Tasks;
 using DtronixMessageQueue.Rpc.DataContract;
@@ -87,6 +88,10 @@ namespace DtronixMessageQueue.Rpc {
 			RpcCallHandler = new RpcCallMessageHandler<TSession, TConfig>((TSession)this);
 			MessageHandlers.Add(RpcCallHandler.Id, RpcCallHandler);
 
+			f (Config.EncryptionKey != null) {
+				
+			}
+
 		}
 		
 
@@ -118,8 +123,8 @@ namespace DtronixMessageQueue.Rpc {
 
 					var serializer = SerializationCache.Get(new MqMessage(frame));
 
-					// Forward the reader two bytes to the data.
-					serializer.MessageReader.ReadBytes(2);
+					// Forward the reader two bytes to the data. (Skipping the command byte and command type byte.)
+					serializer.MessageReader.Skip(2);
 
 					serializer.PrepareDeserializeReader();
 
@@ -130,6 +135,11 @@ namespace DtronixMessageQueue.Rpc {
 					if (Client.ServerInfo == null) {
 						Close(SocketCloseReason.ProtocolError);
 						return;
+					}
+
+					// Check the passed encryption info if the server has sent a new key to use for this session.
+					if (Config.EncryptionKey != null && Client.ServerInfo.SessionEncryptionKey == null) {
+						
 					}
 
 					// Check to see if the server requires authentication.  If so, send a auth check.
@@ -262,6 +272,9 @@ namespace DtronixMessageQueue.Rpc {
 				Server.ServerInfo.RequireAuthentication = Config.RequireAuthentication;
 
 				var serializer = SerializationCache.Get();
+
+				// Send the client a new IV to use for this session.
+				Send
 
 				serializer.MessageWriter.Write((byte) MqCommandType.RpcCommand);
 				serializer.MessageWriter.Write((byte) RpcCommandType.WelcomeMessage);

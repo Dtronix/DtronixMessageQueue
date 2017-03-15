@@ -8,7 +8,7 @@ using ProtoBuf;
 namespace DtronixMessageQueue.Rpc.DataContract {
 
 	/// <summary>
-	/// Used to transport teh description of the server to the client.
+	/// Used to transport the description of the server to the client.
 	/// </summary>
 	[ProtoContract]
 	public class RpcServerInfoDataContract {
@@ -17,24 +17,38 @@ namespace DtronixMessageQueue.Rpc.DataContract {
 		/// Version of this server.
 		/// </summary>
 		[ProtoMember(1)]
-		public string Version { get; set; } = new Version(1, 0).ToString();
-
-		/// <summary>
-		/// Message that the server send to the client.
-		/// </summary>
-		[ProtoMember(2)]
-		public string Message { get; set; } = "RpcServer";
+		public string Version { get; set; } = new Version(1, 1).ToString();
 
 		/// <summary>
 		/// Arbitrary data that is sent along in the MqFrame
 		/// </summary>
-		[ProtoMember(3)]
+		[ProtoMember(2)]
 		public byte[] Data { get; set; }
 
 		/// <summary>
 		/// True if the server requires authentication before proceeding; False otherwise.
 		/// </summary>
-		[ProtoMember(4)]
+		[ProtoMember(3)]
 		public bool RequireAuthentication { get; set; }
+
+		/// <summary>
+		/// Session ID used for 
+		/// </summary>
+		[ProtoMember(4)]
+		public Guid SessionId { get; set; }
+
+		/// <summary>
+		/// AES key used for all data
+		/// </summary>
+		[ProtoMember(5)]
+		public byte[] SessionEncryptionKey { get; set; }
+
+		/// <summary>
+		/// AES IV used for all data
+		/// </summary>
+		[ProtoMember(6)]
+		public byte[] SessionEncryptionIv { get; set; }
+
+
 	}
 }

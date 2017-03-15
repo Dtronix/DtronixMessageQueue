@@ -1,4 +1,6 @@
-﻿namespace DtronixMessageQueue.Socket {
+﻿using System.Security.Cryptography;
+
+namespace DtronixMessageQueue.Socket {
 	/// <summary>
 	/// Configurations for the server/client.
 	/// </summary>
@@ -61,6 +63,22 @@
 		/// 0 disables the automatic disconnection functionality.
 		/// </summary>
 		public int PingTimeout { get; set; } = 60000;
+
+		/// <summary>
+		/// Key to use for the AES encryption system.  Use 128, 196 or 256 byte array sizes.
+		/// Null if there is no encryption.
+		/// </summary>
+		public byte[] EncryptionKey { get; set; } = null;
+
+		/// <summary>
+		/// Mode that the data is to be read/written with.  Ignored if Encryption is set to 
+		/// </summary>
+		public CipherMode EncryptionCipherMode { get; set; } = CipherMode.CBC;
+
+		/// <summary>
+		/// Mode that will be used for padding the empty portions of the buffers.
+		/// </summary>
+		public PaddingMode EncryptionPaddingMode { get; set; } = PaddingMode.PKCS7;
 
 	}
 }

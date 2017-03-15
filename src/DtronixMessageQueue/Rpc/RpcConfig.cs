@@ -29,5 +29,6 @@ namespace DtronixMessageQueue.Rpc {
 		/// Set to the maximum stream of bytes that is allowed to be sent to the session.
 		/// </summary>
 		public long MaxByteTransportLength { get; set; } = Int64.MaxValue;
+
 	}
 }

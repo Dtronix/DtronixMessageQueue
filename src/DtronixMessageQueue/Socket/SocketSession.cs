@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Net.Sockets;
 using System.Security.AccessControl;
+using System.Security.Cryptography;
 using System.Threading;
 
 namespace DtronixMessageQueue.Socket {
@@ -79,7 +80,6 @@ namespace DtronixMessageQueue.Socket {
 		/// </summary>
 		public DateTime ConnectedTime { get; private set; }
 
-
 		/// <summary>
 		/// Base socket for this session.
 		/// </summary>
@@ -112,6 +112,31 @@ namespace DtronixMessageQueue.Socket {
 		/// Reset event used to ensure only one MqWorker can write to the socket at a time.
 		/// </summary>
 		private SemaphoreSlim write_semaphore;
+
+
+		private AesCryptoServiceProvider crypto_provider;
+
+		/// <summary>
+		/// Encryption reader.  Null if there is no encryption.
+		/// </summary>
+		private ICryptoTransform crypto_reader;
+
+		/// <summary>
+		/// Encryption writer.  Null if there is no encryption.
+		/// </summary>
+		private ICryptoTransform crypto_writer;
+
+		/// <summary>
+		/// If the session is to be encrypted, this IV is used throughout the session transmissions.
+		/// Null if there is no encryption.
+		/// </summary>
+		private byte[] crypto_iv = null;
+
+		/// <summary>
+		/// If the session is to be encrypted, this Key is used throughout the session transmissions.
+		/// Null if there is no encryption.
+		/// </summary>
+		private byte[] crypto_key = null;
 
 		/// <summary>
 		/// This event fires when a connection has been established.
@@ -231,7 +256,6 @@ namespace DtronixMessageQueue.Socket {
 
 				case SocketAsyncOperation.Receive:
 					RecieveComplete(e);
-
 					break;
 
 				case SocketAsyncOperation.Send:
@@ -249,15 +273,22 @@ namespace DtronixMessageQueue.Socket {
 		/// <param name="buffer">Buffer bytes to send.</param>
 		/// <param name="offset">Offset in the buffer.</param>
 		/// <param name="length">Total bytes to send.</param>
+
 		protected void Send(byte[] buffer, int offset, int length) {
 			if (Socket == null || Socket.Connected == false) {
 				return;
 			}
 			write_semaphore.Wait(-1);
 
-			// Copy the bytes to the block buffer
-			Buffer.BlockCopy(buffer, offset, send_args.Buffer, send_args.Offset, length);
-
+			// If encryption is setup, use the encryption for transmitting the bytes.
+			if (crypto_writer != null) {
+				var write_buffer = crypto_writer.TransformFinalBlock(buffer, offset, length);
+				Buffer.BlockCopy(write_buffer, 0, send_args.Buffer, send_args.Offset, write_buffer.Length);
+			} else {
+				// Copy the bytes to the block buffer
+				Buffer.BlockCopy(buffer, offset, send_args.Buffer, send_args.Offset, length);
+			}
+			
 			//logger.Debug("Session {0}: Sending {1} bytes", Id, length);
 
 			// Update the buffer length.

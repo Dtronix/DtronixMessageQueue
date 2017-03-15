@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Configuration;
 using DtronixMessageQueue.Rpc.DataContract;
 using DtronixMessageQueue.Socket;
 
@@ -38,6 +39,16 @@ namespace DtronixMessageQueue.Rpc {
 		/// </summary>
 		/// <param name="config">Configurations for this client to use.</param>
 		public RpcClient(TConfig config) : base(config) {
+
+			// Check on thew encryption configurations.
+			if (config.EncryptionKey != null) {
+				var key_length = config.EncryptionKey.Length;
+
+				// Verify the key length
+				if (key_length != 128 && key_length != 196 && key_length != 256) {
+					throw new ConfigurationErrorsException("Encryption configuration does not specify a key of the proper length");
+				}
+			}
 		}
 
 		protected override TSession CreateSession(System.Net.Sockets.Socket session_socket) {

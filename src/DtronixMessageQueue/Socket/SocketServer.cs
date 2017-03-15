@@ -38,8 +38,6 @@ namespace DtronixMessageQueue.Socket {
 			connection_limit = new Semaphore(config.MaxConnections, config.MaxConnections);
 		}
 
-
-
 		/// <summary>
 		/// Starts the server and begins listening for incoming connections.
 		/// </summary>
