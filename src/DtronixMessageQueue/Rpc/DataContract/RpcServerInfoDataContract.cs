@@ -33,6 +33,7 @@ namespace DtronixMessageQueue.Rpc.DataContract {
 
 		/// <summary>
 		/// True if the server requires authentication before proceeding; False otherwise.
+		/// Value is overriden based upon server configurations.
 		/// </summary>
 		[ProtoMember(4)]
 		public bool RequireAuthentication { get; set; }

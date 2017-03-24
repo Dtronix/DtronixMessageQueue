@@ -18,7 +18,7 @@ namespace DtronixMessageQueue.Rpc {
 		/// <summary>
 		/// Connected session.
 		/// </summary>
-		public RpcSession<TSession, TConfig> Session { get; }
+		public TSession Session { get; }
 
 		/// <summary>
 		/// Authentication frame to be passed to the server for verification.
