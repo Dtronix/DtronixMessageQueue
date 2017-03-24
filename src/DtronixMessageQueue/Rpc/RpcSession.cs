@@ -317,9 +317,9 @@ namespace DtronixMessageQueue.Rpc {
 		/// Adds a proxy interface and instance to the current session to allow for remote method proxying.
 		/// </summary>
 		/// <typeparam name="T">Interface of the instance.  Must be explicitly specified.</typeparam>
-		/// <param name="instance">Instance of the interface implementation.</param>
-		public void AddProxy<T>(T instance) where T : IRemoteService<TSession, TConfig> {
-			var proxy = new RpcProxy<T, TSession, TConfig>(instance, this, RpcCallHandler);
+		/// <param name="service_name">Name of the service for this interface on the remote connection.</param>
+		public void AddProxy<T>(string service_name) where T : IRemoteService<TSession, TConfig> {
+			var proxy = new RpcProxy<T, TSession, TConfig>(service_name, this, RpcCallHandler);
 
 			RpcCallHandler.RemoteServiceRealproxy.Add(typeof(T), proxy);
 			RpcCallHandler.RemoteServicesProxy.Add(typeof(T), (T) proxy.GetTransparentProxy());

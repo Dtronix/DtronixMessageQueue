@@ -274,5 +274,31 @@ namespace DtronixMessageQueue.Tests.Mq {
 
 		}
 
+		[Fact]
+		public void Client_times_out_while_connecting_for_too_long() {
+			Config.ConnectionTimeout = 100;
+			Client = new MqClient<SimpleMqSession, MqConfig>(Config);
+
+			Server.Connected += (sender, args) => {
+				args.Session.Socket.Close();
+			};
+
+
+			Client.Closed += (sender, args) => {
+				if (args.CloseReason == SocketCloseReason.TimeOut) {
+					TestStatus.Set();
+				} else {
+					LastException = new Exception("Client closed for reason other than timeout.");
+				}
+			};
+
+			StartAndWait(false, 1000, false);
+
+			if (TestStatus.IsSet == false) {
+				throw new Exception("Socket did not timeout.");
+			}
+
+		}
+
 	}
 }

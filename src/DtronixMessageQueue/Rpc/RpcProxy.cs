@@ -25,9 +25,9 @@ namespace DtronixMessageQueue.Rpc {
 		where TConfig : RpcConfig {
 
 		/// <summary>
-		/// Internal reference to the class which is being proxied.
+		/// Name of the service on the remote server.
 		/// </summary>
-		private readonly T decorated;
+		public readonly string ServiceName;
 
 		private readonly RpcCallMessageHandler<TSession, TConfig> call_message_handler;
 
@@ -39,10 +39,11 @@ namespace DtronixMessageQueue.Rpc {
 		/// <summary>
 		/// Creates instance with the specified proxied class and session.
 		/// </summary>
-		/// <param name="decorated">Class to proxy method calls from.</param>
+		/// <param name="service_name">Name of this service on the remote server.</param>
 		/// <param name="session">Session to convey proxied method calls over.</param>
-		public RpcProxy(T decorated, RpcSession<TSession, TConfig> session, RpcCallMessageHandler<TSession, TConfig> call_message_handler) : base(typeof(T)) {
-			this.decorated = decorated;
+		/// <param name="call_message_handler">Call handler for the RPC session.</param>
+		public RpcProxy(string service_name, RpcSession<TSession, TConfig> session, RpcCallMessageHandler<TSession, TConfig> call_message_handler) : base(typeof(T)) {
+			ServiceName = service_name;
 			this.call_message_handler = call_message_handler;
 			this.session = (TSession) session;
 		}
@@ -103,7 +104,7 @@ namespace DtronixMessageQueue.Rpc {
 			}
 
 			// Write the name of this service class.
-			serializer.MessageWriter.Write(decorated.Name);
+			serializer.MessageWriter.Write(ServiceName);
 
 			// Method name which will be remotely invoked.
 			serializer.MessageWriter.Write(method_call.MethodName);

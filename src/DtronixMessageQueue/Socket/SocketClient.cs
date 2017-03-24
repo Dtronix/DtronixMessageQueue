@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Net;
 using System.Net.Sockets;
+using System.Threading;
 
 namespace DtronixMessageQueue.Socket {
 
@@ -38,6 +39,8 @@ namespace DtronixMessageQueue.Socket {
 			Connect(new IPEndPoint(IPAddress.Parse(Config.Ip), Config.Port));
 		}
 
+		
+
 		/// <summary>
 		/// Connects to the specified endpoint.
 		/// </summary>
@@ -47,11 +50,27 @@ namespace DtronixMessageQueue.Socket {
 				NoDelay = true
 			};
 
+			bool timed_out = false;
+
+			Timer connection_timer = null;
+
+			connection_timer = new Timer(o => {
+				timed_out = true;
+				MainSocket.Close();
+				connection_timer.Change(Timeout.Infinite, Timeout.Infinite);
+				connection_timer.Dispose();
+
+				OnClose(null, SocketCloseReason.TimeOut);
+			});
+
 			var event_arg = new SocketAsyncEventArgs {
 				RemoteEndPoint = end_point
 			};
 
 			event_arg.Completed += (sender, args) => {
+				if (timed_out) {
+					return;
+				}
 				if (args.LastOperation == SocketAsyncOperation.Connect) {
 					Session = CreateSession(MainSocket);
 					Session.Connected += (sndr, e) => OnConnect(Session);
@@ -62,12 +81,21 @@ namespace DtronixMessageQueue.Socket {
 				}
 			};
 
+			
+
 			MainSocket.ConnectAsync(event_arg);
+
+			connection_timer.Change(Config.ConnectionTimeout, Timeout.Infinite);
+
 		}
 
 		protected override void OnClose(TSession session, SocketCloseReason reason) {
 			TSession sess_out;
-			ConnectedSessions.TryRemove(Session.Id, out sess_out);
+
+			// If the session is null, the connection timed out while trying to connect.
+			if (session != null) {
+				ConnectedSessions.TryRemove(Session.Id, out sess_out);
+			}
 
 			base.OnClose(session, reason);
 		}

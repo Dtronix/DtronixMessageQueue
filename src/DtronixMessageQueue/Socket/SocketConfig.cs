@@ -26,7 +26,7 @@
 		public int SendTimeout { get; set; } = 5000;
 
 		/// <summary>
-		/// Time in milliseconds it takes to timeout a connection attempt.
+		/// (Client) Time in milliseconds it takes to timeout a connection attempt.
 		/// </summary>
 		public int ConnectionTimeout { get; set; } = 60000;
 

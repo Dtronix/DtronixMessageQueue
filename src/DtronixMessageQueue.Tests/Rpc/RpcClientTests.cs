@@ -34,7 +34,7 @@ namespace DtronixMessageQueue.Tests.Rpc {
 
 
 			Client.Ready += (sender, args) => {
-				args.Session.AddProxy<ICalculatorService>(new CalculatorService());
+				args.Session.AddProxy<ICalculatorService>("CalculatorService");
 				var service = Client.Session.GetProxy<ICalculatorService>();
 				var result = service.Add(100, 200);
 
@@ -57,7 +57,7 @@ namespace DtronixMessageQueue.Tests.Rpc {
 
 
 			Client.Ready += (sender, args) => {
-				args.Session.AddProxy<ICalculatorService>(new CalculatorService());
+				args.Session.AddProxy<ICalculatorService>("CalculatorService");
 				var service = Client.Session.GetProxy<ICalculatorService>();
 				Stopwatch stopwatch = Stopwatch.StartNew();
 
@@ -87,7 +87,7 @@ namespace DtronixMessageQueue.Tests.Rpc {
 
 
 			Client.Ready += (sender, args) => {
-				args.Session.AddProxy<ICalculatorService>(new CalculatorService());
+				args.Session.AddProxy<ICalculatorService>("CalculatorService");
 				var service = Client.Session.GetProxy<ICalculatorService>();
 				var token_source = new CancellationTokenSource();
 
@@ -139,7 +139,7 @@ namespace DtronixMessageQueue.Tests.Rpc {
 
 
 			Client.Ready += (sender, e) => {
-				e.Session.AddProxy<ICalculatorService>(new CalculatorService());
+				e.Session.AddProxy<ICalculatorService>("CalculatorService");
 				var service = Client.Session.GetProxy<ICalculatorService>();
 
 				var result = service.Add(100, 200);
@@ -271,7 +271,7 @@ namespace DtronixMessageQueue.Tests.Rpc {
 			Server.Config.ConnectionTimeout = 100;
 
 			Client.Closed += (sender, e) => {
-				if (e.CloseReason != SocketCloseReason.AuthenticationFailure) {
+				if (e.CloseReason != SocketCloseReason.TimeOut) {
 					LastException = new Exception("Client was not notified that the authentication failed.");
 				}
 				TestStatus.Set();
@@ -287,7 +287,6 @@ namespace DtronixMessageQueue.Tests.Rpc {
 		[Fact]
 		public void Client_does_not_ready_before_server_authenticates() {
 			Server.Config.RequireAuthentication = true;
-			Server.Config.ConnectionTimeout = 100;
 
 			Server.Authenticate += (sender, args) => {
 				args.Authenticated = true;

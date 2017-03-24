@@ -120,7 +120,7 @@ namespace DtronixMessageQueue.Tests.Performance {
 
 			client.Ready += (sender, args) => {
 				Thread.Sleep(300);
-				args.Session.AddProxy<ITestService>(new TestService());
+				args.Session.AddProxy<ITestService>("TestService");
 				var service = client.Session.GetProxy<ITestService>();
 				service.TestSetup(runs);
 
