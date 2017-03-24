@@ -251,8 +251,8 @@ namespace DtronixMessageQueue.Tests.Rpc {
 				e.Authenticated = true;
 			};
 
-			Client.AuthenticationSuccess += (sender, e) => {
-				if (e.Authenticated == false) {
+			Client.Ready += (sender, e) => {
+				if (e.Session.Authenticated == false) {
 					LastException = new Exception("Client notified of authentication wrongly.");
 				}
 				TestStatus.Set();
@@ -279,6 +279,30 @@ namespace DtronixMessageQueue.Tests.Rpc {
 
 			Client.Authenticate += (sender, e) => {
 				Thread.Sleep(200);
+			};
+
+			StartAndWait();
+		}
+
+		[Fact]
+		public void Client_does_not_ready_before_server_authenticates() {
+			Server.Config.RequireAuthentication = true;
+			Server.Config.ConnectionTimeout = 100;
+
+			Server.Authenticate += (sender, args) => {
+				args.Authenticated = true;
+				Thread.Sleep(200);
+			};
+
+			Client.Ready += (sender, args) => {
+				if (!args.Session.Authenticated) {
+					LastException = new Exception("Client ready event called while authentication failed.");
+				}
+				TestStatus.Set();
+			};
+
+			Client.Authenticate += (sender, e) => {
+				e.AuthData = new byte[] { 5, 4, 3, 2, 1 };
 			};
 
 			StartAndWait();

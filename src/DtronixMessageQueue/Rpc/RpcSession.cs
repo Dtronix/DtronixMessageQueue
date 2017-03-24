@@ -157,12 +157,12 @@ namespace DtronixMessageQueue.Rpc {
 					} else {
 						// If no authentication is required, set this client to authenticated.
 						Authenticated = true;
-					}
 
-					// Alert the server that this session is ready for usage.
-					Task.Run(() => {
-						Ready?.Invoke(this, new SessionEventArgs<TSession, TConfig>((TSession) this));
-					});
+						// Alert the server that this session is ready for usage.
+						Task.Run(() => {
+							Ready?.Invoke(this, new SessionEventArgs<TSession, TConfig>((TSession)this));
+						});
+					}
 
 					SerializationCache.Put(serializer);
 
@@ -248,8 +248,6 @@ namespace DtronixMessageQueue.Rpc {
 			} catch (Exception) {
 				Close(SocketCloseReason.ProtocolError);
 			}
-
-
 		}
 
 		/// <summary>
