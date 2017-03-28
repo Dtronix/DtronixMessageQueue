@@ -344,12 +344,12 @@ namespace DtronixMessageQueue.Socket {
 				// ignored
 			}
 
+			send_args.Completed -= IoCompleted;
+			receive_args.Completed -= IoCompleted;
+
 			// Free the SocketAsyncEventArg so they can be reused by another client
 			args_pool.Push(send_args);
 			args_pool.Push(receive_args);
-
-			send_args.Completed -= IoCompleted;
-			receive_args.Completed -= IoCompleted;
 
 
 			// Notify the session has been closed.
