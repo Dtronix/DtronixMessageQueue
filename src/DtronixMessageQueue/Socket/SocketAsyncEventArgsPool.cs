@@ -9,6 +9,11 @@ namespace DtronixMessageQueue.Socket {
 	public class SocketAsyncEventArgsPool {
 
 		/// <summary>
+		/// Total capacity of the pool.
+		/// </summary>
+		private readonly int capacity;
+
+		/// <summary>
 		/// Preconfigured stack of event args to use.
 		/// </summary>
 		private readonly Stack<SocketAsyncEventArgs> pool;
@@ -24,6 +29,8 @@ namespace DtronixMessageQueue.Socket {
 		/// </summary>
 		/// <param name="capacity">The "capacity" parameter is the maximum number of SocketAsyncEventArgs objects the pool can hold</param>
 		public SocketAsyncEventArgsPool(int capacity) {
+			this.capacity = capacity;
+
 			pool = new Stack<SocketAsyncEventArgs>(capacity);
 		}
 
@@ -48,6 +55,10 @@ namespace DtronixMessageQueue.Socket {
 			lock (pool) {
 				return pool.Pop();
 			}
+		}
+
+		public override string ToString() {
+			return $"Capacity ({pool.Count}/{capacity})";
 		}
 	}
 }
