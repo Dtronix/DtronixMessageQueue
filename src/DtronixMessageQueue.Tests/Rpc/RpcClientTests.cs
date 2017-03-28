@@ -307,5 +307,32 @@ namespace DtronixMessageQueue.Tests.Rpc {
 			StartAndWait();
 		}
 
+		[Fact]
+		public void Client_connects_disconnects_and_reconnects() {
+			Server.Config.RequireAuthentication = false;
+			int connected_times = 0;
+
+
+			Client.Ready += (sender, args) => {
+				if (!args.Session.Authenticated) {
+					LastException = new Exception("Client ready event called while authentication failed.");
+				}
+
+				if (++connected_times == 5) {
+					TestStatus.Set();
+				} else {
+					Client.Close();
+				}
+			};
+
+			Client.Closed += (sender, args) => {
+				if (!TestStatus.IsSet) {
+					Client.Connect();
+				}
+			};
+
+			StartAndWait();
+		}
+
 	}
 }
