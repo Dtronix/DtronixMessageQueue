@@ -351,11 +351,10 @@ namespace DtronixMessageQueue.Socket {
 			args_pool.Push(send_args);
 			args_pool.Push(receive_args);
 
+			CurrentState = State.Closed;
 
 			// Notify the session has been closed.
 			OnDisconnected(reason);
-
-			CurrentState = State.Closed;
 		}
 
 		/// <summary>

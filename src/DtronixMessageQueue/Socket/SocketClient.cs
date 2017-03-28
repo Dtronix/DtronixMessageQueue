@@ -46,6 +46,10 @@ namespace DtronixMessageQueue.Socket {
 		/// </summary>
 		/// <param name="end_point">Endpoint to connect to.</param>
 		public void Connect(IPEndPoint end_point) {
+			if (MainSocket != null && Session?.CurrentState != SocketSession<TSession, TConfig>.State.Closed) {
+				throw new InvalidOperationException("Client is in the process of connecting.");
+			}
+
 			MainSocket = new System.Net.Sockets.Socket(end_point.AddressFamily, SocketType.Stream, ProtocolType.Tcp) {
 				NoDelay = true
 			};
@@ -72,6 +76,11 @@ namespace DtronixMessageQueue.Socket {
 					return;
 				}
 				if (args.LastOperation == SocketAsyncOperation.Connect) {
+
+					// Stop the timeout timer.
+					connection_timer.Change(Timeout.Infinite, Timeout.Infinite);
+					connection_timer.Dispose();
+
 					Session = CreateSession(MainSocket);
 					Session.Connected += (sndr, e) => OnConnect(Session);
 
@@ -90,6 +99,8 @@ namespace DtronixMessageQueue.Socket {
 		}
 
 		protected override void OnClose(TSession session, SocketCloseReason reason) {
+			MainSocket.Close();
+
 			TSession sess_out;
 
 			// If the session is null, the connection timed out while trying to connect.
