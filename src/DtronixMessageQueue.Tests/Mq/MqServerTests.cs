@@ -1,85 +1,84 @@
 ﻿using Xunit;
 using Xunit.Abstractions;
 
-namespace DtronixMessageQueue.Tests.Mq {
+namespace DtronixMessageQueue.Tests.Mq
+{
+    public class MqServerTests : MqTestsBase
+    {
+        public MqServerTests(ITestOutputHelper output) : base(output)
+        {
+        }
 
 
-	public class MqServerTests : MqTestsBase {
+        [Theory]
+        [InlineData(1, false)]
+        [InlineData(1, true)]
+        [InlineData(100, true)]
+        [InlineData(1000, true)]
+        public void Server_should_send_data_to_client(int number, bool validate)
+        {
+            var messageSource = GenerateRandomMessage(4, 50);
 
-		public MqServerTests(ITestOutputHelper output) : base(output) {
+            Server.Connected += (sender, session) =>
+            {
+                for (int i = 0; i < number; i++)
+                {
+                    session.Session.Send(messageSource);
+                }
+            };
 
-		}
+            int clientMessageCount = 0;
+            Client.IncomingMessage += (sender, args) =>
+            {
+                MqMessage message;
 
+                clientMessageCount += args.Messages.Count;
 
-		[Theory]
-		[InlineData(1, false)]
-		[InlineData(1, true)]
-		[InlineData(100, true)]
-		[InlineData(1000, true)]
-		public void Server_should_send_data_to_client(int number, bool validate) {
-			var message_source = GenerateRandomMessage(4, 50);
+                while (args.Messages.Count > 0)
+                {
+                    message = args.Messages.Dequeue();
 
-			Server.Connected += (sender, session) => {
-				for (int i = 0; i < number; i++) {
-					session.Session.Send(message_source);
-				}
-				
-			};
+                    if (validate)
+                    {
+                        CompareMessages(messageSource, message);
+                    }
+                }
 
-			int client_message_count = 0;
-			Client.IncomingMessage += (sender, args) => {
-				MqMessage message;
+                if (clientMessageCount == number)
+                {
+                    TestStatus.Set();
+                }
+            };
 
-				client_message_count += args.Messages.Count;
+            StartAndWait();
+        }
 
-				while (args.Messages.Count > 0) {
-					message = args.Messages.Dequeue();
+        [Fact]
+        public void Server_accepts_new_connection()
+        {
+            Server.Connected += (sender, session) => { TestStatus.Set(); };
 
-					if (validate) {
-						CompareMessages(message_source, message);
-					}
-				}
+            StartAndWait();
+        }
 
-				if (client_message_count == number) {
-					TestStatus.Set();
-				}
-			};
+        [Fact]
+        public void Server_detects_client_disconnect()
+        {
+            Client.Connected += (sender, args) => { Client.Close(); };
 
-			StartAndWait();
+            Server.Closed += (session, value) => { TestStatus.Set(); };
 
-		}
-
-		[Fact]
-		public void Server_accepts_new_connection() {
-
-			Server.Connected += (sender, session) => {
-				TestStatus.Set();
-			};
-
-			StartAndWait();
-		}
-
-		[Fact]
-		public void Server_detects_client_disconnect() {
-
-			Client.Connected += (sender, args) => {
-				Client.Close();
-			};
-
-			Server.Closed += (session, value) => {
-				TestStatus.Set();
-			};
-
-			StartAndWait();
-		}
+            StartAndWait();
+        }
 
 
-		[Fact]
-		public void Server_stops() {
-			Server.Start();
-			Assert.Equal(true, Server.IsRunning);
-			Server.Stop();
-			Assert.Equal(false, Server.IsRunning);
-		}
-	}
+        [Fact]
+        public void Server_stops()
+        {
+            Server.Start();
+            Assert.Equal(true, Server.IsRunning);
+            Server.Stop();
+            Assert.Equal(false, Server.IsRunning);
+        }
+    }
 }

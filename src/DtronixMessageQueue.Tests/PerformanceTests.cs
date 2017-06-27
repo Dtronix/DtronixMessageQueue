@@ -1,17 +1,14 @@
 ﻿using Xunit.Abstractions;
 
-namespace DtronixMessageQueue.Tests {
+namespace DtronixMessageQueue.Tests
+{
+    public class PerformanceTests
+    {
+        private ITestOutputHelper _output;
 
-	public class PerformanceTests {
-
-		private ITestOutputHelper output;
-
-		public PerformanceTests(ITestOutputHelper output) {
-			this.output = output;
-		}
-
-
-
-
-	}
+        public PerformanceTests(ITestOutputHelper output)
+        {
+            _output = output;
+        }
+    }
 }
