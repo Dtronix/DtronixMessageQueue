@@ -104,6 +104,10 @@ namespace DtronixMessageQueue {
 		}
 
 		public void Close() {
+		    if (Session == null)
+		    {
+		        return;
+		    }
 			Session.IncomingMessage -= OnIncomingMessage;
 			Session.Close(SocketCloseReason.ClientClosing);
 			Session.Dispose();

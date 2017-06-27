@@ -64,6 +64,10 @@ namespace DtronixMessageQueue.Rpc {
 		/// </summary>
 		public bool Authenticated { get; private set; }
 
+	    private Task auth_timeout;
+
+	    private CancellationTokenSource auth_timeout_cancel = new CancellationTokenSource();
+
 		protected RpcSession() {
 			MessageHandlers = new Dictionary<byte, MessageHandler<TSession, TConfig>>();
 		}
@@ -152,9 +156,27 @@ namespace DtronixMessageQueue.Rpc {
 						var auth_message = serializer.MessageWriter.ToMessage(true);
 						auth_message[0].FrameType = MqFrameType.Command;
 
-						// RpcCommand:byte; RpcCommandType:byte; AuthData:byte[];
-						Send(auth_message);
-					} else {
+                        auth_timeout = new Task(async () =>
+                        {
+                            try
+                            {
+                                await Task.Delay(Config.ConnectionTimeout, auth_timeout_cancel.Token);
+                            }
+                            catch
+                            {
+                                return;
+                            }
+
+                            if(!auth_timeout_cancel.IsCancellationRequested)
+                                Close(SocketCloseReason.TimeOut);
+                        });
+
+                        // RpcCommand:byte; RpcCommandType:byte; AuthData:byte[];
+                        Send(auth_message);
+
+                        auth_timeout.Start();
+
+                    } else {
 						// If no authentication is required, set this client to authenticated.
 						Authenticated = true;
 
@@ -215,6 +237,9 @@ namespace DtronixMessageQueue.Rpc {
 
 				} else if (rpc_command_type == RpcCommandType.AuthenticationResult) {
 					// RpcCommand:byte; RpcCommandType:byte; AuthResult:bool;
+
+                    // Cancel the timeout request.
+                    auth_timeout_cancel.Cancel();
 
 					// Ensure that this command is running on the client.
 					if (BaseSocket.Mode != SocketMode.Client) {

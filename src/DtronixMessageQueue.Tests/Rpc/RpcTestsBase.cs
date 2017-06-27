@@ -45,8 +45,8 @@ namespace DtronixMessageQueue.Tests.Rpc {
 			return port;
 		}
 
-		public void StartAndWait(bool timeout_error = true, int timeout_length = -1) {
-			if (Server.IsRunning == false) {
+		public void StartAndWait(bool timeout_error = true, int timeout_length = -1, bool start_server = true) {
+			if (Server.IsRunning == false && start_server) {
 				Server.Start();
 			}
 			if (Client.IsRunning == false) {

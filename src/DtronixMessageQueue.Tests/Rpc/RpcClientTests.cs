@@ -266,9 +266,9 @@ namespace DtronixMessageQueue.Tests.Rpc {
 		}
 
 		[Fact]
-		public void Client_times_out_on_auth_failure() {
+		public void Client_times_out_on_long_auth() {
 			Server.Config.RequireAuthentication = true;
-			Server.Config.ConnectionTimeout = 100;
+			Client.Config.ConnectionTimeout = 100;
 
 			Client.Closed += (sender, e) => {
 				if (e.CloseReason != SocketCloseReason.TimeOut) {
@@ -277,11 +277,12 @@ namespace DtronixMessageQueue.Tests.Rpc {
 				TestStatus.Set();
 			};
 
-			Client.Authenticate += (sender, e) => {
-				Thread.Sleep(200);
+			Server.Authenticate += (sender, e) =>
+			{
+				Thread.Sleep(500);
 			};
 
-			StartAndWait();
+			StartAndWait(true, 5000, true);
 		}
 
 		[Fact]
