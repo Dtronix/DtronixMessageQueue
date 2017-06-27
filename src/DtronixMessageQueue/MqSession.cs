@@ -2,352 +2,383 @@
 using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.IO;
-using System.Threading;
 using System.Threading.Tasks;
 using DtronixMessageQueue.Socket;
 
-namespace DtronixMessageQueue {
-
-	/// <summary>
-	/// Session to handle all reading/writing for a socket session.
-	/// </summary>
-	/// <typeparam name="TSession">Session type for this connection.</typeparam>
-	/// <typeparam name="TConfig">Configuration for this connection.</typeparam>
-	public abstract class MqSession<TSession, TConfig> : SocketSession<TSession, TConfig>
-		where TSession : MqSession<TSession, TConfig>, new()
-		where TConfig : MqConfig {
-
-		/// <summary>
-		/// True if the socket is currently running.
-		/// </summary>
-		private bool is_running = true;
-
-		/// <summary>
-		/// Reference to the current message being processed by the inbox.
-		/// </summary>
-		private MqMessage process_message;
-
-		/// <summary>
-		/// Internal framebuilder for this instance.
-		/// </summary>
-		private MqFrameBuilder frame_builder;
-
-		/// <summary>
-		/// Outbox message queue.  Internally used to store Messages before being sent to the wire by the Postmaster.
-		/// </summary>
-		private readonly ConcurrentQueue<MqMessage> outbox = new ConcurrentQueue<MqMessage>();
-
-		/// <summary>
-		/// Inbox byte queue.  Internally used to store the raw frame bytes before while waiting to be processed by the Postmaster.
-		/// </summary>
-		private readonly ConcurrentQueue<byte[]> inbox_bytes = new ConcurrentQueue<byte[]>();
-
-		private Task outbox_task;
-
-		private Task inbox_task;
-
-		private readonly object inbox_lock = new object();
-
-		private readonly object outbox_lock = new object();
-
-		/// <summary>
-		/// Event fired when a new message has been processed by the Postmaster and ready to be read.
-		/// </summary>
-		public event EventHandler<IncomingMessageEventArgs<TSession, TConfig>> IncomingMessage;
-
-		protected override void OnSetup() {
-			frame_builder = new MqFrameBuilder(Config);
-		}
-
-		/// <summary>
-		/// Adds bytes from the client/server reading methods to be processed by the Postmaster.
-		/// </summary>
-		/// <param name="buffer">Buffer of bytes to read. Does not copy the bytes to the buffer.</param>
-		protected override void HandleIncomingBytes(byte[] buffer) {
-			if (CurrentState != State.Connected) {
-				return;
-			}
-
-            lock (inbox_lock) {
-				inbox_bytes.Enqueue(buffer);
-			}
-			
-
-			if (inbox_task == null || inbox_task.IsCompleted) {
-				inbox_task = Task.Run((Action)ProcessIncomingQueue);
-			}
-		}
-
-		/// <summary>
-		/// Sends a queue of bytes to the connected client/server.
-		/// </summary>
-		/// <param name="buffer_queue">Queue of bytes to send to the wire.</param>
-		/// <param name="length">Total length of the bytes in the queue to send.</param>
-		private void SendBufferQueue(Queue<byte[]> buffer_queue, int length) {
-			var buffer = new byte[length];
-			var offset = 0;
-
-			while (buffer_queue.Count > 0) {
-				var bytes = buffer_queue.Dequeue();
-				Buffer.BlockCopy(bytes, 0, buffer, offset, bytes.Length);
-
-				// Increment the offset.
-				offset += bytes.Length;
-			}
-
-
-			// This will block 
-			Send(buffer, 0, buffer.Length);
-		}
-
-
-		/// <summary>
-		/// Internally called method by the Postmaster on a different thread to send all messages in the outbox.
-		/// </summary>
-		/// <returns>True if messages were sent.  False if nothing was sent.</returns>
-		private void ProcessOutbox() {
-			MqMessage message;
-			var length = 0;
-			var buffer_queue = new Queue<byte[]>();
-
-			while (outbox.TryDequeue(out message)) {
-				//Console.WriteLine("Wrote " + message);
-				message.PrepareSend();
-				foreach (var frame in message) {
-					var frame_size = frame.FrameSize;
-
-					// If this would overflow the max client buffer size, send the full buffer queue.
-					if (length + frame_size > Config.FrameBufferSize + MqFrame.HeaderLength) {
-						SendBufferQueue(buffer_queue, length);
-
-						// Reset the length to 0;
-						length = 0;
-					}
-					buffer_queue.Enqueue(frame.RawFrame());
-
-					// Increment the total buffer length.
-					length += frame_size;
-				}
-			}
-
-			if (buffer_queue.Count == 0) {
-				return;
-			}
-
-			// Send the last of the buffer queue.
-			SendBufferQueue(buffer_queue, length);
-
-			lock (outbox_lock) {
-				if (outbox.IsEmpty == false) {
-					outbox_task = Task.Run((Action)ProcessOutbox);
-				}
-			}
-			
-		}
-
-		/// <summary>
-		/// Internal method called by the Postmaster on a different thread to process all bytes in the inbox.
-		/// </summary>
-		/// <returns>True if incoming queue was processed; False if nothing was available for process.</returns>
-		private void ProcessIncomingQueue() {
-			if (process_message == null) {
-				process_message = new MqMessage();
-			}
-
-			Queue<MqMessage> messages = null;
-			byte[] buffer;
-			while (inbox_bytes.TryDequeue(out buffer)) {
-				lock (inbox_lock) {
-
-}
-
-					try {
-					frame_builder.Write(buffer, 0, buffer.Length);
-				} catch (InvalidDataException) {
-					//logger.Error(ex, "Connector {0}: Client send invalid data.", Connection.Id);
-
-					Close(SocketCloseReason.ProtocolError);
-					break;
-				}
-
-				var frame_count = frame_builder.Frames.Count;
-				//logger.Debug("Connector {0}: Parsed {1} frames.", Connection.Id, frame_count);
-
-				for (var i = 0; i < frame_count; i++) {
-					var frame = frame_builder.Frames.Dequeue();
-
-					// Do nothing if this is a ping frame.
-					if (frame.FrameType == MqFrameType.Ping) {
-						if (BaseSocket.Mode == SocketMode.Server) {
-							// Re-send ping frame back to the client to refresh client connection timeout timer.
-							Send(CreateFrame(null, MqFrameType.Ping));
-						}
-						continue;
-					}
-
-					// Determine if this frame is a command type.  If it is, process it and don't add it to the message.
-					if (frame.FrameType == MqFrameType.Command) {
-						ProcessCommand(frame);
-						continue;
-					}
-
-					process_message.Add(frame);
-
-					if (frame.FrameType != MqFrameType.EmptyLast && frame.FrameType != MqFrameType.Last) {
-						continue;
-					}
-
-					if (messages == null) {
-						messages = new Queue<MqMessage>();
-					}
-
-					messages.Enqueue(process_message);
-					process_message = new MqMessage();
-				}
-			}
-
-			if (messages == null) {
-				return;
-			}
-
-
-
-			OnIncomingMessage(this, new IncomingMessageEventArgs<TSession, TConfig>(messages, (TSession) this));
-
-			lock (inbox_lock) {
-				if (inbox_bytes.IsEmpty == false) {
-					inbox_task = Task.Run((Action)ProcessIncomingQueue);
-				}
-			}
-			
-		}
-
-
-		/// <summary>
-		/// Event fired when one or more new messages are ready for use.
-		/// </summary>
-		/// <param name="sender">Originator of call for this event.</param>
-		/// <param name="e">Event args for the message.</param>
-		protected virtual void OnIncomingMessage(object sender, IncomingMessageEventArgs<TSession, TConfig> e) {
-			IncomingMessage?.Invoke(sender, e);
-		}
-
-
-		/// <summary>
-		/// Closes this session with the specified reason.
-		/// Notifies the recipient connection the reason for the session's closure.
-		/// </summary>
-		/// <param name="reason">Reason for closing this session.</param>
-		public override void Close(SocketCloseReason reason) {
-			if (CurrentState == State.Closed) {
-				return;
-			}
-
-			MqFrame close_frame = null;
-			if (CurrentState == State.Connected) {
-				CurrentState = State.Closing;
-				
-				close_frame = CreateFrame(new byte[2], MqFrameType.Command);
-
-				close_frame.Write(0, (byte) 0);
-				close_frame.Write(1, (byte) reason);
-			}
-
-			// If we are passed a closing frame, then send it to the other connection.
-			if (close_frame != null) {
-				MqMessage msg;
-				if (outbox.IsEmpty == false) {
-					while (outbox.TryDequeue(out msg)) {
-					}
-				}
-
-				msg = new MqMessage(close_frame);
-				outbox.Enqueue(msg);
-
-				// Process the last bit of data.
-				ProcessOutbox();
-			}
-
-			base.Close(reason);
-		}
-
-		/// <summary>
-		/// Adds a frame to the outbox to be processed.
-		/// </summary>
-		/// <param name="frame">Frame to send.</param>
-		public void Send(MqFrame frame) {
-			Send(new MqMessage(frame));
-		}
-
-	    /// <summary>
-	    /// Sends a message to the session's client.
-	    /// </summary>
-	    /// <param name="message">Message to send.</param>
-	    public void Send(MqMessage message) {
-	        if (message.Count == 0) {
-	            return;
-	        }
-	        if (CurrentState != State.Connected) {
-	            return;
-	        }
-
-	        lock (outbox_lock) {
-	            outbox.Enqueue(message);
-	        }
-
-	        if (outbox_task == null || outbox_task.IsCompleted) {
-	            outbox_task = Task.Run((Action) ProcessOutbox);
-	        }
-
-
-	    }
-
-	    /// <summary>
-		/// Creates a frame with the specified bytes and the current configurations.
-		/// </summary>
-		/// <param name="bytes">Bytes to put in the frame.</param>
-		/// <returns>Configured frame.</returns>
-		public MqFrame CreateFrame(byte[] bytes) {
-			return Utilities.CreateFrame(bytes, MqFrameType.Unset, Config);
-		}
-
-		/// <summary>
-		/// Creates a frame with the specified bytes and the current configurations.
-		/// </summary>
-		/// <param name="bytes">Bytes to put in the frame.</param>
-		/// <param name="type">Type of frame to create.</param>
-		/// <returns>Configured frame.</returns>
-		public MqFrame CreateFrame(byte[] bytes, MqFrameType type) {
-			return Utilities.CreateFrame(bytes, type, Config);
-		}
-
-
-		/// <summary>
-		/// Processes an incoming command frame from the connection.
-		/// </summary>
-		/// <param name="frame">Command frame to process.</param>
-		protected virtual void ProcessCommand(MqFrame frame) {
-			var command_type = (MqCommandType)frame.ReadByte(0);
-
-			switch (command_type) {
-				case MqCommandType.Disconnect:
-					CurrentState = State.Closing;
-					Close((SocketCloseReason)frame.ReadByte(1));
-					break;
-
-				default:
-					Close(SocketCloseReason.ProtocolError);
-					break;
-
-			}
-		}
-
-		/// <summary>
-		/// String representation of the active session.
-		/// </summary>
-		/// <returns>String representation.</returns>
-		public override string ToString() {
-			return $"MqSession; Reading {inbox_bytes.Count} byte packets; Sending {outbox.Count} messages.";
-		}
-	}
+namespace DtronixMessageQueue
+{
+    /// <summary>
+    /// Session to handle all reading/writing for a socket session.
+    /// </summary>
+    /// <typeparam name="TSession">Session type for this connection.</typeparam>
+    /// <typeparam name="TConfig">Configuration for this connection.</typeparam>
+    public abstract class MqSession<TSession, TConfig> : SocketSession<TSession, TConfig>
+        where TSession : MqSession<TSession, TConfig>, new()
+        where TConfig : MqConfig
+    {
+        /// <summary>
+        /// Reference to the current message being processed by the inbox.
+        /// </summary>
+        private MqMessage _processMessage;
+
+        /// <summary>
+        /// Internal frame builder for this instance.
+        /// </summary>
+        private MqFrameBuilder _frameBuilder;
+
+        /// <summary>
+        /// Outbox message queue.  Internally used to store Messages before being sent to the wire by the Postmaster.
+        /// </summary>
+        private readonly ConcurrentQueue<MqMessage> _outbox = new ConcurrentQueue<MqMessage>();
+
+        /// <summary>
+        /// Inbox byte queue.  Internally used to store the raw frame bytes before while waiting to be processed by the Postmaster.
+        /// </summary>
+        private readonly ConcurrentQueue<byte[]> _inboxBytes = new ConcurrentQueue<byte[]>();
+
+        private Task _outboxTask;
+
+        private Task _inboxTask;
+
+        private readonly object _inboxLock = new object();
+
+        private readonly object _outboxLock = new object();
+
+        /// <summary>
+        /// Event fired when a new message has been processed by the Postmaster and ready to be read.
+        /// </summary>
+        public event EventHandler<IncomingMessageEventArgs<TSession, TConfig>> IncomingMessage;
+
+        protected override void OnSetup()
+        {
+            _frameBuilder = new MqFrameBuilder(Config);
+        }
+
+        /// <summary>
+        /// Adds bytes from the client/server reading methods to be processed by the Postmaster.
+        /// </summary>
+        /// <param name="buffer">Buffer of bytes to read. Does not copy the bytes to the buffer.</param>
+        protected override void HandleIncomingBytes(byte[] buffer)
+        {
+            if (CurrentState != State.Connected)
+            {
+                return;
+            }
+
+            lock (_inboxLock)
+            {
+                _inboxBytes.Enqueue(buffer);
+            }
+
+
+            if (_inboxTask == null || _inboxTask.IsCompleted)
+            {
+                _inboxTask = Task.Run((Action) ProcessIncomingQueue);
+            }
+        }
+
+        /// <summary>
+        /// Sends a queue of bytes to the connected client/server.
+        /// </summary>
+        /// <param name="bufferQueue">Queue of bytes to send to the wire.</param>
+        /// <param name="length">Total length of the bytes in the queue to send.</param>
+        private void SendBufferQueue(Queue<byte[]> bufferQueue, int length)
+        {
+            var buffer = new byte[length];
+            var offset = 0;
+
+            while (bufferQueue.Count > 0)
+            {
+                var bytes = bufferQueue.Dequeue();
+                Buffer.BlockCopy(bytes, 0, buffer, offset, bytes.Length);
+
+                // Increment the offset.
+                offset += bytes.Length;
+            }
+
+
+            // This will block 
+            Send(buffer, 0, buffer.Length);
+        }
+
+
+        /// <summary>
+        /// Internally called method by the Postmaster on a different thread to send all messages in the outbox.
+        /// </summary>
+        /// <returns>True if messages were sent.  False if nothing was sent.</returns>
+        private void ProcessOutbox()
+        {
+            MqMessage message;
+            var length = 0;
+            var bufferQueue = new Queue<byte[]>();
+
+            while (_outbox.TryDequeue(out message))
+            {
+                //Console.WriteLine("Wrote " + message);
+                message.PrepareSend();
+                foreach (var frame in message)
+                {
+                    var frameSize = frame.FrameSize;
+
+                    // If this would overflow the max client buffer size, send the full buffer queue.
+                    if (length + frameSize > Config.FrameBufferSize + MqFrame.HeaderLength)
+                    {
+                        SendBufferQueue(bufferQueue, length);
+
+                        // Reset the length to 0;
+                        length = 0;
+                    }
+                    bufferQueue.Enqueue(frame.RawFrame());
+
+                    // Increment the total buffer length.
+                    length += frameSize;
+                }
+            }
+
+            if (bufferQueue.Count == 0)
+            {
+                return;
+            }
+
+            // Send the last of the buffer queue.
+            SendBufferQueue(bufferQueue, length);
+
+            lock (_outboxLock)
+            {
+                if (_outbox.IsEmpty == false)
+                {
+                    _outboxTask = Task.Run((Action) ProcessOutbox);
+                }
+            }
+        }
+
+        /// <summary>
+        /// Internal method called by the Postmaster on a different thread to process all bytes in the inbox.
+        /// </summary>
+        /// <returns>True if incoming queue was processed; False if nothing was available for process.</returns>
+        private void ProcessIncomingQueue()
+        {
+            if (_processMessage == null)
+            {
+                _processMessage = new MqMessage();
+            }
+
+            Queue<MqMessage> messages = null;
+            byte[] buffer;
+            while (_inboxBytes.TryDequeue(out buffer))
+            {
+                try
+                {
+                    _frameBuilder.Write(buffer, 0, buffer.Length);
+                }
+                catch (InvalidDataException)
+                {
+                    //logger.Error(ex, "Connector {0}: Client send invalid data.", Connection.Id);
+
+                    Close(SocketCloseReason.ProtocolError);
+                    break;
+                }
+
+                var frameCount = _frameBuilder.Frames.Count;
+                //logger.Debug("Connector {0}: Parsed {1} frames.", Connection.Id, frame_count);
+
+                for (var i = 0; i < frameCount; i++)
+                {
+                    var frame = _frameBuilder.Frames.Dequeue();
+
+                    // Do nothing if this is a ping frame.
+                    if (frame.FrameType == MqFrameType.Ping)
+                    {
+                        if (BaseSocket.Mode == SocketMode.Server)
+                        {
+                            // Re-send ping frame back to the client to refresh client connection timeout timer.
+                            Send(CreateFrame(null, MqFrameType.Ping));
+                        }
+                        continue;
+                    }
+
+                    // Determine if this frame is a command type.  If it is, process it and don't add it to the message.
+                    if (frame.FrameType == MqFrameType.Command)
+                    {
+                        ProcessCommand(frame);
+                        continue;
+                    }
+
+                    _processMessage.Add(frame);
+
+                    if (frame.FrameType != MqFrameType.EmptyLast && frame.FrameType != MqFrameType.Last)
+                    {
+                        continue;
+                    }
+
+                    if (messages == null)
+                    {
+                        messages = new Queue<MqMessage>();
+                    }
+
+                    messages.Enqueue(_processMessage);
+                    _processMessage = new MqMessage();
+                }
+            }
+
+            if (messages == null)
+            {
+                return;
+            }
+
+
+            OnIncomingMessage(this, new IncomingMessageEventArgs<TSession, TConfig>(messages, (TSession) this));
+
+            lock (_inboxLock)
+            {
+                if (_inboxBytes.IsEmpty == false)
+                {
+                    _inboxTask = Task.Run((Action) ProcessIncomingQueue);
+                }
+            }
+        }
+
+
+        /// <summary>
+        /// Event fired when one or more new messages are ready for use.
+        /// </summary>
+        /// <param name="sender">Originator of call for this event.</param>
+        /// <param name="e">Event args for the message.</param>
+        protected virtual void OnIncomingMessage(object sender, IncomingMessageEventArgs<TSession, TConfig> e)
+        {
+            IncomingMessage?.Invoke(sender, e);
+        }
+
+
+        /// <summary>
+        /// Closes this session with the specified reason.
+        /// Notifies the recipient connection the reason for the session's closure.
+        /// </summary>
+        /// <param name="reason">Reason for closing this session.</param>
+        public override void Close(SocketCloseReason reason)
+        {
+            if (CurrentState == State.Closed)
+            {
+                return;
+            }
+
+            MqFrame closeFrame = null;
+            if (CurrentState == State.Connected)
+            {
+                CurrentState = State.Closing;
+
+                closeFrame = CreateFrame(new byte[2], MqFrameType.Command);
+
+                closeFrame.Write(0, (byte) 0);
+                closeFrame.Write(1, (byte) reason);
+            }
+
+            // If we are passed a closing frame, then send it to the other connection.
+            if (closeFrame != null)
+            {
+                MqMessage msg;
+                if (_outbox.IsEmpty == false)
+                {
+                    while (_outbox.TryDequeue(out msg))
+                    {
+                    }
+                }
+
+                msg = new MqMessage(closeFrame);
+                _outbox.Enqueue(msg);
+
+                // Process the last bit of data.
+                ProcessOutbox();
+            }
+
+            base.Close(reason);
+        }
+
+        /// <summary>
+        /// Adds a frame to the outbox to be processed.
+        /// </summary>
+        /// <param name="frame">Frame to send.</param>
+        public void Send(MqFrame frame)
+        {
+            Send(new MqMessage(frame));
+        }
+
+        /// <summary>
+        /// Sends a message to the session's client.
+        /// </summary>
+        /// <param name="message">Message to send.</param>
+        public void Send(MqMessage message)
+        {
+            if (message.Count == 0)
+            {
+                return;
+            }
+            if (CurrentState != State.Connected)
+            {
+                return;
+            }
+
+            lock (_outboxLock)
+            {
+                _outbox.Enqueue(message);
+            }
+
+            if (_outboxTask == null || _outboxTask.IsCompleted)
+            {
+                _outboxTask = Task.Run((Action) ProcessOutbox);
+            }
+        }
+
+        /// <summary>
+        /// Creates a frame with the specified bytes and the current configurations.
+        /// </summary>
+        /// <param name="bytes">Bytes to put in the frame.</param>
+        /// <returns>Configured frame.</returns>
+        public MqFrame CreateFrame(byte[] bytes)
+        {
+            return Utilities.CreateFrame(bytes, MqFrameType.Unset, Config);
+        }
+
+        /// <summary>
+        /// Creates a frame with the specified bytes and the current configurations.
+        /// </summary>
+        /// <param name="bytes">Bytes to put in the frame.</param>
+        /// <param name="type">Type of frame to create.</param>
+        /// <returns>Configured frame.</returns>
+        public MqFrame CreateFrame(byte[] bytes, MqFrameType type)
+        {
+            return Utilities.CreateFrame(bytes, type, Config);
+        }
+
+
+        /// <summary>
+        /// Processes an incoming command frame from the connection.
+        /// </summary>
+        /// <param name="frame">Command frame to process.</param>
+        protected virtual void ProcessCommand(MqFrame frame)
+        {
+            var commandType = (MqCommandType) frame.ReadByte(0);
+
+            switch (commandType)
+            {
+                case MqCommandType.Disconnect:
+                    CurrentState = State.Closing;
+                    Close((SocketCloseReason) frame.ReadByte(1));
+                    break;
+
+                default:
+                    Close(SocketCloseReason.ProtocolError);
+                    break;
+            }
+        }
+
+        /// <summary>
+        /// String representation of the active session.
+        /// </summary>
+        /// <returns>String representation.</returns>
+        public override string ToString()
+        {
+            return $"MqSession; Reading {_inboxBytes.Count} byte packets; Sending {_outbox.Count} messages.";
+        }
+    }
 }

@@ -1,4 +1,6 @@
-﻿namespace DtronixMessageQueue.Tests.Performance {
-	public class SimpleMqSession : MqSession<SimpleMqSession, MqConfig> {
-	}
+﻿namespace DtronixMessageQueue.Tests.Performance
+{
+    public class SimpleMqSession : MqSession<SimpleMqSession, MqConfig>
+    {
+    }
 }

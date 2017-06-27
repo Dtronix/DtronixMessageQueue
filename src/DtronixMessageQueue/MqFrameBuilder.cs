@@ -3,257 +3,285 @@ using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 
-namespace DtronixMessageQueue {
+namespace DtronixMessageQueue
+{
+    /// <summary>
+    /// Class to parse raw byte arrays into frames.
+    /// </summary>
+    public class MqFrameBuilder : IDisposable
+    {
+        /// <summary>
+        /// Byte buffer used to maintain and parse the passed buffers.
+        /// </summary>
+        private readonly byte[] _internalBuffer;
 
-	/// <summary>
-	/// Class to parse raw byte arrays into frames.
-	/// </summary>
-	public class MqFrameBuilder : IDisposable {
+        /// <summary>
+        /// Data for this frame
+        /// </summary>
+        private byte[] _currentFrameData;
 
-		/// <summary>
-		/// Byte buffer used to maintain and parse the passed buffers.
-		/// </summary>
-		private readonly byte[] internal_buffer;
+        /// <summary>
+        /// Current parsed type.  is Unknown by default.
+        /// </summary>
+        private MqFrameType _currentFrameType;
 
-		/// <summary>
-		/// Data for this frame
-		/// </summary>
-		private byte[] current_frame_data;
+        /// <summary>
+        /// Reading position in the internal buffer.  Set by the internal reader.
+        /// </summary>
+        private int _readPosition;
 
-		/// <summary>
-		/// Current parsed type.  is Unknown by default.
-		/// </summary>
-		private MqFrameType current_frame_type;
+        /// <summary>
+        /// Writing position in the internal buffer.  Set by the internal writer.
+        /// </summary>
+        private int _writePosition;
 
-		/// <summary>
-		/// Reading position in the internal buffer.  Set by the internal reader.
-		/// </summary>
-		private int read_position;
+        /// <summary>
+        /// Total length of the internal buffer's data.  Set by the reader and writer.
+        /// </summary>
+        private int _streamLength;
 
-		/// <summary>
-		/// Writing position in the internal buffer.  Set by the internal writer.
-		/// </summary>
-		private int write_position;
+        /// <summary>
+        /// Memory stream used to read and write to the internal buffer.
+        /// </summary>
+        private readonly MemoryStream _bufferStream;
 
-		/// <summary>
-		/// Total length of the internal buffer's data.  Set by the reader and writer.
-		/// </summary>
-		private int stream_length;
+        /// <summary>
+        /// Used to cache the maximum size of the MqFrameType.
+        /// </summary>
+        private static int _maxTypeEnum = -1;
 
-		/// <summary>
-		/// Memory stream used to read and write to the internal buffer.
-		/// </summary>
-		private readonly MemoryStream buffer_stream;
+        /// <summary>
+        /// Configurations for the connected session.
+        /// </summary>
+        private readonly MqConfig _config;
 
-		/// <summary>
-		/// Used to cache the maximum size of the MqFrameType.
-		/// </summary>
-		private static int max_type_enum = -1;
+        /// <summary>
+        /// Size in bytes of the header of a frame.
+        /// MqFrameType:byte[1], Length:UInt16[2]
+        /// </summary>
+        public const int HeaderLength = 3;
 
-		/// <summary>
-		/// Configurations for the connected session.
-		/// </summary>
-		private readonly MqConfig config;
+        /// <summary>
+        /// Parsed frames from the incoming stream.
+        /// </summary>
+        public Queue<MqFrame> Frames { get; } = new Queue<MqFrame>();
 
-		/// <summary>
-		/// Size in bytes of the header of a frame.
-		/// MqFrameType:byte[1], Length:UInt16[2]
-		/// </summary>
-		public const int HeaderLength = 3;
+        /// <summary>
+        /// Creates a new instance of the frame builder to handle parsing of incoming byte stream.
+        /// </summary>
+        /// <param name="config">Socket configurations for this session.</param>
+        public MqFrameBuilder(MqConfig config)
+        {
+            _config = config;
+            _internalBuffer = new byte[config.FrameBufferSize + MqFrame.HeaderLength];
 
-		/// <summary>
-		/// Parsed frames from the incoming stream.
-		/// </summary>
-		public Queue<MqFrame> Frames { get; } = new Queue<MqFrame>();
+            // Determine what our max enum value is for the FrameType
+            if (_maxTypeEnum == -1)
+            {
+                _maxTypeEnum = Enum.GetValues(typeof(MqFrameType)).Cast<byte>().Max();
+            }
 
-		/// <summary>
-		/// Creates a new instance of the frame builder to handle parsing of incoming byte stream.
-		/// </summary>
-		/// <param name="config">Socket configurations for this session.</param>
-		public MqFrameBuilder(MqConfig config) {
-			this.config = config;
-			internal_buffer = new byte[config.FrameBufferSize + MqFrame.HeaderLength];
+            _bufferStream = new MemoryStream(_internalBuffer, 0, _internalBuffer.Length, true, true);
+        }
 
-			// Determine what our max enum value is for the FrameType
-			if (max_type_enum == -1) {
-				max_type_enum = Enum.GetValues(typeof(MqFrameType)).Cast<byte>().Max();
-			}
+        /// <summary>
+        /// Reads from the internal stream.
+        /// </summary>
+        /// <param name="buffer">Byte buffer to read into.</param>
+        /// <param name="offset">Offset position in the buffer to copy from.</param>
+        /// <param name="count">Number of bytes to attempt to read.</param>
+        /// <returns>Total bytes that were read.</returns>
+        private int ReadInternal(byte[] buffer, int offset, int count)
+        {
+            _bufferStream.Position = _readPosition;
+            var length = _bufferStream.Read(buffer, offset, count);
+            _readPosition += length;
 
-			buffer_stream = new MemoryStream(internal_buffer, 0, internal_buffer.Length, true, true);
-		}
+            // Update the stream length 
+            _streamLength = _writePosition - _readPosition;
+            return length;
+        }
 
-		/// <summary>
-		/// Reads from the internal stream.
-		/// </summary>
-		/// <param name="buffer">Byte buffer to read into.</param>
-		/// <param name="offset">Offset position in the buffer to copy from.</param>
-		/// <param name="count">Number of bytes to attempt to read.</param>
-		/// <returns>Total bytes that were read.</returns>
-		private int ReadInternal(byte[] buffer, int offset, int count) {
-			buffer_stream.Position = read_position;
-			var length = buffer_stream.Read(buffer, offset, count);
-			read_position += length;
+        /// <summary>
+        /// Writes to the internal stream from the specified buffer.
+        /// </summary>
+        /// <param name="buffer">Buffer to write from.</param>
+        /// <param name="offset">Offset position in the buffer copy from.</param>
+        /// <param name="count">Number of bytes to copy from the write_buffer.</param>
+        private void WriteInternal(byte[] buffer, int offset, int count)
+        {
+            _bufferStream.Position = _writePosition;
+            try
+            {
+                _bufferStream.Write(buffer, offset, count);
+            }
+            catch (Exception e)
+            {
+                throw new InvalidDataException("FrameBuilder was sent a frame larger than the session allows.", e);
+            }
 
-			// Update the stream length 
-			stream_length = write_position - read_position;
-			return length;
-		}
+            _writePosition += count;
 
-		/// <summary>
-		/// Writes to the internal stream from the specified buffer.
-		/// </summary>
-		/// <param name="buffer">Buffer to write from.</param>
-		/// <param name="offset">Offset position in the buffer copy from.</param>
-		/// <param name="count">Number of bytes to copy from the write_buffer.</param>
-		private void WriteInternal(byte[] buffer, int offset, int count) {
-			buffer_stream.Position = write_position;
-			try {
-				buffer_stream.Write(buffer, offset, count);
-			} catch (Exception e) {
-				throw new InvalidDataException("FrameBuilder was sent a frame larger than the session allows.", e);
-			}
+            // Update the stream length 
+            _streamLength = _writePosition - _readPosition;
+        }
 
-			write_position += count;
+        /// <summary>
+        /// Moves the internal buffer stream from the read position to the end, to the beginning.
+        /// Frees up space to write in the buffer.
+        /// </summary>
+        private void MoveStreamBytesToBeginning()
+        {
+            var i = 0;
+            for (; i < _writePosition - _readPosition; i++)
+            {
+                _internalBuffer[i] = _internalBuffer[i + _readPosition];
+            }
 
-			// Update the stream length 
-			stream_length = write_position - read_position;
-		}
+            // Update the length for the new size.
+            _bufferStream.SetLength(i);
+            //buffer_stream.Position -= write_position;
 
-		/// <summary>
-		/// Moves the internal buffer stream from the read position to the end, to the beginning.
-		/// Frees up space to write in the buffer.
-		/// </summary>
-		private void MoveStreamBytesToBeginning() {
-			var i = 0;
-			for (; i < write_position - read_position; i++) {
-				internal_buffer[i] = internal_buffer[i + read_position];
-			}
+            // Reset the internal writer and reader positions.
+            _streamLength = _writePosition = i;
+            _readPosition = 0;
+        }
 
-			// Update the length for the new size.
-			buffer_stream.SetLength(i);
-			//buffer_stream.Position -= write_position;
-
-			// Reset the internal writer and reader positions.
-			stream_length = write_position = i;
-			read_position = 0;
-		}
-
-		/// <summary>
-		/// Writes the specified bytes to the FrameBuilder and parses them as they are copied.
-		/// </summary>
-		/// <param name="buffer">Byte buffer to write and parse.</param>
-		/// <param name="offset">Offset in the byte buffer to copy from.</param>
-		/// <param name="count">Number of bytes to write into the builder.</param>
-		public void Write(byte[] buffer, int offset, int count) {
-			while (count > 0) {
-				int max_write = count;
-				// If we are over the byte limitation, then move the buffer back to the beginning of the stream and reset the stream.
-				if (count + write_position > internal_buffer.Length) {
-					MoveStreamBytesToBeginning();
-					max_write = Math.Min(Math.Abs(count - write_position), count);
-				}
+        /// <summary>
+        /// Writes the specified bytes to the FrameBuilder and parses them as they are copied.
+        /// </summary>
+        /// <param name="buffer">Byte buffer to write and parse.</param>
+        /// <param name="offset">Offset in the byte buffer to copy from.</param>
+        /// <param name="count">Number of bytes to write into the builder.</param>
+        public void Write(byte[] buffer, int offset, int count)
+        {
+            while (count > 0)
+            {
+                int maxWrite = count;
+                // If we are over the byte limitation, then move the buffer back to the beginning of the stream and reset the stream.
+                if (count + _writePosition > _internalBuffer.Length)
+                {
+                    MoveStreamBytesToBeginning();
+                    maxWrite = Math.Min(Math.Abs(count - _writePosition), count);
+                }
 
 
-				WriteInternalPart(buffer, offset, max_write);
-				offset += max_write;
-				count -= max_write;
-				//count 
+                WriteInternalPart(buffer, offset, maxWrite);
+                offset += maxWrite;
+                count -= maxWrite;
+                //count 
+            }
+        }
 
-			}
-		}
+        /// <summary>
+        /// Writes the specified partial bytes to the FrameBuilder and parses them as they are copied.
+        /// </summary>
+        /// <param name="buffer">Byte buffer to write and parse.</param>
+        /// <param name="offset">Offset in the byte buffer to copy from.</param>
+        /// <param name="count">Number of bytes to write into the builder.</param>
+        private void WriteInternalPart(byte[] buffer, int offset, int count)
+        {
+            // Write the incoming bytes to the stream.
+            WriteInternal(buffer, offset, count);
 
-		/// <summary>
-		/// Writes the specified partial bytes to the FrameBuilder and parses them as they are copied.
-		/// </summary>
-		/// <param name="buffer">Byte buffer to write and parse.</param>
-		/// <param name="offset">Offset in the byte buffer to copy from.</param>
-		/// <param name="count">Number of bytes to write into the builder.</param>
-		private void WriteInternalPart(byte[] buffer, int offset, int count) {
-			// Write the incoming bytes to the stream.
-			WriteInternal(buffer, offset, count);
+            // Loop until we require more data
+            while (true)
+            {
+                if (_currentFrameType == MqFrameType.Unset)
+                {
+                    var frameTypeBytes = new byte[1];
 
-			// Loop until we require more data
-			while (true) {
-				if (current_frame_type == MqFrameType.Unset) {
-					var frame_type_bytes = new byte[1];
+                    // This will always return one byte.
+                    ReadInternal(frameTypeBytes, 0, 1);
 
-					// This will always return one byte.
-					ReadInternal(frame_type_bytes, 0, 1);
+                    if (frameTypeBytes[0] > _maxTypeEnum)
+                    {
+                        throw new InvalidDataException(
+                            $"FrameBuilder was sent a frame with an invalid type.  Type sent: {frameTypeBytes[0]}");
+                    }
 
-					if (frame_type_bytes[0] > max_type_enum) {
-						throw new InvalidDataException(
-							$"FrameBuilder was sent a frame with an invalid type.  Type sent: {frame_type_bytes[0]}");
-					}
+                    _currentFrameType = (MqFrameType) frameTypeBytes[0];
+                }
 
-					current_frame_type = (MqFrameType) frame_type_bytes[0];
-				}
+                if (_currentFrameType == MqFrameType.Empty ||
+                    _currentFrameType == MqFrameType.EmptyLast ||
+                    _currentFrameType == MqFrameType.Ping)
+                {
+                    EnqueueAndReset();
+                    break;
+                }
 
-				if (current_frame_type == MqFrameType.Empty ||
-					current_frame_type == MqFrameType.EmptyLast ||
-					current_frame_type == MqFrameType.Ping) {
-					EnqueueAndReset();
-					break;
-				}
+                // Read the length from the stream if there are enough buffer.
+                if (_currentFrameData == null && _streamLength >= 2)
+                {
+                    var frameLen = new byte[2];
 
-				// Read the length from the stream if there are enough buffer.
-				if (current_frame_data == null && stream_length >= 2) {
-					var frame_len = new byte[2];
+                    ReadInternal(frameLen, 0, frameLen.Length);
+                    var currentFrameLength = BitConverter.ToUInt16(frameLen, 0);
 
-					ReadInternal(frame_len, 0, frame_len.Length);
-					var current_frame_length = BitConverter.ToUInt16(frame_len, 0);
+                    if (currentFrameLength < 1)
+                    {
+                        throw new InvalidDataException(
+                            $"FrameBuilder was sent a frame with an invalid size of {currentFrameLength}");
+                    }
 
-					if (current_frame_length < 1) {
-						throw new InvalidDataException($"FrameBuilder was sent a frame with an invalid size of {current_frame_length}");
-					}
+                    if (currentFrameLength > _internalBuffer.Length)
+                    {
+                        throw new InvalidDataException(
+                            $"Frame size is {currentFrameLength} while the maximum size for frames is 16KB.");
+                    }
+                    _currentFrameData = new byte[currentFrameLength];
 
-					if (current_frame_length > internal_buffer.Length) {
-						throw new InvalidDataException($"Frame size is {current_frame_length} while the maximum size for frames is 16KB.");
-					}
-					current_frame_data = new byte[current_frame_length];
+                    // Set the stream back to the position it was at to begin with.
+                    //buffer_stream.Position = original_position;
+                }
 
-					// Set the stream back to the position it was at to begin with.
-					//buffer_stream.Position = original_position;
-				}
+                // Read the data into the frame holder.
+                if (_currentFrameData != null && _streamLength >= _currentFrameData.Length)
+                {
+                    ReadInternal(_currentFrameData, 0, _currentFrameData.Length);
 
-				// Read the data into the frame holder.
-				if (current_frame_data != null && stream_length >= current_frame_data.Length) {
-					ReadInternal(current_frame_data, 0, current_frame_data.Length);
+                    // Create the frame and enqueue it.
+                    EnqueueAndReset();
 
-					// Create the frame and enqueue it.
-					EnqueueAndReset();
+                    // If we are at the end of the data, complete this loop and wait for more data.
+                    if (_writePosition == _readPosition)
+                    {
+                        break;
+                    }
+                }
+                else
+                {
+                    break;
+                }
+            }
+        }
 
-					// If we are at the end of the data, complete this loop and wait for more data.
-					if (write_position == read_position) {
-						break;
-					}
-				} else {
-					break;
-				}
-			}
-		}
+        /// <summary>
+        /// Completes the current frame and adds it to the frame list.
+        /// </summary>
+        private void EnqueueAndReset()
+        {
+            Frames.Enqueue(new MqFrame(_currentFrameData, _currentFrameType, _config));
+            _currentFrameType = MqFrameType.Unset;
+            _currentFrameData = null;
+        }
 
-		/// <summary>
-		/// Completes the current frame and adds it to the frame list.
-		/// </summary>
-		private void EnqueueAndReset() {
-			Frames.Enqueue(new MqFrame(current_frame_data, current_frame_type, config));
-			current_frame_type = MqFrameType.Unset;
-			current_frame_data = null;
-		}
+        /// <summary>
+        /// Disposes of all resources held by the builder.
+        /// </summary>
+        public void Dispose()
+        {
+            _bufferStream.Dispose();
 
-		/// <summary>
-		/// Disposes of all resources held by the builder.
-		/// </summary>
-		public void Dispose() {
-			buffer_stream.Dispose();
+            // Delete all the Frames.
+            var totalFrames = Frames.Count;
+            for (int i = 0; i < totalFrames; i++)
+            {
+                var frame = Frames.Dequeue();
 
-			// Delete all the Frames.
-			var total_frames = Frames.Count;
-			for (int i = 0; i < total_frames; i++) {
-				var frame = Frames.Dequeue();
-
-				frame.Dispose();
-			}
-		}
-	}
+                frame.Dispose();
+            }
+        }
+    }
 }
