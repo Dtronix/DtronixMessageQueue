@@ -286,7 +286,7 @@ namespace DtronixMessageQueue.Tests.Performance
                     var mode = "Release";
 
 #if DEBUG
-					mode = "Debug";
+                    mode = "Debug";
 #endif
 
                     var messagesPerSecond = (int) ((double) runs / sw.ElapsedMilliseconds * 1000);
