@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections.Concurrent;
+using System.Collections.Generic;
 using System.Net.Sockets;
 using System.Threading;
 
@@ -181,6 +182,11 @@ namespace DtronixMessageQueue.Socket
             SessionSetup?.Invoke(this, new SessionEventArgs<TSession, TConfig>(session));
             session.Closed += (sender, args) => OnClose(session, args.CloseReason);
             return session;
+        }
+
+        public IEnumerator<KeyValuePair<Guid, TSession>> GetSessionsEnumerator()
+        {
+            return ConnectedSessions.GetEnumerator();
         }
     }
 }

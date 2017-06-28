@@ -2,6 +2,7 @@
 using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.IO;
+using System.Threading;
 using System.Threading.Tasks;
 using DtronixMessageQueue.Socket;
 
@@ -44,14 +45,17 @@ namespace DtronixMessageQueue
 
         private readonly object _outboxLock = new object();
 
+        private Semaphore _sendingSemaphore;
         /// <summary>
         /// Event fired when a new message has been processed by the Postmaster and ready to be read.
         /// </summary>
         public event EventHandler<IncomingMessageEventArgs<TSession, TConfig>> IncomingMessage;
 
+
         protected override void OnSetup()
         {
             _frameBuilder = new MqFrameBuilder(Config);
+            _sendingSemaphore = new Semaphore(Config.MaxQueuedOutgoingMessages, Config.MaxQueuedOutgoingMessages);
         }
 
         /// <summary>
@@ -114,6 +118,7 @@ namespace DtronixMessageQueue
 
             while (_outbox.TryDequeue(out message))
             {
+                _sendingSemaphore.Release();
                 //Console.WriteLine("Wrote " + message);
                 message.PrepareSend();
                 foreach (var frame in message)
@@ -281,6 +286,7 @@ namespace DtronixMessageQueue
                 {
                     while (_outbox.TryDequeue(out msg))
                     {
+                        _sendingSemaphore.Release();
                     }
                 }
 
@@ -318,6 +324,7 @@ namespace DtronixMessageQueue
                 return;
             }
 
+            _sendingSemaphore.WaitOne();
             lock (_outboxLock)
             {
                 _outbox.Enqueue(message);

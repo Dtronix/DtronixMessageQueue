@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Management;
 using System.Runtime.InteropServices;
+using DtronixMessageQueue.Tests.Performance.TestSessions;
 
 namespace DtronixMessageQueue.Tests.Performance
 {
@@ -32,7 +33,7 @@ namespace DtronixMessageQueue.Tests.Performance
         public class ClientRunInfo
         {
             public int Runs { get; set; }
-            public SimpleMqSession Session { get; set; }
+            public MqThroughputTest TestSession { get; set; }
         }
 
         public static byte[] SequentialBytes(int len)

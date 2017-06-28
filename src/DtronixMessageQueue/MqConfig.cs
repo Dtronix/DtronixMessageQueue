@@ -16,5 +16,11 @@ namespace DtronixMessageQueue
         /// 0 disables pings.
         /// </summary>
         public int PingFrequency { get; set; } = 0;
+
+        /// <summary>
+        /// Sets a limit on the maximum outgoing queue size.
+        /// Once the outgoing queue reaches the maximum messages, the MqSession.Send will block.
+        /// </summary>
+        public int MaxQueuedOutgoingMessages { get; set; } = 50;
     }
 }
