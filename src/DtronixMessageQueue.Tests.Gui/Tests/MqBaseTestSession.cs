@@ -3,9 +3,10 @@ using System.Collections.Generic;
 using System.Diagnostics;
 using System.Threading;
 
-namespace DtronixMessageQueue.Tests.Gui.TestSessions
+namespace DtronixMessageQueue.Tests.Gui.Tests
 {
-    public abstract class MqBaseTestSession : MqSession<MqThroughputTestSession, MqConfig>
+    public abstract class MqBaseTestSession<T> : MqSession<T, MqConfig> 
+        where T : MqSession<T, MqConfig>, new()
     {
         protected MqMessageReader Reader;
         protected MqMessageWriter Writer;
@@ -18,22 +19,15 @@ namespace DtronixMessageQueue.Tests.Gui.TestSessions
 
         protected Random Rand = new Random();
 
-        protected Thread TestThread;
-
         protected override void OnSetup()
         {
             base.OnSetup();
 
             Reader = new MqMessageReader();
             Writer = new MqMessageWriter(Config);
-
-            if (!IsServer)
-            {
-                TestThread = new Thread(TestThreadAction);
-            }
         }
 
-        protected override void OnIncomingMessage(object sender, IncomingMessageEventArgs<MqThroughputTestSession, MqConfig> e)
+        protected override void OnIncomingMessage(object sender, IncomingMessageEventArgs<T, MqConfig> e)
         {
             if (IsServer)
             {
@@ -58,7 +52,6 @@ namespace DtronixMessageQueue.Tests.Gui.TestSessions
 
 
         public abstract void StartTest();
-        protected abstract void TestThreadAction(object state);
         protected abstract void ClientMessage(Queue<MqMessage> messageQueue);
         protected abstract void ServerMessage(Queue<MqMessage> messageQueue);
     }

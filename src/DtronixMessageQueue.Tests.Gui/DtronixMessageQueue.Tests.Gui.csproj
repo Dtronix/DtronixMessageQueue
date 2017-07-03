@@ -54,10 +54,13 @@
       <Generator>MSBuild:Compile</Generator>
       <SubType>Designer</SubType>
     </ApplicationDefinition>
-    <Compile Include="MqThroughputTest.cs" />
     <Compile Include="PerformanceTestBase.cs" />
-    <Compile Include="TestSessions\MqBaseTestSession.cs" />
-    <Compile Include="TestSessions\MqThroughputTestSession.cs" />
+    <Compile Include="Tests\ConnectionPerformanceTestSession.cs" />
+    <Compile Include="Tests\MqBaseTestSession.cs" />
+    <Compile Include="Tests\ConnectionPerformanceTest.cs" />
+    <Compile Include="Tests\ConnectionPerformanceTestControl.xaml.cs">
+      <DependentUpon>ConnectionPerformanceTestControl.xaml</DependentUpon>
+    </Compile>
     <Compile Include="Wpf\TestMqThroughputControl.xaml.cs">
       <DependentUpon>TestMqThroughputControl.xaml</DependentUpon>
     </Compile>
@@ -73,6 +76,10 @@
       <DependentUpon>MainWindow.xaml</DependentUpon>
       <SubType>Code</SubType>
     </Compile>
+    <Page Include="Tests\ConnectionPerformanceTestControl.xaml">
+      <SubType>Designer</SubType>
+      <Generator>MSBuild:Compile</Generator>
+    </Page>
     <Page Include="Wpf\TestMqThroughputControl.xaml">
       <SubType>Designer</SubType>
       <Generator>MSBuild:Compile</Generator>
@@ -105,10 +112,17 @@
     <None Include="App.config" />
   </ItemGroup>
   <ItemGroup>
+    <ProjectReference Include="..\DtronixMessageQueue.Tests.Performance\DtronixMessageQueue.Tests.Performance.csproj">
+      <Project>{1DF3332E-9B24-45B9-934B-43542793986C}</Project>
+      <Name>DtronixMessageQueue.Tests.Performance</Name>
+    </ProjectReference>
     <ProjectReference Include="..\DtronixMessageQueue\DtronixMessageQueue.csproj">
       <Project>{060bfeca-a3d2-4871-ae35-28deccb95fe3}</Project>
       <Name>DtronixMessageQueue</Name>
     </ProjectReference>
+  </ItemGroup>
+  <ItemGroup>
+    <Folder Include="TestSessions\" />
   </ItemGroup>
   <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />
 </Project>

@@ -5,14 +5,14 @@
         xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
         xmlns:local="clr-namespace:DtronixMessageQueue.Tests.Gui"
         mc:Ignorable="d"
-        Title="MainWindow" Height="496" Width="500" MinHeight="400" MinWidth="500">
+        Title="{Binding Path=WindowTitle, FallbackValue='DtxMQ Performance Test'}" Height="496" Width="500" MinHeight="400" MinWidth="500">
     <Grid>
         <Grid.RowDefinitions>
             <RowDefinition Height="100"/>
             <RowDefinition Height="120"/>
             <RowDefinition/>
-            <RowDefinition Height="30"/>
-            <RowDefinition Height="30"/>
+            <RowDefinition Height="34"/>
+            <RowDefinition Height="25"/>
         </Grid.RowDefinitions>
         <GroupBox Grid.Row="0" Header="Setup" Margin="5,0">
             <Grid>
@@ -38,21 +38,17 @@
 
                 <TextBlock Grid.Row="1" Grid.Column="2" Text="Client Connections" VerticalAlignment="Center" HorizontalAlignment="Right" Margin="5,0" />
                 <TextBox Grid.Row="1" Grid.Column="3" VerticalAlignment="Center" Text="{Binding Path=ClientConnections, FallbackValue=1}" />
-
-                <!--<TextBlock Grid.Row="1" Grid.Column="1" VerticalAlignment="Center">
-            <TextBlock>Clients Connected:</TextBlock>
-            <TextBlock Text="{Binding Path=ServerClientsConnected, FallbackValue=-}" />
-        </TextBlock>-->
             </Grid>
         </GroupBox>
 
-        <GroupBox Grid.Row="1" Header="Configurations" Margin="5,0">
+        <GroupBox x:Name="ConfigurationContainer"  Grid.Row="1" Header="Configurations" Margin="5,0">
             
         </GroupBox>
-        <RichTextBox Grid.Row="2"  x:Name="ConsoleOutput" />
+        <RichTextBox Grid.Row="2" Margin="5" x:Name="ConsoleOutput" />
         
         <StackPanel Orientation="Horizontal" Grid.Row="3" HorizontalAlignment="Right">
-            <Button Padding="4" VerticalAlignment="Center">Start Client</Button>
+            <Button Padding="4" Margin="5,0" VerticalAlignment="Center">Start</Button>
+            <Button Padding="4" Margin="5,0" VerticalAlignment="Center">Start Client</Button>
         </StackPanel>
         <StatusBar Grid.Row="4">
             <TextBlock Text="{Binding Path=CurrentStatus, FallbackValue=Idle}" Width="100" />
