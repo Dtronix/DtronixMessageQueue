@@ -55,6 +55,8 @@
       <SubType>Designer</SubType>
     </ApplicationDefinition>
     <Compile Include="PerformanceTestBase.cs" />
+    <Compile Include="Services\ControllerService.cs" />
+    <Compile Include="TestControllerSession.cs" />
     <Compile Include="Tests\ConnectionPerformanceTestSession.cs" />
     <Compile Include="Tests\MqBaseTestSession.cs" />
     <Compile Include="Tests\ConnectionPerformanceTest.cs" />
