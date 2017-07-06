@@ -13,5 +13,9 @@ namespace DtronixMessageQueue.Tests.Gui
     /// </summary>
     public partial class App : Application
     {
+        private void App_OnStartup(object sender, StartupEventArgs e)
+        {
+            new MainWindow(e.Args).Show();
+        }
     }
 }

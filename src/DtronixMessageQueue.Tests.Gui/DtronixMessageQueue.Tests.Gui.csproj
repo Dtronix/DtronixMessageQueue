@@ -56,6 +56,8 @@
     </ApplicationDefinition>
     <Compile Include="PerformanceTestBase.cs" />
     <Compile Include="Services\ControllerService.cs" />
+    <Compile Include="ControllerSession.cs" />
+    <Compile Include="Services\IControllerService.cs" />
     <Compile Include="TestControllerSession.cs" />
     <Compile Include="Tests\ConnectionPerformanceTestSession.cs" />
     <Compile Include="Tests\MqBaseTestSession.cs" />
@@ -63,6 +65,7 @@
     <Compile Include="Tests\ConnectionPerformanceTestControl.xaml.cs">
       <DependentUpon>ConnectionPerformanceTestControl.xaml</DependentUpon>
     </Compile>
+    <Compile Include="Tests\PerformanceTest.cs" />
     <Compile Include="Wpf\TestMqThroughputControl.xaml.cs">
       <DependentUpon>TestMqThroughputControl.xaml</DependentUpon>
     </Compile>
