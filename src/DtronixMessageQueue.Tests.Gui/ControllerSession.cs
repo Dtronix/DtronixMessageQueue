@@ -7,7 +7,7 @@ using DtronixMessageQueue.Rpc;
 
 namespace DtronixMessageQueue.Tests.Gui
 {
-    class ControllerSession : RpcSession<ControllerSession, RpcConfig>
+    public class ControllerSession : RpcSession<ControllerSession, RpcConfig>
     {
     }
 }

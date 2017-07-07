@@ -11,14 +11,17 @@ namespace DtronixMessageQueue.Tests.Gui.Services
 {
     class ControllerService : IControllerService
     {
+      
         public string Name { get; } = "ControllerService";
         public ControllerSession Session { get; set; }
         private RpcServer<ControllerSession, RpcConfig> _server;
 
         private List<MqClient<ConnectionPerformanceTestSession, MqConfig>> _connectionTestClientList;
+        private PerformanceTest TestBase;
 
-        public ControllerService()
+        public ControllerService(PerformanceTest testBase)
         {
+            TestBase = testBase;
             _connectionTestClientList = new List<MqClient<ConnectionPerformanceTestSession, MqConfig>>();
         }
 
@@ -32,30 +35,44 @@ namespace DtronixMessageQueue.Tests.Gui.Services
 
 
 
-        public void StartConnectionTest(string ip, int port, int clients, int packageLength, int perioid)
+        public void StartConnectionTest(int clients, int packageLength, int perioid)
         {
 
-            if (_connectionTestClientList != null)
-                return;
+            TestBase.Log("Started Connection Test");
 
             for (int i = 0; i < clients; i++)
             {
                 var client = new MqClient<ConnectionPerformanceTestSession, MqConfig>(new MqConfig()
                 {
-                    Ip = ip,
-                    Port = port
+                    Ip = Session.Config.Ip,
+                    Port = 2121
                 });
 
                 client.Connected += (sender, args) =>
                 {
+                    args.Session.ConfigTest(packageLength);
+                    TestBase.Log("Connection test client connected.");
+
+                    ConnectionTestLog();
                     args.Session.StartTest();
                 };
 
+                client.Closed += (sender, args) =>
+                {
+                    ConnectionTestLog();
+                };
+
+                TestBase.Log("Connection test client connecting...");
                 client.Connect();
 
                 _connectionTestClientList.Add(client);
             }
+        }
 
+        private void ConnectionTestLog()
+        {
+            TestBase.ClearLog();
+            TestBase.Log($"Total Connections: {_connectionTestClientList.Count}");
         }
 
         public void StopConnectionTest()
@@ -69,6 +86,14 @@ namespace DtronixMessageQueue.Tests.Gui.Services
             }
 
 
+        }
+
+        public void StopTest()
+        {
+            foreach (var mqClient in _connectionTestClientList)
+            {
+                mqClient.Close();
+            }
         }
     }
 }

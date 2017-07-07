@@ -28,7 +28,7 @@
                     <RowDefinition Height="282*"/>
                 </Grid.RowDefinitions>
                 <TextBlock Grid.Row="0" Grid.Column="0" Text="Connect IP" VerticalAlignment="Center" HorizontalAlignment="Right" Margin="5,0"  />
-                <TextBox Grid.Row="0" Grid.Column="1" VerticalAlignment="Center" Text="{Binding Path=IpAddress, FallbackValue=127.0.0.1}" IsEnabled="{Binding IsServer}" />
+                <TextBox Grid.Row="0" Grid.Column="1" VerticalAlignment="Center" Text="{Binding Path=IpAddress, FallbackValue=127.0.0.1}" />
 
                 <TextBlock Grid.Row="0" Grid.Column="2" Text="Client Processes" VerticalAlignment="Center" HorizontalAlignment="Right" Margin="5,0" />
                 <TextBox Grid.Row="0" Grid.Column="3" VerticalAlignment="Center" Text="{Binding Path=ClientProcesses, FallbackValue=1}" />
@@ -44,12 +44,15 @@
         <GroupBox x:Name="ConfigurationContainer"  Grid.Row="1" Header="Configurations" Margin="5,0">
             
         </GroupBox>
-        <RichTextBox Grid.Row="2" Margin="5" x:Name="ConsoleOutput" />
+        <RichTextBox Grid.Row="2" Margin="5" x:Name="ConsoleOutput" FontFamily="Courier New" VerticalScrollBarVisibility="Auto" FontSize="10">
+          
+        </RichTextBox>
         
         <StackPanel Orientation="Horizontal" Grid.Row="3" HorizontalAlignment="Right">
             <Button Padding="4" Margin="5,0" VerticalAlignment="Center" Click="Stop" IsEnabled="{Binding IsRunning}">Stop</Button>
-            <Button Padding="4" Margin="5,0" VerticalAlignment="Center" Click="StartTest" IsEnabled="{Binding IsServer}">Start Test</Button>
-            <Button Padding="4" Margin="5,0" VerticalAlignment="Center" Click="StartClient" IsEnabled="{Binding IsServer}">Start Client</Button>
+            <Button Padding="4" Margin="5,0" VerticalAlignment="Center" Click="StartAsServer" IsEnabled="{Binding IsServer}">Start As Server</Button>
+            <Button Padding="4" Margin="5,0" VerticalAlignment="Center" Click="StartAsClient">Start As Client</Button>
+            <Button Padding="4" Margin="5,0" VerticalAlignment="Center" Click="NewClient" IsEnabled="{Binding IsServer}">New Client</Button>
         </StackPanel>
         <StatusBar Grid.Row="4">
             <TextBlock Text="{Binding Path=CurrentStatus, FallbackValue=Idle}" Width="100" />

@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using System.Diagnostics;
 using System.Linq;
+using System.Net;
 using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
@@ -68,6 +69,33 @@ namespace DtronixMessageQueue.Tests.Gui
             set { SetValue(SelectedPerformanceTestProperty, value); }
         }
 
+        public static readonly DependencyProperty ClientProcessesProperty = DependencyProperty.Register(
+            "ClientProcesses", typeof(string), typeof(MainWindow), new PropertyMetadata(default(string)));
+
+        public string ClientProcesses {
+            get { return (string) GetValue(ClientProcessesProperty); }
+            set { SetValue(ClientProcessesProperty, value); }
+        }
+
+        public static readonly DependencyProperty ClientConnectionsProperty = DependencyProperty.Register(
+            "ClientConnections", typeof(string), typeof(MainWindow), new PropertyMetadata(default(string)));
+
+        public string ClientConnections {
+            get { return (string) GetValue(ClientConnectionsProperty); }
+            set { SetValue(ClientConnectionsProperty, value); }
+        }
+
+        public static readonly DependencyProperty IpAddressProperty = DependencyProperty.Register(
+            "IpAddress", typeof(string), typeof(MainWindow), new PropertyMetadata(default(string)));
+
+        public string IpAddress
+        {
+            get { return (string) GetValue(IpAddressProperty); }
+            set { SetValue(IpAddressProperty, value); }
+        }
+
+
+
         private Process _currentProcess;
         private Timer _processMemoryTimer;
 
@@ -81,7 +109,7 @@ namespace DtronixMessageQueue.Tests.Gui
 
             DataContext = this;
 
-            PerformanceTests.Add(new ConnectionPerformanceTest());
+            PerformanceTests.Add(new ConnectionPerformanceTest(this));
 
             SelectedPerformanceTest = PerformanceTests[0];
 
@@ -99,6 +127,14 @@ namespace DtronixMessageQueue.Tests.Gui
             _processMemoryTimer = new Timer(MemoryTimer);
 
             _processMemoryTimer.Change(500, 1000);
+
+            ClientConnections = "20";
+
+            IpAddress = Dns.GetHostEntry(Dns.GetHostName())
+                .AddressList.First(
+                    f => f.AddressFamily == System.Net.Sockets.AddressFamily.InterNetwork)
+                .ToString();
+
 
 
         }
@@ -124,21 +160,25 @@ namespace DtronixMessageQueue.Tests.Gui
 
         }
 
-        private void StartTest(object sender, RoutedEventArgs e)
-        {
-            SelectedPerformanceTest.StartServer();
-
-            SelectedPerformanceTest.StartServer();
-        }
-
         private void Stop(object sender, RoutedEventArgs e)
         {
-
+            SelectedPerformanceTest.StopTest();
         }
 
-        private void StartClient(object sender, RoutedEventArgs e)
+
+        private void StartAsServer(object sender, RoutedEventArgs e)
         {
-            SelectedPerformanceTest.Start();
+            SelectedPerformanceTest.StartServer(int.Parse(ClientConnections));
+        }
+
+        private void StartAsClient(object sender, RoutedEventArgs e)
+        {
+            SelectedPerformanceTest.StartClient(IpAddress);
+        }
+
+        private void NewClient(object sender, RoutedEventArgs e)
+        {
+            Process.Start("DtronixMessageQueue.Tests.Gui.exe", "client");
         }
     }
 }
