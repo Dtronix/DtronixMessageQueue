@@ -155,9 +155,6 @@ namespace DtronixMessageQueue.Tests.Gui
             {
                 MemoryUsage = $"{size:0.##} {sizes[order]}";
             });
-            
-            
-
         }
 
         private void Stop(object sender, RoutedEventArgs e)

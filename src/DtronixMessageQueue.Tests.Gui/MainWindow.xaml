@@ -28,7 +28,7 @@
                     <RowDefinition Height="282*"/>
                 </Grid.RowDefinitions>
                 <TextBlock Grid.Row="0" Grid.Column="0" Text="Connect IP" VerticalAlignment="Center" HorizontalAlignment="Right" Margin="5,0"  />
-                <TextBox Grid.Row="0" Grid.Column="1" VerticalAlignment="Center" Text="{Binding Path=IpAddress, FallbackValue=127.0.0.1}" />
+                <TextBox Grid.Row="0" Grid.Column="1" VerticalAlignment="Center" Text="{Binding Path=IpAddress}" />
 
                 <TextBlock Grid.Row="0" Grid.Column="2" Text="Client Processes" VerticalAlignment="Center" HorizontalAlignment="Right" Margin="5,0" />
                 <TextBox Grid.Row="0" Grid.Column="3" VerticalAlignment="Center" Text="{Binding Path=ClientProcesses, FallbackValue=1}" />

@@ -16,7 +16,10 @@ namespace DtronixMessageQueue.Tests.Gui.Tests
 
         private RpcServer<ControllerSession, RpcConfig> _server;
         private RpcClient<ControllerSession, RpcConfig> _client;
+        private MqServer<ConnectionPerformanceTestSession, MqConfig> _testServer;
         private ControllerService _controllerService;
+
+
 
         public ConnectionPerformanceTest(MainWindow mainWindow) : base("Connection Test", mainWindow)
         {
@@ -51,7 +54,31 @@ namespace DtronixMessageQueue.Tests.Gui.Tests
 
         public override void StartServer(int clientConnections)
         {
-            Log("Starting Server");
+
+            Log("Starting Test Server");
+
+            _testServer = new MqServer<ConnectionPerformanceTestSession, MqConfig>(new MqConfig
+            {
+                Ip = "0.0.0.0",
+                Port = 2121,
+                PingTimeout = 5000
+            });
+
+            _testServer.Connected += (sender, args) =>
+            {
+                Log("New Test Client Connected");
+            };
+
+            _testServer.Closed += (sender, args) =>
+            {
+                Log($"Test Client Disconnected. Reason: {args.CloseReason}");
+            };
+
+            _testServer.Start();
+
+
+
+            Log("Starting Controlling Server");
             _server = new RpcServer<ControllerSession, RpcConfig>(new RpcConfig
             {
                 Ip = "0.0.0.0",
@@ -101,7 +128,10 @@ namespace DtronixMessageQueue.Tests.Gui.Tests
                 {
                     sessions.Current.Value.GetProxy<IControllerService>().StopTest();
                 }
-            }else if (_client != null)
+
+            }
+
+            if (_client != null)
             {
                 _controllerService.StopTest();
             }

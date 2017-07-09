@@ -42,10 +42,11 @@ namespace DtronixMessageQueue.Tests.Gui.Services
 
             for (int i = 0; i < clients; i++)
             {
-                var client = new MqClient<ConnectionPerformanceTestSession, MqConfig>(new MqConfig()
+                var client = new MqClient<ConnectionPerformanceTestSession, MqConfig>(new MqConfig
                 {
                     Ip = Session.Config.Ip,
-                    Port = 2121
+                    Port = 2121,
+                    PingFrequency = 3000
                 });
 
                 client.Connected += (sender, args) =>
@@ -90,6 +91,7 @@ namespace DtronixMessageQueue.Tests.Gui.Services
 
         public void StopTest()
         {
+            _connectionTestClientList.Clear();
             foreach (var mqClient in _connectionTestClientList)
             {
                 mqClient.Close();
