@@ -36,7 +36,12 @@ namespace DtronixMessageQueue.Tests.Mq
             };
 
             Server = new MqServer<SimpleMqSession, MqConfig>(Config);
-            Client = new MqClient<SimpleMqSession, MqConfig>(Config);
+            Client = CreateClient(Config);
+        }
+
+        public MqClient<SimpleMqSession, MqConfig> CreateClient(MqConfig config)
+        {
+            return new MqClient<SimpleMqSession, MqConfig>(config);
         }
 
 
@@ -49,13 +54,13 @@ namespace DtronixMessageQueue.Tests.Mq
             return port;
         }
 
-        public void StartAndWait(bool timeoutError = true, int timeoutLength = -1, bool startServer = true)
+        public void StartAndWait(bool timeoutError = true, int timeoutLength = -1, bool startServer = true, bool startClient = true)
         {
             if (startServer && Server.IsRunning == false)
             {
                 Server.Start();
             }
-            if (Client.IsRunning == false)
+            if (startClient && Client.IsRunning == false)
             {
                 Client.Connect();
             }

@@ -46,7 +46,7 @@ namespace DtronixMessageQueue.Tests.Gui.Services
                 {
                     Ip = Session.Config.Ip,
                     Port = 2121,
-                    PingFrequency = 3000
+                    PingFrequency = 500
                 });
 
                 client.Connected += (sender, args) =>
@@ -91,7 +91,7 @@ namespace DtronixMessageQueue.Tests.Gui.Services
 
         public void StopTest()
         {
-            _connectionTestClientList.Clear();
+            //_connectionTestClientList.Clear();
             foreach (var mqClient in _connectionTestClientList)
             {
                 mqClient.Close();

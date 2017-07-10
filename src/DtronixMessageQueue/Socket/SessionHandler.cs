@@ -147,18 +147,22 @@ namespace DtronixMessageQueue.Socket
         /// </summary>
         protected void Setup()
         {
+            // Use the max connections plus one for the disconnecting of 
+            // new clients when the MaxConnections has been reached.
+            var maxConnections = Config.MaxConnections + 1;
+
             // allocate buffers such that the maximum number of sockets can have one outstanding read and 
             //write posted to the socket simultaneously  
-            BufferManager = new BufferManager(Config.SendAndReceiveBufferSize * Config.MaxConnections * 2,
+            BufferManager = new BufferManager(Config.SendAndReceiveBufferSize * maxConnections * 2,
                 Config.SendAndReceiveBufferSize);
 
             // Allocates one large byte buffer which all I/O operations use a piece of.  This guards against memory fragmentation.
             BufferManager.InitBuffer();
 
             // preallocate pool of SocketAsyncEventArgs objects
-            AsyncPool = new SocketAsyncEventArgsPool(Config.MaxConnections * 2);
+            AsyncPool = new SocketAsyncEventArgsPool(maxConnections * 2);
 
-            for (var i = 0; i < Config.MaxConnections * 2; i++)
+            for (var i = 0; i < maxConnections * 2; i++)
             {
                 //Pre-allocate a set of reusable SocketAsyncEventArgs
                 var eventArg = new SocketAsyncEventArgs();

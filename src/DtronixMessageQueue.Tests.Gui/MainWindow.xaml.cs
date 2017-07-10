@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
+using System.ComponentModel;
 using System.Diagnostics;
 using System.Linq;
 using System.Net;
@@ -126,9 +127,9 @@ namespace DtronixMessageQueue.Tests.Gui
 
             _processMemoryTimer = new Timer(MemoryTimer);
 
-            _processMemoryTimer.Change(500, 1000);
+            _processMemoryTimer.Change(100, 1000);
 
-            ClientConnections = "20";
+            ClientConnections = "50";
 
             IpAddress = Dns.GetHostEntry(Dns.GetHostName())
                 .AddressList.First(
@@ -142,19 +143,23 @@ namespace DtronixMessageQueue.Tests.Gui
         private void MemoryTimer(object state)
         {
 
-            var size = _currentProcess.PrivateMemorySize64;
-            string[] sizes = { "B", "KB", "MB", "GB", "TB" };
-            int order = 0;
-            while (size >= 1024 && order < sizes.Length - 1)
+            using (Process currentProcess = Process.GetCurrentProcess())
             {
-                order++;
-                size = size / 1024;
-            }
+                double size = currentProcess.WorkingSet64;
 
-            Dispatcher.Invoke(() =>
-            {
-                MemoryUsage = $"{size:0.##} {sizes[order]}";
-            });
+                string[] sizes = {"B", "KB", "MB", "GB", "TB"};
+                int order = 0;
+                while (size >= 1024 && order < sizes.Length - 1)
+                {
+                    order++;
+                    size = size / 1024;
+                }
+
+                Dispatcher.Invoke(() =>
+                {
+                    MemoryUsage = $"{size:0.##} {sizes[order]}";
+                });
+            }
         }
 
         private void Stop(object sender, RoutedEventArgs e)
@@ -176,6 +181,11 @@ namespace DtronixMessageQueue.Tests.Gui
         private void NewClient(object sender, RoutedEventArgs e)
         {
             Process.Start("DtronixMessageQueue.Tests.Gui.exe", "client");
+        }
+
+        private void MainWindow_OnClosing(object sender, CancelEventArgs e)
+        {
+            SelectedPerformanceTest.StopTest();
         }
     }
 }

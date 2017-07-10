@@ -268,7 +268,9 @@ namespace DtronixMessageQueue
             }
 
             MqFrame closeFrame = null;
-            if (CurrentState == State.Connected)
+
+            // Send the close frame if the connection is active or in the process of connecting.
+            if (CurrentState == State.Connected || CurrentState == State.Connecting)
             {
                 CurrentState = State.Closing;
 

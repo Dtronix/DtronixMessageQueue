@@ -43,7 +43,7 @@ namespace DtronixMessageQueue.Tests.Gui.Tests
                 Ip = ip,
                 Port = 2120,
                 RequireAuthentication = false,
-                PingFrequency = 1000
+                PingFrequency = 800
             });
 
             _client.SessionSetup += OnClientSessionSetup;
@@ -61,7 +61,9 @@ namespace DtronixMessageQueue.Tests.Gui.Tests
             {
                 Ip = "0.0.0.0",
                 Port = 2121,
-                PingTimeout = 5000
+                PingTimeout = 1000,
+                MaxConnections = 100
+                 
             });
 
             _testServer.Connected += (sender, args) =>
@@ -84,7 +86,7 @@ namespace DtronixMessageQueue.Tests.Gui.Tests
                 Ip = "0.0.0.0",
                 Port = 2120,
                 RequireAuthentication = false,
-                PingTimeout = 5000
+                PingTimeout = 1000
             });
 
             _server.Ready += (sender, args) =>
@@ -134,6 +136,7 @@ namespace DtronixMessageQueue.Tests.Gui.Tests
             if (_client != null)
             {
                 _controllerService.StopTest();
+                _client.Close();
             }
         }
 

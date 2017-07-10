@@ -5,7 +5,7 @@
         xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
         xmlns:local="clr-namespace:DtronixMessageQueue.Tests.Gui"
         mc:Ignorable="d"
-        Title="{Binding Path=WindowTitle, FallbackValue='DtxMQ Performance Test'}" Height="496" Width="500" MinHeight="400" MinWidth="500">
+        Title="{Binding Path=WindowTitle, FallbackValue='DtxMQ Performance Test'}" Closing="MainWindow_OnClosing" Height="496" Width="500" MinHeight="400" MinWidth="500">
     <Grid>
         <Grid.RowDefinitions>
             <RowDefinition Height="100"/>

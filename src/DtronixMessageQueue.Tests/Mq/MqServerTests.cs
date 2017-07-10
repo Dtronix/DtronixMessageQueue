@@ -1,4 +1,7 @@
-﻿using Xunit;
+﻿using System;
+using System.Threading;
+using DtronixMessageQueue.Socket;
+using Xunit;
 using Xunit.Abstractions;
 
 namespace DtronixMessageQueue.Tests.Mq
@@ -80,5 +83,64 @@ namespace DtronixMessageQueue.Tests.Mq
             Server.Stop();
             Assert.Equal(false, Server.IsRunning);
         }
+
+        [Fact]
+        public void Server_accepts_new_connection_after_max()
+        {
+            Server.Config.MaxConnections = 1;
+
+            var client = CreateClient(Config);
+            var client2 = CreateClient(Config);
+
+            Server.Start();
+
+            client.Connected += (sender, args) => client.Close();
+            client.Closed += (sender, args) => client2.Connect();
+            client2.Connected += (sender, args) => TestStatus.Set();
+            client.Connect();
+
+            TestStatus.Wait(new TimeSpan(0, 0, 0, 0, 1000));
+
+            if (TestStatus.IsSet == false)
+            {
+                throw new TimeoutException("Test timed out.");
+            }
+        }
+
+        [Fact]
+        public void Server_refuses_new_connection_after_max()
+        {
+            Server.Config.MaxConnections = 1;
+            Exception invalidClosException = null;
+            var client = CreateClient(Config);
+            var client2 = CreateClient(Config);
+
+            Server.Start();
+
+            client.Connected += (sender, args) => client2.Connect();
+            client2.Closed += (sender, args) =>
+            {
+                if (args.CloseReason != SocketCloseReason.ConnectionRefused)
+                {
+                    invalidClosException = new Exception("Client socket did not close for the correct reason.");
+                }
+                TestStatus.Set();
+            };
+            client.Connect();
+            
+
+            TestStatus.Wait(new TimeSpan(0, 0, 0, 0, 10000));
+
+            if (TestStatus.IsSet == false)
+            {
+                throw new TimeoutException("Test timed out.");
+            }
+
+            if (invalidClosException != null)
+            {
+                throw invalidClosException;
+            }
+        }
+       
     }
 }
