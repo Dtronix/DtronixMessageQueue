@@ -129,7 +129,7 @@ namespace DtronixMessageQueue.Tests.Mq
             client.Connect();
             
 
-            TestStatus.Wait(new TimeSpan(0, 0, 0, 0, 10000));
+            TestStatus.Wait(new TimeSpan(0, 0, 0, 0, 1000));
 
             if (TestStatus.IsSet == false)
             {
@@ -141,6 +141,47 @@ namespace DtronixMessageQueue.Tests.Mq
                 throw invalidClosException;
             }
         }
-       
+
+        [Fact]
+        public void Server_restarts_after_stop()
+        {
+            int connected_times = 0;
+            Server.Start();
+
+            Client.Connected += (sender, args) =>
+            {
+                Server.Stop();
+                Client.Close();
+                if (++connected_times == 2)
+                {
+                    TestStatus.Set();
+                }
+                else
+                {
+                    Server.Start();
+                }
+            };
+
+
+            Client.Closed += (sender, args) =>
+            {
+                if (connected_times < 2)
+                {
+                    Client.Connect();
+                }
+            };
+
+            Client.Connect();
+
+
+
+            TestStatus.Wait(new TimeSpan(0, 0, 0, 0, 2000));
+
+            if (TestStatus.IsSet == false)
+            {
+                throw new TimeoutException("Test timed out.");
+            }
+        }
+
     }
 }

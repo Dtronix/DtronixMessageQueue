@@ -323,5 +323,40 @@ namespace DtronixMessageQueue.Tests.Mq
                 throw new Exception("Socket did not timeout.");
             }
         }
+
+        [Fact]
+        public void Client_reconnects_after_close()
+        {
+            int connected_times = 0;
+            Server.Start();
+
+            Client.Connected += (sender, args) =>
+            {
+                if (++connected_times == 2)
+                {
+                    TestStatus.Set();
+                }
+                Client.Close();
+
+            };
+            Client.Closed += (sender, args) =>
+            {
+                if (connected_times < 2)
+                {
+                    Client.Connect();
+                }
+            };
+
+            Client.Connect();
+            
+
+
+            TestStatus.Wait(new TimeSpan(0, 0, 0, 0, 2000));
+
+            if (TestStatus.IsSet == false)
+            {
+                throw new TimeoutException("Test timed out.");
+            }
+        }
     }
 }

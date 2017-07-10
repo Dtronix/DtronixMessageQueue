@@ -60,7 +60,7 @@ namespace DtronixMessageQueue.Socket
             MainSocket.Bind(localEndPoint);
 
             // start the server with a listen backlog.
-            MainSocket.Listen(1);
+            MainSocket.Listen(Config.ListenerBacklog);
 
             // post accepts on the listening socket
             StartAccept(null);
