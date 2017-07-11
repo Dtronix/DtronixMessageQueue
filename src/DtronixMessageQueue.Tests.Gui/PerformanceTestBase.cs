@@ -1,11 +1,9 @@
 ﻿using System;
-using System.Management;
 using System.Runtime.InteropServices;
-using DtronixMessageQueue.Tests.Performance.TestSessions;
 
-namespace DtronixMessageQueue.Tests.Performance
+namespace DtronixMessageQueue.Tests.Gui
 {
-    class PerformanceTestBase
+    public class PerformanceTestBase
     {
         private Random _rand = new Random();
 
@@ -16,7 +14,7 @@ namespace DtronixMessageQueue.Tests.Performance
 
         public static void WriteSysInfo()
         {
-            ManagementObjectSearcher mos = new ManagementObjectSearcher("root\\CIMV2", "SELECT * FROM Win32_Processor");
+           /* ManagementObjectSearcher mos = new ManagementObjectSearcher("root\\CIMV2", "SELECT * FROM Win32_Processor");
             foreach (var o in mos.Get())
             {
                 var mo = (ManagementObject) o;
@@ -26,14 +24,13 @@ namespace DtronixMessageQueue.Tests.Performance
 
             long memKb;
             GetPhysicallyInstalledSystemMemory(out memKb);
-            Console.WriteLine(" with " + (memKb / 1024 / 1024) + " GB of RAM installed.");
+            Console.WriteLine(" with " + (memKb / 1024 / 1024) + " GB of RAM installed.");*/
         }
 
 
         public class ClientRunInfo
         {
             public int Runs { get; set; }
-            public MqThroughputTest TestSession { get; set; }
         }
 
         public static byte[] SequentialBytes(int len)

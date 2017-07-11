@@ -58,6 +58,11 @@
         /// <summary>
         /// Occurs when the session does not pass an authorization check.
         /// </summary>
-        AuthorizationFailure = 10
+        AuthorizationFailure = 10,
+
+        /// <summary>
+        /// Occurs when the server has reached the maximum number of clients that it is allowing to connect.
+        /// </summary>
+        ConnectionRefused = 11
     }
 }

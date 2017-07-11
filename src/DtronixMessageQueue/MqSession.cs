@@ -2,6 +2,7 @@
 using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.IO;
+using System.Threading;
 using System.Threading.Tasks;
 using DtronixMessageQueue.Socket;
 
@@ -40,18 +41,21 @@ namespace DtronixMessageQueue
 
         private Task _inboxTask;
 
-        private readonly object _inboxLock = new object();
+        //private readonly object _inboxLock = new object();
 
         private readonly object _outboxLock = new object();
 
+        //private Semaphore _sendingSemaphore;
         /// <summary>
         /// Event fired when a new message has been processed by the Postmaster and ready to be read.
         /// </summary>
         public event EventHandler<IncomingMessageEventArgs<TSession, TConfig>> IncomingMessage;
 
+
         protected override void OnSetup()
         {
             _frameBuilder = new MqFrameBuilder(Config);
+            //_sendingSemaphore = new Semaphore(Config.MaxQueuedOutgoingMessages, Config.MaxQueuedOutgoingMessages);
         }
 
         /// <summary>
@@ -65,10 +69,9 @@ namespace DtronixMessageQueue
                 return;
             }
 
-            lock (_inboxLock)
-            {
-                _inboxBytes.Enqueue(buffer);
-            }
+            
+            _inboxBytes.Enqueue(buffer);
+            
 
 
             if (_inboxTask == null || _inboxTask.IsCompleted)
@@ -114,6 +117,7 @@ namespace DtronixMessageQueue
 
             while (_outbox.TryDequeue(out message))
             {
+                //_sendingSemaphore.Release();
                 //Console.WriteLine("Wrote " + message);
                 message.PrepareSend();
                 foreach (var frame in message)
@@ -221,6 +225,8 @@ namespace DtronixMessageQueue
                 }
             }
 
+            _inboxTask = null;
+
             if (messages == null)
             {
                 return;
@@ -229,13 +235,12 @@ namespace DtronixMessageQueue
 
             OnIncomingMessage(this, new IncomingMessageEventArgs<TSession, TConfig>(messages, (TSession) this));
 
-            lock (_inboxLock)
+            
+            if (_inboxTask == null)
             {
-                if (_inboxBytes.IsEmpty == false)
-                {
-                    _inboxTask = Task.Run((Action) ProcessIncomingQueue);
-                }
+                _inboxTask = Task.Run((Action) ProcessIncomingQueue);
             }
+            
         }
 
 
@@ -263,7 +268,9 @@ namespace DtronixMessageQueue
             }
 
             MqFrame closeFrame = null;
-            if (CurrentState == State.Connected)
+
+            // Send the close frame if the connection is active or in the process of connecting.
+            if (CurrentState == State.Connected || CurrentState == State.Connecting)
             {
                 CurrentState = State.Closing;
 
@@ -281,6 +288,7 @@ namespace DtronixMessageQueue
                 {
                     while (_outbox.TryDequeue(out msg))
                     {
+                        //_sendingSemaphore.Release();
                     }
                 }
 
@@ -318,6 +326,7 @@ namespace DtronixMessageQueue
                 return;
             }
 
+            //_sendingSemaphore.WaitOne();
             lock (_outboxLock)
             {
                 _outbox.Enqueue(message);

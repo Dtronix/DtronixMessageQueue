@@ -11,24 +11,25 @@ namespace DtronixMessageQueue.Tests.Performance
 
         static void Main(string[] args)
         {
+
             var mode = args.Length == 0 ? null : args[0];
             var fileName = string.Join("-", args);
             using (var cc = new ConsoleCopy($"MessageQueuePerformanceTest-{fileName}.txt"))
             {
-                PerformanceTestBase.WriteSysInfo();
+                //PerformanceTestBase.WriteSysInfo();
 
-                Console.WriteLine($"DMQPerf.exe {string.Join(" ", args)}");
+                //Console.WriteLine($"DMQPerf.exe {string.Join(" ", args)}");
 
                 switch (mode)
                 {
-                    case "mq":
+                    case "mq-throughput":
                         Console.WriteLine("Running MQ performance tests.\r\n");
-                        new MqPerformanceTest(args);
+                        new MqThroughputTest(args);
                         break;
 
                     default:
-                        Console.WriteLine("Running RPC performance tests.\r\n");
-                        new RpcPerformanceTest(args);
+                        Console.WriteLine("Running MQ performance tests.\r\n");
+                        new MqThroughputTest(args);
                         break;
                 }
             }

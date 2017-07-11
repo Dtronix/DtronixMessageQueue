@@ -1,13 +1,15 @@
 ﻿
 Microsoft Visual Studio Solution File, Format Version 12.00
-# Visual Studio 14
-VisualStudioVersion = 14.0.25420.1
+# Visual Studio 15
+VisualStudioVersion = 15.0.26403.7
 MinimumVisualStudioVersion = 10.0.40219.1
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "DtronixMessageQueue", "DtronixMessageQueue\DtronixMessageQueue.csproj", "{060BFECA-A3D2-4871-AE35-28DECCB95FE3}"
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "DtronixMessageQueue.Tests", "DtronixMessageQueue.Tests\DtronixMessageQueue.Tests.csproj", "{C51DA0D8-7831-49E0-925F-149C9A5B1625}"
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "DtronixMessageQueue.Tests.Performance", "DtronixMessageQueue.Tests.Performance\DtronixMessageQueue.Tests.Performance.csproj", "{1DF3332E-9B24-45B9-934B-43542793986C}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "DtronixMessageQueue.Tests.Gui", "DtronixMessageQueue.Tests.Gui\DtronixMessageQueue.Tests.Gui.csproj", "{98F57431-718F-4865-968F-5265453BA5BC}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
@@ -34,6 +36,12 @@ Global
 		{1DF3332E-9B24-45B9-934B-43542793986C}.Nuget|Any CPU.Build.0 = Nuget|Any CPU
 		{1DF3332E-9B24-45B9-934B-43542793986C}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{1DF3332E-9B24-45B9-934B-43542793986C}.Release|Any CPU.Build.0 = Release|Any CPU
+		{98F57431-718F-4865-968F-5265453BA5BC}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{98F57431-718F-4865-968F-5265453BA5BC}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{98F57431-718F-4865-968F-5265453BA5BC}.Nuget|Any CPU.ActiveCfg = Release|Any CPU
+		{98F57431-718F-4865-968F-5265453BA5BC}.Nuget|Any CPU.Build.0 = Release|Any CPU
+		{98F57431-718F-4865-968F-5265453BA5BC}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{98F57431-718F-4865-968F-5265453BA5BC}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
