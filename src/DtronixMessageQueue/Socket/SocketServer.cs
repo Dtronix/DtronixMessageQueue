@@ -109,6 +109,11 @@ namespace DtronixMessageQueue.Socket
                 return;
             }
 
+            if (e.AcceptSocket == null)
+            {
+                return;
+            }
+
             bool maxSessions = false;
 
             // Check if we are maxed out on concurrent connections.
@@ -125,6 +130,7 @@ namespace DtronixMessageQueue.Socket
                     _remainingConnections--;
                 }
             }
+
 
             e.AcceptSocket.NoDelay = true;
 

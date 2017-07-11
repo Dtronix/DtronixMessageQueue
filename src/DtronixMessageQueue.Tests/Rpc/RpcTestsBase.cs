@@ -3,15 +3,13 @@ using System.Net;
 using System.Net.Sockets;
 using System.Threading;
 using DtronixMessageQueue.Rpc;
-using Xunit;
-using Xunit.Abstractions;
+using NUnit.Framework;
 
 namespace DtronixMessageQueue.Tests.Rpc
 {
     public class RpcTestsBase : IDisposable
     {
         private Random _random = new Random();
-        public ITestOutputHelper Output;
 
         public RpcServer<SimpleRpcSession, RpcConfig> Server { get; protected set; }
         public RpcClient<SimpleRpcSession, RpcConfig> Client { get; protected set; }
@@ -25,9 +23,8 @@ namespace DtronixMessageQueue.Tests.Rpc
 
         public ManualResetEventSlim TestStatus { get; set; } = new ManualResetEventSlim(false);
 
-        public RpcTestsBase(ITestOutputHelper output)
+        public RpcTestsBase()
         {
-            Output = output;
             Port = FreeTcpPort();
 
             Config = new RpcConfig
@@ -91,14 +88,14 @@ namespace DtronixMessageQueue.Tests.Rpc
             try
             {
                 // Total frame count comparison.
-                Assert.Equal(expected.Count, actual.Count);
+                Assert.AreEqual(expected.Count, actual.Count);
 
                 for (int i = 0; i < expected.Count; i++)
                 {
                     // Frame length comparison.
-                    Assert.Equal(expected[i].DataLength, actual[i].DataLength);
+                    Assert.AreEqual(expected[i].DataLength, actual[i].DataLength);
 
-                    Assert.Equal(expected[i].Buffer, actual[i].Buffer);
+                    Assert.AreEqual(expected[i].Buffer, actual[i].Buffer);
                 }
             }
             catch (Exception e)

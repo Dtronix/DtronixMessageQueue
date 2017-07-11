@@ -1,14 +1,12 @@
 ﻿using System;
 using System.Text;
-using Xunit;
-using Xunit.Abstractions;
-using Assert = Xunit.Assert;
+using NUnit.Framework;
 
 namespace DtronixMessageQueue.Tests.Mq
 {
     public class MqMessageWriterReaderTests
     {
-        public ITestOutputHelper Output;
+
         private MqMessageWriter _messageBuilder;
         private MqMessageReader _messageReader;
         private MqConfig _config = new MqConfig();
@@ -16,14 +14,13 @@ namespace DtronixMessageQueue.Tests.Mq
         private const string FillerText =
             "Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod tempor incididunt ut labore et dolore magna aliqua.Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris nisi ut aliquip ex ea commodo consequat.Duis aute irure dolor in reprehenderit in voluptate velit esse cillum dolore eu fugiat nulla pariatur.Excepteur sint occaecat cupidatat non proident, sunt in culpa qui officia deserunt mollit anim id est laborum.";
 
-        public MqMessageWriterReaderTests(ITestOutputHelper output)
+        public MqMessageWriterReaderTests()
         {
-            Output = output;
             _messageBuilder = new MqMessageWriter(_config);
             _messageReader = new MqMessageReader();
         }
 
-        [Fact]
+        [Test]
         public void MessageWriter_writes_bool_true()
         {
             var expectedValue = (bool) true;
@@ -31,11 +28,11 @@ namespace DtronixMessageQueue.Tests.Mq
             var message = _messageBuilder.ToMessage();
             _messageReader.Message = message;
 
-            Assert.Equal(expectedValue, _messageReader.ReadBoolean());
+            Assert.AreEqual(expectedValue, _messageReader.ReadBoolean());
             Assert.True(_messageReader.IsAtEnd);
         }
 
-        [Fact]
+        [Test]
         public void MessageWriter_writes_bool_false()
         {
             var expectedValue = (bool) false;
@@ -43,11 +40,11 @@ namespace DtronixMessageQueue.Tests.Mq
             var message = _messageBuilder.ToMessage();
             _messageReader.Message = message;
 
-            Assert.Equal(expectedValue, _messageReader.ReadBoolean());
+            Assert.AreEqual(expectedValue, _messageReader.ReadBoolean());
             Assert.True(_messageReader.IsAtEnd);
         }
 
-        [Fact]
+        [Test]
         public void MessageWriter_writes_byte()
         {
             var expectedValue = (byte) 221;
@@ -55,11 +52,11 @@ namespace DtronixMessageQueue.Tests.Mq
             var message = _messageBuilder.ToMessage();
             _messageReader.Message = message;
 
-            Assert.Equal(expectedValue, _messageReader.ReadByte());
+            Assert.AreEqual(expectedValue, _messageReader.ReadByte());
             Assert.True(_messageReader.IsAtEnd);
         }
 
-        [Fact]
+        [Test]
         public void MessageWriter_writes_sbyte_positive()
         {
             var expectedValue = (sbyte) 101;
@@ -67,11 +64,11 @@ namespace DtronixMessageQueue.Tests.Mq
             var message = _messageBuilder.ToMessage();
             _messageReader.Message = message;
 
-            Assert.Equal(expectedValue, _messageReader.ReadSByte());
+            Assert.AreEqual(expectedValue, _messageReader.ReadSByte());
             Assert.True(_messageReader.IsAtEnd);
         }
 
-        [Fact]
+        [Test]
         public void MessageWriter_writes_sbyte_negative()
         {
             var expectedValue = (sbyte) -101;
@@ -79,11 +76,11 @@ namespace DtronixMessageQueue.Tests.Mq
             var message = _messageBuilder.ToMessage();
             _messageReader.Message = message;
 
-            Assert.Equal(expectedValue, _messageReader.ReadSByte());
+            Assert.AreEqual(expectedValue, _messageReader.ReadSByte());
             Assert.True(_messageReader.IsAtEnd);
         }
 
-        [Fact]
+        [Test]
         public void MessageWriter_writes_short_positive()
         {
             var expectedValue = (short) 21457;
@@ -91,11 +88,11 @@ namespace DtronixMessageQueue.Tests.Mq
             var message = _messageBuilder.ToMessage();
             _messageReader.Message = message;
 
-            Assert.Equal(expectedValue, _messageReader.ReadInt16());
+            Assert.AreEqual(expectedValue, _messageReader.ReadInt16());
             Assert.True(_messageReader.IsAtEnd);
         }
 
-        [Fact]
+        [Test]
         public void MessageWriter_writes_short_negative()
         {
             var expectedValue = (short) -21457;
@@ -103,11 +100,11 @@ namespace DtronixMessageQueue.Tests.Mq
             var message = _messageBuilder.ToMessage();
             _messageReader.Message = message;
 
-            Assert.Equal(expectedValue, _messageReader.ReadInt16());
+            Assert.AreEqual(expectedValue, _messageReader.ReadInt16());
             Assert.True(_messageReader.IsAtEnd);
         }
 
-        [Fact]
+        [Test]
         public void MessageWriter_writes_ushort()
         {
             var expectedValue = (ushort) 51574;
@@ -115,11 +112,11 @@ namespace DtronixMessageQueue.Tests.Mq
             var message = _messageBuilder.ToMessage();
             _messageReader.Message = message;
 
-            Assert.Equal(expectedValue, _messageReader.ReadUInt16());
+            Assert.AreEqual(expectedValue, _messageReader.ReadUInt16());
             Assert.True(_messageReader.IsAtEnd);
         }
 
-        [Fact]
+        [Test]
         public void MessageWriter_writes_int_positive()
         {
             var expectedValue = (int) 515725234;
@@ -127,11 +124,11 @@ namespace DtronixMessageQueue.Tests.Mq
             var message = _messageBuilder.ToMessage();
             _messageReader.Message = message;
 
-            Assert.Equal(expectedValue, _messageReader.ReadInt32());
+            Assert.AreEqual(expectedValue, _messageReader.ReadInt32());
             Assert.True(_messageReader.IsAtEnd);
         }
 
-        [Fact]
+        [Test]
         public void MessageWriter_writes_int_negative()
         {
             var expectedValue = (int) -515725234;
@@ -139,11 +136,11 @@ namespace DtronixMessageQueue.Tests.Mq
             var message = _messageBuilder.ToMessage();
             _messageReader.Message = message;
 
-            Assert.Equal(expectedValue, _messageReader.ReadInt32());
+            Assert.AreEqual(expectedValue, _messageReader.ReadInt32());
             Assert.True(_messageReader.IsAtEnd);
         }
 
-        [Fact]
+        [Test]
         public void MessageWriter_writes_uint()
         {
             var expectedValue = (uint) 1215725234;
@@ -151,11 +148,11 @@ namespace DtronixMessageQueue.Tests.Mq
             var message = _messageBuilder.ToMessage();
             _messageReader.Message = message;
 
-            Assert.Equal(expectedValue, _messageReader.ReadUInt32());
+            Assert.AreEqual(expectedValue, _messageReader.ReadUInt32());
             Assert.True(_messageReader.IsAtEnd);
         }
 
-        [Fact]
+        [Test]
         public void MessageWriter_writes_long_positive()
         {
             var expectedValue = (long) 515352135236725234;
@@ -163,11 +160,11 @@ namespace DtronixMessageQueue.Tests.Mq
             var message = _messageBuilder.ToMessage();
             _messageReader.Message = message;
 
-            Assert.Equal(expectedValue, _messageReader.ReadInt64());
+            Assert.AreEqual(expectedValue, _messageReader.ReadInt64());
             Assert.True(_messageReader.IsAtEnd);
         }
 
-        [Fact]
+        [Test]
         public void MessageWriter_writes_long_negative()
         {
             var expectedValue = (long) -515352135236725234;
@@ -175,11 +172,11 @@ namespace DtronixMessageQueue.Tests.Mq
             var message = _messageBuilder.ToMessage();
             _messageReader.Message = message;
 
-            Assert.Equal(expectedValue, _messageReader.ReadInt64());
+            Assert.AreEqual(expectedValue, _messageReader.ReadInt64());
             Assert.True(_messageReader.IsAtEnd);
         }
 
-        [Fact]
+        [Test]
         public void MessageWriter_writes_ulong()
         {
             var expectedValue = (ulong) 12231512365365725234;
@@ -187,11 +184,11 @@ namespace DtronixMessageQueue.Tests.Mq
             var message = _messageBuilder.ToMessage();
             _messageReader.Message = message;
 
-            Assert.Equal(expectedValue, _messageReader.ReadUInt64());
+            Assert.AreEqual(expectedValue, _messageReader.ReadUInt64());
             Assert.True(_messageReader.IsAtEnd);
         }
 
-        [Fact]
+        [Test]
         public void MessageWriter_writes_float()
         {
             var expectedValue = (float) 123.456;
@@ -199,11 +196,11 @@ namespace DtronixMessageQueue.Tests.Mq
             var message = _messageBuilder.ToMessage();
             _messageReader.Message = message;
 
-            Assert.Equal(expectedValue, _messageReader.ReadSingle());
+            Assert.AreEqual(expectedValue, _messageReader.ReadSingle());
             Assert.True(_messageReader.IsAtEnd);
         }
 
-        [Fact]
+        [Test]
         public void MessageWriter_writes_double()
         {
             var expectedValue = (double) 12345.67891;
@@ -211,11 +208,11 @@ namespace DtronixMessageQueue.Tests.Mq
             var message = _messageBuilder.ToMessage();
             _messageReader.Message = message;
 
-            Assert.Equal(expectedValue, _messageReader.ReadDouble());
+            Assert.AreEqual(expectedValue, _messageReader.ReadDouble());
             Assert.True(_messageReader.IsAtEnd);
         }
 
-        [Fact]
+        [Test]
         public void MessageWriter_writes_decimal()
         {
             var expectedValue = (decimal) 9123456789123456789.9123456789123456789;
@@ -223,11 +220,11 @@ namespace DtronixMessageQueue.Tests.Mq
             var message = _messageBuilder.ToMessage();
             _messageReader.Message = message;
 
-            Assert.Equal(expectedValue, _messageReader.ReadDecimal());
+            Assert.AreEqual(expectedValue, _messageReader.ReadDecimal());
             Assert.True(_messageReader.IsAtEnd);
         }
 
-        [Fact]
+        [Test]
         public void MessageWriter_writes_multi_frame_byte_array()
         {
             var expectedValue = new byte[1024 * 32];
@@ -255,7 +252,7 @@ namespace DtronixMessageQueue.Tests.Mq
                 byteArraySize += frame.DataLength;
             }
 
-            Assert.Equal(expectedValue.Length, byteArraySize);
+            Assert.AreEqual(expectedValue.Length, byteArraySize);
 
             var resultByteArray = new byte[byteArraySize];
             var position = 0;
@@ -265,10 +262,10 @@ namespace DtronixMessageQueue.Tests.Mq
                 position += frame.DataLength;
             }
 
-            Assert.Equal(expectedValue, resultByteArray);
+            Assert.AreEqual(expectedValue, resultByteArray);
         }
 
-        [Fact]
+        [Test]
         public void MessageWriter_writes_multi_frame_string_bytes()
         {
             var sb = new StringBuilder();
@@ -293,7 +290,7 @@ namespace DtronixMessageQueue.Tests.Mq
             VerifyMessageBytes(expectedBytes, message);
         }
 
-        [Fact]
+        [Test]
         public void MessageReader_reads_multi_frame_byte_array()
         {
             var expectedValue = new byte[1024 * 32];
@@ -314,13 +311,13 @@ namespace DtronixMessageQueue.Tests.Mq
 
             var read = _messageReader.Read(actualValue, 0, actualValue.Length);
 
-            Assert.Equal(expectedValue.Length, read);
-            Assert.Equal(expectedValue, actualValue);
+            Assert.AreEqual(expectedValue.Length, read);
+            Assert.AreEqual(expectedValue, actualValue);
             Assert.True(_messageReader.IsAtEnd);
         }
 
 
-        [Fact]
+        [Test]
         public void MessageWriter_writes_string()
         {
             var expectedValue = FillerText;
@@ -328,12 +325,12 @@ namespace DtronixMessageQueue.Tests.Mq
             var message = _messageBuilder.ToMessage();
             _messageReader.Message = message;
 
-            Assert.Equal(expectedValue, _messageReader.ReadString());
+            Assert.AreEqual(expectedValue, _messageReader.ReadString());
             Assert.True(_messageReader.IsAtEnd);
         }
 
 
-        [Fact]
+        [Test]
         public void MessageReader_reads_multi_frame_string()
         {
             var sb = new StringBuilder();
@@ -348,12 +345,12 @@ namespace DtronixMessageQueue.Tests.Mq
             var message = _messageBuilder.ToMessage();
             _messageReader.Message = message;
 
-            Assert.Equal(expectedValue, _messageReader.ReadString());
+            Assert.AreEqual(expectedValue, _messageReader.ReadString());
             Assert.True(_messageReader.IsAtEnd);
         }
 
 
-        [Fact]
+        [Test]
         public void MessageWriter_multiple_reads_writes()
         {
             _messageBuilder.Write(true);
@@ -391,43 +388,43 @@ namespace DtronixMessageQueue.Tests.Mq
 
             _messageReader.Message = message;
 
-            Assert.Equal(true, _messageReader.ReadBoolean());
-            Assert.Equal(false, _messageReader.ReadBoolean());
+            Assert.AreEqual(true, _messageReader.ReadBoolean());
+            Assert.AreEqual(false, _messageReader.ReadBoolean());
 
-            Assert.Equal('D', _messageReader.ReadChar());
-            Assert.Equal(new char[] {'A', 'Y', 'X', '0', '9', '8'}, _messageReader.ReadChars(6));
+            Assert.AreEqual('D', _messageReader.ReadChar());
+            Assert.AreEqual(new char[] {'A', 'Y', 'X', '0', '9', '8'}, _messageReader.ReadChars(6));
 
 
-            Assert.Equal((byte) 214, _messageReader.ReadByte());
-            Assert.Equal((sbyte) 125, _messageReader.ReadSByte());
-            Assert.Equal((sbyte) -125, _messageReader.ReadSByte());
+            Assert.AreEqual((byte) 214, _messageReader.ReadByte());
+            Assert.AreEqual((sbyte) 125, _messageReader.ReadSByte());
+            Assert.AreEqual((sbyte) -125, _messageReader.ReadSByte());
 
-            Assert.Equal((short) 4513, _messageReader.ReadInt16());
-            Assert.Equal((short) -4513, _messageReader.ReadInt16());
-            Assert.Equal((ushort) 43513, _messageReader.ReadUInt16());
+            Assert.AreEqual((short) 4513, _messageReader.ReadInt16());
+            Assert.AreEqual((short) -4513, _messageReader.ReadInt16());
+            Assert.AreEqual((ushort) 43513, _messageReader.ReadUInt16());
 
-            Assert.Equal((int) 236236231, _messageReader.ReadInt32());
-            Assert.Equal((int) -236236231, _messageReader.ReadInt32());
-            Assert.Equal((uint) 2362326231, _messageReader.ReadUInt32());
+            Assert.AreEqual((int) 236236231, _messageReader.ReadInt32());
+            Assert.AreEqual((int) -236236231, _messageReader.ReadInt32());
+            Assert.AreEqual((uint) 2362326231, _messageReader.ReadUInt32());
 
-            Assert.Equal((long) 2362362312561531, _messageReader.ReadInt64());
-            Assert.Equal((long) -2362362312561531, _messageReader.ReadInt64());
-            Assert.Equal((ulong) 2362362312561531125, _messageReader.ReadUInt64());
+            Assert.AreEqual((long) 2362362312561531, _messageReader.ReadInt64());
+            Assert.AreEqual((long) -2362362312561531, _messageReader.ReadInt64());
+            Assert.AreEqual((ulong) 2362362312561531125, _messageReader.ReadUInt64());
 
-            Assert.Equal((float) 1234.56789, _messageReader.ReadSingle());
-            Assert.Equal((double) 123467.5678912, _messageReader.ReadDouble());
-            Assert.Equal((decimal) 123456789123456789.123456789123456789, _messageReader.ReadDecimal());
+            Assert.AreEqual((float) 1234.56789, _messageReader.ReadSingle());
+            Assert.AreEqual((double) 123467.5678912, _messageReader.ReadDouble());
+            Assert.AreEqual((decimal) 123456789123456789.123456789123456789, _messageReader.ReadDecimal());
 
             var readByteArray = new byte[50];
             _messageReader.Read(readByteArray, 0, readByteArray.Length);
-            Assert.Equal(expectedByteArray, readByteArray);
+            Assert.AreEqual(expectedByteArray, readByteArray);
 
-            Assert.Equal(FillerText, _messageReader.ReadString());
+            Assert.AreEqual(FillerText, _messageReader.ReadString());
             Assert.True(_messageReader.IsAtEnd);
         }
 
 
-        [Fact]
+        [Test]
         public void MessageWriter_writes_char()
         {
             var expectedValue = (char) 'D';
@@ -435,11 +432,11 @@ namespace DtronixMessageQueue.Tests.Mq
             var message = _messageBuilder.ToMessage();
             _messageReader.Message = message;
 
-            Assert.Equal(expectedValue, _messageReader.ReadChar());
+            Assert.AreEqual(expectedValue, _messageReader.ReadChar());
             Assert.True(_messageReader.IsAtEnd);
         }
 
-        [Fact]
+        [Test]
         public void MessageWriter_writes_char_array()
         {
             var expectedValue = new char[] {'A', 'B', 'C', '1', '2', '3'};
@@ -447,11 +444,11 @@ namespace DtronixMessageQueue.Tests.Mq
             var message = _messageBuilder.ToMessage();
             _messageReader.Message = message;
 
-            Assert.Equal(expectedValue, _messageReader.ReadChars(expectedValue.Length));
+            Assert.AreEqual(expectedValue, _messageReader.ReadChars(expectedValue.Length));
             Assert.True(_messageReader.IsAtEnd);
         }
 
-        [Fact]
+        [Test]
         public void MessageWriter_writes_char_array_slice()
         {
             var inputValue = new char[] {'A', 'B', 'C', '1', '2', '3'};
@@ -460,11 +457,11 @@ namespace DtronixMessageQueue.Tests.Mq
             var message = _messageBuilder.ToMessage();
             _messageReader.Message = message;
 
-            Assert.Equal(expectedValue, _messageReader.ReadChars(expectedValue.Length));
+            Assert.AreEqual(expectedValue, _messageReader.ReadChars(expectedValue.Length));
             Assert.True(_messageReader.IsAtEnd);
         }
 
-        [Fact]
+        [Test]
         public void MessageReader_peeks_char()
         {
             var expectedValue = new char[] {'D', 'Z'};
@@ -472,12 +469,12 @@ namespace DtronixMessageQueue.Tests.Mq
             var message = _messageBuilder.ToMessage();
             _messageReader.Message = message;
 
-            Assert.Equal(expectedValue[0], _messageReader.PeekChar());
-            Assert.Equal(expectedValue, _messageReader.ReadChars(expectedValue.Length));
+            Assert.AreEqual(expectedValue[0], _messageReader.PeekChar());
+            Assert.AreEqual(expectedValue, _messageReader.ReadChars(expectedValue.Length));
             Assert.True(_messageReader.IsAtEnd);
         }
 
-        [Fact]
+        [Test]
         public void MessageReader_reads_to_end()
         {
             var expectedValue = new byte[] {1, 2, 3, 4, 5, 6, 7, 8, 9, 10};
@@ -485,11 +482,11 @@ namespace DtronixMessageQueue.Tests.Mq
             var message = _messageBuilder.ToMessage();
             _messageReader.Message = message;
 
-            Assert.Equal(expectedValue, _messageReader.ReadToEnd());
+            Assert.AreEqual(expectedValue, _messageReader.ReadToEnd());
             Assert.True(_messageReader.IsAtEnd);
         }
 
-        [Fact]
+        [Test]
         public void MessageReader_reads_to_end_multi_frame()
         {
             var expectedValue = new byte[] {1, 2, 3, 4, 5, 6, 7, 8, 9, 0};
@@ -501,11 +498,11 @@ namespace DtronixMessageQueue.Tests.Mq
             var message = _messageBuilder.ToMessage();
             _messageReader.Message = message;
 
-            Assert.Equal(expectedValue, _messageReader.ReadToEnd());
+            Assert.AreEqual(expectedValue, _messageReader.ReadToEnd());
             Assert.True(_messageReader.IsAtEnd);
         }
 
-        [Fact]
+        [Test]
         public void MessageReader_reads_to_end_multi_frame_skipping_empty_frame()
         {
             var expectedValue = new byte[] {1, 2, 3, 4, 5, 6, 7, 8, 9, 0};
@@ -518,12 +515,12 @@ namespace DtronixMessageQueue.Tests.Mq
             var message = _messageBuilder.ToMessage();
             _messageReader.Message = message;
 
-            Assert.Equal(expectedValue, _messageReader.ReadToEnd());
+            Assert.AreEqual(expectedValue, _messageReader.ReadToEnd());
             Assert.True(_messageReader.IsAtEnd);
         }
 
 
-        [Fact]
+        [Test]
         public void MessageReader_reads_to_end_partial()
         {
             var expectedValue = new byte[] {4, 5, 6, 7, 8, 9, 10};
@@ -532,12 +529,12 @@ namespace DtronixMessageQueue.Tests.Mq
             _messageReader.Message = message;
 
             _messageReader.ReadBytes(3);
-            Assert.Equal(expectedValue, _messageReader.ReadToEnd());
+            Assert.AreEqual(expectedValue, _messageReader.ReadToEnd());
             Assert.True(_messageReader.IsAtEnd);
         }
 
 
-        [Fact]
+        [Test]
         public void MessageReader_maintains_position()
         {
             var expectedValue = 5;
@@ -546,11 +543,11 @@ namespace DtronixMessageQueue.Tests.Mq
             _messageReader.Message = message;
 
             _messageReader.ReadBytes(5);
-            Assert.Equal(expectedValue, _messageReader.Position);
+            Assert.AreEqual(expectedValue, _messageReader.Position);
             Assert.False(_messageReader.IsAtEnd);
         }
 
-        [Fact]
+        [Test]
         public void MessageReader_maintains_position_across_frames()
         {
             var expectedValue = 7;
@@ -562,12 +559,12 @@ namespace DtronixMessageQueue.Tests.Mq
             _messageReader.Message = message;
 
 
-            Assert.Equal(new byte[] {1, 2, 3, 4, 5, 6, 7}, _messageReader.ReadBytes(7));
-            Assert.Equal(expectedValue, _messageReader.Position);
+            Assert.AreEqual(new byte[] {1, 2, 3, 4, 5, 6, 7}, _messageReader.ReadBytes(7));
+            Assert.AreEqual(expectedValue, _messageReader.Position);
             Assert.False(_messageReader.IsAtEnd);
         }
 
-        [Fact]
+        [Test]
         public void MessageReader_throws_when_reading_simple_type_across_frames()
         {
             _messageBuilder.Write(new byte[] {1, 2});
@@ -580,7 +577,7 @@ namespace DtronixMessageQueue.Tests.Mq
             Assert.Throws<InvalidOperationException>(() => _messageReader.ReadInt32());
         }
 
-        [Fact]
+        [Test]
         public void MessageReader_skips_bytes()
         {
             _messageBuilder.Write(new byte[] {1, 2, 3, 4, 5, 6, 7, 8, 9, 10});
@@ -589,11 +586,11 @@ namespace DtronixMessageQueue.Tests.Mq
 
             _messageReader.Skip(4);
 
-            Assert.Equal(4, _messageReader.Position);
+            Assert.AreEqual(4, _messageReader.Position);
             Assert.False(_messageReader.IsAtEnd);
         }
 
-        [Fact]
+        [Test]
         public void MessageReader_skips_empty_frames()
         {
             _messageBuilder.Write(new byte[] {1, 2});
@@ -607,12 +604,12 @@ namespace DtronixMessageQueue.Tests.Mq
             _messageReader.Skip(3);
 
 
-            Assert.Equal(3, _messageReader.Position);
-            Assert.Equal(4, _messageReader.ReadByte());
+            Assert.AreEqual(3, _messageReader.Position);
+            Assert.AreEqual(4, _messageReader.ReadByte());
             Assert.True(_messageReader.IsAtEnd);
         }
 
-        [Fact]
+        [Test]
         public void MessageReader_sets_position()
         {
             _messageBuilder.Write(new byte[] {1, 2, 3, 4, 5, 6, 7, 8, 9});
@@ -620,16 +617,16 @@ namespace DtronixMessageQueue.Tests.Mq
             _messageReader.Message = message;
 
             _messageReader.Position = 2;
-            Assert.Equal(2, _messageReader.Position);
+            Assert.AreEqual(2, _messageReader.Position);
 
             _messageReader.Position = 1;
-            Assert.Equal(1, _messageReader.Position);
+            Assert.AreEqual(1, _messageReader.Position);
 
             _messageReader.Position = 3;
-            Assert.Equal(3, _messageReader.Position);
+            Assert.AreEqual(3, _messageReader.Position);
         }
 
-        [Fact]
+        [Test]
         public void MessageReader_sets_position_and_reads()
         {
             _messageBuilder.Write(new byte[] {1, 2, 3, 4, 5});
@@ -637,19 +634,19 @@ namespace DtronixMessageQueue.Tests.Mq
             _messageReader.Message = message;
 
 
-            Assert.Equal(new byte[] {1, 2, 3, 4, 5}, _messageReader.ReadBytes(5));
-            Assert.Equal(5, _messageReader.Position);
+            Assert.AreEqual(new byte[] {1, 2, 3, 4, 5}, _messageReader.ReadBytes(5));
+            Assert.AreEqual(5, _messageReader.Position);
 
 
             _messageReader.Position = 2;
-            Assert.Equal(2, _messageReader.Position);
+            Assert.AreEqual(2, _messageReader.Position);
 
-            Assert.Equal(new byte[] {3, 4, 5}, _messageReader.ReadBytes(3));
-            Assert.Equal(5, _messageReader.Position);
+            Assert.AreEqual(new byte[] {3, 4, 5}, _messageReader.ReadBytes(3));
+            Assert.AreEqual(5, _messageReader.Position);
             Assert.True(_messageReader.IsAtEnd);
         }
 
-        [Fact]
+        [Test]
         public void MessageReader_sets_position_and_updates_isatend()
         {
             _messageBuilder.Write(new byte[] {1, 2, 3, 4, 5, 6, 7, 8, 9});

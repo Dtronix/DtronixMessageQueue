@@ -2,15 +2,14 @@
 using System.Net;
 using System.Net.Sockets;
 using System.Threading;
-using Xunit;
-using Xunit.Abstractions;
+using NUnit;
+using NUnit.Framework;
 
 namespace DtronixMessageQueue.Tests.Mq
 {
     public class MqTestsBase : IDisposable
     {
         private Random _random = new Random();
-        public ITestOutputHelper Output;
 
         public MqServer<SimpleMqSession, MqConfig> Server { get; protected set; }
         public MqClient<SimpleMqSession, MqConfig> Client { get; protected set; }
@@ -24,9 +23,8 @@ namespace DtronixMessageQueue.Tests.Mq
 
         public ManualResetEventSlim TestStatus { get; set; } = new ManualResetEventSlim(false);
 
-        public MqTestsBase(ITestOutputHelper output)
+        public MqTestsBase()
         {
-            Output = output;
             Port = FreeTcpPort();
 
             Config = new MqConfig
@@ -95,14 +93,14 @@ namespace DtronixMessageQueue.Tests.Mq
             try
             {
                 // Total frame count comparison.
-                Assert.Equal(expected.Count, actual.Count);
+                Assert.AreEqual(expected.Count, actual.Count);
 
                 for (int i = 0; i < expected.Count; i++)
                 {
                     // Frame length comparison.
-                    Assert.Equal(expected[i].DataLength, actual[i].DataLength);
+                    Assert.AreEqual(expected[i].DataLength, actual[i].DataLength);
 
-                    Assert.Equal(expected[i].Buffer, actual[i].Buffer);
+                    Assert.AreEqual(expected[i].Buffer, actual[i].Buffer);
                 }
             }
             catch (Exception e)
@@ -144,6 +142,7 @@ namespace DtronixMessageQueue.Tests.Mq
             }
             catch
             {
+                // ignored
             }
             try
             {
@@ -151,6 +150,7 @@ namespace DtronixMessageQueue.Tests.Mq
             }
             catch
             {
+                // ignored
             }
         }
     }

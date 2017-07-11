@@ -3,14 +3,14 @@ using System.Diagnostics;
 using System.Threading;
 using DtronixMessageQueue.Socket;
 using DtronixMessageQueue.Tests.Rpc.Services.Server;
-using Xunit;
-using Xunit.Abstractions;
+using NUnit.Framework;
+
 
 namespace DtronixMessageQueue.Tests.Rpc
 {
     public class RpcClientTests : RpcTestsBase
     {
-        public RpcClientTests(ITestOutputHelper output) : base(output)
+        public RpcClientTests()
         {
         }
 
@@ -20,7 +20,7 @@ namespace DtronixMessageQueue.Tests.Rpc
             public int Length { get; set; }
         }
 
-        [Fact]
+        [Test]
         public void Client_calls_proxy_method()
         {
             Server.Ready += (sender, args) => { args.Session.AddService(new CalculatorService()); };
@@ -45,7 +45,7 @@ namespace DtronixMessageQueue.Tests.Rpc
             StartAndWait();
         }
 
-        [Fact]
+        [Test]
         public void Client_calls_proxy_method_sequential()
         {
             Server.SessionSetup += (sender, args) => { args.Session.AddService(new CalculatorService()); };
@@ -63,14 +63,14 @@ namespace DtronixMessageQueue.Tests.Rpc
                     addedInt = service.Add(addedInt, 1);
                 }
 
-                Output.WriteLine($"{stopwatch.ElapsedMilliseconds}");
+                Console.WriteLine($"{stopwatch.ElapsedMilliseconds}");
                 TestStatus.Set();
             };
 
             StartAndWait();
         }
 
-        [Fact]
+        [Test]
         public void Client_calls_proxy_method_and_canceles()
         {
             Server.SessionSetup += (sender, args) =>
@@ -109,7 +109,7 @@ namespace DtronixMessageQueue.Tests.Rpc
             StartAndWait();
         }
 
-        [Fact]
+        [Test]
         public void Server_requests_authentication()
         {
             Server.Config.RequireAuthentication = true;
@@ -121,7 +121,7 @@ namespace DtronixMessageQueue.Tests.Rpc
             StartAndWait();
         }
 
-        [Fact]
+        [Test]
         public void Server_does_not_request_authentication()
         {
             Server.Config.RequireAuthentication = false;
@@ -151,7 +151,7 @@ namespace DtronixMessageQueue.Tests.Rpc
         }
 
 
-        [Fact]
+        [Test]
         public void Server_verifies_authentication()
         {
             var authData = new byte[] {1, 2, 3, 4, 5};
@@ -165,7 +165,7 @@ namespace DtronixMessageQueue.Tests.Rpc
             {
                 try
                 {
-                    Assert.Equal(authData, e.AuthData);
+                    Assert.AreEqual(authData, e.AuthData);
                 }
                 catch (Exception ex)
                 {
@@ -183,7 +183,7 @@ namespace DtronixMessageQueue.Tests.Rpc
             StartAndWait();
         }
 
-        [Fact]
+        [Test]
         public void Server_disconnectes_from_failed_authentication()
         {
             Server.Config.RequireAuthentication = true;
@@ -207,7 +207,7 @@ namespace DtronixMessageQueue.Tests.Rpc
             StartAndWait();
         }
 
-        [Fact]
+        [Test]
         public void Client_disconnectes_from_failed_authentication()
         {
             Server.Config.RequireAuthentication = true;
@@ -232,7 +232,7 @@ namespace DtronixMessageQueue.Tests.Rpc
         }
 
 
-        [Fact]
+        [Test]
         public void Client_notified_of_authentication_success()
         {
             Server.Config.RequireAuthentication = true;
@@ -256,7 +256,7 @@ namespace DtronixMessageQueue.Tests.Rpc
             StartAndWait();
         }
 
-        [Fact]
+        [Test]
         public void Client_times_out_on_long_auth()
         {
             Server.Config.RequireAuthentication = true;
@@ -276,7 +276,7 @@ namespace DtronixMessageQueue.Tests.Rpc
             StartAndWait(true, 5000, true);
         }
 
-        [Fact]
+        [Test]
         public void Client_does_not_ready_before_server_authenticates()
         {
             Server.Config.RequireAuthentication = true;
@@ -301,7 +301,7 @@ namespace DtronixMessageQueue.Tests.Rpc
             StartAndWait();
         }
 
-        [Fact]
+        [Test]
         public void Client_connects_disconnects_and_reconnects()
         {
             Server.Config.RequireAuthentication = false;

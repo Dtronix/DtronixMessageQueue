@@ -1,7 +1,7 @@
 ﻿using System;
 using System.IO;
 using System.Linq;
-using Xunit;
+using NUnit.Framework;
 
 namespace DtronixMessageQueue.Tests.Mq
 {
@@ -27,7 +27,7 @@ namespace DtronixMessageQueue.Tests.Mq
             _pingFrame = new MqFrame(null, MqFrameType.Ping, _config);
         }
 
-        [Fact]
+        [Test]
         public void FrameBuilder_parses_empty_frame()
         {
             _frameBuilder.Write(_emptyFrame.RawFrame(), 0, _emptyFrame.FrameSize);
@@ -36,7 +36,7 @@ namespace DtronixMessageQueue.Tests.Mq
             Utilities.CompareFrame(_emptyFrame, parsedFrame);
         }
 
-        [Fact]
+        [Test]
         public void FrameBuilder_parses_empty_last_frame()
         {
             _frameBuilder.Write(_emptyLastFrame.RawFrame(), 0, _emptyFrame.FrameSize);
@@ -45,7 +45,7 @@ namespace DtronixMessageQueue.Tests.Mq
             Utilities.CompareFrame(_emptyLastFrame, parsedFrame);
         }
 
-        [Fact]
+        [Test]
         public void FrameBuilder_parses_last_frame()
         {
             _frameBuilder.Write(_lastFrame.RawFrame(), 0, _lastFrame.FrameSize);
@@ -54,7 +54,7 @@ namespace DtronixMessageQueue.Tests.Mq
             Utilities.CompareFrame(_lastFrame, parsedFrame);
         }
 
-        [Fact]
+        [Test]
         public void FrameBuilder_parses_more_frame()
         {
             _frameBuilder.Write(_moreFrame.RawFrame(), 0, _moreFrame.FrameSize);
@@ -63,7 +63,7 @@ namespace DtronixMessageQueue.Tests.Mq
             Utilities.CompareFrame(_moreFrame, parsedFrame);
         }
 
-        [Fact]
+        [Test]
         public void FrameBuilder_parses_command_frame()
         {
             _frameBuilder.Write(_commandFrame.RawFrame(), 0, _commandFrame.FrameSize);
@@ -72,7 +72,7 @@ namespace DtronixMessageQueue.Tests.Mq
             Utilities.CompareFrame(_commandFrame, parsedFrame);
         }
 
-        [Fact]
+        [Test]
         public void FrameBuilder_parses_ping_frame()
         {
             _frameBuilder.Write(_pingFrame.RawFrame(), 0, _pingFrame.FrameSize);
@@ -81,7 +81,7 @@ namespace DtronixMessageQueue.Tests.Mq
             Utilities.CompareFrame(_pingFrame, parsedFrame);
         }
 
-        [Fact]
+        [Test]
         public void FrameBuilder_parses_multiple_frames()
         {
             _frameBuilder.Write(_moreFrame.RawFrame(), 0, _moreFrame.FrameSize);
@@ -94,7 +94,7 @@ namespace DtronixMessageQueue.Tests.Mq
             }
         }
 
-        [Fact]
+        [Test]
         public void FrameBuilder_parses_frames_in_parts()
         {
             var frameBytes = _lastFrame.RawFrame();
@@ -108,26 +108,26 @@ namespace DtronixMessageQueue.Tests.Mq
             Utilities.CompareFrame(_lastFrame, parsedFrame);
         }
 
-        [Fact]
+        [Test]
         public void FrameBuilder_throws_passed_buffer_too_large()
         {
             Assert.Throws<InvalidDataException>(
                 () => { _frameBuilder.Write(new byte[_config.FrameBufferSize + 1], 0, _config.FrameBufferSize + 1); });
         }
 
-        [Fact]
+        [Test]
         public void FrameBuilder_throws_frame_zero_length()
         {
             Assert.Throws<InvalidDataException>(() => { _frameBuilder.Write(new byte[] {2, 0, 0, 1}, 0, 4); });
         }
 
-        [Fact]
+        [Test]
         public void FrameBuilder_throws_frame_specified_length_too_large()
         {
             Assert.Throws<InvalidDataException>(() => { _frameBuilder.Write(new byte[] {2, 255, 255, 1}, 0, 4); });
         }
 
-        [Fact]
+        [Test]
         public void FrameBuilder_throws_frame_type_out_of_range()
         {
             var maxTypeEnum = Enum.GetValues(typeof(MqFrameType)).Cast<byte>().Max() + 1;
@@ -135,13 +135,13 @@ namespace DtronixMessageQueue.Tests.Mq
             Assert.Throws<InvalidDataException>(() => { _frameBuilder.Write(new byte[] {(byte) maxTypeEnum}, 0, 1); });
         }
 
-        [Fact]
+        [Test]
         public void FrameBuilder_parsed_frame_data()
         {
             _frameBuilder.Write(new byte[] {2, 10, 0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 0}, 0, 13);
             var parsedFrame = _frameBuilder.Frames.Dequeue();
 
-            Assert.Equal(new byte[] {1, 2, 3, 4, 5, 6, 7, 8, 9, 0}, parsedFrame.Buffer);
+            Assert.AreEqual(new byte[] {1, 2, 3, 4, 5, 6, 7, 8, 9, 0}, parsedFrame.Buffer);
         }
     }
 }
