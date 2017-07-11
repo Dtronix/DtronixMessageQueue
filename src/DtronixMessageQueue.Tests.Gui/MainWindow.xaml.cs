@@ -86,6 +86,34 @@ namespace DtronixMessageQueue.Tests.Gui
             set { SetValue(ClientConnectionsProperty, value); }
         }
 
+        public static readonly DependencyProperty TotalTransferredProperty = DependencyProperty.Register(
+            "TotalTransferred", typeof(string), typeof(MainWindow), new PropertyMetadata(default(string)));
+
+        public string TotalTransferred
+        {
+            get { return (string) GetValue(TotalTransferredProperty); }
+            set { SetValue(TotalTransferredProperty, value); }
+        }
+
+
+        public static readonly DependencyProperty TransferDownProperty = DependencyProperty.Register(
+            "TransferDown", typeof(string), typeof(MainWindow), new PropertyMetadata(default(string)));
+
+        public string TransferDown
+        {
+            get { return (string) GetValue(TransferDownProperty); }
+            set { SetValue(TransferDownProperty, value); }
+        }
+
+        public static readonly DependencyProperty TransferUpProperty = DependencyProperty.Register(
+            "TransferUp", typeof(string), typeof(MainWindow), new PropertyMetadata(default(string)));
+
+        public string TransferUp
+        {
+            get { return (string) GetValue(TransferUpProperty); }
+            set { SetValue(TransferUpProperty, value); }
+        }
+
         public static readonly DependencyProperty IpAddressProperty = DependencyProperty.Register(
             "IpAddress", typeof(string), typeof(MainWindow), new PropertyMetadata(default(string)));
 
@@ -99,6 +127,9 @@ namespace DtronixMessageQueue.Tests.Gui
 
         private Process _currentProcess;
         private Timer _processMemoryTimer;
+        private Stopwatch _totalTransferStopwatch;
+        private long _lastTotalSent = 0;
+        private long _lastTotalReceived = 0;
 
         public MainWindow(string[] args)
         {
@@ -126,10 +157,10 @@ namespace DtronixMessageQueue.Tests.Gui
             }
 
             _processMemoryTimer = new Timer(MemoryTimer);
-
             _processMemoryTimer.Change(100, 1000);
+            _totalTransferStopwatch = Stopwatch.StartNew();
 
-            ClientConnections = "50";
+            ClientConnections = "100";
 
             IpAddress = Dns.GetHostEntry(Dns.GetHostName())
                 .AddressList.First(
@@ -140,26 +171,48 @@ namespace DtronixMessageQueue.Tests.Gui
 
         }
 
+
         private void MemoryTimer(object state)
         {
-
-            using (Process currentProcess = Process.GetCurrentProcess())
+            Dispatcher.Invoke(() =>
             {
-                double size = currentProcess.WorkingSet64;
+                using (Process currentProcess = Process.GetCurrentProcess())
+                    MemoryUsage = FormatSize(currentProcess.WorkingSet64);
 
-                string[] sizes = {"B", "KB", "MB", "GB", "TB"};
-                int order = 0;
-                while (size >= 1024 && order < sizes.Length - 1)
-                {
-                    order++;
-                    size = size / 1024;
-                }
+                TotalTransferred =
+                    FormatSize(ConnectionPerformanceTestSession.TotalReceieved + ConnectionPerformanceTestSession.TotalSent);
 
-                Dispatcher.Invoke(() =>
-                {
-                    MemoryUsage = $"{size:0.##} {sizes[order]}";
-                });
+                TransferDown =
+                    FormatSize((double) (ConnectionPerformanceTestSession.TotalReceieved - _lastTotalReceived) /
+                               _totalTransferStopwatch.ElapsedMilliseconds) + "ps";
+
+                TransferUp =
+                    FormatSize((double)(ConnectionPerformanceTestSession.TotalSent - _lastTotalSent) /
+                               _totalTransferStopwatch.ElapsedMilliseconds) + "ps";
+
+                _lastTotalReceived = ConnectionPerformanceTestSession.TotalReceieved;
+                _lastTotalSent = ConnectionPerformanceTestSession.TotalSent;
+
+                _totalTransferStopwatch.Restart();
+            });
+
+        }
+
+        private string FormatSize(double length)
+        {
+            double size = length;
+
+            string[] sizes = { "B", "KB", "MB", "GB", "TB" };
+            int order = 0;
+            while (size >= 1024 && order < sizes.Length - 1)
+            {
+                order++;
+                size = size / 1024;
             }
+
+ 
+            return $"{size:0.0} {sizes[order]}";
+     
         }
 
         private void Stop(object sender, RoutedEventArgs e)

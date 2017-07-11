@@ -35,14 +35,6 @@ namespace DtronixMessageQueue.Tests.Gui.Tests
             }
         }
 
-        protected override void ServerMessage(Queue<MqMessage> messageQueue)
-        {
-
-        }
-
-        protected override void ClientMessage(Queue<MqMessage> messageQueue)
-        {
-        }
 
         private void RandomByteMessage(object state)
         {

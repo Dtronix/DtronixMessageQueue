@@ -8,6 +8,10 @@ namespace DtronixMessageQueue.Tests.Gui.Tests
     public abstract class MqBaseTestSession<T> : MqSession<T, MqConfig> 
         where T : MqSession<T, MqConfig>, new()
     {
+
+        public static long TotalReceieved;
+        public static long TotalSent;
+
         protected MqMessageReader Reader;
         protected MqMessageWriter Writer;
         protected readonly Stopwatch Stopwatch = new Stopwatch();
@@ -49,10 +53,32 @@ namespace DtronixMessageQueue.Tests.Gui.Tests
             return val;
         }
 
+        protected override void Send(byte[] buffer, int offset, int length)
+        {
+            base.Send(buffer, offset, length);
+            Interlocked.Add(ref TotalSent, length);
+        }
 
 
         public abstract void StartTest();
-        protected abstract void ClientMessage(Queue<MqMessage> messageQueue);
-        protected abstract void ServerMessage(Queue<MqMessage> messageQueue);
+
+
+        protected virtual void ServerMessage(Queue<MqMessage> messageQueue)
+        {
+            for (int i = 0; i < messageQueue.Count; i++)
+            {
+                var message = messageQueue.Dequeue();
+                Interlocked.Add(ref TotalReceieved, message.Size);
+            }
+        }
+
+        protected virtual void ClientMessage(Queue<MqMessage> messageQueue)
+        {
+            for (int i = 0; i < messageQueue.Count; i++)
+            {
+                var message = messageQueue.Dequeue();
+                Interlocked.Add(ref TotalReceieved, message.Size);
+            }
+        }
     }
 }

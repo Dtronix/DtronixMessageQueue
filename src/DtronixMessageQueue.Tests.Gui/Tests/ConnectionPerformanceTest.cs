@@ -62,7 +62,7 @@ namespace DtronixMessageQueue.Tests.Gui.Tests
                 Ip = "0.0.0.0",
                 Port = 2121,
                 PingTimeout = 1000,
-                MaxConnections = 100
+                MaxConnections = 1000
                  
             });
 
@@ -92,7 +92,7 @@ namespace DtronixMessageQueue.Tests.Gui.Tests
             _server.Ready += (sender, args) =>
             {
                 Log("Client Connected");
-                args.Session.GetProxy<IControllerService>().StartConnectionTest(clientConnections, 128, 3000);
+                args.Session.GetProxy<IControllerService>().StartConnectionTest(clientConnections, 1024, 3000);
             };
 
             _server.SessionSetup += OnServerSessionSetup;

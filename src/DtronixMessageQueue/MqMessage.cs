@@ -43,6 +43,11 @@ namespace DtronixMessageQueue
         /// </summary>
         public int Size => _frames.Sum(frame => frame.FrameSize);
 
+        /// <summary>
+        /// The total size of the raw frames minus the headers contained in this message.
+        /// </summary>
+        public int DataLength => _frames.Sum(frame => frame.DataLength);
+
         public MqMessage()
         {
         }

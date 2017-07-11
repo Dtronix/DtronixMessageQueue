@@ -260,7 +260,7 @@ namespace DtronixMessageQueue.Socket
         /// <param name="buffer">Buffer bytes to send.</param>
         /// <param name="offset">Offset in the buffer.</param>
         /// <param name="length">Total bytes to send.</param>
-        protected void Send(byte[] buffer, int offset, int length)
+        protected virtual void Send(byte[] buffer, int offset, int length)
         {
             if (Socket == null || Socket.Connected == false)
             {

@@ -7,6 +7,7 @@ namespace DtronixMessageQueue.Tests.Gui.Tests
         public string Name { get; }
         public MainWindow MainWindow { get; }
 
+        public long ServerThroughput { get; set; }
 
         protected PerformanceTest(string name, MainWindow mainWindow)
         {

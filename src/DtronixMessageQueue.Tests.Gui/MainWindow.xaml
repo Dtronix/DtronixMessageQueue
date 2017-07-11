@@ -55,12 +55,21 @@
             <Button Padding="4" Margin="5,0" VerticalAlignment="Center" Click="NewClient" IsEnabled="{Binding IsServer}">New Client</Button>
         </StackPanel>
         <StatusBar Grid.Row="4">
-            <TextBlock Text="{Binding Path=CurrentStatus, FallbackValue=Idle}" Width="100" />
+            <TextBlock Text="{Binding Path=CurrentStatus, FallbackValue=Idle}" Width="80" />
             <TextBlock Text="{Binding Path=CurrentMode, FallbackValue=Setup}" Width="50" />
 
             <TextBlock Width="120">
                 <TextBlock Text="Memory: " />
                 <TextBlock Text="{Binding Path=MemoryUsage, FallbackValue=0.0 MB}" />
+            </TextBlock>
+
+            <TextBlock>
+                <TextBlock Text="Transfer:" />
+                <TextBlock Text="{Binding Path=TotalTransferred, FallbackValue=N/A}" />
+                <TextBlock Text="; U:" />
+                <TextBlock Text="{Binding Path=TransferUp, FallbackValue=N/A}" />
+                <TextBlock Text="; D:" />
+                <TextBlock Text="{Binding Path=TransferDown, FallbackValue=N/A}" />
             </TextBlock>
         </StatusBar>
     </Grid>
