@@ -8,6 +8,23 @@
              Height="200"
              d:DesignWidth="450">
     <Grid>
-            
+        <Grid.ColumnDefinitions>
+            <ColumnDefinition Width="80"/>
+            <ColumnDefinition/>
+            <ColumnDefinition Width="80"/>
+            <ColumnDefinition/>
+        </Grid.ColumnDefinitions>
+        <Grid.RowDefinitions>
+            <RowDefinition Height="30"/>
+            <RowDefinition Height="30"/>
+            <RowDefinition Height="31*"/>
+        </Grid.RowDefinitions>
+        
+        <TextBlock Text="Bytes/Msg" VerticalAlignment="Center" HorizontalAlignment="Right" Margin="4" />
+        <TextBox Grid.Row="0" Grid.Column="1" VerticalAlignment="Center" Text="{Binding BytesPerMessage}" />
+
+        <TextBlock Grid.Row="0" Grid.Column="2" Text="Msg Period" VerticalAlignment="Center" HorizontalAlignment="Right" Margin="4" />
+        <TextBox Grid.Row="0" Grid.Column="3" VerticalAlignment="Center" Text="{Binding MessagePeroid}" />
+
     </Grid>
 </UserControl>

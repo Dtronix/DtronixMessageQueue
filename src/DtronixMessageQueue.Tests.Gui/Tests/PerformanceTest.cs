@@ -36,5 +36,6 @@ namespace DtronixMessageQueue.Tests.Gui.Tests
         public abstract void StartServer(int clientConnections);
         public abstract void StartClient(string ip);
         public abstract void StopTest();
+        public abstract void CloseConnectedClients();
     }
 }

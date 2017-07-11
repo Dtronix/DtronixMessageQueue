@@ -51,7 +51,7 @@ namespace DtronixMessageQueue.Tests.Gui.Services
 
                 client.Connected += (sender, args) =>
                 {
-                    args.Session.ConfigTest(packageLength);
+                    args.Session.ConfigTest(packageLength, perioid);
                     TestBase.Log("Connection test client connected.");
 
                     ConnectionTestLog();
@@ -87,6 +87,14 @@ namespace DtronixMessageQueue.Tests.Gui.Services
             }
 
 
+        }
+
+        public void CloseClient()
+        {
+            TestBase.MainWindow.Dispatcher.Invoke(() =>
+            {
+                TestBase.MainWindow.Close();
+            });
         }
 
         public void StopTest()

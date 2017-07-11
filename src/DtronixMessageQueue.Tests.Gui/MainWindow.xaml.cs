@@ -123,6 +123,24 @@ namespace DtronixMessageQueue.Tests.Gui
             set { SetValue(IpAddressProperty, value); }
         }
 
+        public static readonly DependencyProperty IsTestRunningProperty = DependencyProperty.Register(
+            "IsTestRunning", typeof(bool), typeof(MainWindow), new PropertyMetadata(default(bool)));
+
+        public bool IsTestRunning
+        {
+            get { return (bool) GetValue(IsTestRunningProperty); }
+            set { SetValue(IsTestRunningProperty, value); }
+        }
+
+        public static readonly DependencyProperty CanModifySettingsProperty = DependencyProperty.Register(
+            "CanModifySettings", typeof(bool), typeof(MainWindow), new PropertyMetadata(default(bool)));
+
+        public bool CanModifySettings
+        {
+            get { return (bool) GetValue(CanModifySettingsProperty); }
+            set { SetValue(CanModifySettingsProperty, value); }
+        }
+
 
 
         private Process _currentProcess;
@@ -131,9 +149,13 @@ namespace DtronixMessageQueue.Tests.Gui
         private long _lastTotalSent = 0;
         private long _lastTotalReceived = 0;
 
+        private string[] _startupArgs;
+
         public MainWindow(string[] args)
         {
             InitializeComponent();
+
+            _startupArgs = args;
 
             _currentProcess = Process.GetCurrentProcess();
 
@@ -141,20 +163,12 @@ namespace DtronixMessageQueue.Tests.Gui
 
             DataContext = this;
 
+            CanModifySettings = true;
+            IsTestRunning = false;
+
             PerformanceTests.Add(new ConnectionPerformanceTest(this));
 
             SelectedPerformanceTest = PerformanceTests[0];
-
-            if (args.Length == 0)
-            {
-                CurrentMode = "Setup";
-                IsServer = true;
-            }
-            else if (args[0] == "client")
-            {
-                CurrentMode = "Client";
-                IsServer = false;
-            }
 
             _processMemoryTimer = new Timer(MemoryTimer);
             _processMemoryTimer.Change(100, 1000);
@@ -184,11 +198,11 @@ namespace DtronixMessageQueue.Tests.Gui
 
                 TransferDown =
                     FormatSize((double) (ConnectionPerformanceTestSession.TotalReceieved - _lastTotalReceived) /
-                               _totalTransferStopwatch.ElapsedMilliseconds) + "ps";
+                               _totalTransferStopwatch.ElapsedMilliseconds * 1000) + "ps";
 
                 TransferUp =
                     FormatSize((double)(ConnectionPerformanceTestSession.TotalSent - _lastTotalSent) /
-                               _totalTransferStopwatch.ElapsedMilliseconds) + "ps";
+                               _totalTransferStopwatch.ElapsedMilliseconds * 1000) + "ps";
 
                 _lastTotalReceived = ConnectionPerformanceTestSession.TotalReceieved;
                 _lastTotalSent = ConnectionPerformanceTestSession.TotalSent;
@@ -218,17 +232,23 @@ namespace DtronixMessageQueue.Tests.Gui
         private void Stop(object sender, RoutedEventArgs e)
         {
             SelectedPerformanceTest.StopTest();
+            IsTestRunning = false;
+            CanModifySettings = !IsTestRunning;
         }
 
 
         private void StartAsServer(object sender, RoutedEventArgs e)
         {
             SelectedPerformanceTest.StartServer(int.Parse(ClientConnections));
+            IsTestRunning = true;
+            CanModifySettings = !IsTestRunning;
         }
 
         private void StartAsClient(object sender, RoutedEventArgs e)
         {
             SelectedPerformanceTest.StartClient(IpAddress);
+            IsTestRunning = true;
+            CanModifySettings = !IsTestRunning;
         }
 
         private void NewClient(object sender, RoutedEventArgs e)
@@ -239,6 +259,36 @@ namespace DtronixMessageQueue.Tests.Gui
         private void MainWindow_OnClosing(object sender, CancelEventArgs e)
         {
             SelectedPerformanceTest.StopTest();
+            SelectedPerformanceTest.CloseConnectedClients();
+        }
+
+        private void TestChanged(object sender, SelectionChangedEventArgs e)
+        {
+            var control = SelectedPerformanceTest.GetConfigControl();
+
+            if (control == null)
+                return;
+
+            ConfigurationContainer.Content = control;
+
+
+        }
+
+        private void MainWindow_OnLoaded(object sender, RoutedEventArgs e)
+        {
+
+            if (_startupArgs.Length == 0)
+            {
+                CurrentMode = "Setup";
+                IsServer = true;
+            }
+            else if (_startupArgs[0] == "client")
+            {
+                CurrentMode = "Client";
+                CanModifySettings = false;
+                StartAsClient(this, null);
+                IsServer = false;
+            }
         }
     }
 }

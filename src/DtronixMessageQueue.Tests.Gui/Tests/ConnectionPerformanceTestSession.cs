@@ -10,13 +10,14 @@ namespace DtronixMessageQueue.Tests.Gui.Tests
         public DateTime StartedTime;
 
         private int _configFrameSize;
+        private int _period;
         private MqMessage _testMessage;
 
 
-        public void ConfigTest(int frameSize)
+        public void ConfigTest(int frameSize, int period)
         {
             _configFrameSize = frameSize;
-
+            _period = period;
             var testFrame = CreateFrame(RandomBytes(_configFrameSize));
             _testMessage = new MqMessage(testFrame);
             
@@ -30,7 +31,7 @@ namespace DtronixMessageQueue.Tests.Gui.Tests
             if (!IsServer)
             {
                 ResponseTimer = new Timer(RandomByteMessage);
-                ResponseTimer.Change(1000, 1000);
+                ResponseTimer.Change(_period, _period);
                 Stopwatch.Restart();
             }
         }

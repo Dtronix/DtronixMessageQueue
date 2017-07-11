@@ -12,5 +12,6 @@ namespace DtronixMessageQueue.Tests.Gui.Services
         void ClientReady();
         void StartConnectionTest(int clients, int packageLength, int perioid);
         void StopTest();
+        void CloseClient();
     }
 }

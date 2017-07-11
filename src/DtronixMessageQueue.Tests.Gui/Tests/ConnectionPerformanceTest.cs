@@ -19,16 +19,18 @@ namespace DtronixMessageQueue.Tests.Gui.Tests
         private MqServer<ConnectionPerformanceTestSession, MqConfig> _testServer;
         private ControllerService _controllerService;
 
+        private ConnectionPerformanceTestControl _control;
+
 
 
         public ConnectionPerformanceTest(MainWindow mainWindow) : base("Connection Test", mainWindow)
         {
-            
+            _control = new ConnectionPerformanceTestControl();
         }
 
         public override UserControl GetConfigControl()
         {
-            return null;
+            return _control;
         }
 
 
@@ -57,24 +59,27 @@ namespace DtronixMessageQueue.Tests.Gui.Tests
 
             Log("Starting Test Server");
 
-            _testServer = new MqServer<ConnectionPerformanceTestSession, MqConfig>(new MqConfig
+            if (_testServer == null)
             {
-                Ip = "0.0.0.0",
-                Port = 2121,
-                PingTimeout = 1000,
-                MaxConnections = 1000
-                 
-            });
+                _testServer = new MqServer<ConnectionPerformanceTestSession, MqConfig>(new MqConfig
+                {
+                    Ip = "0.0.0.0",
+                    Port = 2121,
+                    PingTimeout = 1000,
+                    MaxConnections = 1000
 
-            _testServer.Connected += (sender, args) =>
-            {
-                Log("New Test Client Connected");
-            };
+                });
 
-            _testServer.Closed += (sender, args) =>
-            {
-                Log($"Test Client Disconnected. Reason: {args.CloseReason}");
-            };
+                _testServer.Connected += (sender, args) =>
+                {
+                    Log("New Test Client Connected");
+                };
+
+                _testServer.Closed += (sender, args) =>
+                {
+                    Log($"Test Client Disconnected. Reason: {args.CloseReason}");
+                };
+            }
 
             _testServer.Start();
 
@@ -92,7 +97,13 @@ namespace DtronixMessageQueue.Tests.Gui.Tests
             _server.Ready += (sender, args) =>
             {
                 Log("Client Connected");
-                args.Session.GetProxy<IControllerService>().StartConnectionTest(clientConnections, 1024, 3000);
+                MainWindow.Dispatcher.Invoke(() =>
+                {
+                    args.Session.GetProxy<IControllerService>()
+                        .StartConnectionTest(clientConnections, _control.ConfigBytesPerMessage,
+                            _control.ConfigMessagePeriod);
+                });
+                
             };
 
             _server.SessionSetup += OnServerSessionSetup;
@@ -131,6 +142,8 @@ namespace DtronixMessageQueue.Tests.Gui.Tests
                     sessions.Current.Value.GetProxy<IControllerService>().StopTest();
                 }
 
+                _testServer.Stop();
+
             }
 
             if (_client != null)
@@ -140,6 +153,18 @@ namespace DtronixMessageQueue.Tests.Gui.Tests
             }
         }
 
+        public override void CloseConnectedClients()
+        {
+            if (_server != null)
+            {
+                var sessions = _server.GetSessionsEnumerator();
+
+                while (sessions.MoveNext())
+                {
+                    sessions.Current.Value.GetProxy<IControllerService>().CloseClient();
+                }
+            }
+        }
     }
     
 }

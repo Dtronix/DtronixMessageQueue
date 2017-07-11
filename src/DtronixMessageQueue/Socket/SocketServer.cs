@@ -57,6 +57,8 @@ namespace DtronixMessageQueue.Socket
 
             // create the socket which listens for incoming connections
             MainSocket = new System.Net.Sockets.Socket(localEndPoint.AddressFamily, SocketType.Stream, ProtocolType.Tcp);
+            MainSocket.SetSocketOption(SocketOptionLevel.Socket, SocketOptionName.ReuseAddress, true);
+            //MainSocket.SetSocketOption(SocketOptionLevel.Socket, SocketOptionName.DontLinger, true);
             MainSocket.Bind(localEndPoint);
 
             // start the server with a listen backlog.
@@ -193,7 +195,16 @@ namespace DtronixMessageQueue.Socket
                 session.Close(SocketCloseReason.ServerClosing);
             }
 
-            MainSocket.Close();
+            try
+            {
+                MainSocket.Shutdown(SocketShutdown.Both);
+                MainSocket.Disconnect(true);
+                MainSocket.Close();
+            }
+            catch
+            {
+                //ignored
+            }
             _isStopped = true;
         }
     }
