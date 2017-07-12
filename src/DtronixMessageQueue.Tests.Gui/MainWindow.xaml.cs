@@ -167,6 +167,7 @@ namespace DtronixMessageQueue.Tests.Gui
             IsTestRunning = false;
 
             PerformanceTests.Add(new ConnectionPerformanceTest(this));
+            PerformanceTests.Add(new MaxThroughputPerformanceTest(this));
 
             SelectedPerformanceTest = PerformanceTests[0];
 

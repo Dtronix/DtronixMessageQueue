@@ -10,8 +10,10 @@ namespace DtronixMessageQueue.Tests.Gui.Services
     interface IControllerService : IRemoteService<ControllerSession, RpcConfig>
     {
         void ClientReady();
-        void StartConnectionTest(int clients, int packageLength, int perioid);
+        void StartConnectionTest(int clients, int packageLength, int period);
+        void StartMaxThroughputTest(int clientConnections, int controlConfigFrames, int controlConfigFrameSize);
         void StopTest();
         void CloseClient();
+        
     }
 }

@@ -73,7 +73,7 @@ namespace DtronixMessageQueue
         public MqFrameBuilder(MqConfig config)
         {
             _config = config;
-            _internalBuffer = new byte[config.FrameBufferSize + MqFrame.HeaderLength];
+            _internalBuffer = new byte[(config.FrameBufferSize * 2) + MqFrame.HeaderLength];
 
             // Determine what our max enum value is for the FrameType
             if (_maxTypeEnum == -1)

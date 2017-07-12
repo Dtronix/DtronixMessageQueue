@@ -55,7 +55,7 @@
             <Button Padding="4" Margin="5,0" VerticalAlignment="Center" Click="NewClient">New Client</Button>
         </StackPanel>
         <StatusBar Grid.Row="4">
-            <TextBlock Text="{Binding Path=CurrentStatus, FallbackValue=Idle}" Width="80" />
+            <TextBlock Text="{Binding Path=CurrentStatus, FallbackValue=Idle}" Width="60" />
             <TextBlock Text="{Binding Path=CurrentMode, FallbackValue=Setup}" Width="50" />
 
             <TextBlock Width="100">

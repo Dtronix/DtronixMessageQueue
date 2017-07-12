@@ -9,7 +9,7 @@ using DtronixMessageQueue.Tests.Gui.Tests;
 
 namespace DtronixMessageQueue.Tests.Gui.Services
 {
-    class ControllerService : IControllerService
+    public class ControllerService : IControllerService
     {
       
         public string Name { get; } = "ControllerService";
@@ -17,12 +17,14 @@ namespace DtronixMessageQueue.Tests.Gui.Services
         private RpcServer<ControllerSession, RpcConfig> _server;
 
         private List<MqClient<ConnectionPerformanceTestSession, MqConfig>> _connectionTestClientList;
+        private List<MqClient<MaxThroughputPerformanceTestSession, MqConfig>> _maxThroughputTestClientList;
         private PerformanceTest TestBase;
 
         public ControllerService(PerformanceTest testBase)
         {
             TestBase = testBase;
             _connectionTestClientList = new List<MqClient<ConnectionPerformanceTestSession, MqConfig>>();
+            _maxThroughputTestClientList = new List<MqClient<MaxThroughputPerformanceTestSession, MqConfig>>();
         }
 
         public void ClientReady()
@@ -35,7 +37,7 @@ namespace DtronixMessageQueue.Tests.Gui.Services
 
 
 
-        public void StartConnectionTest(int clients, int packageLength, int perioid)
+        public void StartConnectionTest(int clients, int packageLength, int period)
         {
 
             TestBase.Log("Started Connection Test");
@@ -51,7 +53,7 @@ namespace DtronixMessageQueue.Tests.Gui.Services
 
                 client.Connected += (sender, args) =>
                 {
-                    args.Session.ConfigTest(packageLength, perioid);
+                    args.Session.ConfigTest(packageLength, period);
                     TestBase.Log("Connection test client connected.");
 
                     ConnectionTestLog();
@@ -103,6 +105,40 @@ namespace DtronixMessageQueue.Tests.Gui.Services
             foreach (var mqClient in _connectionTestClientList)
             {
                 mqClient.Close();
+            }
+        }
+
+        public void StartMaxThroughputTest(int clientConnections, int controlConfigFrames, int controlConfigFrameSize)
+        {
+            TestBase.Log("Started Connection Test");
+
+            for (int i = 0; i < clientConnections; i++)
+            {
+                var client = new MqClient<MaxThroughputPerformanceTestSession, MqConfig>(new MqConfig
+                {
+                    Ip = Session.Config.Ip,
+                    Port = 2121,
+                    PingFrequency = 500
+                });
+
+                client.Connected += (sender, args) =>
+                {
+                    args.Session.ConfigTest(controlConfigFrameSize, controlConfigFrames);
+                    TestBase.Log("Connection test client connected.");
+
+                    ConnectionTestLog();
+                    args.Session.StartTest();
+                };
+
+                client.Closed += (sender, args) =>
+                {
+                    ConnectionTestLog();
+                };
+
+                TestBase.Log("Connection test client connecting...");
+                client.Connect();
+
+                _maxThroughputTestClientList.Add(client);
             }
         }
     }

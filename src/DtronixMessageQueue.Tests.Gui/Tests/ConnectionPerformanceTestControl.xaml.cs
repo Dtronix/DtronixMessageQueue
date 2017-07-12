@@ -32,16 +32,16 @@ namespace DtronixMessageQueue.Tests.Gui.Tests
 
         public int ConfigBytesPerMessage => int.Parse(BytesPerMessage);
 
-        public static readonly DependencyProperty MessagePeroidProperty = DependencyProperty.Register(
-            "MessagePeroid", typeof(string), typeof(ConnectionPerformanceTestControl), new PropertyMetadata(default(string)));
+        public static readonly DependencyProperty MessagePeriodProperty = DependencyProperty.Register(
+            "MessagePeriod", typeof(string), typeof(ConnectionPerformanceTestControl), new PropertyMetadata(default(string)));
 
-        public string MessagePeroid
+        public string MessagePeriod
         {
-            get { return (string) GetValue(MessagePeroidProperty); }
-            set { SetValue(MessagePeroidProperty, value); }
+            get { return (string) GetValue(MessagePeriodProperty); }
+            set { SetValue(MessagePeriodProperty, value); }
         }
 
-        public int ConfigMessagePeriod => int.Parse(MessagePeroid);
+        public int ConfigMessagePeriod => int.Parse(MessagePeriod);
 
         public ConnectionPerformanceTestControl()
         {
@@ -49,7 +49,7 @@ namespace DtronixMessageQueue.Tests.Gui.Tests
             DataContext = this;
 
             BytesPerMessage = "16381";
-            MessagePeroid = "1000";
+            MessagePeriod = "1000";
 
 
         }
