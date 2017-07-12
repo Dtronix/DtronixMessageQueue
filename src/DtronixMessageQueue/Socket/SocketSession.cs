@@ -207,7 +207,7 @@ namespace DtronixMessageQueue.Socket
         protected virtual void OnConnected()
         {
             //logger.Info("Session {0}: Connected", Id);
-            Connected?.Invoke(this, new SessionEventArgs<TSession, TConfig>((TSession) this));
+            Connected?.Invoke(this, new SessionEventArgs<TSession, TConfig>((TSession)this));
         }
 
         /// <summary>
@@ -216,7 +216,7 @@ namespace DtronixMessageQueue.Socket
         /// <param name="reason">Reason this socket is disconnecting</param>
         protected virtual void OnDisconnected(SocketCloseReason reason)
         {
-            Closed?.Invoke(this, new SessionClosedEventArgs<TSession, TConfig>((TSession) this, reason));
+            Closed?.Invoke(this, new SessionClosedEventArgs<TSession, TConfig>((TSession)this, reason));
         }
 
         /// <summary>

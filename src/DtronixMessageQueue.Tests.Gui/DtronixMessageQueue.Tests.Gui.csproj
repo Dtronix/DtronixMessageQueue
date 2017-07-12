@@ -59,15 +59,15 @@
     <Compile Include="ControllerSession.cs" />
     <Compile Include="Services\IControllerService.cs" />
     <Compile Include="TestControllerSession.cs" />
-    <Compile Include="Tests\MaxThroughputPerformanceTest.cs" />
-    <Compile Include="Tests\MaxThroughpuPerformanceTestControl.xaml.cs">
-      <DependentUpon>MaxThroughpuPerformanceTestControl.xaml</DependentUpon>
+    <Compile Include="Tests\MaxThroughput\MaxThroughputPerformanceTest.cs" />
+    <Compile Include="Tests\MaxThroughput\MaxThroughputPerformanceTestControl.xaml.cs">
+      <DependentUpon>MaxThroughputPerformanceTestControl.xaml</DependentUpon>
     </Compile>
-    <Compile Include="Tests\MaxThroughputPerformanceTestSession.cs" />
-    <Compile Include="Tests\ConnectionPerformanceTestSession.cs" />
+    <Compile Include="Tests\MaxThroughput\MaxThroughputPerformanceTestSession.cs" />
+    <Compile Include="Tests\Connection\ConnectionPerformanceTestSession.cs" />
     <Compile Include="Tests\MqBaseTestSession.cs" />
-    <Compile Include="Tests\ConnectionPerformanceTest.cs" />
-    <Compile Include="Tests\ConnectionPerformanceTestControl.xaml.cs">
+    <Compile Include="Tests\Connection\ConnectionPerformanceTest.cs" />
+    <Compile Include="Tests\Connection\ConnectionPerformanceTestControl.xaml.cs">
       <DependentUpon>ConnectionPerformanceTestControl.xaml</DependentUpon>
     </Compile>
     <Compile Include="Tests\PerformanceTest.cs" />
@@ -86,11 +86,11 @@
       <DependentUpon>MainWindow.xaml</DependentUpon>
       <SubType>Code</SubType>
     </Compile>
-    <Page Include="Tests\MaxThroughpuPerformanceTestControl.xaml">
+    <Page Include="Tests\MaxThroughput\MaxThroughputPerformanceTestControl.xaml">
       <Generator>MSBuild:Compile</Generator>
       <SubType>Designer</SubType>
     </Page>
-    <Page Include="Tests\ConnectionPerformanceTestControl.xaml">
+    <Page Include="Tests\Connection\ConnectionPerformanceTestControl.xaml">
       <SubType>Designer</SubType>
       <Generator>MSBuild:Compile</Generator>
     </Page>

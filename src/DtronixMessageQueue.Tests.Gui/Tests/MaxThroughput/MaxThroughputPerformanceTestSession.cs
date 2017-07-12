@@ -1,10 +1,8 @@
 ﻿using System;
-using System.Collections.Generic;
-using System.Threading;
 using System.Threading.Tasks;
 using DtronixMessageQueue.Socket;
 
-namespace DtronixMessageQueue.Tests.Gui.Tests
+namespace DtronixMessageQueue.Tests.Gui.Tests.MaxThroughput
 {
     public class MaxThroughputPerformanceTestSession : MqBaseTestSession<MaxThroughputPerformanceTestSession>
     {
@@ -12,7 +10,6 @@ namespace DtronixMessageQueue.Tests.Gui.Tests
 
         private int _configFrameSize;
         private MqMessage _testMessage;
-
         public void ConfigTest(int frameSize, int totalFrames)
         {
             _configFrameSize = frameSize;
@@ -31,16 +28,10 @@ namespace DtronixMessageQueue.Tests.Gui.Tests
         {
             StartedTime = DateTime.Now;
 
-            var task = new Task( async () =>
+            while (CurrentState == State.Connected)
             {
-                while (CurrentState == State.Connected)
-                {
-                    Send(_testMessage);
-                    await Task.Delay(5);
-                }
-            }, TaskCreationOptions.LongRunning);
-
-            task.Start();
+                Send(_testMessage);
+            }
         }
 
 

@@ -41,11 +41,11 @@ namespace DtronixMessageQueue
 
         private Task _inboxTask;
 
-        //private readonly object _inboxLock = new object();
+        private readonly object _inboxLock = new object();
 
         private readonly object _outboxLock = new object();
 
-        //private Semaphore _sendingSemaphore;
+        private Semaphore _sendingSemaphore;
         /// <summary>
         /// Event fired when a new message has been processed by the Postmaster and ready to be read.
         /// </summary>
@@ -55,7 +55,7 @@ namespace DtronixMessageQueue
         protected override void OnSetup()
         {
             _frameBuilder = new MqFrameBuilder(Config);
-            //_sendingSemaphore = new Semaphore(Config.MaxQueuedOutgoingMessages, Config.MaxQueuedOutgoingMessages);
+            _sendingSemaphore = new Semaphore(Config.MaxQueuedOutgoingMessages, Config.MaxQueuedOutgoingMessages);
         }
 
         /// <summary>
@@ -69,14 +69,15 @@ namespace DtronixMessageQueue
                 return;
             }
 
-            
-            _inboxBytes.Enqueue(buffer);
-            
+            lock (_inboxLock)
+            {
+                _inboxBytes.Enqueue(buffer);
+            }
 
 
             if (_inboxTask == null || _inboxTask.IsCompleted)
             {
-                _inboxTask = Task.Run((Action) ProcessIncomingQueue);
+                _inboxTask = Task.Run((Action)ProcessIncomingQueue);
             }
         }
 
@@ -117,7 +118,7 @@ namespace DtronixMessageQueue
 
             while (_outbox.TryDequeue(out message))
             {
-                //_sendingSemaphore.Release();
+                _sendingSemaphore.Release();
                 //Console.WriteLine("Wrote " + message);
                 message.PrepareSend();
                 foreach (var frame in message)
@@ -151,7 +152,7 @@ namespace DtronixMessageQueue
             {
                 if (_outbox.IsEmpty == false)
                 {
-                    _outboxTask = Task.Run((Action) ProcessOutbox);
+                    _outboxTask = Task.Run((Action)ProcessOutbox);
                 }
             }
         }
@@ -225,22 +226,21 @@ namespace DtronixMessageQueue
                 }
             }
 
-            _inboxTask = null;
-
             if (messages == null)
             {
                 return;
             }
 
 
-            OnIncomingMessage(this, new IncomingMessageEventArgs<TSession, TConfig>(messages, (TSession) this));
+            OnIncomingMessage(this, new IncomingMessageEventArgs<TSession, TConfig>(messages, (TSession)this));
 
-            
-            if (_inboxTask == null)
+            lock (_inboxLock)
             {
-                _inboxTask = Task.Run((Action) ProcessIncomingQueue);
+                if (_inboxBytes.IsEmpty == false)
+                {
+                    _inboxTask = Task.Run((Action)ProcessIncomingQueue);
+                }
             }
-            
         }
 
 
@@ -268,16 +268,14 @@ namespace DtronixMessageQueue
             }
 
             MqFrame closeFrame = null;
-
-            // Send the close frame if the connection is active or in the process of connecting.
-            if (CurrentState == State.Connected || CurrentState == State.Connecting)
+            if (CurrentState == State.Connected)
             {
                 CurrentState = State.Closing;
 
                 closeFrame = CreateFrame(new byte[2], MqFrameType.Command);
 
-                closeFrame.Write(0, (byte) 0);
-                closeFrame.Write(1, (byte) reason);
+                closeFrame.Write(0, (byte)0);
+                closeFrame.Write(1, (byte)reason);
             }
 
             // If we are passed a closing frame, then send it to the other connection.
@@ -288,7 +286,7 @@ namespace DtronixMessageQueue
                 {
                     while (_outbox.TryDequeue(out msg))
                     {
-                        //_sendingSemaphore.Release();
+                        _sendingSemaphore.Release();
                     }
                 }
 
@@ -326,7 +324,7 @@ namespace DtronixMessageQueue
                 return;
             }
 
-            //_sendingSemaphore.WaitOne();
+            _sendingSemaphore.WaitOne();
             lock (_outboxLock)
             {
                 _outbox.Enqueue(message);
@@ -334,7 +332,7 @@ namespace DtronixMessageQueue
 
             if (_outboxTask == null || _outboxTask.IsCompleted)
             {
-                _outboxTask = Task.Run((Action) ProcessOutbox);
+                _outboxTask = Task.Run((Action)ProcessOutbox);
             }
         }
 
@@ -366,13 +364,13 @@ namespace DtronixMessageQueue
         /// <param name="frame">Command frame to process.</param>
         protected virtual void ProcessCommand(MqFrame frame)
         {
-            var commandType = (MqCommandType) frame.ReadByte(0);
+            var commandType = (MqCommandType)frame.ReadByte(0);
 
             switch (commandType)
             {
                 case MqCommandType.Disconnect:
                     CurrentState = State.Closing;
-                    Close((SocketCloseReason) frame.ReadByte(1));
+                    Close((SocketCloseReason)frame.ReadByte(1));
                     break;
 
                 default:

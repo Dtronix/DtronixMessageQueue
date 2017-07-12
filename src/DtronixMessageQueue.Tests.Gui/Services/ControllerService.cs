@@ -6,6 +6,8 @@ using System.Threading.Tasks;
 using DtronixMessageQueue.Rpc;
 using DtronixMessageQueue.Socket;
 using DtronixMessageQueue.Tests.Gui.Tests;
+using DtronixMessageQueue.Tests.Gui.Tests.Connection;
+using DtronixMessageQueue.Tests.Gui.Tests.MaxThroughput;
 
 namespace DtronixMessageQueue.Tests.Gui.Services
 {

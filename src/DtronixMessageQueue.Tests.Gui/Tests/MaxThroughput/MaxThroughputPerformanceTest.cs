@@ -1,35 +1,30 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Diagnostics;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
-using System.Windows.Controls;
+﻿using System.Windows.Controls;
 using DtronixMessageQueue.Rpc;
 using DtronixMessageQueue.Socket;
 using DtronixMessageQueue.Tests.Gui.Services;
 
-namespace DtronixMessageQueue.Tests.Gui.Tests
+namespace DtronixMessageQueue.Tests.Gui.Tests.MaxThroughput
 {
-    public class ConnectionPerformanceTest : PerformanceTest
+    public class MaxThroughputPerformanceTest : PerformanceTest
     {
 
-        private MqServer<ConnectionPerformanceTestSession, MqConfig> _testServer;
 
-        private ConnectionPerformanceTestControl _control;
+        private MqServer<MaxThroughputPerformanceTestSession, MqConfig> _testServer;
+        
+        private MaxThroughputPerformanceTestControl _control;
 
 
-        public ConnectionPerformanceTest(MainWindow mainWindow) : base("Connection Test", mainWindow)
+
+        public MaxThroughputPerformanceTest(MainWindow mainWindow) : base("Max Throughput Test", mainWindow)
         {
-            _control = new ConnectionPerformanceTestControl();
+            _control = new MaxThroughputPerformanceTestControl();
         }
 
         public override UserControl GetConfigControl()
         {
-            MainWindow.ClientConnections = "100";
+            MainWindow.ClientConnections = "1";
             return _control;
         }
-
 
         public override void StartServer(int clientConnections)
         {
@@ -38,11 +33,11 @@ namespace DtronixMessageQueue.Tests.Gui.Tests
 
             if (_testServer == null)
             {
-                _testServer = new MqServer<ConnectionPerformanceTestSession, MqConfig>(new MqConfig
+                _testServer = new MqServer<MaxThroughputPerformanceTestSession, MqConfig>(new MqConfig
                 {
                     Ip = "0.0.0.0",
                     Port = 2121,
-                    PingTimeout = 1000,
+                    PingTimeout = 8000,
                     MaxConnections = 1000
 
                 });
@@ -69,19 +64,16 @@ namespace DtronixMessageQueue.Tests.Gui.Tests
             MainWindow.Dispatcher.Invoke(() =>
             {
                 args.Session.GetProxy<IControllerService>()
-                    .StartConnectionTest(ClientConnections, _control.ConfigBytesPerMessage,
-                        _control.ConfigMessagePeriod);
+                    .StartMaxThroughputTest(ClientConnections, _control.ConfigFrames,
+                        _control.ConfigFrameSize);
             });
         }
-
-
 
         public override void StopTest()
         {
             base.StopTest();
             _testServer?.Stop();
         }
-
     }
-
+    
 }

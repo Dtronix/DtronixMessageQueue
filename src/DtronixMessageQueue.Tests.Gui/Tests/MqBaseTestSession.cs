@@ -21,7 +21,18 @@ namespace DtronixMessageQueue.Tests.Gui.Tests
         public bool CancelTest { get; set; }
 
 
+
         protected Random Rand = new Random();
+
+        public long GetTotalReceived()
+        {
+            return TotalReceieved;
+        }
+
+        public long GetTotalSent()
+        {
+            return TotalSent;
+        }
 
         protected override void OnSetup()
         {
@@ -30,6 +41,8 @@ namespace DtronixMessageQueue.Tests.Gui.Tests
             Reader = new MqMessageReader();
             Writer = new MqMessageWriter(Config);
         }
+
+
 
         protected override void OnIncomingMessage(object sender, IncomingMessageEventArgs<T, MqConfig> e)
         {

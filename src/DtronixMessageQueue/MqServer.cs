@@ -54,9 +54,6 @@ namespace DtronixMessageQueue
         /// <param name="reason">Reason the session closed.</param>
         protected override void OnClose(TSession session, SocketCloseReason reason)
         {
-            TSession outSession;
-            //ConnectedSessions.TryRemove(session.Id, out outSession);
-
             session.IncomingMessage -= OnIncomingMessage;
             session.Dispose();
             base.OnClose(session, reason);

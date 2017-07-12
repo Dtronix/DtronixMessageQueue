@@ -18,6 +18,8 @@ using System.Windows.Media.Imaging;
 using System.Windows.Navigation;
 using System.Windows.Shapes;
 using DtronixMessageQueue.Tests.Gui.Tests;
+using DtronixMessageQueue.Tests.Gui.Tests.Connection;
+using DtronixMessageQueue.Tests.Gui.Tests.MaxThroughput;
 
 namespace DtronixMessageQueue.Tests.Gui
 {
@@ -159,15 +161,17 @@ namespace DtronixMessageQueue.Tests.Gui
 
             _currentProcess = Process.GetCurrentProcess();
 
-            PerformanceTests = new ObservableCollection<PerformanceTest>();
+            PerformanceTests = new ObservableCollection<PerformanceTest>()
+            {
+                new MaxThroughputPerformanceTest(this),
+                new ConnectionPerformanceTest(this)
+            };
 
             DataContext = this;
 
             CanModifySettings = true;
             IsTestRunning = false;
 
-            PerformanceTests.Add(new ConnectionPerformanceTest(this));
-            PerformanceTests.Add(new MaxThroughputPerformanceTest(this));
 
             SelectedPerformanceTest = PerformanceTests[0];
 
@@ -189,24 +193,27 @@ namespace DtronixMessageQueue.Tests.Gui
 
         private void MemoryTimer(object state)
         {
+            var totalReceived = ConnectionPerformanceTestSession.TotalReceieved + MaxThroughputPerformanceTestSession.TotalReceieved;
+            var totalSent = ConnectionPerformanceTestSession.TotalSent + MaxThroughputPerformanceTestSession.TotalSent;
+
             Dispatcher.Invoke(() =>
             {
                 using (Process currentProcess = Process.GetCurrentProcess())
                     MemoryUsage = FormatSize(currentProcess.WorkingSet64);
 
                 TotalTransferred =
-                    FormatSize(ConnectionPerformanceTestSession.TotalReceieved + ConnectionPerformanceTestSession.TotalSent);
+                    FormatSize(totalReceived + totalSent);
 
                 TransferDown =
-                    FormatSize((double) (ConnectionPerformanceTestSession.TotalReceieved - _lastTotalReceived) /
+                    FormatSize((double) (totalReceived - _lastTotalReceived) /
                                _totalTransferStopwatch.ElapsedMilliseconds * 1000) + "ps";
 
                 TransferUp =
-                    FormatSize((double)(ConnectionPerformanceTestSession.TotalSent - _lastTotalSent) /
+                    FormatSize((double)(totalSent - _lastTotalSent) /
                                _totalTransferStopwatch.ElapsedMilliseconds * 1000) + "ps";
 
-                _lastTotalReceived = ConnectionPerformanceTestSession.TotalReceieved;
-                _lastTotalSent = ConnectionPerformanceTestSession.TotalSent;
+                _lastTotalReceived = totalReceived;
+                _lastTotalSent = totalSent;
 
                 _totalTransferStopwatch.Restart();
             });

@@ -1,9 +1,8 @@
 ﻿using System;
-using System.Collections.Generic;
 using System.Threading;
 using DtronixMessageQueue.Socket;
 
-namespace DtronixMessageQueue.Tests.Gui.Tests
+namespace DtronixMessageQueue.Tests.Gui.Tests.Connection
 {
     public class ConnectionPerformanceTestSession : MqBaseTestSession<ConnectionPerformanceTestSession>
     {
