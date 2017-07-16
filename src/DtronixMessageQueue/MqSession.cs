@@ -46,6 +46,7 @@ namespace DtronixMessageQueue
         private readonly object _outboxLock = new object();
 
         private Semaphore _sendingSemaphore;
+
         /// <summary>
         /// Event fired when a new message has been processed by the Postmaster and ready to be read.
         /// </summary>
@@ -118,8 +119,10 @@ namespace DtronixMessageQueue
 
             while (_outbox.TryDequeue(out message))
             {
-                _sendingSemaphore.Release();
-                //Console.WriteLine("Wrote " + message);
+
+                if(CurrentState == State.Connected)
+                    _sendingSemaphore.Release();
+
                 message.PrepareSend();
                 foreach (var frame in message)
                 {
@@ -268,7 +271,7 @@ namespace DtronixMessageQueue
             }
 
             MqFrame closeFrame = null;
-            if (CurrentState == State.Connected)
+            if (CurrentState == State.Connected || CurrentState == State.Connecting)
             {
                 CurrentState = State.Closing;
 
@@ -325,6 +328,7 @@ namespace DtronixMessageQueue
             }
 
             _sendingSemaphore.WaitOne();
+
             lock (_outboxLock)
             {
                 _outbox.Enqueue(message);

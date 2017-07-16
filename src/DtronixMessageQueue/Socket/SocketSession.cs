@@ -81,7 +81,6 @@ namespace DtronixMessageQueue.Socket
         /// </summary>
         public DateTime ConnectedTime { get; private set; }
 
-
         /// <summary>
         /// Base socket for this session.
         /// </summary>
@@ -271,8 +270,6 @@ namespace DtronixMessageQueue.Socket
             // Copy the bytes to the block buffer
             Buffer.BlockCopy(buffer, offset, _sendArgs.Buffer, _sendArgs.Offset, length);
 
-            //logger.Debug("Session {0}: Sending {1} bytes", Id, length);
-
             // Update the buffer length.
             _sendArgs.SetBuffer(_sendArgs.Offset, length);
 
@@ -357,8 +354,6 @@ namespace DtronixMessageQueue.Socket
         /// <param name="reason">Reason this socket is closing.</param>
         public virtual void Close(SocketCloseReason reason)
         {
-            //logger.Info("Session {0}: Closing. Reason: {1}", Id, reason);
-
             // If this session has already been closed, nothing more to do.
             if (CurrentState == State.Closed)
             {
@@ -368,11 +363,16 @@ namespace DtronixMessageQueue.Socket
             // close the socket associated with the client
             try
             {
-                Socket.Close(1000);
+                Socket.Shutdown(SocketShutdown.Receive);
+                Socket.Disconnect(false);
             }
             catch (Exception)
             {
                 // ignored
+            }
+            finally
+            {
+                Socket.Close(1000);
             }
 
             _sendArgs.Completed -= IoCompleted;

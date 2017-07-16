@@ -134,7 +134,6 @@ namespace DtronixMessageQueue.Socket
 
             if (maxSessions)
             {
-
                 session.Close(SocketCloseReason.ConnectionRefused);
             }
             else
@@ -199,11 +198,14 @@ namespace DtronixMessageQueue.Socket
             {
                 MainSocket.Shutdown(SocketShutdown.Both);
                 MainSocket.Disconnect(true);
-                MainSocket.Close();
             }
             catch
             {
                 //ignored
+            }
+            finally
+            {
+                MainSocket.Close();
             }
             _isStopped = true;
         }
