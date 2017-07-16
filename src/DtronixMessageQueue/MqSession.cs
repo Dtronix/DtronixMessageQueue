@@ -45,7 +45,7 @@ namespace DtronixMessageQueue
 
         private readonly object _outboxLock = new object();
 
-        private Semaphore _sendingSemaphore;
+        private SemaphoreSlim _sendingSemaphore;
 
         /// <summary>
         /// Event fired when a new message has been processed by the Postmaster and ready to be read.
@@ -56,7 +56,7 @@ namespace DtronixMessageQueue
         protected override void OnSetup()
         {
             _frameBuilder = new MqFrameBuilder(Config);
-            _sendingSemaphore = new Semaphore(Config.MaxQueuedOutgoingMessages, Config.MaxQueuedOutgoingMessages);
+            _sendingSemaphore = new SemaphoreSlim(Config.MaxQueuedOutgoingMessages, Config.MaxQueuedOutgoingMessages);
         }
 
         /// <summary>
@@ -327,7 +327,7 @@ namespace DtronixMessageQueue
                 return;
             }
 
-            _sendingSemaphore.WaitOne();
+            _sendingSemaphore.Wait();
 
             lock (_outboxLock)
             {

@@ -1,81 +1,74 @@
 ﻿using System;
+using System.Collections.Generic;
 using System.IO;
+using System.Linq;
 using System.Text;
+using System.Threading.Tasks;
 
-namespace DtronixMessageQueue.Tests.Performance
-{
-    class ConsoleCopy : IDisposable
-    {
-        FileStream _fileStream;
-        StreamWriter _fileWriter;
-        TextWriter _doubleWriter;
-        TextWriter _oldOut;
+namespace DtronixMessageQueue.Tests.Performance {
+	class ConsoleCopy : IDisposable {
 
-        class DoubleWriter : TextWriter
-        {
-            TextWriter _one;
-            TextWriter _two;
+		FileStream fileStream;
+		StreamWriter fileWriter;
+		TextWriter doubleWriter;
+		TextWriter oldOut;
 
-            public DoubleWriter(TextWriter one, TextWriter two)
-            {
-                _one = one;
-                _two = two;
-            }
+		class DoubleWriter : TextWriter {
 
-            public override Encoding Encoding
-            {
-                get { return _one.Encoding; }
-            }
+			TextWriter one;
+			TextWriter two;
 
-            public override void Flush()
-            {
-                _one.Flush();
-                _two.Flush();
-            }
+			public DoubleWriter(TextWriter one, TextWriter two) {
+				this.one = one;
+				this.two = two;
+			}
 
-            public override void Write(char value)
-            {
-                _one.Write(value);
-                _two.Write(value);
-            }
-        }
+			public override Encoding Encoding {
+				get { return one.Encoding; }
+			}
 
-        public ConsoleCopy(string path)
-        {
-            _oldOut = Console.Out;
+			public override void Flush() {
+				one.Flush();
+				two.Flush();
+			}
 
-            try
-            {
-                _fileStream = File.Create(path);
+			public override void Write(char value) {
+				one.Write(value);
+				two.Write(value);
+			}
 
-                _fileWriter = new StreamWriter(_fileStream);
-                _fileWriter.AutoFlush = true;
+		}
 
-                _doubleWriter = new DoubleWriter(_fileWriter, _oldOut);
-            }
-            catch (Exception e)
-            {
-                Console.WriteLine("Cannot open file for writing");
-                Console.WriteLine(e.Message);
-                return;
-            }
-            Console.SetOut(_doubleWriter);
-        }
+		public ConsoleCopy(string path) {
+			oldOut = Console.Out;
 
-        public void Dispose()
-        {
-            Console.SetOut(_oldOut);
-            if (_fileWriter != null)
-            {
-                _fileWriter.Flush();
-                _fileWriter.Close();
-                _fileWriter = null;
-            }
-            if (_fileStream != null)
-            {
-                _fileStream.Close();
-                _fileStream = null;
-            }
-        }
-    }
+			try {
+				fileStream = File.Create(path);
+
+				fileWriter = new StreamWriter(fileStream);
+				fileWriter.AutoFlush = true;
+
+				doubleWriter = new DoubleWriter(fileWriter, oldOut);
+			} catch (Exception e) {
+				Console.WriteLine("Cannot open file for writing");
+				Console.WriteLine(e.Message);
+				return;
+			}
+			Console.SetOut(doubleWriter);
+		}
+
+		public void Dispose() {
+			Console.SetOut(oldOut);
+			if (fileWriter != null) {
+				fileWriter.Flush();
+				fileWriter.Close();
+				fileWriter = null;
+			}
+			if (fileStream != null) {
+				fileStream.Close();
+				fileStream = null;
+			}
+		}
+
+	}
 }

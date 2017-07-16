@@ -1,62 +1,60 @@
 ﻿using System;
+using System.Collections.Generic;
+using System.Linq;
 using System.Management;
 using System.Runtime.InteropServices;
-using DtronixMessageQueue.Tests.Performance.TestSessions;
+using System.Text;
+using System.Threading.Tasks;
 
-namespace DtronixMessageQueue.Tests.Performance
-{
-    class PerformanceTestBase
-    {
-        private Random _rand = new Random();
+namespace DtronixMessageQueue.Tests.Performance {
+	abstract class PerformanceTestBase {
 
-        [DllImport("kernel32.dll")]
-        [return: MarshalAs(UnmanagedType.Bool)]
-        static extern bool GetPhysicallyInstalledSystemMemory(out long totalMemoryInKilobytes);
+		private Random rand = new Random();
 
-
-        public static void WriteSysInfo()
-        {
-            ManagementObjectSearcher mos = new ManagementObjectSearcher("root\\CIMV2", "SELECT * FROM Win32_Processor");
-            foreach (var o in mos.Get())
-            {
-                var mo = (ManagementObject) o;
-                Console.Write(mo["Name"]);
-            }
+		[DllImport("kernel32.dll")]
+		[return: MarshalAs(UnmanagedType.Bool)]
+		static extern bool GetPhysicallyInstalledSystemMemory(out long total_memory_in_kilobytes);
 
 
-            long memKb;
-            GetPhysicallyInstalledSystemMemory(out memKb);
-            Console.WriteLine(" with " + (memKb / 1024 / 1024) + " GB of RAM installed.");
-        }
+		public static void WriteSysInfo() {
+			ManagementObjectSearcher mos = new ManagementObjectSearcher("root\\CIMV2", "SELECT * FROM Win32_Processor");
+			foreach (var o in mos.Get()) {
+				var mo = (ManagementObject)o;
+				Console.Write(mo["Name"]);
+			}
 
 
-        public class ClientRunInfo
-        {
-            public int Runs { get; set; }
-            public MqThroughputTest TestSession { get; set; }
-        }
+			long mem_kb;
+			GetPhysicallyInstalledSystemMemory(out mem_kb);
+			Console.WriteLine(" with " + (mem_kb / 1024 / 1024) + " GB of RAM installed.");
+		}
 
-        public static byte[] SequentialBytes(int len)
-        {
-            var number = 0;
-            var val = new byte[len];
 
-            for (var i = 0; i < len; i++)
-            {
-                val[i] = (byte) number++;
-                if (number > 255)
-                {
-                    number = 0;
-                }
-            }
-            return val;
-        }
+		public class ClientRunInfo {
+			public int Runs { get; set; }
+			public SimpleMqSession Session { get; set; }
 
-        public byte[] RandomBytes(int len)
-        {
-            var val = new byte[len];
-            _rand.NextBytes(val);
-            return val;
-        }
-    }
+		}
+
+		public static byte[] SequentialBytes(int len) {
+			var number = 0;
+			var val = new byte[len];
+
+			for (var i = 0; i < len; i++) {
+				val[i] = (byte)number++;
+				if (number > 255) {
+					number = 0;
+				}
+			}
+			return val;
+		}
+
+		public byte[] RandomBytes(int len) {
+			var val = new byte[len];
+			rand.NextBytes(val);
+			return val;
+		}
+
+	    public abstract void StartTest();
+	}
 }

@@ -1,40 +1,39 @@
 ﻿using System;
+using System.Collections.Concurrent;
+using System.Diagnostics;
+using System.Linq;
+using System.Management;
+using System.Reflection;
 using System.Runtime.InteropServices;
+using System.Threading;
 
-namespace DtronixMessageQueue.Tests.Performance
-{
-    class Program
-    {
-        [DllImport("kernel32.dll")]
-        [return: MarshalAs(UnmanagedType.Bool)]
-        static extern bool GetPhysicallyInstalledSystemMemory(out long totalMemoryInKilobytes);
+namespace DtronixMessageQueue.Tests.Performance {
+	class Program {
 
-        static void Main(string[] args)
-        {
+		[DllImport("kernel32.dll")]
+		[return: MarshalAs(UnmanagedType.Bool)]
+		static extern bool GetPhysicallyInstalledSystemMemory(out long total_memory_in_kilobytes);
 
-            var mode = args.Length == 0 ? null : args[0];
-            var fileName = string.Join("-", args);
-            using (var cc = new ConsoleCopy($"MessageQueuePerformanceTest-{fileName}.txt"))
-            {
-                //PerformanceTestBase.WriteSysInfo();
+		static void Main(string[] args) {
+			var mode = args.Length == 0 ? null : args[0];
+			var file_name = string.Join("-", args);
+			using (var cc = new ConsoleCopy($"MessageQueuePerformanceTest-{file_name}.txt")) {
+				PerformanceTestBase.WriteSysInfo();
 
-                //Console.WriteLine($"DMQPerf.exe {string.Join(" ", args)}");
+				Console.WriteLine($"DMQPerf.exe {string.Join(" ", args)}");
 
-                switch (mode)
-                {
-                    case "mq-throughput":
-                        Console.WriteLine("Running MQ performance tests.\r\n");
-                        new MqThroughputTest(args);
-                        break;
+                Console.WriteLine("MQ Performance tests.\r\n");
+                new MqPerformanceTest().StartTest();
 
-                    default:
-                        Console.WriteLine("Running MQ performance tests.\r\n");
-                        new MqThroughputTest(args);
-                        break;
-                }
-            }
+                Console.WriteLine("RPC Performance tests.\r\n");
+                new RpcPerformanceTest(args);
+			}
 
-            Console.ReadLine();
-        }
-    }
+			Console.ReadLine();
+
+		}
+		
+
+	}
+
 }

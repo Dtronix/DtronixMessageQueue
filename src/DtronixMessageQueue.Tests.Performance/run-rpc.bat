@@ -1,2 +1,0 @@
-DMQPerf.exe rpc
-pause
