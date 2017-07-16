@@ -160,19 +160,9 @@ namespace DtronixMessageQueue.Socket
             BufferManager.InitBuffer();
 
             // preallocate pool of SocketAsyncEventArgs objects
-            AsyncPool = new SocketAsyncEventArgsPool(maxConnections * 2);
+            AsyncPool = new SocketAsyncEventArgsPool(maxConnections * 2, BufferManager);
 
-            for (var i = 0; i < maxConnections * 2; i++)
-            {
-                //Pre-allocate a set of reusable SocketAsyncEventArgs
-                var eventArg = new SocketAsyncEventArgs();
-
-                // assign a byte buffer from the buffer pool to the SocketAsyncEventArg object
-                BufferManager.SetBuffer(eventArg);
-
-                // add SocketAsyncEventArg to the pool
-                AsyncPool.Push(eventArg);
-            }
+           
         }
 
         /// <summary>

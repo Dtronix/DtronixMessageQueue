@@ -14,6 +14,8 @@ namespace DtronixMessageQueue.Socket
         /// </summary>
         private readonly int _capacity;
 
+        private readonly BufferManager _bufferManager;
+
         /// <summary>
         /// Pre-configured stack of event args to use.
         /// </summary>
@@ -29,9 +31,11 @@ namespace DtronixMessageQueue.Socket
         /// Initializes the object pool to the specified size
         /// </summary>
         /// <param name="capacity">The "capacity" parameter is the maximum number of SocketAsyncEventArgs objects the pool can hold</param>
-        public SocketAsyncEventArgsPool(int capacity)
+        /// <param name="bufferManager"></param>
+        public SocketAsyncEventArgsPool(int capacity, BufferManager bufferManager)
         {
             _capacity = capacity;
+            _bufferManager = bufferManager;
 
             _pool = new Stack<SocketAsyncEventArgs>(capacity);
         }
@@ -42,14 +46,9 @@ namespace DtronixMessageQueue.Socket
         /// <param name="item">The "item" parameter is the SocketAsyncEventArgs instance to add to the pool</param>
         public void Push(SocketAsyncEventArgs item)
         {
-            if (item == null)
-            {
-                throw new ArgumentNullException(nameof(item), "Items added to a SocketAsyncEventArgsPool cannot be null");
-            }
-            lock (_pool)
-            {
-                _pool.Push(item);
-            }
+            _bufferManager.FreeBuffer(item);
+            item.Dispose();
+
         }
 
         /// <summary>
@@ -58,10 +57,12 @@ namespace DtronixMessageQueue.Socket
         /// <returns></returns>
         public SocketAsyncEventArgs Pop()
         {
-            lock (_pool)
-            {
-                return _pool.Pop();
-            }
+
+            var eventArg = new SocketAsyncEventArgs();
+
+            _bufferManager.SetBuffer(eventArg);
+
+            return eventArg;
         }
 
         public override string ToString()
