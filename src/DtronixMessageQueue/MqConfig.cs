@@ -22,5 +22,11 @@ namespace DtronixMessageQueue
         /// Once the outgoing queue reaches the maximum messages, the MqSession.Send will block.
         /// </summary>
         public int MaxQueuedOutgoingMessages { get; set; } = 50;
+
+        /// <summary>
+        /// Sets a limit on the maximum inbound byte queue size.
+        /// Once the incoming queue reaches the maximum messages, the incoming parsing queue will block.
+        /// </summary>
+        public int MaxQueuedInboundPackets { get; set; } = 20;
     }
 }

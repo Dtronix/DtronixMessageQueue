@@ -47,6 +47,8 @@ namespace DtronixMessageQueue
 
         private SemaphoreSlim _sendingSemaphore;
 
+        private SemaphoreSlim _receivingSemaphore;
+
         /// <summary>
         /// Event fired when a new message has been processed by the Postmaster and ready to be read.
         /// </summary>
@@ -57,6 +59,7 @@ namespace DtronixMessageQueue
         {
             _frameBuilder = new MqFrameBuilder(Config);
             _sendingSemaphore = new SemaphoreSlim(Config.MaxQueuedOutgoingMessages, Config.MaxQueuedOutgoingMessages);
+            _receivingSemaphore = new SemaphoreSlim(Config.MaxQueuedInboundPackets, Config.MaxQueuedInboundPackets);
         }
 
         /// <summary>
@@ -69,6 +72,8 @@ namespace DtronixMessageQueue
             {
                 return;
             }
+
+            _receivingSemaphore.Wait();
 
             lock (_inboxLock)
             {
@@ -120,7 +125,7 @@ namespace DtronixMessageQueue
             while (_outbox.TryDequeue(out message))
             {
 
-                if(CurrentState == State.Connected)
+                if(CurrentState != State.Closing)
                     _sendingSemaphore.Release();
 
                 message.PrepareSend();
@@ -175,6 +180,10 @@ namespace DtronixMessageQueue
             byte[] buffer;
             while (_inboxBytes.TryDequeue(out buffer))
             {
+
+                if (CurrentState == State.Connected)
+                    _receivingSemaphore.Release();
+
                 try
                 {
                     _frameBuilder.Write(buffer, 0, buffer.Length);
@@ -285,12 +294,15 @@ namespace DtronixMessageQueue
             if (closeFrame != null)
             {
                 MqMessage msg;
+                byte[] buffer;
                 if (_outbox.IsEmpty == false)
                 {
                     while (_outbox.TryDequeue(out msg))
-                    {
                         _sendingSemaphore.Release();
-                    }
+
+
+                    while (_inboxBytes.TryDequeue(out buffer))
+                        _receivingSemaphore.Release();
                 }
 
                 msg = new MqMessage(closeFrame);
@@ -301,6 +313,10 @@ namespace DtronixMessageQueue
             }
 
             base.Close(reason);
+
+            _receivingSemaphore.Dispose();
+            _sendingSemaphore.Dispose();
+            _frameBuilder.Dispose();
         }
 
         /// <summary>
@@ -391,5 +407,7 @@ namespace DtronixMessageQueue
         {
             return $"MqSession; Reading {_inboxBytes.Count} byte packets; Sending {_outbox.Count} messages.";
         }
+
+        
     }
 }

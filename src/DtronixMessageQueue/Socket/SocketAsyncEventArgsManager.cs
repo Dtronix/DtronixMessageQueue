@@ -21,7 +21,7 @@ namespace DtronixMessageQueue.Socket
         /// <summary>
         /// Manager which contains the buffers used for all SocketAsyncEventArgs.
         /// </summary>
-        private BufferManager _bufferManager;
+        private readonly BufferManager _bufferManager;
 
         /// <summary>
         /// Creates a manager with the specified buffer size and total size for use in the produced objects.
