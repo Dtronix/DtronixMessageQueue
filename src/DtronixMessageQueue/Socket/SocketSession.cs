@@ -107,7 +107,7 @@ namespace DtronixMessageQueue.Socket
         /// <summary>
         /// Pool used by all the sessions on this SessionHandler.
         /// </summary>
-        private SocketAsyncEventArgsPool _argsPool;
+        private SocketAsyncEventArgsManager _argsPool;
 
         /// <summary>
         /// Reset event used to ensure only one MqWorker can write to the socket at a time.
@@ -139,24 +139,24 @@ namespace DtronixMessageQueue.Socket
         /// Sets up this socket with the specified configurations.
         /// </summary>
         /// <param name="sessionSocket">Socket this session is to use.</param>
-        /// <param name="socketArgsPool">Argument pool for this session to use.  Pulls two asyncevents for reading and writing and returns them at the end of this socket's life.</param>
+        /// <param name="socketArgsManager">Argument pool for this session to use.  Pulls two asyncevents for reading and writing and returns them at the end of this socket's life.</param>
         /// <param name="sessionConfig">Socket configurations this session is to use.</param>
         /// <param name="sessionHandler">Handler base which is handling this session.</param>
-        public static TSession Create(System.Net.Sockets.Socket sessionSocket, SocketAsyncEventArgsPool socketArgsPool,
+        public static TSession Create(System.Net.Sockets.Socket sessionSocket, SocketAsyncEventArgsManager socketArgsManager,
             TConfig sessionConfig, SessionHandler<TSession, TConfig> sessionHandler)
         {
             var session = new TSession
             {
                 _config = sessionConfig,
-                _argsPool = socketArgsPool,
+                _argsPool = socketArgsManager,
                 _socket = sessionSocket,
                 _writeSemaphore = new SemaphoreSlim(1, 1),
                 BaseSocket = sessionHandler
             };
 
-            session._sendArgs = session._argsPool.Pop();
+            session._sendArgs = session._argsPool.Create();
             session._sendArgs.Completed += session.IoCompleted;
-            session._receiveArgs = session._argsPool.Pop();
+            session._receiveArgs = session._argsPool.Create();
             session._receiveArgs.Completed += session.IoCompleted;
 
             if (session._config.SendTimeout > 0)
@@ -379,8 +379,8 @@ namespace DtronixMessageQueue.Socket
             _receiveArgs.Completed -= IoCompleted;
 
             // Free the SocketAsyncEventArg so they can be reused by another client
-            _argsPool.Push(_sendArgs);
-            _argsPool.Push(_receiveArgs);
+            _argsPool.Free(_sendArgs);
+            _argsPool.Free(_receiveArgs);
 
             CurrentState = State.Closed;
 

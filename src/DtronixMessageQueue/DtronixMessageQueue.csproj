@@ -72,7 +72,7 @@
     <Compile Include="Socket\ISetupSocketSession.cs" />
     <Compile Include="Socket\SessionEventArgs.cs" />
     <Compile Include="Socket\SessionClosedEventArgs.cs" />
-    <Compile Include="Socket\SocketAsyncEventArgsPool.cs" />
+    <Compile Include="Socket\SocketAsyncEventArgsManager.cs" />
     <Compile Include="Socket\SessionHandler.cs" />
     <Compile Include="Socket\SocketClient.cs" />
     <Compile Include="Socket\SocketCloseReason.cs" />

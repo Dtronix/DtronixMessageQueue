@@ -53,12 +53,7 @@ namespace DtronixMessageQueue.Socket
         /// <summary>
         /// Pool of async args for sessions to use.
         /// </summary>
-        protected SocketAsyncEventArgsPool AsyncPool;
-
-        /// <summary>
-        /// Reusable buffer set for all the connected sessions.
-        /// </summary>
-        protected BufferManager BufferManager; // represents a large reusable set of buffers for all socket operations
+        protected SocketAsyncEventArgsManager AsyncManager;
 
         /// <summary>
         /// True if the timeout timer is running.  False otherwise.
@@ -151,18 +146,9 @@ namespace DtronixMessageQueue.Socket
             // new clients when the MaxConnections has been reached.
             var maxConnections = Config.MaxConnections + 1;
 
-            // allocate buffers such that the maximum number of sockets can have one outstanding read and 
-            //write posted to the socket simultaneously  
-            BufferManager = new BufferManager(Config.SendAndReceiveBufferSize * maxConnections * 2,
-                Config.SendAndReceiveBufferSize);
-
-            // Allocates one large byte buffer which all I/O operations use a piece of.  This guards against memory fragmentation.
-            BufferManager.InitBuffer();
-
             // preallocate pool of SocketAsyncEventArgs objects
-            AsyncPool = new SocketAsyncEventArgsPool(maxConnections * 2, BufferManager);
-
-           
+            AsyncManager = new SocketAsyncEventArgsManager(Config.SendAndReceiveBufferSize * maxConnections * 2,
+                Config.SendAndReceiveBufferSize);
         }
 
         /// <summary>
@@ -171,7 +157,7 @@ namespace DtronixMessageQueue.Socket
         /// <returns>New session instance.</returns>
         protected virtual TSession CreateSession(System.Net.Sockets.Socket socket)
         {
-            var session = SocketSession<TSession, TConfig>.Create(socket, AsyncPool, Config, this);
+            var session = SocketSession<TSession, TConfig>.Create(socket, AsyncManager, Config, this);
 
             SessionSetup?.Invoke(this, new SessionEventArgs<TSession, TConfig>(session));
             session.Closed += (sender, args) => OnClose(session, args.CloseReason);

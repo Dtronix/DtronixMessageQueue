@@ -37,7 +37,7 @@ namespace DtronixMessageQueue.Tests.Gui.Tests.Connection
                     Ip = "0.0.0.0",
                     Port = 2121,
                     PingTimeout = 1000,
-                    MaxConnections = 1000
+                    MaxConnections = 200
 
                 });
 

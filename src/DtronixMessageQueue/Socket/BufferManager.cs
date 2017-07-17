@@ -44,18 +44,8 @@ namespace DtronixMessageQueue.Socket
             _currentIndex = 0;
             _bufferSize = bufferSize;
             _freeIndexPool = new Stack<int>();
-        }
-
-        /// <summary>
-        /// Allocates buffer space used by the buffer pool
-        /// </summary>
-        public void InitBuffer()
-        {
-            // create one big large buffer and divide that 
-            // out to each SocketAsyncEventArg object
             _buffer = new byte[_numBytes];
         }
-
 
         /// <summary>
         /// Assigns a buffer from the buffer pool to the specified SocketAsyncEventArgs object
