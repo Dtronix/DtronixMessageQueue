@@ -10,23 +10,25 @@ using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
 
-namespace DtronixMessageQueue.Tests.Performance {
-	class MqPerformanceTest : PerformanceTestBase {
+namespace DtronixMessageQueue.Tests.Performance
+{
+    class MqPerformanceTest : PerformanceTestBase
+    {
 
-	    private readonly MqConfig _config;
-	    private readonly MqMessage _smallMessage;
-	    private readonly MqMessage _medimumMessage;
-	    private readonly MqMessage _largeMessage;
-	    private Stopwatch _sw;
-	    private Semaphore _loopSemaphore;
-	    private int count;
-	    private double[] totalValues;
-	    private Semaphore _testCompleteSemaphore;
-	    private MqServer<SimpleMqSession, MqConfig> _server;
-	    private MqClient<SimpleMqSession, MqConfig> _client;
+        private readonly MqConfig _config;
+        private readonly MqMessage _smallMessage;
+        private readonly MqMessage _medimumMessage;
+        private readonly MqMessage _largeMessage;
+        private Stopwatch _sw;
+        private Semaphore _loopSemaphore;
+        private int count;
+        private double[] totalValues;
+        private Semaphore _testCompleteSemaphore;
+        private MqServer<SimpleMqSession, MqConfig> _server;
+        private MqClient<SimpleMqSession, MqConfig> _client;
 
-	    public MqPerformanceTest()
-	    {
+        public MqPerformanceTest()
+        {
 
             _config = new MqConfig
             {
@@ -34,14 +36,16 @@ namespace DtronixMessageQueue.Tests.Performance {
                 Port = 2828
             };
 
-            _smallMessage = new MqMessage {
+            _smallMessage = new MqMessage
+            {
                 new MqFrame(SequentialBytes(50), MqFrameType.More, _config),
                 new MqFrame(SequentialBytes(50), MqFrameType.More, _config),
                 new MqFrame(SequentialBytes(50), MqFrameType.More, _config),
                 new MqFrame(SequentialBytes(50), MqFrameType.Last, _config)
             };
 
-            _medimumMessage = new MqMessage {
+            _medimumMessage = new MqMessage
+            {
                 new MqFrame(SequentialBytes(500), MqFrameType.More, _config),
                 new MqFrame(SequentialBytes(500), MqFrameType.More, _config),
                 new MqFrame(SequentialBytes(500), MqFrameType.More, _config),
@@ -63,89 +67,95 @@ namespace DtronixMessageQueue.Tests.Performance {
         }
 
 
-		public override void StartTest() {
+        public override void StartTest()
+        {
 
-			Console.WriteLine("FrameBufferSize: {0}; SendAndReceiveBufferSize: {1}\r\n", _config.FrameBufferSize,
-				_config.SendAndReceiveBufferSize);
-
-
-			MqInProcessPerformanceTests(1000000, 5, _smallMessage, _config);
+            Console.WriteLine("FrameBufferSize: {0}; SendAndReceiveBufferSize: {1}\r\n", _config.FrameBufferSize,
+                _config.SendAndReceiveBufferSize);
 
 
-			MqInProcessPerformanceTests(100000, 5, _medimumMessage, _config);
+            MqInProcessPerformanceTests(1000000, 2, _smallMessage, _config);
+
+            return;
+
+            MqInProcessPerformanceTests(100000, 5, _medimumMessage, _config);
 
 
-			MqInProcessPerformanceTests(10000, 5, _largeMessage, _config);
+            MqInProcessPerformanceTests(10000, 5, _largeMessage, _config);
 
-			Console.WriteLine("Performance complete");
-		}
+            Console.WriteLine("Performance complete");
+        }
 
-		private void MqInProcessPerformanceTests(int totalMessages, int loops, MqMessage message, MqConfig config) {
-			_server = new MqServer<SimpleMqSession, MqConfig>(config);
-			_server.Start();
+        private void MqInProcessPerformanceTests(int totalMessages, int loops, MqMessage message, MqConfig config)
+        {
+            _server = new MqServer<SimpleMqSession, MqConfig>(config);
+            _server.Start();
 
-			totalValues = new [] {0d, 0d, 0d};
-
-
-			_client = new MqClient<SimpleMqSession, MqConfig>(config);
-
-			Console.WriteLine("|   Build |   Messages | Msg Bytes | Milliseconds |    Msg/sec |     MBps |");
-			Console.WriteLine("|---------|------------|-----------|--------------|------------|----------|");
+            totalValues = new[] {0d, 0d, 0d};
 
 
+            _client = new MqClient<SimpleMqSession, MqConfig>(config);
 
-			_server.IncomingMessage += (sender, args2) => {
-				count += args2.Messages.Count;
-
-
-			    if (count == totalMessages)
-			    {
-			        ReportResults(totalMessages, _sw.ElapsedMilliseconds, message.Size);
-			        _loopSemaphore.Release();
-
-			    }
-			};
+            Console.WriteLine("|   Build |   Messages | Msg Bytes | Milliseconds |    Msg/sec |     MBps |");
+            Console.WriteLine("|---------|------------|-----------|--------------|------------|----------|");
 
 
 
-			_client.Connected += (sender, args) => {
+            _server.IncomingMessage += (sender, args2) =>
+            {
+                count += args2.Messages.Count;
+
+
+                if (count == totalMessages)
+                {
+                    ReportResults(totalMessages, _sw.ElapsedMilliseconds, message.Size);
+                    _loopSemaphore.Release();
+
+                }
+            };
+
+
+
+            _client.Connected += (sender, args) =>
+            {
                 for (var i = 0; i < loops; i++)
                 {
                     SendMessages(args.Session, message, totalMessages, 5000);
                 }
 
-				Console.WriteLine("|         |            |  AVERAGES | {0,12:N0} | {1,10:N0} | {2,8:N2} |", totalValues[0]/loops,
-					totalValues[1]/loops, totalValues[2]/loops);
-				Console.WriteLine();
+                Console.WriteLine("|         |            |  AVERAGES | {0,12:N0} | {1,10:N0} | {2,8:N2} |",
+                    totalValues[0] / loops,
+                    totalValues[1] / loops, totalValues[2] / loops);
+                Console.WriteLine();
 
-				_server.Stop();
-				_client.Close();
+                _server.Stop();
+                _client.Close();
 
-			    _testCompleteSemaphore.Release();
+                _testCompleteSemaphore.Release();
 
-			};
+            };
 
-			_client.Connect();
+            _client.Connect();
 
-		    _testCompleteSemaphore.WaitOne(30000);
+            _testCompleteSemaphore.WaitOne(30000);
 
 
-		}
+        }
 
-	    public void SendMessages(SimpleMqSession client, MqMessage message, int totalMessages, int timeout)
-	    {
+        public void SendMessages(SimpleMqSession client, MqMessage message, int totalMessages, int timeout)
+        {
 
             count = 0;
             _sw.Restart();
 
             for (var i = 0; i < totalMessages; i++)
-	        {
-	            client.Send(message);
-	        }
+            {
+                client.Send(message);
+            }
 
-	        if (!_loopSemaphore.WaitOne(timeout))
-	        {
-	            Console.WriteLine($"Test failed to complete with {count} of {totalMessages} loops performed.");
+            if (!_loopSemaphore.WaitOne(timeout))
+            {
+                Console.WriteLine($"Test failed to complete with {count} of {totalMessages} loops performed.");
 
                 ReportResults(totalMessages, _sw.ElapsedMilliseconds, message.Size);
             }
@@ -154,23 +164,23 @@ namespace DtronixMessageQueue.Tests.Performance {
 
         }
 
-	    private void ReportResults(int totalMessages, long milliseconds, int messageSize)
-	    {
+        private void ReportResults(int totalMessages, long milliseconds, int messageSize)
+        {
             var mode = "Release";
 
 #if DEBUG
             mode = "Debug";
 #endif
 
-            var messagesPerSecond = (int)((double)totalMessages / milliseconds * 1000);
+            var messagesPerSecond = (int) ((double) totalMessages / milliseconds * 1000);
             var msgSizeNoHeader = messageSize - 12;
-            var mbps = totalMessages * (double)(msgSizeNoHeader) / milliseconds / 1000;
+            var mbps = totalMessages * (double) (msgSizeNoHeader) / milliseconds / 1000;
             Console.WriteLine("| {0,7} | {1,10:N0} | {2,9:N0} | {3,12:N0} | {4,10:N0} | {5,8:N2} |", mode, totalMessages,
                 msgSizeNoHeader, milliseconds, messagesPerSecond, mbps);
             totalValues[0] += milliseconds;
             totalValues[1] += messagesPerSecond;
             totalValues[2] += mbps;
         }
-	}
+    }
 
 }

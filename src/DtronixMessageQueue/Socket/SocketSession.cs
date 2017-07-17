@@ -87,9 +87,14 @@ namespace DtronixMessageQueue.Socket
         public SessionHandler<TSession, TConfig> BaseSocket { get; private set; }
 
         /// <summary>
-        /// Processor to handle all inbound and outbound message handling.
+        /// Processor to handle all inbound messages.
         /// </summary>
-        protected SessionProcessor<Guid> Processor;
+        protected SessionProcessor<Guid> InboxProcessor;
+
+        /// <summary>
+        /// Processor to handle all outbound messages.
+        /// </summary>
+        protected SessionProcessor<Guid> OutboxProcessor;
 
 
         private System.Net.Sockets.Socket _socket;
@@ -148,7 +153,8 @@ namespace DtronixMessageQueue.Socket
         /// <param name="sessionConfig">Socket configurations this session is to use.</param>
         /// <param name="sessionHandler">Handler base which is handling this session.</param>
         public static TSession Create(System.Net.Sockets.Socket sessionSocket, SocketAsyncEventArgsManager socketArgsManager,
-            TConfig sessionConfig, SessionHandler<TSession, TConfig> sessionHandler, SessionProcessor<Guid> processor)
+            TConfig sessionConfig, SessionHandler<TSession, TConfig> sessionHandler, SessionProcessor<Guid> inboxProcessor,
+            SessionProcessor<Guid> outboxProcessor)
         {
             var session = new TSession
             {
@@ -164,8 +170,11 @@ namespace DtronixMessageQueue.Socket
             session._receiveArgs = session._argsPool.Create();
             session._receiveArgs.Completed += session.IoCompleted;
 
-            session.Processor = processor;
-            processor.Register(session.Id);
+            session.InboxProcessor = inboxProcessor;
+            inboxProcessor.Register(session.Id);
+
+            session.OutboxProcessor = outboxProcessor;
+            outboxProcessor.Register(session.Id);
 
 
             if (session._config.SendTimeout > 0)
@@ -391,7 +400,8 @@ namespace DtronixMessageQueue.Socket
             _argsPool.Free(_sendArgs);
             _argsPool.Free(_receiveArgs);
 
-            Processor.Unregister(Id);
+            InboxProcessor.Unregister(Id);
+            OutboxProcessor.Unregister(Id);
 
             CurrentState = State.Closed;
 

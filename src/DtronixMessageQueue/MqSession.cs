@@ -72,7 +72,7 @@ namespace DtronixMessageQueue
             _receivingSemaphore.Wait();
 
             _inboxBytes.Enqueue(buffer);
-            Processor.QueueProcess(Id, ProcessIncomingQueue);
+            InboxProcessor.QueueProcess(Id, ProcessIncomingQueue);
         }
 
         /// <summary>
@@ -223,10 +223,7 @@ namespace DtronixMessageQueue
                 return;
             }
 
-            Task.Run(() =>
-            {
-                OnIncomingMessage(this, new IncomingMessageEventArgs<TSession, TConfig>(messages, (TSession)this));
-            });
+            OnIncomingMessage(this, new IncomingMessageEventArgs<TSession, TConfig>(messages, (TSession)this));
             
         }
 
@@ -320,7 +317,7 @@ namespace DtronixMessageQueue
 
             _sendingSemaphore.Wait();
             _outbox.Enqueue(message);
-            Processor.QueueProcess(Id, ProcessOutbox);
+            OutboxProcessor.QueueProcess(Id, ProcessOutbox);
         }
 
         /// <summary>

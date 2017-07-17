@@ -14,25 +14,27 @@ namespace DtronixMessageQueue
     /// </summary>
     public class SessionProcessor<T>
     {
+        private readonly string _name;
         private readonly List<ProcessorThread> _activeThreads;
         private readonly ConcurrentDictionary<T, ProcessorThread> _registeredSessions;
 
         public bool IsRunning { get; set; }
 
 
-        public SessionProcessor() : this(Environment.ProcessorCount)
+        public SessionProcessor(string name) : this(Environment.ProcessorCount, name)
         {
 
         }
 
-        public SessionProcessor(int threads)
+        public SessionProcessor(int threads, string name)
         {
+            _name = name;
             _registeredSessions = new ConcurrentDictionary<T, ProcessorThread>();
 
             _activeThreads = new List<ProcessorThread>(threads);
             for (int i = 0; i < threads; i++)
             {
-                var pthread = new ProcessorThread();
+                var pthread = new ProcessorThread($"dmq-{_name}-{i}");
                 _activeThreads.Add(pthread);
             }
         }
@@ -110,10 +112,11 @@ namespace DtronixMessageQueue
 
             public float IdleTime => _idleTime;
 
-            public ProcessorThread()
+            public ProcessorThread(string name)
             {
                 _queued = 0;
                 _thread = new Thread(Process);
+                _thread.Name = name;
                 _actions = new BlockingCollection<ProcessAction>();
                 _guidPerformance = new ConcurrentDictionary<T, float>();
             }
