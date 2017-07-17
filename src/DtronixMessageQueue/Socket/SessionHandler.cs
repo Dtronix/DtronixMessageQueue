@@ -66,6 +66,11 @@ namespace DtronixMessageQueue.Socket
         protected readonly Timer TimeoutTimer;
 
         /// <summary>
+        /// Processor to handle all inbound and outbound message handling.
+        /// </summary>
+        protected SessionProcessor<Guid> SessionProcessor;
+
+        /// <summary>
         /// Dictionary of all connected clients.
         /// </summary>
         protected readonly ConcurrentDictionary<Guid, TSession> ConnectedSessions =
@@ -81,6 +86,9 @@ namespace DtronixMessageQueue.Socket
             TimeoutTimer = new Timer(TimeoutCallback);
             Mode = mode;
             Config = config;
+            SessionProcessor = mode == SocketMode.Client ? new SessionProcessor<Guid>(1) : new SessionProcessor<Guid>();
+
+            SessionProcessor.Start();
         }
 
 
@@ -157,7 +165,7 @@ namespace DtronixMessageQueue.Socket
         /// <returns>New session instance.</returns>
         protected virtual TSession CreateSession(System.Net.Sockets.Socket socket)
         {
-            var session = SocketSession<TSession, TConfig>.Create(socket, AsyncManager, Config, this);
+            var session = SocketSession<TSession, TConfig>.Create(socket, AsyncManager, Config, this, SessionProcessor);
 
             SessionSetup?.Invoke(this, new SessionEventArgs<TSession, TConfig>(session));
             session.Closed += (sender, args) => OnClose(session, args.CloseReason);

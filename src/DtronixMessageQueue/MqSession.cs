@@ -41,10 +41,6 @@ namespace DtronixMessageQueue
 
         private Task _inboxTask;
 
-        private readonly object _inboxLock = new object();
-
-        private readonly object _outboxLock = new object();
-
         private SemaphoreSlim _sendingSemaphore;
 
         private SemaphoreSlim _receivingSemaphore;
@@ -75,16 +71,8 @@ namespace DtronixMessageQueue
 
             _receivingSemaphore.Wait();
 
-            lock (_inboxLock)
-            {
-                _inboxBytes.Enqueue(buffer);
-            }
-
-
-            if (_inboxTask == null || _inboxTask.IsCompleted)
-            {
-                _inboxTask = Task.Run((Action)ProcessIncomingQueue);
-            }
+            _inboxBytes.Enqueue(buffer);
+            Processor.QueueProcess(Id, ProcessIncomingQueue);
         }
 
         /// <summary>
@@ -155,14 +143,6 @@ namespace DtronixMessageQueue
 
             // Send the last of the buffer queue.
             SendBufferQueue(bufferQueue, length);
-
-            lock (_outboxLock)
-            {
-                if (_outbox.IsEmpty == false)
-                {
-                    _outboxTask = Task.Run((Action)ProcessOutbox);
-                }
-            }
         }
 
         /// <summary>
@@ -243,16 +223,11 @@ namespace DtronixMessageQueue
                 return;
             }
 
-
-            OnIncomingMessage(this, new IncomingMessageEventArgs<TSession, TConfig>(messages, (TSession)this));
-
-            lock (_inboxLock)
+            Task.Run(() =>
             {
-                if (_inboxBytes.IsEmpty == false)
-                {
-                    _inboxTask = Task.Run((Action)ProcessIncomingQueue);
-                }
-            }
+                OnIncomingMessage(this, new IncomingMessageEventArgs<TSession, TConfig>(messages, (TSession)this));
+            });
+            
         }
 
 
@@ -308,7 +283,7 @@ namespace DtronixMessageQueue
                 msg = new MqMessage(closeFrame);
                 _outbox.Enqueue(msg);
 
-                // Process the last bit of data.
+                // QueueProcess the last bit of data.
                 ProcessOutbox();
             }
 
@@ -344,16 +319,8 @@ namespace DtronixMessageQueue
             }
 
             _sendingSemaphore.Wait();
-
-            lock (_outboxLock)
-            {
-                _outbox.Enqueue(message);
-            }
-
-            if (_outboxTask == null || _outboxTask.IsCompleted)
-            {
-                _outboxTask = Task.Run((Action)ProcessOutbox);
-            }
+            _outbox.Enqueue(message);
+            Processor.QueueProcess(Id, ProcessOutbox);
         }
 
         /// <summary>

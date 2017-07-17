@@ -86,6 +86,11 @@ namespace DtronixMessageQueue.Socket
         /// </summary>
         public SessionHandler<TSession, TConfig> BaseSocket { get; private set; }
 
+        /// <summary>
+        /// Processor to handle all inbound and outbound message handling.
+        /// </summary>
+        protected SessionProcessor<Guid> Processor;
+
 
         private System.Net.Sockets.Socket _socket;
 
@@ -143,7 +148,7 @@ namespace DtronixMessageQueue.Socket
         /// <param name="sessionConfig">Socket configurations this session is to use.</param>
         /// <param name="sessionHandler">Handler base which is handling this session.</param>
         public static TSession Create(System.Net.Sockets.Socket sessionSocket, SocketAsyncEventArgsManager socketArgsManager,
-            TConfig sessionConfig, SessionHandler<TSession, TConfig> sessionHandler)
+            TConfig sessionConfig, SessionHandler<TSession, TConfig> sessionHandler, SessionProcessor<Guid> processor)
         {
             var session = new TSession
             {
@@ -158,6 +163,10 @@ namespace DtronixMessageQueue.Socket
             session._sendArgs.Completed += session.IoCompleted;
             session._receiveArgs = session._argsPool.Create();
             session._receiveArgs.Completed += session.IoCompleted;
+
+            session.Processor = processor;
+            processor.Register(session.Id);
+
 
             if (session._config.SendTimeout > 0)
                 session._socket.SendTimeout = session._config.SendTimeout;
@@ -381,6 +390,8 @@ namespace DtronixMessageQueue.Socket
             // Free the SocketAsyncEventArg so they can be reused by another client
             _argsPool.Free(_sendArgs);
             _argsPool.Free(_receiveArgs);
+
+            Processor.Unregister(Id);
 
             CurrentState = State.Closed;
 
