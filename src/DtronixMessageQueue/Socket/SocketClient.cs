@@ -71,21 +71,6 @@ namespace DtronixMessageQueue.Socket
             _connectionTimeoutCancellation = new CancellationTokenSource();
 
 
-            Task.Run(async () =>
-            {
-                try
-                {
-                    await Task.Delay(Config.ConnectionTimeout, _connectionTimeoutCancellation.Token);
-                }
-                catch
-                {
-                    return;
-                }
-
-                timedOut = true;
-                OnClose(null, SocketCloseReason.TimeOut);
-                MainSocket.Close();
-            }, _connectionTimeoutCancellation.Token);
 
 
             var eventArg = new SocketAsyncEventArgs
@@ -113,8 +98,23 @@ namespace DtronixMessageQueue.Socket
                 }
             };
 
-
             MainSocket.ConnectAsync(eventArg);
+
+            Task.Run(async () =>
+            {
+                try
+                {
+                    await Task.Delay(Config.ConnectionTimeout, _connectionTimeoutCancellation.Token);
+                }
+                catch
+                {
+                    return;
+                }
+
+                timedOut = true;
+                OnClose(null, SocketCloseReason.TimeOut);
+                MainSocket.Close();
+            }, _connectionTimeoutCancellation.Token);
         }
 
         protected override void OnClose(TSession session, SocketCloseReason reason)

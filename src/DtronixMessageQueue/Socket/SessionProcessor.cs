@@ -39,26 +39,26 @@ namespace DtronixMessageQueue
             }
         }
 
-        public void QueueProcess(T id, Action action)
+        public void QueueProcess(ref T id, Action action)
         {
             if (_registeredSessions.TryGetValue(id, out ProcessorThread processor))
             {
-                processor.QueueProcess(id, action);
+                processor.QueueProcess(ref id, action);
             }
         }
 
-        public void Register(T id)
+        public void Register(ref T id)
         {
             var leastActive = _activeThreads.OrderByDescending(pt => pt.IdleTime).First();
-            leastActive.Register(id);
+            leastActive.Register(ref id);
             _registeredSessions.TryAdd(id, leastActive);
         }
 
-        public void Unregister(T id)
+        public void Unregister(ref T id)
         {
             if (_registeredSessions.TryRemove(id, out ProcessorThread pthread))
             {
-                pthread.Unregister(id);
+                pthread.Unregister(ref id);
             }
         }
 
@@ -99,7 +99,7 @@ namespace DtronixMessageQueue
 
             private readonly ConcurrentDictionary<T, float> _guidPerformance;
 
-            private int _registeredGuids = 0;
+            private int _registeredGuids;
 
 
 
@@ -151,7 +151,7 @@ namespace DtronixMessageQueue
 
             }
 
-            public void QueueProcess(T id, Action action)
+            public void QueueProcess(ref T id, Action action)
             {
                 Interlocked.Increment(ref _queued);
 
@@ -163,7 +163,7 @@ namespace DtronixMessageQueue
 
             }
 
-            public void Register(T id)
+            public void Register(ref T id)
             {
                 if (_guidPerformance.TryAdd(id, 0))
                 {
@@ -171,7 +171,7 @@ namespace DtronixMessageQueue
                 }
             }
 
-            public void Unregister(T id)
+            public void Unregister(ref T id)
             {
                 float perfValue;
                 if (_guidPerformance.TryRemove(id, out perfValue))

@@ -170,11 +170,13 @@ namespace DtronixMessageQueue.Socket
             session._receiveArgs = session._argsPool.Create();
             session._receiveArgs.Completed += session.IoCompleted;
 
+            var id = session.Id;
+
             session.InboxProcessor = inboxProcessor;
-            inboxProcessor.Register(session.Id);
+            inboxProcessor.Register(ref id);
 
             session.OutboxProcessor = outboxProcessor;
-            outboxProcessor.Register(session.Id);
+            outboxProcessor.Register(ref id);
 
 
             if (session._config.SendTimeout > 0)
@@ -400,8 +402,10 @@ namespace DtronixMessageQueue.Socket
             _argsPool.Free(_sendArgs);
             _argsPool.Free(_receiveArgs);
 
-            InboxProcessor.Unregister(Id);
-            OutboxProcessor.Unregister(Id);
+            var id = Id;
+
+            InboxProcessor.Unregister(ref id);
+            OutboxProcessor.Unregister(ref id);
 
             CurrentState = State.Closed;
 

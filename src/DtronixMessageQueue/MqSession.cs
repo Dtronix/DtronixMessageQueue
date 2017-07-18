@@ -3,7 +3,6 @@ using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.IO;
 using System.Threading;
-using System.Threading.Tasks;
 using DtronixMessageQueue.Socket;
 
 namespace DtronixMessageQueue
@@ -37,10 +36,6 @@ namespace DtronixMessageQueue
         /// </summary>
         private readonly ConcurrentQueue<byte[]> _inboxBytes = new ConcurrentQueue<byte[]>();
 
-        private Task _outboxTask;
-
-        private Task _inboxTask;
-
         private SemaphoreSlim _sendingSemaphore;
 
         private SemaphoreSlim _receivingSemaphore;
@@ -72,7 +67,8 @@ namespace DtronixMessageQueue
             _receivingSemaphore.Wait();
 
             _inboxBytes.Enqueue(buffer);
-            InboxProcessor.QueueProcess(Id, ProcessIncomingQueue);
+            var id = Id;
+            InboxProcessor.QueueProcess(ref id, ProcessIncomingQueue);
         }
 
         /// <summary>
@@ -317,7 +313,9 @@ namespace DtronixMessageQueue
 
             _sendingSemaphore.Wait();
             _outbox.Enqueue(message);
-            OutboxProcessor.QueueProcess(Id, ProcessOutbox);
+
+            var id = Id;
+            OutboxProcessor.QueueProcess(ref id, ProcessOutbox);
         }
 
         /// <summary>
