@@ -4,7 +4,7 @@ using DtronixMessageQueue.Socket;
 namespace DtronixMessageQueue
 {
     /// <summary>
-    /// Message Queue Server to handle incoming clients
+    /// Message QueueActionExecution Server to handle incoming clients
     /// </summary>
     /// <typeparam name="TSession">Session type for this connection.</typeparam>
     /// <typeparam name="TConfig">Configuration for this connection.</typeparam>

@@ -1,7 +1,6 @@
 ﻿using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
-using System.Net.Sockets;
 using System.Threading;
 
 namespace DtronixMessageQueue.Socket
@@ -68,12 +67,12 @@ namespace DtronixMessageQueue.Socket
         /// <summary>
         /// Processor to handle all inbound and outbound message handling.
         /// </summary>
-        protected SessionProcessor<Guid> OutboxProcessor;
+        protected ActionProcessor<Guid> OutboxProcessor;
 
         /// <summary>
         /// Processor to handle all inbound and outbound message handling.
         /// </summary>
-        protected SessionProcessor<Guid> InboxProcessor;
+        protected ActionProcessor<Guid> InboxProcessor;
 
         /// <summary>
         /// Dictionary of all connected clients.
@@ -95,14 +94,14 @@ namespace DtronixMessageQueue.Socket
 
             if (mode == SocketMode.Client)
             {
-                OutboxProcessor = new SessionProcessor<Guid>(1, $"{modeLower}-outbox");
-                InboxProcessor = new SessionProcessor<Guid>(1, $"{modeLower}-inbox");
+                OutboxProcessor = new ActionProcessor<Guid>($"{modeLower}-outbox", 1);
+                InboxProcessor = new ActionProcessor<Guid>($"{modeLower}-inbox", 1);
             }
             else
             {
                 var processorThreads = Math.Max(Environment.ProcessorCount / 2, 1);
-                OutboxProcessor = new SessionProcessor<Guid>(processorThreads, $"{modeLower}-outbox");
-                InboxProcessor = new SessionProcessor<Guid>(processorThreads, $"{modeLower}-inbox"); 
+                OutboxProcessor = new ActionProcessor<Guid>($"{modeLower}-outbox", processorThreads);
+                InboxProcessor = new ActionProcessor<Guid>($"{modeLower}-inbox", processorThreads);
             }
 
             OutboxProcessor.Start();
@@ -183,7 +182,8 @@ namespace DtronixMessageQueue.Socket
         /// <returns>New session instance.</returns>
         protected virtual TSession CreateSession(System.Net.Sockets.Socket socket)
         {
-            var session = SocketSession<TSession, TConfig>.Create(socket, AsyncManager, Config, this, InboxProcessor, OutboxProcessor);
+            var session = SocketSession<TSession, TConfig>.Create(socket, AsyncManager, Config, this, InboxProcessor,
+                OutboxProcessor);
 
             SessionSetup?.Invoke(this, new SessionEventArgs<TSession, TConfig>(session));
             session.Closed += (sender, args) => OnClose(session, args.CloseReason);

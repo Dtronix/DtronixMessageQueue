@@ -89,12 +89,12 @@ namespace DtronixMessageQueue.Socket
         /// <summary>
         /// Processor to handle all inbound messages.
         /// </summary>
-        protected SessionProcessor<Guid> InboxProcessor;
+        protected ActionProcessor<Guid> InboxProcessor;
 
         /// <summary>
         /// Processor to handle all outbound messages.
         /// </summary>
-        protected SessionProcessor<Guid> OutboxProcessor;
+        protected ActionProcessor<Guid> OutboxProcessor;
 
 
         private System.Net.Sockets.Socket _socket;
@@ -158,8 +158,8 @@ namespace DtronixMessageQueue.Socket
             SocketAsyncEventArgsManager socketArgsManager,
             TConfig sessionConfig, 
             SessionHandler<TSession, TConfig> sessionHandler, 
-            SessionProcessor<Guid> inboxProcessor,
-            SessionProcessor<Guid> outboxProcessor)
+            ActionProcessor<Guid> inboxProcessor,
+            ActionProcessor<Guid> outboxProcessor)
         {
             var session = new TSession
             {

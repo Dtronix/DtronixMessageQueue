@@ -70,13 +70,13 @@ namespace DtronixMessageQueue
             _receivingSemaphore.Wait();
 
             _inboxBytes.Enqueue(buffer);
-            InboxProcessor.Queue(Id);
+            InboxProcessor.QueueActionExecution(Id);
         }
 
         /// <summary>
         /// Sends a queue of bytes to the connected client/server.
         /// </summary>
-        /// <param name="bufferQueue">Queue of bytes to send to the wire.</param>
+        /// <param name="bufferQueue">QueueActionExecution of bytes to send to the wire.</param>
         /// <param name="length">Total length of the bytes in the queue to send.</param>
         private void SendBufferQueue(Queue<byte[]> bufferQueue, int length)
         {
@@ -278,7 +278,7 @@ namespace DtronixMessageQueue
                 msg = new MqMessage(closeFrame);
                 _outbox.Enqueue(msg);
 
-                // Queue the last bit of data.
+                // QueueActionExecution the last bit of data.
                 ProcessOutbox();
             }
 
@@ -316,7 +316,7 @@ namespace DtronixMessageQueue
             _sendingSemaphore.Wait();
             _outbox.Enqueue(message);
 
-            OutboxProcessor.Queue(Id);
+            OutboxProcessor.QueueActionExecution(Id);
         }
 
         /// <summary>

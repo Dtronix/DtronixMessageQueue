@@ -51,7 +51,7 @@
     <Compile Include="MqMessageWriter.cs" />
     <Compile Include="MqSession.cs" />
     <Compile Include="MqConfig.cs" />
-    <Compile Include="Socket\SessionProcessor.cs" />
+    <Compile Include="ActionProcessor.cs" />
     <Compile Include="Rpc\DataContract\RpcServerInfoDataContract.cs" />
     <Compile Include="Rpc\IRemoteService.cs" />
     <Compile Include="Rpc\MessageHandler.cs" />
