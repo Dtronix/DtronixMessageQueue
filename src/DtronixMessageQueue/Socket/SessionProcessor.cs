@@ -117,6 +117,7 @@ namespace DtronixMessageQueue
                 _queued = 0;
                 _thread = new Thread(Process);
                 _thread.Name = name;
+                _thread.IsBackground = true;
                 _actions = new BlockingCollection<ProcessAction>();
                 _guidPerformance = new ConcurrentDictionary<T, float>();
             }

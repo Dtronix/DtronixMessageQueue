@@ -53,6 +53,25 @@ namespace DtronixMessageQueue.Tests.Gui.Tests.Connection
             base.Close(reason);
 
         }
+
+
+        public override void PauseTest()
+        {
+
+            if (RunTest)
+            {
+                ResponseTimer?.Change(-1, -1);
+                Stopwatch.Stop();
+            }
+            else
+            {
+                ResponseTimer?.Change(_period, _period);
+                Stopwatch.Restart();
+
+            }
+
+            RunTest = !RunTest;
+        }
     }
 
 }

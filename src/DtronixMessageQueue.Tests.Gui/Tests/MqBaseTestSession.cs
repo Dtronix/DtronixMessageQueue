@@ -11,6 +11,7 @@ namespace DtronixMessageQueue.Tests.Gui.Tests
 
         public static long TotalReceieved;
         public static long TotalSent;
+        protected bool RunTest = true;
 
         protected MqMessageReader Reader;
         protected MqMessageWriter Writer;
@@ -92,6 +93,20 @@ namespace DtronixMessageQueue.Tests.Gui.Tests
                 var message = messageQueue.Dequeue();
                 Interlocked.Add(ref TotalReceieved, message.Size);
             }
+        }
+
+        public virtual void PauseTest()
+        {
+            if (RunTest)
+            {
+                RunTest = false;
+            }
+            else
+            {
+                RunTest = true;
+                StartTest();
+            }
+
         }
     }
 }

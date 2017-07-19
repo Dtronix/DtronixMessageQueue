@@ -129,6 +129,7 @@ namespace DtronixMessageQueue.Tests.Gui.Services
                     TestBase.Log("Connection test client connected.");
 
                     ConnectionTestLog();
+
                     args.Session.StartTest();
                 };
 
@@ -141,6 +142,19 @@ namespace DtronixMessageQueue.Tests.Gui.Services
                 client.Connect();
 
                 _maxThroughputTestClientList.Add(client);
+            }
+        }
+
+        public void PauseTest()
+        {
+            foreach (var mqClient in _maxThroughputTestClientList)
+            {
+                mqClient.Session.PauseTest();
+            }
+
+            foreach (var mqClient in _connectionTestClientList)
+            {
+                mqClient.Session.PauseTest();
             }
         }
     }

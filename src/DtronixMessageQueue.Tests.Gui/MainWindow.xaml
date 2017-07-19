@@ -49,6 +49,7 @@
         </RichTextBox>
         
         <StackPanel Orientation="Horizontal" Grid.Row="3" HorizontalAlignment="Right">
+            <Button Padding="4" Margin="5,0" VerticalAlignment="Center" Click="Pause" IsEnabled="{Binding IsServer}">Pause</Button>
             <Button Padding="4" Margin="5,0" VerticalAlignment="Center" Click="Stop" IsEnabled="{Binding IsRunning}">Stop</Button>
             <Button Padding="4" Margin="5,0" VerticalAlignment="Center" Click="StartAsServer" IsEnabled="{Binding CanModifySettings}">Start As Server</Button>
             <Button Padding="4" Margin="5,0" VerticalAlignment="Center" Click="StartAsClient">Start As Client</Button>

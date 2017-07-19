@@ -27,9 +27,9 @@ namespace DtronixMessageQueue.Tests.Performance
                 Console.WriteLine($"DMQPerf.exe {string.Join(" ", args)}");
 
                 Console.WriteLine("MQ Performance tests.\r\n");
-                new MqPerformanceTest().StartTest();
+               // new MqPerformanceTest().StartTest();
 
-                Console.ReadLine();
+                //Console.ReadLine();
 
                 Console.WriteLine("RPC Performance tests.\r\n");
                 new RpcPerformanceTest(args);

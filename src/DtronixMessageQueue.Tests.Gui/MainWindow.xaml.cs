@@ -163,8 +163,9 @@ namespace DtronixMessageQueue.Tests.Gui
 
             PerformanceTests = new ObservableCollection<PerformanceTest>()
             {
+                
+                new ConnectionPerformanceTest(this),
                 new MaxThroughputPerformanceTest(this),
-                new ConnectionPerformanceTest(this)
             };
 
             DataContext = this;
@@ -196,27 +197,35 @@ namespace DtronixMessageQueue.Tests.Gui
             var totalReceived = ConnectionPerformanceTestSession.TotalReceieved + MaxThroughputPerformanceTestSession.TotalReceieved;
             var totalSent = ConnectionPerformanceTestSession.TotalSent + MaxThroughputPerformanceTestSession.TotalSent;
 
-            Dispatcher.Invoke(() =>
+            try
             {
-                using (Process currentProcess = Process.GetCurrentProcess())
-                    MemoryUsage = FormatSize(currentProcess.WorkingSet64);
+                Dispatcher.Invoke(() =>
+                {
+                    using (Process currentProcess = Process.GetCurrentProcess())
+                        MemoryUsage = FormatSize(currentProcess.WorkingSet64);
 
-                TotalTransferred =
-                    FormatSize(totalReceived + totalSent);
+                    TotalTransferred =
+                        FormatSize(totalReceived + totalSent);
 
-                TransferDown =
-                    FormatSize((double) (totalReceived - _lastTotalReceived) /
-                               _totalTransferStopwatch.ElapsedMilliseconds * 1000) + "ps";
+                    TransferDown =
+                        FormatSize((double)(totalReceived - _lastTotalReceived) /
+                                   _totalTransferStopwatch.ElapsedMilliseconds * 1000) + "ps";
 
-                TransferUp =
-                    FormatSize((double)(totalSent - _lastTotalSent) /
-                               _totalTransferStopwatch.ElapsedMilliseconds * 1000) + "ps";
+                    TransferUp =
+                        FormatSize((double)(totalSent - _lastTotalSent) /
+                                   _totalTransferStopwatch.ElapsedMilliseconds * 1000) + "ps";
 
-                _lastTotalReceived = totalReceived;
-                _lastTotalSent = totalSent;
+                    _lastTotalReceived = totalReceived;
+                    _lastTotalSent = totalSent;
 
-                _totalTransferStopwatch.Restart();
-            });
+                    _totalTransferStopwatch.Restart();
+                });
+            }
+            catch (Exception e)
+            {
+                // ignore
+            }
+            
 
         }
 
@@ -297,6 +306,11 @@ namespace DtronixMessageQueue.Tests.Gui
                 StartAsClient(this, null);
                 IsServer = false;
             }
+        }
+
+        private void Pause(object sender, RoutedEventArgs e)
+        {
+            SelectedPerformanceTest.PauseTest();
         }
     }
 }

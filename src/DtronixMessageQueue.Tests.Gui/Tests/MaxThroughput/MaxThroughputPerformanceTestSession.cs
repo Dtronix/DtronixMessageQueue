@@ -10,6 +10,7 @@ namespace DtronixMessageQueue.Tests.Gui.Tests.MaxThroughput
 
         private int _configFrameSize;
         private MqMessage _testMessage;
+        
         public void ConfigTest(int frameSize, int totalFrames)
         {
             _configFrameSize = frameSize;
@@ -26,12 +27,15 @@ namespace DtronixMessageQueue.Tests.Gui.Tests.MaxThroughput
 
         public override void StartTest()
         {
-            StartedTime = DateTime.Now;
-
-            while (CurrentState == State.Connected)
+            Task.Run(() =>
             {
-                Send(_testMessage);
-            }
+                StartedTime = DateTime.Now;
+
+                while (RunTest && CurrentState == State.Connected)
+                {
+                    Send(_testMessage);
+                }
+            });
         }
 
 
@@ -46,6 +50,7 @@ namespace DtronixMessageQueue.Tests.Gui.Tests.MaxThroughput
             base.Close(reason);
 
         }
+
     }
 
 }
