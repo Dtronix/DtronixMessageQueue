@@ -152,8 +152,13 @@ namespace DtronixMessageQueue.Socket
         /// <param name="socketArgsManager">Argument pool for this session to use.  Pulls two asyncevents for reading and writing and returns them at the end of this socket's life.</param>
         /// <param name="sessionConfig">Socket configurations this session is to use.</param>
         /// <param name="sessionHandler">Handler base which is handling this session.</param>
-        public static TSession Create(System.Net.Sockets.Socket sessionSocket, SocketAsyncEventArgsManager socketArgsManager,
-            TConfig sessionConfig, SessionHandler<TSession, TConfig> sessionHandler, SessionProcessor<Guid> inboxProcessor,
+        /// <param name="inboxProcessor">Processor which handles all inboxdata.</param>
+        /// /// <param name="outboxProcessor">Processor which handles all outbox data.</param>
+        public static TSession Create(System.Net.Sockets.Socket sessionSocket, 
+            SocketAsyncEventArgsManager socketArgsManager,
+            TConfig sessionConfig, 
+            SessionHandler<TSession, TConfig> sessionHandler, 
+            SessionProcessor<Guid> inboxProcessor,
             SessionProcessor<Guid> outboxProcessor)
         {
             var session = new TSession
@@ -170,14 +175,9 @@ namespace DtronixMessageQueue.Socket
             session._receiveArgs = session._argsPool.Create();
             session._receiveArgs.Completed += session.IoCompleted;
 
-            var id = session.Id;
-
             session.InboxProcessor = inboxProcessor;
-            inboxProcessor.Register(ref id);
 
             session.OutboxProcessor = outboxProcessor;
-            outboxProcessor.Register(ref id);
-
 
             if (session._config.SendTimeout > 0)
                 session._socket.SendTimeout = session._config.SendTimeout;
@@ -402,10 +402,8 @@ namespace DtronixMessageQueue.Socket
             _argsPool.Free(_sendArgs);
             _argsPool.Free(_receiveArgs);
 
-            var id = Id;
-
-            InboxProcessor.Unregister(ref id);
-            OutboxProcessor.Unregister(ref id);
+            InboxProcessor.Deregister(Id);
+            OutboxProcessor.Deregister(Id);
 
             CurrentState = State.Closed;
 

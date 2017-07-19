@@ -3,11 +3,9 @@ using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.Linq;
-using System.Text;
 using System.Threading;
-using System.Threading.Tasks;
 
-namespace DtronixMessageQueue
+namespace DtronixMessageQueue.Socket
 {
     /// <summary>
     /// Handles all inbox and outbox queue processing 
@@ -16,7 +14,8 @@ namespace DtronixMessageQueue
     {
         private readonly string _name;
         private readonly List<ProcessorThread> _activeThreads;
-        private readonly ConcurrentDictionary<T, ProcessorThread> _registeredSessions;
+        private readonly ConcurrentDictionary<T, ProcessAction> _registeredActions;
+        //private readonly ConcurrentDictionary<T, ProcessorThread> _registeredSessions;
 
         public bool IsRunning { get; set; }
 
@@ -26,10 +25,12 @@ namespace DtronixMessageQueue
 
         }
 
+
         public SessionProcessor(int threads, string name)
         {
             _name = name;
-            _registeredSessions = new ConcurrentDictionary<T, ProcessorThread>();
+            //_registeredSessions = new ConcurrentDictionary<T, ProcessorThread>();
+            _registeredActions = new ConcurrentDictionary<T, ProcessAction>();
 
             _activeThreads = new List<ProcessorThread>(threads);
             for (int i = 0; i < threads; i++)
@@ -39,26 +40,42 @@ namespace DtronixMessageQueue
             }
         }
 
-        public void QueueProcess(ref T id, Action action)
+        public void Queue(T id)
         {
-            if (_registeredSessions.TryGetValue(id, out ProcessorThread processor))
+            if (_registeredActions.TryGetValue(id, out ProcessAction processAction))
             {
-                processor.QueueProcess(ref id, action);
+                if (processAction.QueuedCount < 1)
+                {
+                    processAction.ProcessorThread.Queue(processAction);
+                }
             }
         }
 
-        public void Register(ref T id)
+        public void Register(T id, Action action)
         {
-            var leastActive = _activeThreads.OrderByDescending(pt => pt.IdleTime).First();
-            leastActive.Register(ref id);
-            _registeredSessions.TryAdd(id, leastActive);
+            var leastActiveProcessor = _activeThreads.OrderByDescending(pt => pt.IdleTime).First();
+            
+
+            var processAction = new ProcessAction
+            {
+                Action = action,
+                Guid = id,
+                ProcessorThread = leastActiveProcessor
+            };
+
+            Interlocked.Increment(ref leastActiveProcessor.RegisteredActionsCount);
+
+            if (_registeredActions.TryAdd(id, processAction) == false)
+            {
+                throw new InvalidOperationException($"Id {id} is already registered.");
+            }
         }
 
-        public void Unregister(ref T id)
+        public void Deregister(T id)
         {
-            if (_registeredSessions.TryRemove(id, out ProcessorThread pthread))
+            if (_registeredActions.TryRemove(id, out ProcessAction processAction))
             {
-                pthread.Unregister(ref id);
+                Interlocked.Increment(ref processAction.ProcessorThread.RegisteredActionsCount);
             }
         }
 
@@ -82,8 +99,11 @@ namespace DtronixMessageQueue
 
         private class ProcessAction
         {
-            public T Guid { get; set; }
-            public Action Action { get; set; }
+            public T Guid;
+            public Action Action;
+            public float AverageUsageTime;
+            public ProcessorThread ProcessorThread;
+            public int QueuedCount;
         }
 
 
@@ -96,30 +116,23 @@ namespace DtronixMessageQueue
             private CancellationTokenSource _cancellationTokenSource;
             private Stopwatch _perfStopwatch;
             private float _idleTime;
+            public int RegisteredActionsCount = 0;
 
-            private readonly ConcurrentDictionary<T, float> _guidPerformance;
-
-            private int _registeredGuids;
-
-
-
-
-            public int Queued => _queued;
 
             public bool IsRunning => _isRunning;
-
-            public int RegisteredGuids => _registeredGuids;
 
             public float IdleTime => _idleTime;
 
             public ProcessorThread(string name)
             {
                 _queued = 0;
-                _thread = new Thread(Process);
-                _thread.Name = name;
-                _thread.IsBackground = true;
+                _thread = new Thread(Process)
+                {
+                    Name = name,
+                    IsBackground = true
+                };
+
                 _actions = new BlockingCollection<ProcessAction>();
-                _guidPerformance = new ConcurrentDictionary<T, float>();
             }
 
             private void Process()
@@ -130,6 +143,7 @@ namespace DtronixMessageQueue
                     while (_actions.TryTake(out ProcessAction action, 10000, _cancellationTokenSource.Token))
                     {
 
+                        Interlocked.Decrement(ref action.QueuedCount);
                         Interlocked.Decrement(ref _queued);
                         // Update the idle time
                         RollingEstimate(ref _idleTime, _perfStopwatch.ElapsedMilliseconds, 10);
@@ -141,10 +155,8 @@ namespace DtronixMessageQueue
 
 
                         // Add this performance to the estimated rolling average.
-                        if (_guidPerformance.TryGetValue(action.Guid, out float previousAverage))
-                        {
-                            RollingEstimate(ref previousAverage, _perfStopwatch.ElapsedMilliseconds, 10);
-                        }
+                        RollingEstimate(ref action.AverageUsageTime, _perfStopwatch.ElapsedMilliseconds, 10);
+                        
 
                     }
                 }
@@ -152,33 +164,12 @@ namespace DtronixMessageQueue
 
             }
 
-            public void QueueProcess(ref T id, Action action)
+            public void Queue(ProcessAction processAction)
             {
                 Interlocked.Increment(ref _queued);
+                Interlocked.Increment(ref processAction.QueuedCount);
+                _actions.TryAdd(processAction);
 
-                _actions.TryAdd(new ProcessAction
-                {
-                    Guid = id,
-                    Action = action
-                });
-
-            }
-
-            public void Register(ref T id)
-            {
-                if (_guidPerformance.TryAdd(id, 0))
-                {
-                    Interlocked.Increment(ref _registeredGuids);
-                }
-            }
-
-            public void Unregister(ref T id)
-            {
-                float perfValue;
-                if (_guidPerformance.TryRemove(id, out perfValue))
-                {
-                    Interlocked.Decrement(ref _registeredGuids);
-                }
             }
 
             public void Stop()

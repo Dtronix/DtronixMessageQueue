@@ -51,6 +51,9 @@ namespace DtronixMessageQueue
             _frameBuilder = new MqFrameBuilder(Config);
             _sendingSemaphore = new SemaphoreSlim(Config.MaxQueuedOutgoingMessages, Config.MaxQueuedOutgoingMessages);
             _receivingSemaphore = new SemaphoreSlim(Config.MaxQueuedInboundPackets, Config.MaxQueuedInboundPackets);
+
+            InboxProcessor.Register(Id, ProcessIncomingQueue);
+            OutboxProcessor.Register(Id, ProcessOutbox);
         }
 
         /// <summary>
@@ -67,8 +70,7 @@ namespace DtronixMessageQueue
             _receivingSemaphore.Wait();
 
             _inboxBytes.Enqueue(buffer);
-            var id = Id;
-            InboxProcessor.QueueProcess(ref id, ProcessIncomingQueue);
+            InboxProcessor.Queue(Id);
         }
 
         /// <summary>
@@ -276,7 +278,7 @@ namespace DtronixMessageQueue
                 msg = new MqMessage(closeFrame);
                 _outbox.Enqueue(msg);
 
-                // QueueProcess the last bit of data.
+                // Queue the last bit of data.
                 ProcessOutbox();
             }
 
@@ -314,8 +316,7 @@ namespace DtronixMessageQueue
             _sendingSemaphore.Wait();
             _outbox.Enqueue(message);
 
-            var id = Id;
-            OutboxProcessor.QueueProcess(ref id, ProcessOutbox);
+            OutboxProcessor.Queue(Id);
         }
 
         /// <summary>
