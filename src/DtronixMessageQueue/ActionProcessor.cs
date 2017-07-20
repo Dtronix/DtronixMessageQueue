@@ -14,7 +14,7 @@ namespace DtronixMessageQueue
     /// - Actions registered will be associated with a specific thread and will execute only on that thread
     ///   until the supervisor re-balances the executions.
     /// - Actions may float around between threads while executing to balance out thread execution.
-    /// - QueueActionExecution will only queue an action once until it has executed.  Subsequent calls will be ignored.
+    /// - QueueOnce will only queue an action once until it has executed.  Subsequent calls will be ignored.
     /// </summary>
     /// <typeparam name="T">
     /// Type to use for associating with an action.
@@ -80,7 +80,7 @@ namespace DtronixMessageQueue
 
             _threads = new List<ProcessorThread>(threads);
 
-            AddThreads(threads);
+            AddThread(threads);
 
             _supervisorTimer = new Timer(Supervise);
         }
@@ -89,7 +89,7 @@ namespace DtronixMessageQueue
         /// Adds the specified number of threads to the processor.
         /// </summary>
         /// <param name="count">Number of threads to add.</param>
-        public void AddThreads(int count)
+        public void AddThread(int count)
         {
             for (var i = 0; i < count; i++)
             {
@@ -97,6 +97,57 @@ namespace DtronixMessageQueue
                 var pThread = new ProcessorThread($"dmq-{_name}-{id}");
                 _threads.Add(pThread);
             }
+        }
+
+        /// <summary>
+        /// Removes the least active thread and moves all queued actions to the next least active thread.
+        /// Requires at least 2 threads to run.
+        /// </summary>
+        /// <param name="i">Number of threads to remove</param>
+        public void RemoveThread(int i)
+        {
+            if (_threads.Count < 2)
+                throw new InvalidOperationException($"Can not remove {i} threads.  Must maintain at least one thread for execution.  ");
+            
+            // Remove the least active thread from the list of active threads.
+            var leastActiveProcessor = GetProcessorThread();
+            _threads.Remove(leastActiveProcessor);
+
+            // Get the next least active processor thread.
+            var nextLeastActiveProcessor = GetProcessorThread();
+
+            // Transfer the queues from one thread to the other.
+            TransferActions(leastActiveProcessor, nextLeastActiveProcessor);
+        }
+
+        /// <summary>
+        /// Stops and transfers all actions from one thread to a specified thread.
+        /// </summary>
+        /// <param name="source">Source thread to stop and remove all actions from</param>
+        /// <param name="destination">Thread to move all the actions to.</param>
+        private void TransferActions(ProcessorThread source, ProcessorThread destination)
+        {
+            var queuedActions = source.Stop();
+
+            var registeredActions = _registeredActions.Values.ToArray();
+
+            // Filter down to the actions being transferred.
+            foreach (var registeredAction in registeredActions)
+            {
+                if (registeredAction.ProcessorThread != source)
+                    continue;
+
+                Interlocked.Increment(ref destination.RegisteredActionsCount);
+                Interlocked.Decrement(ref source.RegisteredActionsCount);
+
+                registeredAction.ProcessorThread = destination;
+
+                registeredAction.ResetEvent.Set();
+            }
+
+            // Add the previously queued items back to the destination thread.
+            foreach (var registeredAction in queuedActions)
+                destination.Queue(registeredAction, true);
         }
 
 
@@ -107,13 +158,40 @@ namespace DtronixMessageQueue
         /// </summary>
         /// <param name="id">Id associated with an action to execute.</param>
         /// <returns>True if the action was queued.  False if it was not.</returns>
-        public bool QueueActionExecution(T id)
+        public bool QueueOnce(T id)
+        {
+            return Queue(id, 1);
+        }
+
+        /// <summary>
+        /// Queues the associated action up to execute on the internal thread.
+        /// </summary>
+        /// <param name="id">Id associated with an action to execute.</param>
+        /// <returns>True if the action was queued.  False if it was not.</returns>
+        public bool Queue(T id)
+        {
+            return Queue(id, -1);
+        }
+
+        /// <summary>
+        /// Queues the associated action up to execute on the internal thread.
+        /// Will only queue the associated action once.  
+        /// Subsequent calls will not be queued until first queued action executes.
+        /// </summary>
+        /// <param name="id">Id associated with an action to execute.</param>
+        /// <param name="limit">Limits the number of times this item can be queued to execute.  -1 for unlimited.</param>
+        /// <returns>True if the action was queued.  False if it was not.</returns>
+        private bool Queue(T id, int limit)
         {
             if (_registeredActions.TryGetValue(id, out RegisteredAction processAction))
             {
-                if (processAction.QueuedCount < 1)
+                // If the processor thread is not running, then it is most likely in the process of transferring to another thread.
+                if (processAction.ProcessorThread.IsRunning == false)
+                    throw new InvalidOperationException("Tried to queue an execute on a processor thread not running.");
+
+                if (limit == -1 || processAction.QueuedCount < limit)
                 {
-                    processAction.ProcessorThread.Queue(processAction);
+                    processAction.ProcessorThread.Queue(processAction, false);
                     return true;
                 }
             }
@@ -128,8 +206,8 @@ namespace DtronixMessageQueue
         /// <param name="action">Action to execute when this Id is queued.</param>
         public void Register(T id, Action action)
         {
-            var leastActiveProcessor = _threads.OrderByDescending(pt => pt.IdleTime).First();
 
+            var leastActiveProcessor = GetProcessorThread();
 
             var processAction = new RegisteredAction
             {
@@ -156,6 +234,24 @@ namespace DtronixMessageQueue
             {
                 Interlocked.Increment(ref processAction.ProcessorThread.RegisteredActionsCount);
             }
+        }
+
+        internal RegisteredAction GetActionById(T id)
+        {
+            return _registeredActions[id];
+        }
+
+        private ProcessorThread GetProcessorThread()
+        {
+            var leastActiveProcessor = _threads
+                .Where(pt => IsRunning)
+                .OrderBy(pt => pt.RegisteredActionsCount)
+                .FirstOrDefault();
+
+            if (leastActiveProcessor == null)
+                throw new InvalidOperationException("No ProcessorThreads are running.");
+            
+            return leastActiveProcessor;
         }
 
         /// <summary>
@@ -199,7 +295,7 @@ namespace DtronixMessageQueue
         /// <summary>
         /// Contains action and performance info on the performed action.
         /// </summary>
-        private class RegisteredAction
+        internal class RegisteredAction
         {
             /// <summary>
             /// Id for this action to perform.
@@ -225,13 +321,19 @@ namespace DtronixMessageQueue
             /// Integer of the times this action is currently in queue to execute.
             /// </summary>
             public int QueuedCount;
+
+            /// <summary>
+            /// Called before adding this action to a queue to prevent
+            /// queuing in an inactive thread.
+            /// </summary>
+            public ManualResetEventSlim ResetEvent = new ManualResetEventSlim(true);
         }
 
 
         /// <summary>
         /// Thread manager to handle the stating and stopping of processing threads.
         /// </summary>
-        private class ProcessorThread
+        internal class ProcessorThread
         {
             /// <summary>
             /// Name of the thread.
@@ -251,11 +353,7 @@ namespace DtronixMessageQueue
             /// <summary>
             /// Number of actions queued to execute.
             /// </summary>
-            private int _queued;
-
-            /// <summary>
-            /// True if the thread is running.  False to cancel the thread inner loop.
-            /// </summary>
+            internal int Queued;
 
             /// <summary>
             /// Cancellation source to handle the canceling of the thread loop.
@@ -310,12 +408,15 @@ namespace DtronixMessageQueue
                 // Loop while the cancellation of the thread has not been requested.
                 while (IsRunning)
                 {
-                    while (_actions.TryTake(out RegisteredAction action, 10000, _cancellationTokenSource.Token))
+                    // Update the idle time
+                    RollingEstimate(ref _idleTime, _perfStopwatch.ElapsedMilliseconds, 10);
+
+                    while (_actions.TryTake(out RegisteredAction action, 1000, _cancellationTokenSource.Token))
                     {
 
                         // Decrement the total actions queued and the current action being run.
                         Interlocked.Decrement(ref action.QueuedCount);
-                        Interlocked.Decrement(ref _queued);
+                        Interlocked.Decrement(ref Queued);
 
                         // Update the idle time
                         RollingEstimate(ref _idleTime, _perfStopwatch.ElapsedMilliseconds, 10);
@@ -349,24 +450,53 @@ namespace DtronixMessageQueue
             }
 
             /// <summary>
-            /// QueueActionExecution a specific process action to execute.
+            /// QueueOnce a specific process action to execute.
             /// </summary>
             /// <param name="registeredAction">ThreadProcess action to execute.</param>
-            public void Queue(RegisteredAction registeredAction)
+            /// <param name="transferred">If this item was transferred to this thread from another thread.</param>
+            public void Queue(RegisteredAction registeredAction, bool transferred)
             {
-                Interlocked.Increment(ref _queued);
-                Interlocked.Increment(ref registeredAction.QueuedCount);
+                Interlocked.Increment(ref Queued);
+
+                if (transferred == false)
+                {
+                    Interlocked.Increment(ref registeredAction.QueuedCount);
+                }
                 _actions.TryAdd(registeredAction);
 
             }
 
             /// <summary>
-            /// CAncels the loop and stops the thread from running.
+            /// Stops the loop and stops the thread from running 
+            /// and returns all actions registered to execute.
             /// </summary>
-            public void Stop()
+            /// <returns>Returns all registered actions for this processor.</returns>
+            public RegisteredAction[] Stop()
             {
-                _cancellationTokenSource.Cancel();
+                Pause();
+                var actions = _actions.ToArray();
+
+                // Remove all the actions from the collection.
+                while (_actions.Count > 1)
+                    _actions.Take();
+
+                foreach (var registeredAction in actions)
+                {
+                    // Puts a hold on all attempted queues to the 
+                    if (registeredAction.ResetEvent.IsSet)
+                        registeredAction.ResetEvent.Reset();
+                }
+
+                return actions;
+            }
+
+            /// <summary>
+            /// Pauses the loop and stops the thread from running.
+            /// </summary>
+            public void Pause()
+            {
                 _isRunning = false;
+                _cancellationTokenSource.Cancel();
                 _thread = null;
             }
 
@@ -415,6 +545,14 @@ namespace DtronixMessageQueue
                 var fProportion = (float) (uiProportion - 1) / uiProportion;
                 rollingEstimate = fProportion * rollingEstimate + 1.0f / uiProportion * update;
             }
+
+            public override string ToString()
+            {
+                return
+                    $"Name: {_name}; Running: {_isRunning}; Idle Time: {_idleTime}; Registered Actions: {RegisteredActionsCount}, Queued: {Queued}";
+            }
         }
+
+
     }
 }
