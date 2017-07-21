@@ -91,11 +91,23 @@ namespace DtronixMessageQueue
         /// <param name="count">Number of threads to add.</param>
         public void AddThread(int count)
         {
+
+            var totalRegisteredActions = _registeredActions.Count;
+
+            var totalNewThreads = _threads.Count + count;
+
+            var actionsPerThread = totalRegisteredActions / totalNewThreads;
+
             for (var i = 0; i < count; i++)
             {
                 var id = Interlocked.Increment(ref _threadId);
                 var pThread = new ProcessorThread($"dmq-{_name}-{id}");
                 _threads.Add(pThread);
+
+                for (int j = 0; j < actionsPerThread; j++)
+                {
+                    pThread.RegisteredActionsCount
+                }
             }
         }
 
@@ -125,29 +137,20 @@ namespace DtronixMessageQueue
         /// </summary>
         /// <param name="source">Source thread to stop and remove all actions from</param>
         /// <param name="destination">Thread to move all the actions to.</param>
-        private void TransferActions(ProcessorThread source, ProcessorThread destination)
+        private void TransferActions(ProcessorThread source, ProcessorThread destination, int count)
         {
-            var queuedActions = source.Stop();
 
-            var registeredActions = _registeredActions.Values.ToArray();
+            var registeredActions = source.GetActions(count);
 
             // Filter down to the actions being transferred.
             foreach (var registeredAction in registeredActions)
             {
-                if (registeredAction.ProcessorThread != source)
-                    continue;
+                source.DeregisterAction(registeredAction);
+                destination.RegisterAction(registeredAction);
 
-                Interlocked.Increment(ref destination.RegisteredActionsCount);
-                Interlocked.Decrement(ref source.RegisteredActionsCount);
-
-                registeredAction.ProcessorThread = destination;
-
+                // Set the queue to continue to allow adds.
                 registeredAction.ResetEvent.Set();
             }
-
-            // Add the previously queued items back to the destination thread.
-            foreach (var registeredAction in queuedActions)
-                destination.Queue(registeredAction, true);
         }
 
 
@@ -212,11 +215,10 @@ namespace DtronixMessageQueue
             var processAction = new RegisteredAction
             {
                 Action = action,
-                Id = id,
-                ProcessorThread = leastActiveProcessor
+                Id = id
             };
 
-            Interlocked.Increment(ref leastActiveProcessor.RegisteredActionsCount);
+            leastActiveProcessor.RegisterAction(processAction);
 
             if (_registeredActions.TryAdd(id, processAction) == false)
             {
@@ -232,7 +234,7 @@ namespace DtronixMessageQueue
         {
             if (_registeredActions.TryRemove(id, out RegisteredAction processAction))
             {
-                Interlocked.Increment(ref processAction.ProcessorThread.RegisteredActionsCount);
+                processAction?.ProcessorThread.DeregisterAction(processAction);
             }
         }
 
@@ -365,11 +367,17 @@ namespace DtronixMessageQueue
             /// </summary>
             private Stopwatch _perfStopwatch;
 
+            /// <summary>
+            /// Contains all the actions registered on this thread.
+            /// </summary>
+            private ConcurrentDictionary<T, RegisteredAction> _registeredActions;
+
+            private int _registeredActionsCount;
 
             /// <summary>
             /// Total actions which this thread can process.
             /// </summary>
-            public int RegisteredActionsCount;
+            public int RegisteredActionsCount => _registeredActionsCount;
 
             private bool _isRunning;
 
@@ -395,6 +403,7 @@ namespace DtronixMessageQueue
             {
                 _name = name;
                 _actions = new BlockingCollection<RegisteredAction>();
+                _registeredActions = new ConcurrentDictionary<T, RegisteredAction>();
             }
 
             /// <summary>
@@ -418,6 +427,13 @@ namespace DtronixMessageQueue
                         Interlocked.Decrement(ref action.QueuedCount);
                         Interlocked.Decrement(ref Queued);
 
+                        // If this action was transferred to another thread, queue the action up on that other thread.
+                        if (action.ProcessorThread != this)
+                        {
+                            action.ProcessorThread.Queue(action, true);
+                            continue;
+                        }
+
                         // Update the idle time
                         RollingEstimate(ref _idleTime, _perfStopwatch.ElapsedMilliseconds, 10);
 
@@ -435,8 +451,6 @@ namespace DtronixMessageQueue
                             // ignored
                         }
 
-
-
                         // Add this performance to the estimated rolling average.
                         RollingEstimate(ref action.AverageUsageTime, _perfStopwatch.ElapsedMilliseconds, 10);
 
@@ -446,7 +460,6 @@ namespace DtronixMessageQueue
 
                 // Stop the timer as we have existed the main loop.
                 _perfStopwatch.Stop();
-
             }
 
             /// <summary>
@@ -463,8 +476,35 @@ namespace DtronixMessageQueue
                     Interlocked.Increment(ref registeredAction.QueuedCount);
                 }
                 _actions.TryAdd(registeredAction);
-
             }
+
+            public void RegisterAction(RegisteredAction action)
+            {
+                Interlocked.Increment(ref _registeredActionsCount);
+                _registeredActions.TryAdd(action.Id, action);
+                action.ProcessorThread = this;
+            }
+
+            public void DeregisterAction(RegisteredAction action)
+            {
+                Interlocked.Decrement(ref _registeredActionsCount);
+                _registeredActions.TryRemove(action.Id, out var removedAction);
+                removedAction.ProcessorThread = null;
+            }
+
+            public RegisteredAction[] GetActions(int count)
+            {
+                if (count == -1)
+                {
+                    return 
+                }
+                return _registeredActions
+                    .Select(kvp => kvp.Value)
+                    .OrderByDescending(ra => ra.AverageUsageTime)
+                    .Take(count)
+                    .ToArray();
+            }
+
 
             /// <summary>
             /// Stops the loop and stops the thread from running 
@@ -549,7 +589,7 @@ namespace DtronixMessageQueue
             public override string ToString()
             {
                 return
-                    $"Name: {_name}; Running: {_isRunning}; Idle Time: {_idleTime}; Registered Actions: {RegisteredActionsCount}, Queued: {Queued}";
+                    $"Name: {_name}; Running: {_isRunning}; Idle Time: {_idleTime}; Registered Actions: {_registeredActionsCount}, Queued: {Queued}";
             }
         }
 

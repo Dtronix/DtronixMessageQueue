@@ -99,7 +99,10 @@ namespace DtronixMessageQueue.Socket
             }
             else
             {
-                var processorThreads = Math.Max(Environment.ProcessorCount / 2, 1);
+                var processorThreads = config.ProcessorThreads == -1
+                    ? Environment.ProcessorCount
+                    : config.ProcessorThreads;
+
                 OutboxProcessor = new ActionProcessor<Guid>($"{modeLower}-outbox", processorThreads);
                 InboxProcessor = new ActionProcessor<Guid>($"{modeLower}-inbox", processorThreads);
             }

@@ -178,6 +178,19 @@ namespace DtronixMessageQueue.Tests
             Assert.Equal(2, firstRegisteredAction.ProcessorThread.Queued);
         }
 
+        [Fact]
+        public void Processor_balances_on_new_thread ()
+        {
+            var processor = CreateProcessor(1, true);
+
+
+
+            var firstRegisteredAction = RegisterGet(processor, () => Thread.Sleep(5000));
+            RegisterGet(processor, () => Thread.Sleep(5000));
+
+            Assert.Equal(2, firstRegisteredAction.ProcessorThread.RegisteredActionsCount);
+        }
+
 
 
 
