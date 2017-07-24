@@ -128,8 +128,24 @@ namespace DtronixMessageQueue
             // Get the next least active processor thread.
             var nextLeastActiveProcessor = GetProcessorThread();
 
+            var registeredActions = leastActiveProcessor.GetActions(-1);
+            
+
             // Transfer the queues from one thread to the other.
-            TransferActions(leastActiveProcessor, nextLeastActiveProcessor);
+            foreach (var registeredAction in registeredActions)
+            {
+                TransferAction(registeredAction, nextLeastActiveProcessor);
+            }
+
+            var queuedActions = leastActiveProcessor.Stop();
+
+
+            foreach (var queuedAction in queuedActions)
+            {
+                nextLeastActiveProcessor.Queue(queuedAction, true);
+            }
+            
+
         }
 
         /// <summary>
@@ -137,20 +153,13 @@ namespace DtronixMessageQueue
         /// </summary>
         /// <param name="source">Source thread to stop and remove all actions from</param>
         /// <param name="destination">Thread to move all the actions to.</param>
-        private void TransferActions(ProcessorThread source, ProcessorThread destination, int count)
+        private void TransferAction(RegisteredAction registeredAction, ProcessorThread destination)
         {
+            registeredAction.ProcessorThread.DeregisterAction(registeredAction);
+            destination.RegisterAction(registeredAction);
 
-            var registeredActions = source.GetActions(count);
-
-            // Filter down to the actions being transferred.
-            foreach (var registeredAction in registeredActions)
-            {
-                source.DeregisterAction(registeredAction);
-                destination.RegisterAction(registeredAction);
-
-                // Set the queue to continue to allow adds.
-                registeredAction.ResetEvent.Set();
-            }
+            // Set the queue to continue to allow adds.
+            registeredAction.ResetEvent.Set();
         }
 
 
@@ -489,15 +498,18 @@ namespace DtronixMessageQueue
             {
                 Interlocked.Decrement(ref _registeredActionsCount);
                 _registeredActions.TryRemove(action.Id, out var removedAction);
+                removedAction.ResetEvent.Reset();
                 removedAction.ProcessorThread = null;
             }
 
             public RegisteredAction[] GetActions(int count)
             {
                 if (count == -1)
-                {
-                    return 
-                }
+                    return _registeredActions
+                    .Select(kvp => kvp.Value)
+                    .OrderByDescending(ra => ra.AverageUsageTime)
+                    .ToArray();
+                
                 return _registeredActions
                     .Select(kvp => kvp.Value)
                     .OrderByDescending(ra => ra.AverageUsageTime)
@@ -514,11 +526,11 @@ namespace DtronixMessageQueue
             public RegisteredAction[] Stop()
             {
                 Pause();
-                var actions = _actions.ToArray();
+                List<RegisteredAction> actions = new List<RegisteredAction>();
 
                 // Remove all the actions from the collection.
                 while (_actions.Count > 1)
-                    _actions.Take();
+                    actions.Add(_actions.Take());
 
                 foreach (var registeredAction in actions)
                 {
@@ -527,7 +539,7 @@ namespace DtronixMessageQueue
                         registeredAction.ResetEvent.Reset();
                 }
 
-                return actions;
+                return actions.ToArray();
             }
 
             /// <summary>
