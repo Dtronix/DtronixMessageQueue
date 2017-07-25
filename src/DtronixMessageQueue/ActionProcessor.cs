@@ -22,6 +22,21 @@ namespace DtronixMessageQueue
     /// </typeparam>
     public class ActionProcessor<T>
     {
+        /// <summary>
+        /// Ordering when selecting a processor thread.
+        /// </summary>
+        public enum SortOrder
+        {
+            /// <summary>
+            /// Selects the processor with the most registered actions.
+            /// </summary>
+            MostRegistered,
+
+            /// <summary>
+            /// Selects the processor with the least registered actions.
+            /// </summary>
+            LeastRegistered
+        }
 
         /// <summary>
         /// Base name for all of the threads to use.
@@ -106,7 +121,14 @@ namespace DtronixMessageQueue
 
                 for (int j = 0; j < actionsPerThread; j++)
                 {
-                    pThread.RegisteredActionsCount
+                    var mostActiveProcessor = GetProcessorThread(SortOrder.MostRegistered);
+                    var transferAction = mostActiveProcessor.GetActions(1);
+
+                    // If we did not get an action from this processor, repeat the loop.
+                    // Usually only occurs if the thread has just recently removed the 
+                    if (transferAction != null)
+                        TransferAction(transferAction[0], pThread);
+                    
                 }
             }
         }
@@ -122,11 +144,11 @@ namespace DtronixMessageQueue
                 throw new InvalidOperationException($"Can not remove {i} threads.  Must maintain at least one thread for execution.  ");
             
             // Remove the least active thread from the list of active threads.
-            var leastActiveProcessor = GetProcessorThread();
+            var leastActiveProcessor = GetProcessorThread(SortOrder.LeastRegistered);
             _threads.Remove(leastActiveProcessor);
 
             // Get the next least active processor thread.
-            var nextLeastActiveProcessor = GetProcessorThread();
+            var nextLeastActiveProcessor = GetProcessorThread(SortOrder.LeastRegistered);
 
             var registeredActions = leastActiveProcessor.GetActions(-1);
             
@@ -219,7 +241,7 @@ namespace DtronixMessageQueue
         public void Register(T id, Action action)
         {
 
-            var leastActiveProcessor = GetProcessorThread();
+            var leastActiveProcessor = GetProcessorThread(SortOrder.LeastRegistered);
 
             var processAction = new RegisteredAction
             {
@@ -252,17 +274,19 @@ namespace DtronixMessageQueue
             return _registeredActions[id];
         }
 
-        private ProcessorThread GetProcessorThread()
+        private ProcessorThread GetProcessorThread(SortOrder order)
         {
-            var leastActiveProcessor = _threads
-                .Where(pt => IsRunning)
-                .OrderBy(pt => pt.RegisteredActionsCount)
-                .FirstOrDefault();
+            var processorSorter = _threads.Where(pt => IsRunning);
 
-            if (leastActiveProcessor == null)
+            var selectedProcessor = order == SortOrder.LeastRegistered
+                ? processorSorter.OrderBy(pt => pt.RegisteredActionsCount).FirstOrDefault()
+                : processorSorter.OrderByDescending(pt => pt.RegisteredActionsCount).FirstOrDefault();
+
+            if (selectedProcessor == null)
                 throw new InvalidOperationException("No ProcessorThreads are running.");
-            
-            return leastActiveProcessor;
+
+            return selectedProcessor;
+
         }
 
         /// <summary>
@@ -384,7 +408,7 @@ namespace DtronixMessageQueue
             private int _registeredActionsCount;
 
             /// <summary>
-            /// Total actions which this thread can process.
+            /// Total actions which this thread is registered to process.
             /// </summary>
             public int RegisteredActionsCount => _registeredActionsCount;
 
