@@ -53,7 +53,7 @@ namespace DtronixMessageQueue
         /// <summary>
         /// Timer to execute the supervisor method.
         /// </summary>
-        private Timer _supervisorTimer;
+        private readonly Timer _supervisorTimer;
 
         /// <summary>
         /// Actions currently registered with this processor.
@@ -61,7 +61,7 @@ namespace DtronixMessageQueue
         private readonly ConcurrentDictionary<T, RegisteredAction> _registeredActions;
 
         /// <summary>
-        /// Lock to ensure that two threads to rebalance at the same time.
+        /// Lock to ensure that two threads to re-balance at the same time.
         /// </summary>
         private readonly object _rebalanceLock = new object();
 
@@ -78,18 +78,37 @@ namespace DtronixMessageQueue
         public int ThreadCount => _threads.Count;
 
         /// <summary>
+        /// Internally called event used for testing.
+        /// Called when the processor has completed all queued items.
+        /// </summary>
+        private readonly Action<ActionProcessor<T>> _onComplete;
+
+        /// <summary>
         /// Creates a new processor and with the specified configurations.
         /// </summary>
         /// <param name="configs">Configurations to apply</param>
-        public ActionProcessor(Config configs)
+        public ActionProcessor(Config configs) : this(configs, null)
+        {
+            
+        }
+
+        /// <summary>
+        /// Creates a new processor and with the specified configurations.
+        /// </summary>
+        /// <param name="configs">Configurations to apply</param>
+        /// <param name="onComplete">Method called when all actions have been processed and the threads are idle.</param>
+        internal ActionProcessor(Config configs, Action<ActionProcessor<T>> onComplete)
         {
             _configs = configs;
             _registeredActions = new ConcurrentDictionary<T, RegisteredAction>();
+            _onComplete = onComplete;
 
             _threads = new List<ProcessorThread>(configs.StartThreads);
 
+            // Add the specified number of threads.
             AddThread(configs.StartThreads);
 
+            // Create the supervisor timer.
             _supervisorTimer = new Timer(Supervise);
         }
 
@@ -106,12 +125,15 @@ namespace DtronixMessageQueue
                 _threads.Add(pThread);
                 if (_isRunning)
                     pThread.Start();
+
+                // Bind the idle event if it is not null for testing purposes.
+                if (_onComplete != null)
+                    pThread.Idle = e => InvokeIfComplete();
             }
 
-            // Rebalance the load if we are running
-            if (_isRunning) 
+            // Re-balance the load if we are running
+            if (_isRunning)
                 RebalanceLoad(false);
-
         }
 
         /// <summary>
@@ -130,6 +152,7 @@ namespace DtronixMessageQueue
                     $"Can not remove {count} threads since this would leave no threads running.",
                     nameof(count));
 
+            // Create a dictionary of ids and actions to re-queue once they have been placed in their final locations.
             var reQueueActions = new Dictionary<T, RegisteredAction>();
 
             for (var i = 0; i < count; i++)
@@ -155,7 +178,7 @@ namespace DtronixMessageQueue
                 }
             }
 
-            // Requeue all the actions only once after they have moved around.
+            // Re-queue all the actions only once after they have moved around.
             foreach (var registeredAction in reQueueActions)
             {
                 for (int i = 0; i < registeredAction.Value.QueuedCount; i++)
@@ -167,11 +190,9 @@ namespace DtronixMessageQueue
                 registeredAction.Value.TransferLock.Reset();
             }
 
-            // Rebalance the load if it is warranted.
+            // Re-balance the load if it is warranted.
             if (ShouldRebalance())
                 RebalanceLoad(false);
-
-
         }
 
 
@@ -184,7 +205,6 @@ namespace DtronixMessageQueue
         {
             if (ShouldRebalance())
                 RebalanceLoad(true);
-
         }
 
         /// <summary>
@@ -204,12 +224,13 @@ namespace DtronixMessageQueue
             if (mostRegistered == leastRegistered)
                 return false;
 
-            // Get the difference and if the min and max number of registrations is greater than 10, time to rebalance.
-            return Math.Abs(mostRegistered.RegisteredActionsCount - leastRegistered.RegisteredActionsCount) > 10;
+            // Get the difference and if the min and max number of registrations is greater than 10, time to re-balance.
+            return Math.Abs(mostRegistered.RegisteredActionsCount - leastRegistered.RegisteredActionsCount) >
+                   _configs.RebalanceLoadDelta;
         }
 
         /// <summary>
-        /// Rebalances all the actions based upon their usage.
+        /// Re-balances all the actions based upon their usage.
         /// Distributes most active to least active round-robin style to all the threads.
         /// </summary>
         /// <param name="isSupervisor">True if this is being called from the supervisor thread.  False otherwise.</param>
@@ -255,15 +276,14 @@ namespace DtronixMessageQueue
                 if (_isRunning && !isSupervisor)
                     _supervisorTimer.Change(_configs.RebalanceLoadPeriod, _configs.RebalanceLoadPeriod);
             }
-            
         }
 
         /// <summary>
         /// Stops and transfers all actions from one thread to a specified thread.
         /// </summary>
-        /// <param name="source">Source thread to stop and remove all actions from</param>
+        /// <param name="registeredAction">Action to transfer to another processor thread.</param>
         /// <param name="destination">Thread to move all the actions to.</param>
-        private void TransferAction(RegisteredAction registeredAction, ProcessorThread destination)
+        private static void TransferAction(RegisteredAction registeredAction, ProcessorThread destination)
         {
             // If we are moving to the same destination that it is already on, do nothing.
             if (registeredAction.ProcessorThread == destination)
@@ -332,7 +352,6 @@ namespace DtronixMessageQueue
         /// <param name="action">Action to execute when this Id is queued.</param>
         public void Register(T id, Action action)
         {
-
             var leastActiveProcessor = GetProcessorThread(SortOrder.LeastRegistered);
 
             var processAction = new RegisteredAction
@@ -361,11 +380,30 @@ namespace DtronixMessageQueue
             }
         }
 
+        /// <summary>
+        /// Retrieves action by a set ID.  Used for testing only.
+        /// </summary>
+        /// <param name="id"></param>
+        /// <returns></returns>
         internal RegisteredAction GetActionById(T id)
         {
             return _registeredActions[id];
         }
 
+        /// <summary>
+        /// Internal method called for testing when the processors are complete.
+        /// </summary>
+        private void InvokeIfComplete()
+        {
+            if (_threads.Sum(thread => thread.Queued) == 0)
+                _onComplete?.Invoke(this);
+        }
+
+        /// <summary>
+        /// Gets a single processor thread based upon with specified conditions.
+        /// </summary>
+        /// <param name="order">Specifies to retrieve the most or least action registered processor.</param>
+        /// <returns>Processor thread.</returns>
         private ProcessorThread GetProcessorThread(SortOrder order)
         {
             var processorSorter = _threads.Where(pt => pt.IsRunning);
@@ -378,7 +416,6 @@ namespace DtronixMessageQueue
                 throw new InvalidOperationException("No ProcessorThreads are running.");
 
             return selectedProcessor;
-
         }
 
         /// <summary>
@@ -391,9 +428,17 @@ namespace DtronixMessageQueue
 
             _isRunning = true;
             foreach (var processorThread in _threads)
+            {
                 processorThread.Start();
 
+                // Bind the idle event if it is not null for testing purposes.
+                if (_onComplete != null)
+                    processorThread.Idle = e => InvokeIfComplete();
+            }
+
             _supervisorTimer.Change(_configs.RebalanceLoadPeriod, _configs.RebalanceLoadPeriod);
+
+
         }
 
         /// <summary>
@@ -428,11 +473,20 @@ namespace DtronixMessageQueue
             public int StartThreads { get; set; } = Environment.ProcessorCount;
 
             /// <summary>
-            /// Number of milliseconds for this processor to automatically rebalance any registered actions if required.
+            /// Number of milliseconds for this processor to automatically re-balance any registered actions if required.
             /// Default is 10 seconds.
             /// </summary>
             public int RebalanceLoadPeriod { get; set; } = 10000;
 
+            /// <summary>
+            /// Number used to determine when re-balancing needs to occur.
+            /// When the difference between the thread with the max registered actions
+            /// and thread with the min number of registered actions is greater than this number,
+            /// a re-balancing will take place.
+            /// Default is 10.
+            ///
+            /// </summary>
+            public int RebalanceLoadDelta { get; set; } = 10;
         }
 
         /// <summary>
@@ -470,6 +524,11 @@ namespace DtronixMessageQueue
             /// queuing in an inactive thread.
             /// </summary>
             public ManualResetEventSlim TransferLock = new ManualResetEventSlim(true);
+
+            /// <summary>
+            /// Integer of the total number of exceptions this action has thrown.
+            /// </summary>
+            public int ThrownExceptionsCount;
         }
 
 
@@ -511,7 +570,7 @@ namespace DtronixMessageQueue
             /// <summary>
             /// Contains all the actions registered on this thread.
             /// </summary>
-            private ConcurrentDictionary<T, RegisteredAction> _registeredActions;
+            private readonly ConcurrentDictionary<T, RegisteredAction> _registeredActions;
 
             private int _registeredActionsCount;
 
@@ -535,6 +594,10 @@ namespace DtronixMessageQueue
             /// </summary>
             public float IdleTime => _idleTime;
 
+            /// <summary>
+            /// Internal event called for testing when this thread has completed all registered work.
+            /// </summary>
+            public Action<ProcessorThread> Idle;
 
             /// <summary>
             /// Starts a new managed thread to handle the actions passed to process.
@@ -552,6 +615,7 @@ namespace DtronixMessageQueue
             /// </summary>
             private void ThreadProcess()
             {
+                RegisteredAction action = null;
                 // Restart the stop watch to clear any existing time data.
                 _perfStopwatch.Restart();
 
@@ -561,17 +625,22 @@ namespace DtronixMessageQueue
                     // Update the idle time
                     RollingEstimate(ref _idleTime, _perfStopwatch.ElapsedMilliseconds, 10);
 
+                    // Wrap the entire loop in a try/catch for when the loop times out, it will not throw.
                     try
                     {
-                        while (_actions.TryTake(out RegisteredAction action, 1000, _cancellationTokenSource.Token))
+                        while (_actions.TryTake(out action, 1000, _cancellationTokenSource.Token))
                         {
+                            // If this action is not registered to this thread, add it back to be
+                            // processed again at a later time in hopes that the processor thread will be finally
+                            // set to an active processor.
+                            if (action.ProcessorThread == null)
+                            {
+                                _actions.Add(action);
+                                continue;
+                            }
 
                             // Decrement the total actions queued.
                             Interlocked.Decrement(ref Queued);
-
-                            // If this action is not registered to this thread, skip it.
-                            if (action.ProcessorThread == null)
-                                continue;
 
                             // If this action was transferred to another thread, queue the action up on that other thread.
                             if (action.ProcessorThread != this)
@@ -590,12 +659,15 @@ namespace DtronixMessageQueue
                             _perfStopwatch.Restart();
 
                             // Catch any exceptions and ignore for now.
-                            // TODO: Figure out a plan for handling exceptions thrown in the process.
                             action.Action();
 
 
                             // Add this performance to the estimated rolling average.
                             RollingEstimate(ref action.AverageUsageTime, _perfStopwatch.ElapsedMilliseconds, 10);
+
+                            // Called for testing purposes.
+                            if(Idle != null && Queued == 0)
+                                Idle.Invoke(this);
                         }
                     }
                     catch (OperationCanceledException)
@@ -604,9 +676,15 @@ namespace DtronixMessageQueue
                     }
                     catch
                     {
-                        // ignored
+                        if (action == null)
+                            continue;
+
+                        // If an exception was thrown on an action processing, then increment the exception counter and add the performance data.
+                        RollingEstimate(ref action.AverageUsageTime, _perfStopwatch.ElapsedMilliseconds, 10);
+                        Interlocked.Increment(ref action.ThrownExceptionsCount);
                     }
                 }
+
 
                 // Stop the timer as we have existed the main loop.
                 _perfStopwatch.Stop();
@@ -627,6 +705,10 @@ namespace DtronixMessageQueue
                 _actions.TryAdd(registeredAction);
             }
 
+            /// <summary>
+            /// Adds the specified action from the list of registered actions for this processor.
+            /// </summary>
+            /// <param name="action">Action to register.</param>
             public void RegisterAction(RegisteredAction action)
             {
                 Interlocked.Increment(ref _registeredActionsCount);
@@ -634,6 +716,10 @@ namespace DtronixMessageQueue
                 action.ProcessorThread = this;
             }
 
+            /// <summary>
+            /// Removes the specified action from the list of registered actions for this processor.
+            /// </summary>
+            /// <param name="action">Action to de-register.</param>
             public void DeregisterAction(RegisteredAction action)
             {
                 Interlocked.Decrement(ref _registeredActionsCount);
@@ -642,14 +728,19 @@ namespace DtronixMessageQueue
                 removedAction.ProcessorThread = null;
             }
 
+            /// <summary>
+            /// Gets the requested number of actions registered in this processor.
+            /// </summary>
+            /// <param name="count">Number of actions to get.  Use -1 for all actions.</param>
+            /// <returns>Returns all, some or none actions.  Always returns an array.  May be an empty array.</returns>
             public RegisteredAction[] GetActions(int count)
             {
                 if (count == -1)
                     return _registeredActions
-                    .Select(kvp => kvp.Value)
-                    .OrderByDescending(ra => ra.AverageUsageTime)
-                    .ToArray();
-                
+                        .Select(kvp => kvp.Value)
+                        .OrderByDescending(ra => ra.AverageUsageTime)
+                        .ToArray();
+
                 return _registeredActions
                     .Select(kvp => kvp.Value)
                     .OrderByDescending(ra => ra.AverageUsageTime)
@@ -706,7 +797,6 @@ namespace DtronixMessageQueue
                 _cancellationTokenSource = new CancellationTokenSource();
                 _isRunning = true;
                 _thread.Start();
-
             }
 
             /// <summary>
@@ -736,10 +826,8 @@ namespace DtronixMessageQueue
             public override string ToString()
             {
                 return
-                    $"Name: {_name}; Running: {_isRunning}; Idle Time: {_idleTime}; Registered Actions: {_registeredActionsCount}, Queued: {Queued}";
+                    $"Name: {_name}; Running: {_isRunning}; Complete Time: {_idleTime}; Registered Actions: {_registeredActionsCount}, Queued: {Queued}";
             }
         }
-
-
     }
 }
