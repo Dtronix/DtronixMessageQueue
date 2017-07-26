@@ -94,8 +94,16 @@ namespace DtronixMessageQueue.Socket
 
             if (mode == SocketMode.Client)
             {
-                OutboxProcessor = new ActionProcessor<Guid>($"{modeLower}-outbox", 1);
-                InboxProcessor = new ActionProcessor<Guid>($"{modeLower}-inbox", 1);
+                OutboxProcessor = new ActionProcessor<Guid>(new ActionProcessor<Guid>.Config
+                {
+                    ThreadName = $"{modeLower}-outbox",
+                    StartThreads = 1
+                });
+                InboxProcessor = new ActionProcessor<Guid>(new ActionProcessor<Guid>.Config
+                {
+                    ThreadName = $"{modeLower}-inbox",
+                    StartThreads = 1
+                });
             }
             else
             {
@@ -103,8 +111,16 @@ namespace DtronixMessageQueue.Socket
                     ? Environment.ProcessorCount
                     : config.ProcessorThreads;
 
-                OutboxProcessor = new ActionProcessor<Guid>($"{modeLower}-outbox", processorThreads);
-                InboxProcessor = new ActionProcessor<Guid>($"{modeLower}-inbox", processorThreads);
+                OutboxProcessor = new ActionProcessor<Guid>(new ActionProcessor<Guid>.Config
+                {
+                    ThreadName = $"{modeLower}-outbox",
+                    StartThreads = processorThreads
+                });
+                InboxProcessor = new ActionProcessor<Guid>(new ActionProcessor<Guid>.Config
+                {
+                    ThreadName = $"{modeLower}-inbox",
+                    StartThreads = processorThreads
+                });
             }
 
             OutboxProcessor.Start();

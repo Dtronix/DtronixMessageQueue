@@ -18,11 +18,16 @@ namespace DtronixMessageQueue.Tests
             _output = output;
         }
 
-        private ActionProcessor<Guid> CreateProcessor(int threads, bool start)
+        private ActionProcessor<Guid> CreateProcessor(int threads, bool start, int rebalanceTime = 10000)
         {
-            var processor = new ActionProcessor<Guid>("test", threads);
+            var processor = new ActionProcessor<Guid>(new ActionProcessor<Guid>.Config
+            {
+                ThreadName = "test",
+                StartThreads = threads,
+                RebalanceLoadPeriod = rebalanceTime
+            });
 
-            if(start)
+            if (start)
                 processor.Start();
 
             return processor;
@@ -135,6 +140,8 @@ namespace DtronixMessageQueue.Tests
 
             processor.RemoveThread(1);
 
+            Thread.Sleep(10);
+
             Assert.Equal(0, oldThread.RegisteredActionsCount);
 
             Assert.Equal(firstRegisteredAction.ProcessorThread, secondRegisteredAction.ProcessorThread);
@@ -163,32 +170,52 @@ namespace DtronixMessageQueue.Tests
         public void Processor_queues_multiple()
         {
             var processor = CreateProcessor(1, true);
-
-            
-
             var firstRegisteredAction = RegisterGet(processor, () => Thread.Sleep(5000));
+
             processor.Queue(firstRegisteredAction.Id);
+            processor.Queue(firstRegisteredAction.Id);
+            processor.Queue(firstRegisteredAction.Id);
+
 
             // Wait a period of time for the processor to pickup the call.
             Thread.Sleep(50);
-
-            processor.Queue(firstRegisteredAction.Id);
-            processor.Queue(firstRegisteredAction.Id);
 
             Assert.Equal(2, firstRegisteredAction.ProcessorThread.Queued);
         }
 
         [Fact]
-        public void Processor_balances_on_new_thread ()
+        public void Processor_balances_on_new_thread()
         {
-            var processor = CreateProcessor(1, true);
+            var processor = CreateProcessor(2, true);
+            int interlockedInt = 0;
 
+            var action = (Action) (() =>
+            {
+                Interlocked.Increment(ref interlockedInt);
+                Thread.Sleep(1);
+            });
 
+            var firstRegisteredAction = RegisterGet(processor, action);
+            var secondRegisteredAction = RegisterGet(processor, action);
+            var thirdRegisteredAction = RegisterGet(processor, () => processor.RemoveThread(1));
 
-            var firstRegisteredAction = RegisterGet(processor, () => Thread.Sleep(5000));
-            RegisterGet(processor, () => Thread.Sleep(5000));
+            var totalLoops = 100;
 
-            Assert.Equal(2, firstRegisteredAction.ProcessorThread.RegisteredActionsCount);
+            for (int i = 0; i < totalLoops; i++)
+            {
+                processor.Queue(firstRegisteredAction.Id);
+                processor.Queue(secondRegisteredAction.Id);
+
+                // Half way through the loop, remove a thread.
+                if (i == totalLoops / 2)
+                    processor.Queue(thirdRegisteredAction.Id);
+            }
+
+            Thread.Sleep(500);
+
+            Assert.Equal(totalLoops * 2, interlockedInt);
+
+            Assert.Equal(3, thirdRegisteredAction.ProcessorThread.RegisteredActionsCount);
         }
 
 

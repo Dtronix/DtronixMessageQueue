@@ -22,6 +22,8 @@ namespace DtronixMessageQueue
     /// </typeparam>
     public class ActionProcessor<T>
     {
+        private readonly Config _configs;
+
         /// <summary>
         /// Ordering when selecting a processor thread.
         /// </summary>
@@ -37,11 +39,6 @@ namespace DtronixMessageQueue
             /// </summary>
             LeastRegistered
         }
-
-        /// <summary>
-        /// Base name for all of the threads to use.
-        /// </summary>
-        private readonly string _name;
 
         /// <summary>
         /// Current threads for this processor to use.
@@ -64,38 +61,34 @@ namespace DtronixMessageQueue
         private readonly ConcurrentDictionary<T, RegisteredAction> _registeredActions;
 
         /// <summary>
+        /// Lock to ensure that two threads to rebalance at the same time.
+        /// </summary>
+        private readonly object _rebalanceLock = new object();
+
+        private bool _isRunning;
+
+        /// <summary>
         /// True if the processor is running.
         /// </summary>
-        public bool IsRunning { get; set; }
+        public bool IsRunning => _isRunning;
 
         /// <summary>
         /// Number of threads currently available to this processor.
         /// </summary>
         public int ThreadCount => _threads.Count;
 
-
         /// <summary>
-        /// Creates a new processor and threads with the specified thread base name.
-        /// Will use the count of processors as the count of threads to create.
+        /// Creates a new processor and with the specified configurations.
         /// </summary>
-        /// <param name="name">Base name to associate with this action processor.</param>
-        public ActionProcessor(string name) : this(name, Environment.ProcessorCount)
+        /// <param name="configs">Configurations to apply</param>
+        public ActionProcessor(Config configs)
         {
-        }
-
-        /// <summary>
-        /// Creates a new processor and specified count of threads with the specified thread base name.
-        /// </summary>
-        /// <param name="name">Base name to associate with this action processor.</param>
-        /// <param name="threads">Number of threads to create.</param>
-        public ActionProcessor(string name, int threads)
-        {
-            _name = name;
+            _configs = configs;
             _registeredActions = new ConcurrentDictionary<T, RegisteredAction>();
 
-            _threads = new List<ProcessorThread>(threads);
+            _threads = new List<ProcessorThread>(configs.StartThreads);
 
-            AddThread(threads);
+            AddThread(configs.StartThreads);
 
             _supervisorTimer = new Timer(Supervise);
         }
@@ -106,68 +99,163 @@ namespace DtronixMessageQueue
         /// <param name="count">Number of threads to add.</param>
         public void AddThread(int count)
         {
-
-            var totalRegisteredActions = _registeredActions.Count;
-
-            var totalNewThreads = _threads.Count + count;
-
-            var actionsPerThread = totalRegisteredActions / totalNewThreads;
-
             for (var i = 0; i < count; i++)
             {
                 var id = Interlocked.Increment(ref _threadId);
-                var pThread = new ProcessorThread($"dmq-{_name}-{id}");
+                var pThread = new ProcessorThread($"dmq-{_configs.ThreadName}-{id}");
                 _threads.Add(pThread);
-
-                for (int j = 0; j < actionsPerThread; j++)
-                {
-                    var mostActiveProcessor = GetProcessorThread(SortOrder.MostRegistered);
-                    var transferAction = mostActiveProcessor.GetActions(1);
-
-                    // If we did not get an action from this processor, repeat the loop.
-                    // Usually only occurs if the thread has just recently removed the 
-                    if (transferAction != null)
-                        TransferAction(transferAction[0], pThread);
-                    
-                }
+                if (_isRunning)
+                    pThread.Start();
             }
+
+            // Rebalance the load if we are running
+            if (_isRunning) 
+                RebalanceLoad(false);
+
         }
 
         /// <summary>
         /// Removes the least active thread and moves all queued actions to the next least active thread.
         /// Requires at least 2 threads to run.
         /// </summary>
-        /// <param name="i">Number of threads to remove</param>
-        public void RemoveThread(int i)
+        /// <param name="count">Number of threads to remove</param>
+        public void RemoveThread(int count)
         {
             if (_threads.Count < 2)
-                throw new InvalidOperationException($"Can not remove {i} threads.  Must maintain at least one thread for execution.  ");
-            
-            // Remove the least active thread from the list of active threads.
-            var leastActiveProcessor = GetProcessorThread(SortOrder.LeastRegistered);
-            _threads.Remove(leastActiveProcessor);
+                throw new InvalidOperationException(
+                    $"Can not remove {count} threads.  Must maintain at least one thread for execution.");
 
-            // Get the next least active processor thread.
-            var nextLeastActiveProcessor = GetProcessorThread(SortOrder.LeastRegistered);
+            if (_threads.Count - count < 1)
+                throw new ArgumentException(
+                    $"Can not remove {count} threads since this would leave no threads running.",
+                    nameof(count));
 
-            var registeredActions = leastActiveProcessor.GetActions(-1);
-            
+            var reQueueActions = new Dictionary<T, RegisteredAction>();
 
-            // Transfer the queues from one thread to the other.
-            foreach (var registeredAction in registeredActions)
+            for (var i = 0; i < count; i++)
             {
-                TransferAction(registeredAction, nextLeastActiveProcessor);
+                // Remove the least active thread from the list of active threads.
+                var leastActiveProcessor = GetProcessorThread(SortOrder.LeastRegistered);
+                _threads.Remove(leastActiveProcessor);
+
+                // Get the next least active processor thread.
+                var nextLeastActiveProcessor = GetProcessorThread(SortOrder.LeastRegistered);
+                leastActiveProcessor.Stop();
+
+                var registeredActions = leastActiveProcessor.GetActions(-1);
+
+                // Transfer the queues from one thread to the other.
+                foreach (var registeredAction in registeredActions)
+                {
+                    // Transfer the action to the next least used thread.
+                    TransferAction(registeredAction, nextLeastActiveProcessor);
+
+                    if (!reQueueActions.ContainsKey(registeredAction.Id))
+                        reQueueActions.Add(registeredAction.Id, registeredAction);
+                }
             }
 
-            var queuedActions = leastActiveProcessor.Stop();
-
-
-            foreach (var queuedAction in queuedActions)
+            // Requeue all the actions only once after they have moved around.
+            foreach (var registeredAction in reQueueActions)
             {
-                nextLeastActiveProcessor.Queue(queuedAction, true);
+                for (int i = 0; i < registeredAction.Value.QueuedCount; i++)
+                {
+                    registeredAction.Value.ProcessorThread.Queue(registeredAction.Value, true);
+                }
+
+                // Reset the queue to allow for adding again.
+                registeredAction.Value.TransferLock.Reset();
+            }
+
+            // Rebalance the load if it is warranted.
+            if (ShouldRebalance())
+                RebalanceLoad(false);
+
+
+        }
+
+
+        /// <summary>
+        /// Method invoked by a timer to review the current status of the threads and 
+        /// re-arrange to balance out long running tasks across multiple threads.
+        /// </summary>
+        /// <param name="o">Timer reference.</param>
+        private void Supervise(object o)
+        {
+            if (ShouldRebalance())
+                RebalanceLoad(true);
+
+        }
+
+        /// <summary>
+        /// Returns true if the loading of the actions is unbalanced.
+        /// </summary>
+        /// <returns>True if the load should be rebalanced.</returns>
+        private bool ShouldRebalance()
+        {
+            var mostRegistered = _threads.OrderByDescending(pt => pt.RegisteredActionsCount).FirstOrDefault();
+            var leastRegistered = _threads.OrderBy(pt => pt.RegisteredActionsCount).FirstOrDefault();
+
+            // No threads are running.
+            if (mostRegistered == null || leastRegistered == null)
+                return false;
+
+            // If these are equal, nothing to do.
+            if (mostRegistered == leastRegistered)
+                return false;
+
+            // Get the difference and if the min and max number of registrations is greater than 10, time to rebalance.
+            return Math.Abs(mostRegistered.RegisteredActionsCount - leastRegistered.RegisteredActionsCount) > 10;
+        }
+
+        /// <summary>
+        /// Rebalances all the actions based upon their usage.
+        /// Distributes most active to least active round-robin style to all the threads.
+        /// </summary>
+        /// <param name="isSupervisor">True if this is being called from the supervisor thread.  False otherwise.</param>
+        private void RebalanceLoad(bool isSupervisor)
+        {
+            lock (_rebalanceLock)
+            {
+                var actions = _registeredActions.Select(kvp => kvp.Value)
+                    .OrderByDescending(ra => ra.AverageUsageTime)
+                    .ToArray();
+                var totalActions = actions.Length;
+
+                // Cache the total threads.
+                var threads = _threads.ToArray();
+                var totalThreads = threads.Length;
+                var currentThreadNumber = 0;
+
+                for (var i = 0; i < totalActions; i++)
+                {
+                    // If the current thread is not active, get a new array of threads and reset to the beginning.
+                    if (threads[currentThreadNumber].IsRunning == false)
+                    {
+                        threads = _threads.ToArray();
+                        totalThreads = threads.Length;
+                        currentThreadNumber = 0;
+                        i--;
+
+                        // If there is only one thread, and it is not running, quit the balancing since there is nothing to do.
+                        if (threads.Length == 1 && threads[0].IsRunning == false)
+                            return;
+
+                        continue;
+                    }
+                    // Round robin actions to all active threads.
+                    TransferAction(actions[i], threads[currentThreadNumber]);
+
+                    // Reset to the beginning if we are at the end.
+                    if (++currentThreadNumber >= totalThreads)
+                        currentThreadNumber = 0;
+                }
+
+                // Reset the supervisor to the default timespan again if this is not being called from the supervisor.
+                if (_isRunning && !isSupervisor)
+                    _supervisorTimer.Change(_configs.RebalanceLoadPeriod, _configs.RebalanceLoadPeriod);
             }
             
-
         }
 
         /// <summary>
@@ -177,11 +265,15 @@ namespace DtronixMessageQueue
         /// <param name="destination">Thread to move all the actions to.</param>
         private void TransferAction(RegisteredAction registeredAction, ProcessorThread destination)
         {
+            // If we are moving to the same destination that it is already on, do nothing.
+            if (registeredAction.ProcessorThread == destination)
+                return;
+
             registeredAction.ProcessorThread.DeregisterAction(registeredAction);
             destination.RegisterAction(registeredAction);
 
             // Set the queue to continue to allow adds.
-            registeredAction.ResetEvent.Set();
+            registeredAction.TransferLock.Set();
         }
 
 
@@ -276,7 +368,7 @@ namespace DtronixMessageQueue
 
         private ProcessorThread GetProcessorThread(SortOrder order)
         {
-            var processorSorter = _threads.Where(pt => IsRunning);
+            var processorSorter = _threads.Where(pt => pt.IsRunning);
 
             var selectedProcessor = order == SortOrder.LeastRegistered
                 ? processorSorter.OrderBy(pt => pt.RegisteredActionsCount).FirstOrDefault()
@@ -294,13 +386,14 @@ namespace DtronixMessageQueue
         /// </summary>
         public void Start()
         {
-            IsRunning = true;
-            foreach (var processorThread in _threads)
-            {
-                processorThread.Start();
-            }
+            if (_isRunning)
+                return;
 
-            //_supervisorTimer.Change(10000, 10000);
+            _isRunning = true;
+            foreach (var processorThread in _threads)
+                processorThread.Start();
+
+            _supervisorTimer.Change(_configs.RebalanceLoadPeriod, _configs.RebalanceLoadPeriod);
         }
 
         /// <summary>
@@ -308,23 +401,38 @@ namespace DtronixMessageQueue
         /// </summary>
         public void Stop()
         {
-            IsRunning = false;
-            foreach (var processorThread in _threads)
-            {
-                processorThread.Stop();
-            }
+            if (!_isRunning)
+                return;
 
-            //_supervisorTimer.Change(-1, -1);
+            _isRunning = false;
+            foreach (var processorThread in _threads)
+                processorThread.Stop();
+
+            _supervisorTimer.Change(-1, -1);
         }
 
         /// <summary>
-        /// Method invoked by a timer to review the current status of the threads and 
-        /// re-arrange to balance out long running tasks across multiple threads.
+        /// Configurations for the processor.
         /// </summary>
-        /// <param name="o">Timer reference.</param>
-        private void Supervise(object o)
+        public class Config
         {
-            // TODO: Add logic
+            /// <summary>
+            /// Base name for all the created threads.
+            /// </summary>
+            public string ThreadName { get; set; }
+
+            /// <summary>
+            /// Initial number of threads to start.
+            /// Defaults to the number of logical processors
+            /// </summary>
+            public int StartThreads { get; set; } = Environment.ProcessorCount;
+
+            /// <summary>
+            /// Number of milliseconds for this processor to automatically rebalance any registered actions if required.
+            /// Default is 10 seconds.
+            /// </summary>
+            public int RebalanceLoadPeriod { get; set; } = 10000;
+
         }
 
         /// <summary>
@@ -361,7 +469,7 @@ namespace DtronixMessageQueue
             /// Called before adding this action to a queue to prevent
             /// queuing in an inactive thread.
             /// </summary>
-            public ManualResetEventSlim ResetEvent = new ManualResetEventSlim(true);
+            public ManualResetEventSlim TransferLock = new ManualResetEventSlim(true);
         }
 
 
@@ -448,46 +556,55 @@ namespace DtronixMessageQueue
                 _perfStopwatch.Restart();
 
                 // Loop while the cancellation of the thread has not been requested.
-                while (IsRunning)
+                while (_isRunning)
                 {
                     // Update the idle time
                     RollingEstimate(ref _idleTime, _perfStopwatch.ElapsedMilliseconds, 10);
 
-                    while (_actions.TryTake(out RegisteredAction action, 1000, _cancellationTokenSource.Token))
+                    try
                     {
-
-                        // Decrement the total actions queued and the current action being run.
-                        Interlocked.Decrement(ref action.QueuedCount);
-                        Interlocked.Decrement(ref Queued);
-
-                        // If this action was transferred to another thread, queue the action up on that other thread.
-                        if (action.ProcessorThread != this)
+                        while (_actions.TryTake(out RegisteredAction action, 1000, _cancellationTokenSource.Token))
                         {
-                            action.ProcessorThread.Queue(action, true);
-                            continue;
-                        }
 
-                        // Update the idle time
-                        RollingEstimate(ref _idleTime, _perfStopwatch.ElapsedMilliseconds, 10);
+                            // Decrement the total actions queued.
+                            Interlocked.Decrement(ref Queued);
 
-                        // Restart the watch to time the runtime of the action.
-                        _perfStopwatch.Restart();
+                            // If this action is not registered to this thread, skip it.
+                            if (action.ProcessorThread == null)
+                                continue;
 
-                        // Catch any exceptions and ignore for now.
-                        // TODO: Figure out a plan for handling exceptions thrown in the process.
-                        try
-                        {
+                            // If this action was transferred to another thread, queue the action up on that other thread.
+                            if (action.ProcessorThread != this)
+                            {
+                                action.ProcessorThread.Queue(action, true);
+                                continue;
+                            }
+
+                            // Decrement only if this is going to run on this thread.
+                            Interlocked.Decrement(ref action.QueuedCount);
+
+                            // Update the idle time
+                            RollingEstimate(ref _idleTime, _perfStopwatch.ElapsedMilliseconds, 10);
+
+                            // Restart the watch to time the runtime of the action.
+                            _perfStopwatch.Restart();
+
+                            // Catch any exceptions and ignore for now.
+                            // TODO: Figure out a plan for handling exceptions thrown in the process.
                             action.Action();
+
+
+                            // Add this performance to the estimated rolling average.
+                            RollingEstimate(ref action.AverageUsageTime, _perfStopwatch.ElapsedMilliseconds, 10);
                         }
-                        catch
-                        {
-                            // ignored
-                        }
-
-                        // Add this performance to the estimated rolling average.
-                        RollingEstimate(ref action.AverageUsageTime, _perfStopwatch.ElapsedMilliseconds, 10);
-
-
+                    }
+                    catch (OperationCanceledException)
+                    {
+                        // ignored
+                    }
+                    catch
+                    {
+                        // ignored
                     }
                 }
 
@@ -505,9 +622,8 @@ namespace DtronixMessageQueue
                 Interlocked.Increment(ref Queued);
 
                 if (transferred == false)
-                {
                     Interlocked.Increment(ref registeredAction.QueuedCount);
-                }
+
                 _actions.TryAdd(registeredAction);
             }
 
@@ -522,7 +638,7 @@ namespace DtronixMessageQueue
             {
                 Interlocked.Decrement(ref _registeredActionsCount);
                 _registeredActions.TryRemove(action.Id, out var removedAction);
-                removedAction.ResetEvent.Reset();
+                removedAction.TransferLock.Reset();
                 removedAction.ProcessorThread = null;
             }
 
@@ -543,27 +659,22 @@ namespace DtronixMessageQueue
 
 
             /// <summary>
-            /// Stops the loop and stops the thread from running 
-            /// and returns all actions registered to execute.
+            /// Stops the loop, clears the calling queue and stops the thread from running
             /// </summary>
-            /// <returns>Returns all registered actions for this processor.</returns>
-            public RegisteredAction[] Stop()
+            public void Stop()
             {
                 Pause();
-                List<RegisteredAction> actions = new List<RegisteredAction>();
 
                 // Remove all the actions from the collection.
                 while (_actions.Count > 1)
-                    actions.Add(_actions.Take());
+                    _actions.Take();
 
-                foreach (var registeredAction in actions)
+                foreach (var registeredAction in _registeredActions)
                 {
-                    // Puts a hold on all attempted queues to the 
-                    if (registeredAction.ResetEvent.IsSet)
-                        registeredAction.ResetEvent.Reset();
+                    // Puts a hold on all attempted queues to the processor until this action has been transferred.
+                    if (registeredAction.Value.TransferLock.IsSet)
+                        registeredAction.Value.TransferLock.Reset();
                 }
-
-                return actions.ToArray();
             }
 
             /// <summary>

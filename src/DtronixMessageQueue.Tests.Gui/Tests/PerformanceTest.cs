@@ -100,6 +100,8 @@ namespace DtronixMessageQueue.Tests.Gui.Tests
                 {
                     sessions.Current.Value.GetProxy<IControllerService>().StopTest();
                 }
+
+                Server.Stop();
             }
 
             if (Client != null)

@@ -80,8 +80,6 @@ namespace DtronixMessageQueue.Tests.Performance
 
 
             MqInProcessPerformanceTests(10000, 5, _largeMessage, _config);
-
-            Console.WriteLine("Performance complete");
         }
 
         private void MqInProcessPerformanceTests(int totalMessages, int loops, MqMessage message, MqConfig config)
