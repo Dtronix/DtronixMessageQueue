@@ -13,6 +13,7 @@ namespace DtronixMessageQueue.Tests.Gui.Services
         void StartConnectionTest(int clients, int packageLength, int period);
         void StartMaxThroughputTest(int clientConnections, int controlConfigFrames, int controlConfigFrameSize);
         void StopTest();
+        void PauseTest();
         void CloseClient();
         
     }

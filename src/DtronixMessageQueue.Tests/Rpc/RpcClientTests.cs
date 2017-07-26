@@ -310,11 +310,6 @@ namespace DtronixMessageQueue.Tests.Rpc
 
             Client.Ready += (sender, args) =>
             {
-                if (!args.Session.Authenticated)
-                {
-                    LastException = new Exception("Client ready event called while authentication failed.");
-                }
-
                 if (++connectedTimes == 5)
                 {
                     TestStatus.Set();

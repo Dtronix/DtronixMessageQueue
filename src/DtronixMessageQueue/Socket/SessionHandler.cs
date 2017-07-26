@@ -1,7 +1,6 @@
 ﻿using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
-using System.Net.Sockets;
 using System.Threading;
 
 namespace DtronixMessageQueue.Socket
@@ -66,6 +65,16 @@ namespace DtronixMessageQueue.Socket
         protected readonly Timer TimeoutTimer;
 
         /// <summary>
+        /// Processor to handle all inbound and outbound message handling.
+        /// </summary>
+        protected ActionProcessor<Guid> OutboxProcessor;
+
+        /// <summary>
+        /// Processor to handle all inbound and outbound message handling.
+        /// </summary>
+        protected ActionProcessor<Guid> InboxProcessor;
+
+        /// <summary>
         /// Dictionary of all connected clients.
         /// </summary>
         protected readonly ConcurrentDictionary<Guid, TSession> ConnectedSessions =
@@ -81,6 +90,41 @@ namespace DtronixMessageQueue.Socket
             TimeoutTimer = new Timer(TimeoutCallback);
             Mode = mode;
             Config = config;
+            var modeLower = mode.ToString().ToLower();
+
+            if (mode == SocketMode.Client)
+            {
+                OutboxProcessor = new ActionProcessor<Guid>(new ActionProcessor<Guid>.Config
+                {
+                    ThreadName = $"{modeLower}-outbox",
+                    StartThreads = 1
+                });
+                InboxProcessor = new ActionProcessor<Guid>(new ActionProcessor<Guid>.Config
+                {
+                    ThreadName = $"{modeLower}-inbox",
+                    StartThreads = 1
+                });
+            }
+            else
+            {
+                var processorThreads = config.ProcessorThreads == -1
+                    ? Environment.ProcessorCount
+                    : config.ProcessorThreads;
+
+                OutboxProcessor = new ActionProcessor<Guid>(new ActionProcessor<Guid>.Config
+                {
+                    ThreadName = $"{modeLower}-outbox",
+                    StartThreads = processorThreads
+                });
+                InboxProcessor = new ActionProcessor<Guid>(new ActionProcessor<Guid>.Config
+                {
+                    ThreadName = $"{modeLower}-inbox",
+                    StartThreads = processorThreads
+                });
+            }
+
+            OutboxProcessor.Start();
+            InboxProcessor.Start();
         }
 
 
@@ -157,7 +201,8 @@ namespace DtronixMessageQueue.Socket
         /// <returns>New session instance.</returns>
         protected virtual TSession CreateSession(System.Net.Sockets.Socket socket)
         {
-            var session = SocketSession<TSession, TConfig>.Create(socket, AsyncManager, Config, this);
+            var session = SocketSession<TSession, TConfig>.Create(socket, AsyncManager, Config, this, InboxProcessor,
+                OutboxProcessor);
 
             SessionSetup?.Invoke(this, new SessionEventArgs<TSession, TConfig>(session));
             session.Closed += (sender, args) => OnClose(session, args.CloseReason);

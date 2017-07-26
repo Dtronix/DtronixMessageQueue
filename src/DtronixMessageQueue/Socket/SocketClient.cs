@@ -32,6 +32,8 @@ namespace DtronixMessageQueue.Socket
         /// <param name="config">Configurations to use.</param>
         public SocketClient(TConfig config) : base(config, SocketMode.Client)
         {
+            // Override the number of processors to one for each sending queue and receiving queue.
+            config.ProcessorThreads = 1;
         }
 
         /// <summary>
@@ -41,11 +43,6 @@ namespace DtronixMessageQueue.Socket
         {
             Connect(new IPEndPoint(IPAddress.Parse(Config.Ip), Config.Port));
         }
-
-        /// <summary>
-        /// Task which will run when a connection times out.
-        /// </summary>
-        private Task _connectionTimeoutTask;
 
         /// <summary>
         /// Cancellation token to cancel the timeout event for connections.
@@ -70,23 +67,12 @@ namespace DtronixMessageQueue.Socket
 
             // Set to true if the client connection either timed out or was canceled.
             bool timedOut = false;
+
+            _connectionTimeoutCancellation?.Cancel();
+
             _connectionTimeoutCancellation = new CancellationTokenSource();
 
-            _connectionTimeoutTask = new Task(async () =>
-            {
-                try
-                {
-                    await Task.Delay(Config.ConnectionTimeout, _connectionTimeoutCancellation.Token);
-                }
-                catch
-                {
-                    return;
-                }
 
-                timedOut = true;
-                OnClose(null, SocketCloseReason.TimeOut);
-                MainSocket.Close();
-            });
 
 
             var eventArg = new SocketAsyncEventArgs
@@ -114,10 +100,23 @@ namespace DtronixMessageQueue.Socket
                 }
             };
 
-
             MainSocket.ConnectAsync(eventArg);
 
-            _connectionTimeoutTask.Start();
+            Task.Run(async () =>
+            {
+                try
+                {
+                    await Task.Delay(Config.ConnectionTimeout, _connectionTimeoutCancellation.Token);
+                }
+                catch
+                {
+                    return;
+                }
+
+                timedOut = true;
+                OnClose(null, SocketCloseReason.TimeOut);
+                MainSocket.Close();
+            }, _connectionTimeoutCancellation.Token);
         }
 
         protected override void OnClose(TSession session, SocketCloseReason reason)

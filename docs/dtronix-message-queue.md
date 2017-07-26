@@ -41,9 +41,8 @@ Each frame contains at the very minimum 1 byte.  This byte is used to determine 
 ### Types of Frames
 There are seven types of frames, but only six that are used to send across the wire.  The Unset type is never used except as the initial state for the frame.
 
-| Name      | Frame bytes | MqFrameType |  Message Length  | Payload | Description                                            |
+| Name      | Frame bytes | MqFrameType<br/>(byte) |  Message Length<br/>(ushort?)| Payload<br/>(byte[]?) | Description       |
 |-----------|:-----------:|:-----------:|:----------------:|:-------:|--------------------------------------------------------|
-|           |             |     byte    |      ushort?     | byte[]? |                                                        |
 |   Unset   |      0      |      0      |         -        |    -    | Initial state for all frames.                          |
 |   Empty   |      1      |      1      |         -        |    -    | No body                                                |
 |    More   |    \>= 3    |      2      | ushort [2 bytes] |  byte[] | Contains a body.                                       |
@@ -51,7 +50,6 @@ There are seven types of frames, but only six that are used to send across the w
 | EmptyLast |      1      |      4      |         -        |    -    | Empty and the last frame in the message.               |
 |  Command  |    \>= 3    |      5      | ushort [2 bytes] |  byte[] | Command to be processed and consumed internally.       |
 |    Ping   |      1      |      6      |         -        |    -    | Same as EmptyLast frame but consumed internally.       |
-
 
 ##### MqFrame Type Empty
 <table>

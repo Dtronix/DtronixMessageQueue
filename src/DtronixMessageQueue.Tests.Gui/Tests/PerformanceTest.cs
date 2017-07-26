@@ -100,6 +100,8 @@ namespace DtronixMessageQueue.Tests.Gui.Tests
                 {
                     sessions.Current.Value.GetProxy<IControllerService>().StopTest();
                 }
+
+                Server.Stop();
             }
 
             if (Client != null)
@@ -107,6 +109,17 @@ namespace DtronixMessageQueue.Tests.Gui.Tests
                 _controllerService.StopTest();
                 Client.Close();
             }
+        }
+
+        public void PauseTest()
+        {
+            var sessions = Server.GetSessionsEnumerator();
+
+            while (sessions.MoveNext())
+            {
+                sessions.Current.Value.GetProxy<IControllerService>().PauseTest();
+            }
+
         }
 
         public virtual void CloseConnectedClients()

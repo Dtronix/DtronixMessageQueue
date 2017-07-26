@@ -86,6 +86,16 @@ namespace DtronixMessageQueue.Socket
         /// </summary>
         public SessionHandler<TSession, TConfig> BaseSocket { get; private set; }
 
+        /// <summary>
+        /// Processor to handle all inbound messages.
+        /// </summary>
+        protected ActionProcessor<Guid> InboxProcessor;
+
+        /// <summary>
+        /// Processor to handle all outbound messages.
+        /// </summary>
+        protected ActionProcessor<Guid> OutboxProcessor;
+
 
         private System.Net.Sockets.Socket _socket;
 
@@ -142,8 +152,14 @@ namespace DtronixMessageQueue.Socket
         /// <param name="socketArgsManager">Argument pool for this session to use.  Pulls two asyncevents for reading and writing and returns them at the end of this socket's life.</param>
         /// <param name="sessionConfig">Socket configurations this session is to use.</param>
         /// <param name="sessionHandler">Handler base which is handling this session.</param>
-        public static TSession Create(System.Net.Sockets.Socket sessionSocket, SocketAsyncEventArgsManager socketArgsManager,
-            TConfig sessionConfig, SessionHandler<TSession, TConfig> sessionHandler)
+        /// <param name="inboxProcessor">Processor which handles all inboxdata.</param>
+        /// /// <param name="outboxProcessor">Processor which handles all outbox data.</param>
+        public static TSession Create(System.Net.Sockets.Socket sessionSocket, 
+            SocketAsyncEventArgsManager socketArgsManager,
+            TConfig sessionConfig, 
+            SessionHandler<TSession, TConfig> sessionHandler, 
+            ActionProcessor<Guid> inboxProcessor,
+            ActionProcessor<Guid> outboxProcessor)
         {
             var session = new TSession
             {
@@ -158,6 +174,10 @@ namespace DtronixMessageQueue.Socket
             session._sendArgs.Completed += session.IoCompleted;
             session._receiveArgs = session._argsPool.Create();
             session._receiveArgs.Completed += session.IoCompleted;
+
+            session.InboxProcessor = inboxProcessor;
+
+            session.OutboxProcessor = outboxProcessor;
 
             if (session._config.SendTimeout > 0)
                 session._socket.SendTimeout = session._config.SendTimeout;
@@ -381,6 +401,9 @@ namespace DtronixMessageQueue.Socket
             // Free the SocketAsyncEventArg so they can be reused by another client
             _argsPool.Free(_sendArgs);
             _argsPool.Free(_receiveArgs);
+
+            InboxProcessor.Deregister(Id);
+            OutboxProcessor.Deregister(Id);
 
             CurrentState = State.Closed;
 

@@ -3,7 +3,6 @@ using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.IO;
 using System.Threading;
-using System.Threading.Tasks;
 using DtronixMessageQueue.Socket;
 
 namespace DtronixMessageQueue
@@ -37,14 +36,6 @@ namespace DtronixMessageQueue
         /// </summary>
         private readonly ConcurrentQueue<byte[]> _inboxBytes = new ConcurrentQueue<byte[]>();
 
-        private Task _outboxTask;
-
-        private Task _inboxTask;
-
-        private readonly object _inboxLock = new object();
-
-        private readonly object _outboxLock = new object();
-
         private SemaphoreSlim _sendingSemaphore;
 
         private SemaphoreSlim _receivingSemaphore;
@@ -60,6 +51,9 @@ namespace DtronixMessageQueue
             _frameBuilder = new MqFrameBuilder(Config);
             _sendingSemaphore = new SemaphoreSlim(Config.MaxQueuedOutgoingMessages, Config.MaxQueuedOutgoingMessages);
             _receivingSemaphore = new SemaphoreSlim(Config.MaxQueuedInboundPackets, Config.MaxQueuedInboundPackets);
+
+            InboxProcessor.Register(Id, ProcessIncomingQueue);
+            OutboxProcessor.Register(Id, ProcessOutbox);
         }
 
         /// <summary>
@@ -75,22 +69,14 @@ namespace DtronixMessageQueue
 
             _receivingSemaphore.Wait();
 
-            lock (_inboxLock)
-            {
-                _inboxBytes.Enqueue(buffer);
-            }
-
-
-            if (_inboxTask == null || _inboxTask.IsCompleted)
-            {
-                _inboxTask = Task.Run((Action)ProcessIncomingQueue);
-            }
+            _inboxBytes.Enqueue(buffer);
+            InboxProcessor.QueueOnce(Id);
         }
 
         /// <summary>
         /// Sends a queue of bytes to the connected client/server.
         /// </summary>
-        /// <param name="bufferQueue">Queue of bytes to send to the wire.</param>
+        /// <param name="bufferQueue">QueueOnce of bytes to send to the wire.</param>
         /// <param name="length">Total length of the bytes in the queue to send.</param>
         private void SendBufferQueue(Queue<byte[]> bufferQueue, int length)
         {
@@ -155,14 +141,6 @@ namespace DtronixMessageQueue
 
             // Send the last of the buffer queue.
             SendBufferQueue(bufferQueue, length);
-
-            lock (_outboxLock)
-            {
-                if (_outbox.IsEmpty == false)
-                {
-                    _outboxTask = Task.Run((Action)ProcessOutbox);
-                }
-            }
         }
 
         /// <summary>
@@ -243,16 +221,8 @@ namespace DtronixMessageQueue
                 return;
             }
 
-
             OnIncomingMessage(this, new IncomingMessageEventArgs<TSession, TConfig>(messages, (TSession)this));
-
-            lock (_inboxLock)
-            {
-                if (_inboxBytes.IsEmpty == false)
-                {
-                    _inboxTask = Task.Run((Action)ProcessIncomingQueue);
-                }
-            }
+            
         }
 
 
@@ -308,7 +278,7 @@ namespace DtronixMessageQueue
                 msg = new MqMessage(closeFrame);
                 _outbox.Enqueue(msg);
 
-                // Process the last bit of data.
+                // QueueOnce the last bit of data.
                 ProcessOutbox();
             }
 
@@ -344,16 +314,9 @@ namespace DtronixMessageQueue
             }
 
             _sendingSemaphore.Wait();
+            _outbox.Enqueue(message);
 
-            lock (_outboxLock)
-            {
-                _outbox.Enqueue(message);
-            }
-
-            if (_outboxTask == null || _outboxTask.IsCompleted)
-            {
-                _outboxTask = Task.Run((Action)ProcessOutbox);
-            }
+            OutboxProcessor.QueueOnce(Id);
         }
 
         /// <summary>

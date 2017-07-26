@@ -42,19 +42,11 @@
         public int Port { get; set; }
 
         /// <summary>
-        /// Time it takes for the thread pool to timeout idle threads.
+        /// (Server)
+        /// Number of threads used to read and write.
+        /// If set to -1 (default), it will use the number of logical processors.
         /// </summary>
-        public int ThreadPoolTimeout { get; set; } = 60000;
-
-        /// <summary>
-        /// Minimum number of threads used to read and write.
-        /// </summary>
-        public int MinWorkingThreads { get; set; } = 2;
-
-        /// <summary>
-        /// Maximum number of threads used to read and write.
-        /// </summary>
-        public int MaxWorkingThreads { get; set; } = 20;
+        public int ProcessorThreads { get; set; } = -1;
 
         /// <summary>
         /// (Server/Client)

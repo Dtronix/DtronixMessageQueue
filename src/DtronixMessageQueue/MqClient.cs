@@ -31,7 +31,6 @@ namespace DtronixMessageQueue
         {
             // Override the default connection limit and read/write workers.
             config.MaxConnections = 1;
-            config.MaxWorkingThreads = 2;
             _pingTimer = new Timer(PingCallback);
             Setup();
         }
