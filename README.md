@@ -8,31 +8,30 @@ The purpose of this project is to provide a simple transport protocol for multip
 
 #### DtronixMessageQueue
 
-Sample performance tests.  Numbers are averages from 5 loops of the performance test program. [Full Performance Test](docs/performance-results/i5-3470-8GB-16KB.md)
+Sample performance tests.  Numbers are averages from 5 loops of the performance test program. [Full Performance Test](docs/performance-results/i7-6800K-16GB.md)
 
-|   Build |   Messages | Msg Bytes | Milliseconds |        MPS |     MBps |
+Intel(R) Core(TM) i7-6800K CPU @ 3.40GHz with 16 GB of RAM installed.
+
+|   Build |   Messages | Msg Bytes | Milliseconds |    Msg/sec |     MBps |
 |---------|------------|-----------|--------------|------------|----------|
-| Release |  1,000,000 |       200 |        1,253 |    798,200 |   159.64 |
-| Release |    100,000 |     2,000 |          638 |    156,744 |   313.49 |
-| Release |     10,000 |    60,048 |        1,868 |      5,352 |   321.40 |
-
-[Laptop Intel i7-6500U 16GB](docs/performance-results/i7-6500U-16GB-16KB.md)
-
-[Desktop Intel i5-3470 8GB 8KB Buffer](docs/performance-results/i5-3470-8GB-8KB.md)
-
-[Desktop Intel i5-3470 8GB 16KB Buffer](docs/performance-results/i5-3470-8GB-16KB.md)
-
-[Desktop Intel i7-6700K 32GB 8KB Buffer](docs/performance-results/i7-6700K-32GB-16KB.md)
+| Release |  1,000,000 |       200 |        1,481 |    675,734 |   135.15 |
+| Release |    100,000 |     2,000 |          502 |    199,224 |   398.45 |
+| Release |     10,000 |    60,048 |        1,251 |      7,993 |   480.01 |
 
 #### DtronixMessageQueue.Rpc
 
-Sample performance tests for RPC calls.  Numbers are averages from 4 loops of the Rpc performance test program. [Full Performance Test](docs/performance-results/rpc/i5-3470-8GB-rpc.md)
+Sample performance tests for RPC calls.  Numbers are averages from 4 loops of the Rpc performance test program. [Full Performance Test](docs/performance-results/i7-6800K-16GB.md)
+
+Intel(R) Core(TM) i7-6800K CPU @ 3.40GHz with 16 GB of RAM installed.
 
 |   Build | Type      |   Calls    | Milliseconds |    RPC/sec |
 |---------|-----------|------------|--------------|------------|
-| Release |  NoRetrun |    200,000 |        1,537 |    130,134 |
-| Release |    Return |     10,000 |        1,128 |      8,869 |
-| Release | Exception |     10,000 |        2,484 |      4,026 |
+| Release |  NoReturn |    200,000 |        1,715 |    116,673 |
+| Release |     Await |    200,000 |        3,179 |     62,927 |
+| Release |     Block |        100 |          999 |      3,187 |
+| Release |    Return |     10,000 |        1,062 |      9,420 |
+| Release | Exception |     10,000 |        3,703 |      2,702 |
+
 
 
 ### License
