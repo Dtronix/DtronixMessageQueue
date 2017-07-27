@@ -21,8 +21,10 @@ namespace DtronixMessageQueue.Rpc.MessageHandlers
         /// <summary>
         /// Contains all services that can be remotely executed on this session.
         /// </summary>
-        public readonly Dictionary<string, IRemoteService<TSession, TConfig>> Services =
+        private readonly Dictionary<string, IRemoteService<TSession, TConfig>> _services =
             new Dictionary<string, IRemoteService<TSession, TConfig>>();
+
+        
 
         /// <summary>
         /// Proxy objects to be invoked on this session and proxied to the recipient session.
@@ -50,6 +52,17 @@ namespace DtronixMessageQueue.Rpc.MessageHandlers
             Handlers.Add((byte) RpcCallMessageAction.MethodReturn, ProcessRpcReturnAction);
         }
 
+        public void AddService<T>(T instance) where T : IRemoteService<TSession, TConfig>
+        {
+            _services.Add(instance.Name, instance);
+            var methods = instance.GetType().GetMethods();
+        }
+
+        /// <summary>
+        /// Cancels the specified action.
+        /// </summary>
+        /// <param name="actionId">byte associated with the RpcCallMessageAction enum.></param>
+        /// <param name="message">Message containing the cancellation information.</param>
         public void MethodCancelAction(byte actionId, MqMessage message)
         {
             var cancellationId = message[0].ReadUInt16(0);
@@ -87,13 +100,13 @@ namespace DtronixMessageQueue.Rpc.MessageHandlers
                     var recArgumentCount = serialization.MessageReader.ReadByte();
 
                     // Verify that the requested service exists.
-                    if (Services.ContainsKey(recServiceName) == false)
+                    if (_services.ContainsKey(recServiceName) == false)
                     {
                         throw new Exception($"Service '{recServiceName}' does not exist.");
                     }
 
                     // Get the service from the instance list.
-                    var service = Services[recServiceName];
+                    var service = _services[recServiceName];
 
                     // Get the actual method.  TODO: Might want to cache this for performance purposes.
                     var methodInfo = service.GetType().GetMethod(recMethodName);

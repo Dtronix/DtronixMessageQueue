@@ -388,8 +388,8 @@ namespace DtronixMessageQueue.Rpc
         /// <param name="instance">Instance to execute methods on.</param>
         public void AddService<T>(T instance) where T : IRemoteService<TSession, TConfig>
         {
-            RpcCallHandler.Services.Add(instance.Name, instance);
-            instance.Session = (TSession) this;
+            instance.Session = (TSession)this;
+            RpcCallHandler.AddService(instance);
         }
     }
 }
