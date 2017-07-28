@@ -10,12 +10,25 @@ namespace DtronixMessageQueue
     public class ServiceMethodCache
     {
 
+        /// <summary>
+        /// Internal delegate used for calling of the compile method calls.
+        /// </summary>
+        /// <param name="target">Instance this invoker is invoking on.</param>
+        /// <param name="paramters">PArameters passed to method.</param>
+        /// <returns>Return object if there is one.</returns>
         private delegate object InvokeHandler(object target, object[] paramters);
 
-
+        /// <summary>
+        /// Dictionary for all services and associated cached methods.
+        /// </summary>
         private readonly Dictionary<string, Dictionary<string, CachedMethodInfo>> _services = 
             new Dictionary<string, Dictionary<string, CachedMethodInfo>>();
 
+        /// <summary>
+        /// Add a service and associated public methods to the cache.
+        /// </summary>
+        /// <param name="serviceName">Name of the server</param>
+        /// <param name="instance">Instance containing all public methods to cache.</param>
         public void AddService(string serviceName, object instance)
         {
             // If this service has already been registered, do nothing.
@@ -28,23 +41,32 @@ namespace DtronixMessageQueue
             // Get all the public methods for this 
             var methods = instance.GetType().GetMethods();
 
+            // All public methods to cache.
             foreach (var methodInfo in methods)
             {
                 var smi = new CachedMethodInfo(methodInfo);
 
-
+                // See if the last parameter is a cancellation token.  If so, cache the info.
                 if (smi.ParameterTypes.Length > 0)
                 {
                     var lastParam = smi.ParameterTypes[smi.ParameterTypes.Length - 1];
                     smi.HasCancellation = lastParam == typeof(CancellationToken);
                 }
 
+                // Add the cached info the service cached dictionary.
                 serviceMethods.Add(smi.MethodName, smi);
             }
 
+            // Add all the caches to the main dictionary.
             _services.Add(serviceName, serviceMethods);
         }
 
+        /// <summary>
+        /// Gets the cached information about the specified service method.
+        /// </summary>
+        /// <param name="service">Service name to lookup.</param>
+        /// <param name="method">Method name to lookup</param>
+        /// <returns></returns>
         public CachedMethodInfo GetMethodInfo(string service, string method)
         {
             if (!_services.ContainsKey(service) || !_services[service].ContainsKey(method))
@@ -53,7 +75,9 @@ namespace DtronixMessageQueue
             return _services[service][method];
         }
 
-
+        /// <summary>
+        /// Cache class to contain all important information about the cached method.
+        /// </summary>
         public class CachedMethodInfo
         {
             /// <summary>
@@ -122,7 +146,8 @@ namespace DtronixMessageQueue
         /// <param name="methodInfo">Method to create an invoker for.</param>
         /// <returns>Invoker delegate crafted for the specified method.</returns>
         /// <remarks>
-        /// https://www.codeproject.com/Articles/14593/A-General-Fast-Method-Invoker?msg=1555655#xx1555655xx
+        /// https://www.codeproject.com/Articles/14593/A-General-Fast-Method-Invoker
+        /// http://archive.is/JSZAY
         /// </remarks>
         private static InvokeHandler GetMethodInvoker(MethodInfo methodInfo)
         {
@@ -192,19 +217,26 @@ namespace DtronixMessageQueue
             return invoker;
         }
 
-        private static void EmitCastToReference(ILGenerator il, System.Type type)
+        /// <summary>
+        /// Helper method.
+        /// </summary>
+        private static void EmitCastToReference(ILGenerator il, Type type)
         {
             il.Emit(type.IsValueType ? OpCodes.Unbox_Any : OpCodes.Castclass, type);
         }
 
-        private static void EmitBoxIfNeeded(ILGenerator il, System.Type type)
+        /// <summary>
+        /// Helper method.
+        /// </summary>
+        private static void EmitBoxIfNeeded(ILGenerator il, Type type)
         {
             if (type.IsValueType)
-            {
                 il.Emit(OpCodes.Box, type);
-            }
         }
 
+        /// <summary>
+        /// Helper method.
+        /// </summary>
         private static void EmitFastInt(ILGenerator il, int value)
         {
             switch (value)
