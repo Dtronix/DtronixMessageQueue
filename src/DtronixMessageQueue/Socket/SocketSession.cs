@@ -124,6 +124,12 @@ namespace DtronixMessageQueue.Socket
         /// </summary>
         private SemaphoreSlim _writeSemaphore;
 
+
+        /// <summary>
+        /// Cache for commonly called methods used throughout the session.
+        /// </summary>
+        public ServiceMethodCache ServiceMethodCache;
+
         /// <summary>
         /// This event fires when a connection has been established.
         /// </summary>
@@ -134,7 +140,6 @@ namespace DtronixMessageQueue.Socket
         /// </summary>
         public event EventHandler<SessionClosedEventArgs<TSession, TConfig>> Closed;
 
-
         /// <summary>
         /// Creates a new socket session with a new Id.
         /// </summary>
@@ -144,7 +149,6 @@ namespace DtronixMessageQueue.Socket
             CurrentState = State.Connecting;
         }
 
-
         /// <summary>
         /// Sets up this socket with the specified configurations.
         /// </summary>
@@ -152,14 +156,16 @@ namespace DtronixMessageQueue.Socket
         /// <param name="socketArgsManager">Argument pool for this session to use.  Pulls two asyncevents for reading and writing and returns them at the end of this socket's life.</param>
         /// <param name="sessionConfig">Socket configurations this session is to use.</param>
         /// <param name="sessionHandler">Handler base which is handling this session.</param>
-        /// <param name="inboxProcessor">Processor which handles all inboxdata.</param>
+        /// <param name="inboxProcessor">Processor which handles all inbox data.</param>
         /// /// <param name="outboxProcessor">Processor which handles all outbox data.</param>
+        /// <param name="serviceMethodCache">Cache for commonly called methods used throughout the session.</param>
         public static TSession Create(System.Net.Sockets.Socket sessionSocket, 
             SocketAsyncEventArgsManager socketArgsManager,
             TConfig sessionConfig, 
             SessionHandler<TSession, TConfig> sessionHandler, 
             ActionProcessor<Guid> inboxProcessor,
-            ActionProcessor<Guid> outboxProcessor)
+            ActionProcessor<Guid> outboxProcessor,
+            ServiceMethodCache serviceMethodCache)
         {
             var session = new TSession
             {
@@ -167,17 +173,16 @@ namespace DtronixMessageQueue.Socket
                 _argsPool = socketArgsManager,
                 _socket = sessionSocket,
                 _writeSemaphore = new SemaphoreSlim(1, 1),
-                BaseSocket = sessionHandler
+                BaseSocket = sessionHandler,
+                _sendArgs = socketArgsManager.Create(),
+                _receiveArgs = socketArgsManager.Create(),
+                InboxProcessor = inboxProcessor,
+                OutboxProcessor = outboxProcessor,
+                ServiceMethodCache = serviceMethodCache
             };
 
-            session._sendArgs = session._argsPool.Create();
             session._sendArgs.Completed += session.IoCompleted;
-            session._receiveArgs = session._argsPool.Create();
             session._receiveArgs.Completed += session.IoCompleted;
-
-            session.InboxProcessor = inboxProcessor;
-
-            session.OutboxProcessor = outboxProcessor;
 
             if (session._config.SendTimeout > 0)
                 session._socket.SendTimeout = session._config.SendTimeout;
@@ -202,10 +207,7 @@ namespace DtronixMessageQueue.Socket
         void ISetupSocketSession.Start()
         {
             if (CurrentState != State.Connecting)
-            {
                 return;
-            }
-
 
             CurrentState = State.Connected;
             ConnectedTime = DateTime.UtcNow;
@@ -282,9 +284,8 @@ namespace DtronixMessageQueue.Socket
         protected virtual void Send(byte[] buffer, int offset, int length)
         {
             if (Socket == null || Socket.Connected == false)
-            {
                 return;
-            }
+
             _writeSemaphore.Wait(-1);
 
             // Copy the bytes to the block buffer
@@ -329,9 +330,8 @@ namespace DtronixMessageQueue.Socket
         protected void RecieveComplete(SocketAsyncEventArgs e)
         {
             if (CurrentState == State.Closing)
-            {
                 return;
-            }
+            
             if (e.BytesTransferred == 0 && CurrentState == State.Connected)
             {
                 CurrentState = State.Closing;
@@ -376,9 +376,7 @@ namespace DtronixMessageQueue.Socket
         {
             // If this session has already been closed, nothing more to do.
             if (CurrentState == State.Closed)
-            {
                 return;
-            }
 
             // close the socket associated with the client
             try
@@ -417,9 +415,8 @@ namespace DtronixMessageQueue.Socket
         public void Dispose()
         {
             if (CurrentState == State.Connected)
-            {
                 Close(SocketCloseReason.ClientClosing);
-            }
+
         }
     }
 }

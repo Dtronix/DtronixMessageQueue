@@ -3,54 +3,117 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Reflection;
 using System.Reflection.Emit;
-using System.Text;
-using System.Threading.Tasks;
+using System.Threading;
 
-namespace DtronixMessageQueue.Rpc
+namespace DtronixMessageQueue
 {
-    public class ServiceMethodCache<TSession, TConfig>
-        where TSession : RpcSession<TSession, TConfig>, new()
-        where TConfig : RpcConfig
+    public class ServiceMethodCache
     {
 
         private delegate object InvokeHandler(object target, object[] paramters);
 
 
-        private Dictionary<string, Dictionary<string, ServiceMethodInfo>> _serviceMethods = 
-            new Dictionary<string, Dictionary<string, ServiceMethodInfo>>();
+        private readonly Dictionary<string, Dictionary<string, CachedMethodInfo>> _services = 
+            new Dictionary<string, Dictionary<string, CachedMethodInfo>>();
 
-        public ServiceMethodCache()
-        {
-
-        }
-
-        public void AddService<T>(T instance) where T : IRemoteService<TSession, TConfig>
+        public void AddService(string serviceName, object instance)
         {
             // If this service has already been registered, do nothing.
-            if (_serviceMethods.ContainsKey(instance.Name))
+            if (_services.ContainsKey(serviceName))
                 return;
 
-            var methods = new 
+            // Create a new dictionary for all available services in this instance.
+            var serviceMethods = new Dictionary<string, CachedMethodInfo>();
 
             // Get all the public methods for this 
             var methods = instance.GetType().GetMethods();
 
             foreach (var methodInfo in methods)
             {
-                methodInfo.Name
+                var smi = new CachedMethodInfo(methodInfo);
+
+
+                if (smi.ParameterTypes.Length > 0)
+                {
+                    var lastParam = smi.ParameterTypes[smi.ParameterTypes.Length - 1];
+                    smi.HasCancellation = lastParam == typeof(CancellationToken);
+                }
+
+                serviceMethods.Add(smi.MethodName, smi);
             }
+
+            _services.Add(serviceName, serviceMethods);
         }
 
-        public void Invoke(string service, string method, object serviceTarget, object[] parameters)
+        public CachedMethodInfo GetMethodInfo(string service, string method)
         {
-            
+            if (!_services.ContainsKey(service) || !_services[service].ContainsKey(method))
+                return null;
+
+            return _services[service][method];
         }
 
-        private class ServiceMethodInfo
+
+        public class CachedMethodInfo
         {
+            /// <summary>
+            /// Method info for this method.
+            /// </summary>
             public MethodInfo MethodInfo;
+
+            /// <summary>
+            /// Name of this method
+            /// </summary>
+            public string MethodName;
+
+            /// <summary>
+            /// Name of the service this method belongs to.
+            /// </summary>
+            public string ServiceName;
+
+            /// <summary>
+            /// Created method invoker for this method.
+            /// </summary>
+            private InvokeHandler Invoker;
+
+            /// <summary>
+            /// Array of all the parameter types.
+            /// </summary>
             public Type[] ParameterTypes;
-            public bool hasCancellation;
+
+            /// <summary>
+            /// True of this is a cancel-able method.
+            /// </summary>
+            public bool HasCancellation;
+
+            /// <summary>
+            /// Type that this method returns.
+            /// </summary>
+            public Type ReturnType;
+
+            /// <summary>
+            /// Invokes the cached method.
+            /// </summary>
+            /// <param name="target">Target instance.</param>
+            /// <param name="parameters">Method parameters.</param>
+            /// <returns>Return value if there is one.</returns>
+            public object Invoke(object target, object[] parameters)
+            {
+                return Invoker(target, parameters);
+            }
+
+            /// <summary>
+            /// Creates a cached method info for 
+            /// </summary>
+            /// <param name="methodInfo"></param>
+            public CachedMethodInfo(MethodInfo methodInfo)
+            {
+                MethodName = methodInfo.Name;
+                MethodInfo = methodInfo;
+                ReturnType = methodInfo.ReturnType;
+                Invoker = GetMethodInvoker(methodInfo);
+                ParameterTypes = methodInfo.GetParameters().Select(p => p.ParameterType).ToArray();
+            }
         }
 
         /// <summary>
