@@ -1,6 +1,6 @@
 DtronixMessageQueue [![Build Status](https://travis-ci.org/Dtronix/DtronixMessageQueue.svg?branch=master)](https://travis-ci.org/Dtronix/DtronixMessageQueue) [![NuGet](https://img.shields.io/nuget/v/DtronixMessageQueue.svg?maxAge=600)](https://www.nuget.org/packages/DtronixMessageQueue)
 ============
-DtronixMessageQueue is a small .net TCP/UDP message queueing system using the microsoft [SocketAsyncEventArgs](https://msdn.microsoft.com/en-us/library/system.net.sockets.socketasynceventargs(v=vs.110).aspx) interface
+DtronixMessageQueue is a small .net TCP message queueing system using the microsoft [SocketAsyncEventArgs](https://msdn.microsoft.com/en-us/library/system.net.sockets.socketasynceventargs(v=vs.110).aspx) interface
 
 The purpose of this project is to provide a simple transport protocol for multiple systems, mostly being the DtronixRpc system.
 
