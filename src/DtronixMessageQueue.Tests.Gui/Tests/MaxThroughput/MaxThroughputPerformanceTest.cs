@@ -18,7 +18,7 @@ namespace DtronixMessageQueue.Tests.Gui.Tests.MaxThroughput
         public MaxThroughputPerformanceTestControl ActualControl { get; }
 
 
-        public MaxThroughputPerformanceTest(MainWindow mainWindow) : base("Max Throughput Test", mainWindow)
+        public MaxThroughputPerformanceTest(TestController testController) : base("Max Throughput Test", testController)
         {
             Control = ActualControl = new MaxThroughputPerformanceTestControl();
             _testClients = new List<MqClient<MaxThroughputPerformanceTestSession, MqConfig>>();
@@ -28,7 +28,7 @@ namespace DtronixMessageQueue.Tests.Gui.Tests.MaxThroughput
         public override void StartServer()
         {
 
-            Log("Starting Test ControlServer");
+            TestController.Log("Starting Test ControlServer");
 
             if (_testServer == null)
             {
@@ -43,59 +43,45 @@ namespace DtronixMessageQueue.Tests.Gui.Tests.MaxThroughput
 
                 _testServer.Connected += (sender, args) =>
                 {
-                    Log("New Test ControllClient Connected");
-                    Interlocked.Increment(ref TotalConnections);
-                    Update();
+                    ConnectionAdded();
                 };
 
                 _testServer.Closed += (sender, args) =>
                 {
-                    Log($"Test ControllClient Disconnected. Reason: {args.CloseReason}");
-                    Interlocked.Decrement(ref TotalConnections);
-                    Update();
+                    ConnectionRemoved(args.CloseReason);
                 };
             }
 
             _testServer.Start();
-
-            StartControlServer();
         }
 
         public override void StartClient()
         {
-
-
             var configClientConnections = ActualControl.ConfigClients;
             var configFrames = ActualControl.ConfigFrames;
             var configFrameSize = ActualControl.ConfigFrameSize;
-            var ip = MainWindow.IpAddress;
 
             for (int i = 0; i < configClientConnections; i++)
             {
                 var client = new MqClient<MaxThroughputPerformanceTestSession, MqConfig>(new MqConfig
                 {
-                    Ip = ip,
+                    Ip = ControllClient.Config.Ip,
                     Port = 2121,
                     PingFrequency = 500
                 });
 
                 client.Connected += (sender, args) =>
                 {
+                    ConnectionAdded();
                     args.Session.ConfigTest(configFrameSize, configFrames);
-                    Log("Connection test client connected.");
-                    Interlocked.Increment(ref TotalConnections);
-                    Update();
-
                     args.Session.StartTest();
                 };
 
                 client.Closed += (sender, args) =>
                 {
-                    Interlocked.Decrement(ref TotalConnections);
-                    Update();
+                    ConnectionRemoved(args.CloseReason);
                 };
 
-                Log("Connection test client connecting...");
                 client.Connect();
 
                 _testClients.Add(client);
@@ -114,9 +100,9 @@ namespace DtronixMessageQueue.Tests.Gui.Tests.MaxThroughput
         }
 
 
-        public void Update()
+        protected override void Update()
         {
-            MainWindow.Dispatcher.Invoke(() =>
+            TestController.MainWindow.Dispatcher.Invoke(() =>
             {
                 ActualControl.TotalConnections = TotalConnections;
             });
@@ -124,7 +110,7 @@ namespace DtronixMessageQueue.Tests.Gui.Tests.MaxThroughput
 
         protected override void OnServerReady(SessionEventArgs<ControllerSession, RpcConfig> args)
         {
-            MainWindow.Dispatcher.Invoke(() =>
+            TestController.MainWindow.Dispatcher.Invoke(() =>
             {
                 args.Session.GetProxy<IControllerService>()
                     .StartMaxThroughputTest(ActualControl.ConfigClients, ActualControl.ConfigFrames,

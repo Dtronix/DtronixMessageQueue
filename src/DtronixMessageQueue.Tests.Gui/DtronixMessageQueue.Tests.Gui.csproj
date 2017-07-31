@@ -71,6 +71,7 @@
       <DependentUpon>ConnectionPerformanceTestControl.xaml</DependentUpon>
     </Compile>
     <Compile Include="Tests\PerformanceTest.cs" />
+    <Compile Include="Tests\TestController.cs" />
     <Page Include="MainWindow.xaml">
       <Generator>MSBuild:Compile</Generator>
       <SubType>Designer</SubType>

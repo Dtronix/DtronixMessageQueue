@@ -1,4 +1,5 @@
-﻿using System.Windows.Controls;
+﻿using System.Collections.Generic;
+using System.Windows.Controls;
 using DtronixMessageQueue.Rpc;
 using DtronixMessageQueue.Socket;
 using DtronixMessageQueue.Tests.Gui.Services;
@@ -9,13 +10,15 @@ namespace DtronixMessageQueue.Tests.Gui.Tests.Connection
     {
 
         private MqServer<ConnectionPerformanceTestSession, MqConfig> _testServer;
+        private List<MqClient<ConnectionPerformanceTestSession, MqConfig>> _testClients;
 
         public ConnectionPerformanceTestControl ActualControl;
 
 
-        public ConnectionPerformanceTest(MainWindow mainWindow) : base("Connection Test", mainWindow)
+        public ConnectionPerformanceTest(TestController testController) : base("Connection Test", testController)
         {
             Control = ActualControl = new ConnectionPerformanceTestControl();
+            _testClients = new List<MqClient<ConnectionPerformanceTestSession, MqConfig>>();
         }
 
 
@@ -23,7 +26,7 @@ namespace DtronixMessageQueue.Tests.Gui.Tests.Connection
         public override void StartServer()
         {
 
-            Log("Starting Test ControlServer");
+            TestController.Log("Starting Test ControlServer");
 
             if (_testServer == null)
             {
@@ -38,12 +41,12 @@ namespace DtronixMessageQueue.Tests.Gui.Tests.Connection
 
                 _testServer.Connected += (sender, args) =>
                 {
-                    Log("New Test ControllClient Connected");
+                    TestController.Log("New Test ControllClient Connected");
                 };
 
                 _testServer.Closed += (sender, args) =>
                 {
-                    Log($"Test ControllClient Disconnected. Reason: {args.CloseReason}");
+                    TestController.Log($"Test ControllClient Disconnected. Reason: {args.CloseReason}");
                 };
             }
 
@@ -52,7 +55,35 @@ namespace DtronixMessageQueue.Tests.Gui.Tests.Connection
 
         public override void StartClient()
         {
-            throw new System.NotImplementedException();
+            var configClients = ActualControl.ConfigClients;
+            var configPackageLength = ActualControl.ConfigBytesPerMessage;
+            var configPeriod = ActualControl.ConfigMessagePeriod;
+
+            for (int i = 0; i < configClients; i++)
+            {
+                var client = new MqClient<ConnectionPerformanceTestSession, MqConfig>(new MqConfig
+                {
+                    Ip = ControllClient.Config.Ip,
+                    Port = 2121,
+                    PingFrequency = 500
+                });
+
+                client.Connected += (sender, args) =>
+                {
+                    ConnectionAdded();
+                    args.Session.ConfigTest(configPackageLength, configPeriod);
+                    args.Session.StartTest();
+                };
+
+                client.Closed += (sender, args) =>
+                {
+                    ConnectionRemoved(args.CloseReason);
+                };
+
+                client.Connect();
+
+                _testClients.Add(client);
+            }
         }
 
 
@@ -68,13 +99,8 @@ namespace DtronixMessageQueue.Tests.Gui.Tests.Connection
 
         public override void PauseTest()
         {
-            if (ControlServer != null)
+            TestController.Pause();
                 base.PauseTest();
-
-            /*if (_testClients.Count > 0)
-                foreach (var client in _testClients)
-                    client.Session.PauseTest();*/
-
         }
 
 
@@ -85,8 +111,13 @@ namespace DtronixMessageQueue.Tests.Gui.Tests.Connection
             _testServer?.Stop();
         }
 
-
-
+        protected override void Update()
+        {
+            MainWindow.Dispatcher.Invoke(() =>
+            {
+                ActualControl.TotalConnections = TotalConnections;
+            });
+        }
     }
 
 }

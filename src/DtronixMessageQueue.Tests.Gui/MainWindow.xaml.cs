@@ -137,6 +137,8 @@ namespace DtronixMessageQueue.Tests.Gui
 
         private string[] _startupArgs;
 
+        private TestController _testController;
+
         public MainWindow(string[] args)
         {
             InitializeComponent();
@@ -145,11 +147,12 @@ namespace DtronixMessageQueue.Tests.Gui
 
             _currentProcess = Process.GetCurrentProcess();
 
+            _testController = new TestController(this);
+
             PerformanceTests = new ObservableCollection<PerformanceTest>()
             {
-                
-                new ConnectionPerformanceTest(this),
-                new MaxThroughputPerformanceTest(this),
+                new ConnectionPerformanceTest(_testController),
+                new MaxThroughputPerformanceTest(_testController),
             };
 
             DataContext = this;
@@ -238,14 +241,14 @@ namespace DtronixMessageQueue.Tests.Gui
 
         private void StartAsServer(object sender, RoutedEventArgs e)
         {
-            SelectedPerformanceTest.StartServer();
+            _testController.StartServer();
             IsTestRunning = true;
             CanModifySettings = !IsTestRunning;
         }
 
-        private void StartAsClient(object sender, RoutedEventArgs e)
+        public void StartAsClient(object sender, RoutedEventArgs e)
         {
-            SelectedPerformanceTest.StartClient();
+            _testController.StartClient(IpAddress);
             IsTestRunning = true;
             CanModifySettings = !IsTestRunning;
         }

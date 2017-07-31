@@ -34,6 +34,15 @@ namespace DtronixMessageQueue.Tests.Gui.Tests.Connection
             set { SetValue(ConfigMessagePeriodProperty, value); }
         }
 
+        public static readonly DependencyProperty TotalConnectionsProperty = DependencyProperty.Register(
+            "TotalConnections", typeof(int), typeof(ConnectionPerformanceTestControl), new PropertyMetadata(default(int)));
+
+        public int TotalConnections
+        {
+            get { return (int) GetValue(TotalConnectionsProperty); }
+            set { SetValue(TotalConnectionsProperty, value); }
+        }
+
         public ConnectionPerformanceTestControl()
         {
             InitializeComponent();

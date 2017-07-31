@@ -13,7 +13,8 @@ namespace DtronixMessageQueue.Tests.Gui.Services
 {
     public class ControllerService : IControllerService
     {
-      
+        private readonly TestController _testController;
+
         public string Name { get; } = "ControllerService";
         public ControllerSession Session { get; set; }
         private RpcServer<ControllerSession, RpcConfig> _server;
@@ -22,9 +23,9 @@ namespace DtronixMessageQueue.Tests.Gui.Services
         
         private PerformanceTest TestBase;
 
-        public ControllerService(PerformanceTest testBase)
+        public ControllerService(TestController testController)
         {
-            TestBase = testBase;
+            _testController = testController;
             _connectionTestClientList = new List<MqClient<ConnectionPerformanceTestSession, MqConfig>>();
         }
 
@@ -38,7 +39,7 @@ namespace DtronixMessageQueue.Tests.Gui.Services
 
         private T GetClientTest<T>() where T : PerformanceTest
         {
-            var test = (T)TestBase.MainWindow.PerformanceTests.FirstOrDefault(pt => pt is T);
+            var test = (T)_testController.MainWindow.PerformanceTests.FirstOrDefault(pt => pt is T);
 
             return test;
         }
@@ -47,10 +48,10 @@ namespace DtronixMessageQueue.Tests.Gui.Services
         {
             var test = GetClientTest<T>();
 
-            TestBase.MainWindow.SelectedPerformanceTest = test;
+            _testController.MainWindow.SelectedPerformanceTest = test;
 
             if (test != null)
-                TestBase.Log("Activating " + test.Name);
+                _testController.Log("Activating " + test.Name);
 
 
             return test;
@@ -58,45 +59,7 @@ namespace DtronixMessageQueue.Tests.Gui.Services
 
 
 
-        public void StartConnectionTest(int clients, int packageLength, int period)
-        {
-            SetClientTest<ConnectionPerformanceTest>();
 
-            for (int i = 0; i < clients; i++)
-            {
-                var client = new MqClient<ConnectionPerformanceTestSession, MqConfig>(new MqConfig
-                {
-                    Ip = Session.Config.Ip,
-                    Port = 2121,
-                    PingFrequency = 500
-                });
-
-                client.Connected += (sender, args) =>
-                {
-                    args.Session.ConfigTest(packageLength, period);
-                    TestBase.Log("Connection test client connected.");
-
-                    ConnectionTestLog();
-                    args.Session.StartTest();
-                };
-
-                client.Closed += (sender, args) =>
-                {
-                    ConnectionTestLog();
-                };
-
-                TestBase.Log("Connection test client connecting...");
-                client.Connect();
-
-                _connectionTestClientList.Add(client);
-            }
-        }
-
-        private void ConnectionTestLog()
-        {
-            TestBase.ClearLog();
-            TestBase.Log($"Total Connections: {_connectionTestClientList.Count}");
-        }
 
         public void StopConnectionTest()
         {
@@ -113,9 +76,9 @@ namespace DtronixMessageQueue.Tests.Gui.Services
 
         public void CloseClient()
         {
-            TestBase.MainWindow.Dispatcher.Invoke(() =>
+            _testController.MainWindow.Dispatcher.Invoke(() =>
             {
-                TestBase.MainWindow.Close();
+                _testController.MainWindow.Close();
             });
         }
 
@@ -128,10 +91,25 @@ namespace DtronixMessageQueue.Tests.Gui.Services
             }
         }
 
+        public void StartConnectionTest(int clients, int bytesPerMessage, int messagePeriod)
+        {
+
+            _testController.MainWindow.Dispatcher.Invoke(() =>
+            {
+                var test = SetClientTest<ConnectionPerformanceTest>();
+
+                test.ActualControl.ConfigClients = clients;
+                test.ActualControl.ConfigMessagePeriod = messagePeriod;
+                test.ActualControl.ConfigBytesPerMessage = bytesPerMessage;
+
+                test.StartTestClient();
+            });
+        }
+
         public void StartMaxThroughputTest(int clients, int frames, int frameSize)
         {
 
-            TestBase.MainWindow.Dispatcher.Invoke(() =>
+            _testController.MainWindow.Dispatcher.Invoke(() =>
             {
                 var test = SetClientTest<MaxThroughputPerformanceTest>();
 
@@ -139,16 +117,16 @@ namespace DtronixMessageQueue.Tests.Gui.Services
                 test.ActualControl.ConfigFrames = frames;
                 test.ActualControl.ConfigFrameSize = frameSize;
 
-                test.StartClient();
+                test.StartTestClient();
             });
         }
 
         public void PauseTest()
         {
 
-            TestBase.MainWindow.Dispatcher.Invoke(() =>
+            _testController.MainWindow.Dispatcher.Invoke(() =>
             {
-                TestBase.MainWindow.SelectedPerformanceTest.PauseTest();
+                _testController.MainWindow.SelectedPerformanceTest.PauseTest();
             });
         }
     }

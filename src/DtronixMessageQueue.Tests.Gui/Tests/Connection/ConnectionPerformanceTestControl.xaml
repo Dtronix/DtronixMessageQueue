@@ -31,5 +31,8 @@
         <TextBlock Grid.Row="2" Grid.Column="0" Text="Msg Period" VerticalAlignment="Center" HorizontalAlignment="Right" Margin="4" />
         <TextBox Grid.Row="2" Grid.Column="1" VerticalAlignment="Center" Text="{Binding ConfigMessagePeriod}" />
 
+        <TextBlock Grid.Row="0" Grid.Column="2" Text="Connections" VerticalAlignment="Center" HorizontalAlignment="Right" Margin="4" />
+        <TextBlock Grid.Row="0" Grid.Column="3" Text="{Binding TotalConnections}" VerticalAlignment="Center" HorizontalAlignment="Left" Margin="4" />
+
     </Grid>
 </UserControl>
