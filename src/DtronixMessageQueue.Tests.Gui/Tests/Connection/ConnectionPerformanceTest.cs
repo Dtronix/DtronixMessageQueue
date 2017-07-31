@@ -10,25 +10,20 @@ namespace DtronixMessageQueue.Tests.Gui.Tests.Connection
 
         private MqServer<ConnectionPerformanceTestSession, MqConfig> _testServer;
 
-        private ConnectionPerformanceTestControl _control;
+        public ConnectionPerformanceTestControl ActualControl;
 
 
         public ConnectionPerformanceTest(MainWindow mainWindow) : base("Connection Test", mainWindow)
         {
-            _control = new ConnectionPerformanceTestControl();
-        }
-
-        public override UserControl GetConfigControl()
-        {
-            MainWindow.ClientConnections = "100";
-            return _control;
+            Control = ActualControl = new ConnectionPerformanceTestControl();
         }
 
 
-        public override void StartServer(int clientConnections)
+
+        public override void StartServer()
         {
 
-            Log("Starting Test Server");
+            Log("Starting Test ControlServer");
 
             if (_testServer == null)
             {
@@ -43,18 +38,21 @@ namespace DtronixMessageQueue.Tests.Gui.Tests.Connection
 
                 _testServer.Connected += (sender, args) =>
                 {
-                    Log("New Test Client Connected");
+                    Log("New Test ControllClient Connected");
                 };
 
                 _testServer.Closed += (sender, args) =>
                 {
-                    Log($"Test Client Disconnected. Reason: {args.CloseReason}");
+                    Log($"Test ControllClient Disconnected. Reason: {args.CloseReason}");
                 };
             }
 
             _testServer.Start();
+        }
 
-            base.StartServer(clientConnections);
+        public override void StartClient()
+        {
+            throw new System.NotImplementedException();
         }
 
 
@@ -63,9 +61,20 @@ namespace DtronixMessageQueue.Tests.Gui.Tests.Connection
             MainWindow.Dispatcher.Invoke(() =>
             {
                 args.Session.GetProxy<IControllerService>()
-                    .StartConnectionTest(ClientConnections, _control.ConfigBytesPerMessage,
-                        _control.ConfigMessagePeriod);
+                    .StartConnectionTest(ActualControl.ConfigClients, ActualControl.ConfigBytesPerMessage,
+                        ActualControl.ConfigMessagePeriod);
             });
+        }
+
+        public override void PauseTest()
+        {
+            if (ControlServer != null)
+                base.PauseTest();
+
+            /*if (_testClients.Count > 0)
+                foreach (var client in _testClients)
+                    client.Session.PauseTest();*/
+
         }
 
 
@@ -75,6 +84,8 @@ namespace DtronixMessageQueue.Tests.Gui.Tests.Connection
             base.StopTest();
             _testServer?.Stop();
         }
+
+
 
     }
 

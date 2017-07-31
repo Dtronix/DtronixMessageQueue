@@ -71,9 +71,6 @@
       <DependentUpon>ConnectionPerformanceTestControl.xaml</DependentUpon>
     </Compile>
     <Compile Include="Tests\PerformanceTest.cs" />
-    <Compile Include="Wpf\TestMqThroughputControl.xaml.cs">
-      <DependentUpon>TestMqThroughputControl.xaml</DependentUpon>
-    </Compile>
     <Page Include="MainWindow.xaml">
       <Generator>MSBuild:Compile</Generator>
       <SubType>Designer</SubType>
@@ -91,10 +88,6 @@
       <SubType>Designer</SubType>
     </Page>
     <Page Include="Tests\Connection\ConnectionPerformanceTestControl.xaml">
-      <SubType>Designer</SubType>
-      <Generator>MSBuild:Compile</Generator>
-    </Page>
-    <Page Include="Wpf\TestMqThroughputControl.xaml">
       <SubType>Designer</SubType>
       <Generator>MSBuild:Compile</Generator>
     </Page>

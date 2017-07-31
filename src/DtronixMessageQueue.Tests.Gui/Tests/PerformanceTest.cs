@@ -1,4 +1,5 @@
-﻿using System.Windows.Controls;
+﻿using System;
+using System.Windows.Controls;
 using DtronixMessageQueue.Rpc;
 using DtronixMessageQueue.Socket;
 using DtronixMessageQueue.Tests.Gui.Services;
@@ -10,14 +11,16 @@ namespace DtronixMessageQueue.Tests.Gui.Tests
         public string Name { get; }
         public MainWindow MainWindow { get; }
 
-        protected RpcServer<ControllerSession, RpcConfig> Server;
-        protected RpcClient<ControllerSession, RpcConfig> Client;
+        protected RpcServer<ControllerSession, RpcConfig> ControlServer;
+        protected RpcClient<ControllerSession, RpcConfig> ControllClient;
 
-
-        protected int ClientConnections;
         public long ServerThroughput { get; set; }
 
-        protected ControllerService _controllerService;
+        protected ControllerService ControllerService;
+
+        public UserControl Control { get; protected set; }
+
+        public int TotalConnections;
 
         protected PerformanceTest(string name, MainWindow mainWindow)
         {
@@ -29,7 +32,7 @@ namespace DtronixMessageQueue.Tests.Gui.Tests
         {
             MainWindow.Dispatcher.Invoke(() =>
             {
-                MainWindow.ConsoleOutput.AppendText(message + "\r");
+                MainWindow.ConsoleOutput.AppendText($"[{DateTime.Now.ToShortTimeString()}] {message}\r");
                 MainWindow.ConsoleOutput.ScrollToEnd();
             });
         }
@@ -42,14 +45,14 @@ namespace DtronixMessageQueue.Tests.Gui.Tests
             });
         }
 
-        public abstract UserControl GetConfigControl();
+        public abstract void StartClient();
+        public abstract void StartServer();
 
-
-        public virtual void StartClient(string ip)
+        protected void StartControlClient(string ip)
         {
 
-            Log("Starting Test Client");
-            Client = new RpcClient<ControllerSession, RpcConfig>(new RpcConfig
+            Log("Starting Test ControllClient");
+            ControllClient = new RpcClient<ControllerSession, RpcConfig>(new RpcConfig
             {
                 Ip = ip,
                 Port = 2120,
@@ -57,16 +60,15 @@ namespace DtronixMessageQueue.Tests.Gui.Tests
                 PingFrequency = 800
             });
 
-            Client.SessionSetup += OnClientSessionSetup;
+            ControllClient.SessionSetup += OnControllClientSessionSetup;
 
-            Client.Connect();
+            ControllClient.Connect();
         }
 
-        public virtual void StartServer(int clientConnections)
+        protected void StartControlServer()
         {
-            Log("Starting Controlling Server");
-            ClientConnections = clientConnections;
-            Server = new RpcServer<ControllerSession, RpcConfig>(new RpcConfig
+            Log("Starting Controlling ControlServer");
+            ControlServer = new RpcServer<ControllerSession, RpcConfig>(new RpcConfig
             {
                 Ip = "0.0.0.0",
                 Port = 2120,
@@ -74,59 +76,61 @@ namespace DtronixMessageQueue.Tests.Gui.Tests
                 PingTimeout = 1000
             });
 
-            Server.Ready += (sender, args) =>
+            ControlServer.Ready += (sender, args) =>
             {
-                Log("Client Connected");
+                Log("ControllClient Connected");
                 OnServerReady(args);
 
             };
 
-            Server.SessionSetup += OnServerSessionSetup;
-            Server.Closed += ServerOnClosed;
+            ControlServer.SessionSetup += OnControlServerSessionSetup;
+            ControlServer.Closed += ControlServerOnClosed;
 
-            Server.Start();
+            ControlServer.Start();
         }
 
         protected abstract void OnServerReady(SessionEventArgs<ControllerSession, RpcConfig> args);
 
         public virtual void StopTest()
         {
-            if (Server != null)
+            if (ControlServer != null)
             {
                 Log("Stopped Test");
-                var sessions = Server.GetSessionsEnumerator();
+                var sessions = ControlServer.GetSessionsEnumerator();
 
                 while (sessions.MoveNext())
                 {
                     sessions.Current.Value.GetProxy<IControllerService>().StopTest();
                 }
 
-                Server.Stop();
+                ControlServer.Stop();
             }
 
-            if (Client != null)
+            if (ControllClient != null)
             {
-                _controllerService.StopTest();
-                Client.Close();
+                ControllerService.StopTest();
+                ControllClient.Close();
             }
         }
 
-        public void PauseTest()
+        public virtual void PauseTest()
         {
-            var sessions = Server.GetSessionsEnumerator();
-
-            while (sessions.MoveNext())
+            if (ControlServer != null)
             {
-                sessions.Current.Value.GetProxy<IControllerService>().PauseTest();
-            }
+                var sessions = ControlServer.GetSessionsEnumerator();
 
+                while (sessions.MoveNext())
+                {
+                    sessions.Current.Value.GetProxy<IControllerService>().PauseTest();
+                }
+            }
         }
 
         public virtual void CloseConnectedClients()
         {
-            if (Server != null)
+            if (ControlServer != null)
             {
-                var sessions = Server.GetSessionsEnumerator();
+                var sessions = ControlServer.GetSessionsEnumerator();
 
                 while (sessions.MoveNext())
                 {
@@ -135,20 +139,20 @@ namespace DtronixMessageQueue.Tests.Gui.Tests
             }
         }
 
-        protected void ServerOnClosed(object sender, SessionClosedEventArgs<ControllerSession, RpcConfig> sessionClosedEventArgs)
+        protected void ControlServerOnClosed(object sender, SessionClosedEventArgs<ControllerSession, RpcConfig> sessionClosedEventArgs)
         {
-            Log($"Client Closed {sessionClosedEventArgs.CloseReason}");
+            Log($"ControllClient Closed {sessionClosedEventArgs.CloseReason}");
         }
 
-        protected void OnServerSessionSetup(object sender, SessionEventArgs<ControllerSession, RpcConfig> sessionEventArgs)
+        protected void OnControlServerSessionSetup(object sender, SessionEventArgs<ControllerSession, RpcConfig> sessionEventArgs)
         {
             sessionEventArgs.Session.AddProxy<IControllerService>("ControllerService");
         }
 
-        protected void OnClientSessionSetup(object sender, SessionEventArgs<ControllerSession, RpcConfig> sessionEventArgs)
+        protected void OnControllClientSessionSetup(object sender, SessionEventArgs<ControllerSession, RpcConfig> sessionEventArgs)
         {
-            _controllerService = new ControllerService(this);
-            sessionEventArgs.Session.AddService(_controllerService);
+            ControllerService = new ControllerService(this);
+            sessionEventArgs.Session.AddService(ControllerService);
         }
     }
 }

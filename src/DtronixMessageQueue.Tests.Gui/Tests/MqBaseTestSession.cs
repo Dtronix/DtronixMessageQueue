@@ -23,6 +23,8 @@ namespace DtronixMessageQueue.Tests.Gui.Tests
 
 
 
+
+
         protected Random Rand = new Random();
 
         public long GetTotalReceived()
