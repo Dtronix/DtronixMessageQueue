@@ -289,6 +289,11 @@ namespace DtronixMessageQueue
             if (registeredAction.ProcessorThread == destination)
                 return;
 
+            // If the processor thread is null, it is either in the process of moving or
+            // completely removed as a valid action to process.
+            if (registeredAction.ProcessorThread == null)
+                return;
+
             registeredAction.ProcessorThread.DeregisterAction(registeredAction);
             destination.RegisterAction(registeredAction);
 
