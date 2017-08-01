@@ -21,11 +21,18 @@ namespace DtronixMessageQueue.Tests.Gui.Tests
 
         public event EventHandler<SessionClosedEventArgs<ControllerSession, RpcConfig>> ClientClosed;
 
+        public PerformanceTest ActiveTest { get; private set; }
+
 
 
         public TestController(MainWindow mainWindow)
         {
             MainWindow = mainWindow;
+        }
+
+        public void SetTest(PerformanceTest test)
+        {
+            ActiveTest = test;
         }
 
         public void StartClient(string ip)
@@ -70,7 +77,11 @@ namespace DtronixMessageQueue.Tests.Gui.Tests
             ControlServer.Ready += (sender, args) =>
             {
                 Log("ControllClient Connected");
-                ClientReady?.Invoke(sender, args);
+
+                MainWindow.Dispatcher.Invoke(() =>
+                {
+                    MainWindow.SelectedPerformanceTest.TestControllerStartTest(args.Session);
+                });
             };
 
             ControlServer.SessionSetup += (sender, args) =>
@@ -85,6 +96,65 @@ namespace DtronixMessageQueue.Tests.Gui.Tests
             };
 
             ControlServer.Start();
+
+            ActiveTest.StartServer();
+        }
+
+        public virtual void StopTest()
+        {
+            if (ControlServer != null)
+            {
+                Log("Server requesting clients stop.");
+                var sessions = ControlServer.GetSessionsEnumerator();
+
+                while (sessions.MoveNext())
+                {
+                    sessions.Current.Value.GetProxy<IControllerService>().StopTest();
+                }
+            }
+
+            if (ControllClient != null)
+            {
+                Log("Stopping client test.");
+                ActiveTest.StopTest();
+            }
+        }
+
+        public virtual void PauseTest()
+        {
+            if (ControlServer != null)
+            {
+                Log("Server requesting clients " + (ActiveTest.Paused ? "resume." : "pause."));
+                ActiveTest.Paused = !ActiveTest.Paused;
+                var sessions = ControlServer.GetSessionsEnumerator();
+
+                while (sessions.MoveNext())
+                {
+                    sessions.Current.Value.GetProxy<IControllerService>().PauseTest();
+                }
+            }
+            if (ControllClient != null)
+            {
+                Log((ActiveTest.Paused ? "Resuming" : "Pausing") + " client test.");
+                ActiveTest.PauseResumeTest();
+                ActiveTest.Paused = !ActiveTest.Paused;
+            }
+
+            
+        }
+
+        public virtual void CloseConnectedClients()
+        {
+            if (ControlServer != null)
+            {
+                Log("Server requesting clients close.");
+                var sessions = ControlServer.GetSessionsEnumerator();
+
+                while (sessions.MoveNext())
+                {
+                    sessions.Current.Value.GetProxy<IControllerService>().CloseClient();
+                }
+            }
         }
 
 
@@ -92,7 +162,7 @@ namespace DtronixMessageQueue.Tests.Gui.Tests
         {
             MainWindow.Dispatcher.Invoke(() =>
             {
-                MainWindow.ConsoleOutput.AppendText($"[{DateTime.Now.ToShortTimeString()}] {message}\r");
+                MainWindow.ConsoleOutput.AppendText($"[{DateTime.Now.ToLongTimeString()}] {message}\r");
                 MainWindow.ConsoleOutput.ScrollToEnd();
             });
         }
@@ -104,11 +174,6 @@ namespace DtronixMessageQueue.Tests.Gui.Tests
             {
                 MainWindow.ConsoleOutput.Document.Blocks.Clear();
             });
-        }
-
-        public void Pause()
-        {
-            ControllerService.PauseTest();
         }
     }
 }

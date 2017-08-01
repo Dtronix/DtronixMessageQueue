@@ -65,7 +65,7 @@ namespace DtronixMessageQueue.Tests.Gui.Tests.MaxThroughput
             {
                 var client = new MqClient<MaxThroughputPerformanceTestSession, MqConfig>(new MqConfig
                 {
-                    Ip = ControllClient.Config.Ip,
+                    Ip = TestController.ControllClient.Config.Ip,
                     Port = 2121,
                     PingFrequency = 500
                 });
@@ -88,16 +88,7 @@ namespace DtronixMessageQueue.Tests.Gui.Tests.MaxThroughput
             }
         }
 
-        public override void PauseTest()
-        {
-            if (ControlServer != null)
-                base.PauseTest();
-            
-            if(_testClients.Count > 0)
-                foreach (var client in _testClients)
-                    client.Session.PauseTest();
 
-        }
 
 
         protected override void Update()
@@ -108,20 +99,35 @@ namespace DtronixMessageQueue.Tests.Gui.Tests.MaxThroughput
             });
         }
 
-        protected override void OnServerReady(SessionEventArgs<ControllerSession, RpcConfig> args)
+        public override void TestControllerStartTest(ControllerSession session)
         {
             TestController.MainWindow.Dispatcher.Invoke(() =>
             {
-                args.Session.GetProxy<IControllerService>()
+                session.GetProxy<IControllerService>()
                     .StartMaxThroughputTest(ActualControl.ConfigClients, ActualControl.ConfigFrames,
                         ActualControl.ConfigFrameSize);
             });
         }
 
+        public override void PauseResumeTest()
+        {
+            if (_testClients.Count > 0)
+                foreach (var client in _testClients)
+                    client.Session.PauseTest();
+        }
+
         public override void StopTest()
         {
-            base.StopTest();
+            if (_testClients.Count > 0)
+            {
+                foreach (var client in _testClients)
+                    client.Close();
+
+                _testClients.Clear();
+            }
+
             _testServer?.Stop();
+            _testServer = null;
         }
 
 

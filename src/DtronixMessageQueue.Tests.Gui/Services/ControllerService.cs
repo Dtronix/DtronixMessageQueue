@@ -84,11 +84,7 @@ namespace DtronixMessageQueue.Tests.Gui.Services
 
         public void StopTest()
         {
-            //_connectionTestClientList.Clear();
-            foreach (var mqClient in _connectionTestClientList)
-            {
-                mqClient.Close();
-            }
+            _testController.StopTest();
         }
 
         public void StartConnectionTest(int clients, int bytesPerMessage, int messagePeriod)
@@ -102,7 +98,7 @@ namespace DtronixMessageQueue.Tests.Gui.Services
                 test.ActualControl.ConfigMessagePeriod = messagePeriod;
                 test.ActualControl.ConfigBytesPerMessage = bytesPerMessage;
 
-                test.StartTestClient();
+                test.StartClient();
             });
         }
 
@@ -117,17 +113,14 @@ namespace DtronixMessageQueue.Tests.Gui.Services
                 test.ActualControl.ConfigFrames = frames;
                 test.ActualControl.ConfigFrameSize = frameSize;
 
-                test.StartTestClient();
+                test.StartClient();
             });
         }
 
         public void PauseTest()
         {
 
-            _testController.MainWindow.Dispatcher.Invoke(() =>
-            {
-                _testController.MainWindow.SelectedPerformanceTest.PauseTest();
-            });
+            _testController.PauseTest();
         }
     }
 }

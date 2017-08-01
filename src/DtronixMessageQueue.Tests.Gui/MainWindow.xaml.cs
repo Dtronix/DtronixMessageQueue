@@ -233,7 +233,7 @@ namespace DtronixMessageQueue.Tests.Gui
 
         private void Stop(object sender, RoutedEventArgs e)
         {
-            SelectedPerformanceTest.StopTest();
+            _testController.StopTest();
             IsTestRunning = false;
             CanModifySettings = !IsTestRunning;
         }
@@ -260,8 +260,8 @@ namespace DtronixMessageQueue.Tests.Gui
 
         private void MainWindow_OnClosing(object sender, CancelEventArgs e)
         {
-            SelectedPerformanceTest.StopTest();
-            SelectedPerformanceTest.CloseConnectedClients();
+            _testController.StopTest();
+            _testController.CloseConnectedClients();
         }
 
         private void TestChanged(object sender, SelectionChangedEventArgs e)
@@ -273,7 +273,7 @@ namespace DtronixMessageQueue.Tests.Gui
 
             ConfigurationContainer.Content = control;
 
-
+            _testController.SetTest(SelectedPerformanceTest);
         }
 
         private void MainWindow_OnLoaded(object sender, RoutedEventArgs e)
@@ -295,7 +295,7 @@ namespace DtronixMessageQueue.Tests.Gui
 
         private void Pause(object sender, RoutedEventArgs e)
         {
-            SelectedPerformanceTest.PauseTest();
+            _testController.PauseTest();
         }
     }
 }

@@ -35,18 +35,18 @@ namespace DtronixMessageQueue.Tests.Gui.Tests.Connection
                     Ip = "0.0.0.0",
                     Port = 2121,
                     PingTimeout = 1000,
-                    MaxConnections = 200
+                    MaxConnections = 2000
 
                 });
 
                 _testServer.Connected += (sender, args) =>
                 {
-                    TestController.Log("New Test ControllClient Connected");
+                    ConnectionAdded();
                 };
 
                 _testServer.Closed += (sender, args) =>
                 {
-                    TestController.Log($"Test ControllClient Disconnected. Reason: {args.CloseReason}");
+                    ConnectionRemoved(args.CloseReason);
                 };
             }
 
@@ -63,7 +63,7 @@ namespace DtronixMessageQueue.Tests.Gui.Tests.Connection
             {
                 var client = new MqClient<ConnectionPerformanceTestSession, MqConfig>(new MqConfig
                 {
-                    Ip = ControllClient.Config.Ip,
+                    Ip = TestController.ControllClient.Config.Ip,
                     Port = 2121,
                     PingFrequency = 500
                 });
@@ -86,34 +86,42 @@ namespace DtronixMessageQueue.Tests.Gui.Tests.Connection
             }
         }
 
-
-        protected override void OnServerReady(SessionEventArgs<ControllerSession, RpcConfig> args)
+        public override void TestControllerStartTest(ControllerSession session)
         {
-            MainWindow.Dispatcher.Invoke(() =>
+            TestController.MainWindow.Dispatcher.Invoke(() =>
             {
-                args.Session.GetProxy<IControllerService>()
+                session.GetProxy<IControllerService>()
                     .StartConnectionTest(ActualControl.ConfigClients, ActualControl.ConfigBytesPerMessage,
                         ActualControl.ConfigMessagePeriod);
             });
         }
 
-        public override void PauseTest()
-        {
-            TestController.Pause();
-                base.PauseTest();
-        }
 
+        public override void PauseResumeTest()
+        {
+            if (_testClients.Count > 0)
+                foreach (var client in _testClients)
+                    client.Session.PauseTest();
+        }
 
 
         public override void StopTest()
         {
-            base.StopTest();
+            if (_testClients.Count > 0)
+            {
+                foreach (var client in _testClients)
+                    client.Close();
+
+                _testClients.Clear();
+            }
+
             _testServer?.Stop();
+            _testServer = null;
         }
 
         protected override void Update()
         {
-            MainWindow.Dispatcher.Invoke(() =>
+            TestController.MainWindow.Dispatcher.Invoke(() =>
             {
                 ActualControl.TotalConnections = TotalConnections;
             });

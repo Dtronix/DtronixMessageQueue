@@ -11,9 +11,7 @@ namespace DtronixMessageQueue.Tests.Gui.Tests
     {
         public string Name { get; }
         public TestController TestController { get; private set; }
-
-        protected RpcServer<ControllerSession, RpcConfig> ControlServer;
-        protected RpcClient<ControllerSession, RpcConfig> ControllClient;
+        public bool Paused { get; set; }
 
         public long ServerThroughput { get; set; }
 
@@ -43,6 +41,10 @@ namespace DtronixMessageQueue.Tests.Gui.Tests
             Update();
         }
 
+        public abstract void PauseResumeTest();
+        public abstract void StopTest();
+
+
         protected abstract void Update();
 
 
@@ -51,54 +53,8 @@ namespace DtronixMessageQueue.Tests.Gui.Tests
         public abstract void StartServer();
 
 
-        protected abstract void OnClientSession(SessionEventArgs<ControllerSession, RpcConfig> args);
+        public abstract void TestControllerStartTest(ControllerSession session);
 
-        public virtual void StopTest()
-        {
-            if (ControlServer != null)
-            {
-                TestController.Log("Stopped Test");
-                var sessions = ControlServer.GetSessionsEnumerator();
-
-                while (sessions.MoveNext())
-                {
-                    sessions.Current.Value.GetProxy<IControllerService>().StopTest();
-                }
-
-                ControlServer.Stop();
-            }
-
-            if (ControllClient != null)
-            {
-                ControllerService.StopTest();
-                ControllClient.Close();
-            }
-        }
-
-        public virtual void PauseTest()
-        {
-            if (ControlServer != null)
-            {
-                var sessions = ControlServer.GetSessionsEnumerator();
-
-                while (sessions.MoveNext())
-                {
-                    sessions.Current.Value.GetProxy<IControllerService>().PauseTest();
-                }
-            }
-        }
-
-        public virtual void CloseConnectedClients()
-        {
-            if (ControlServer != null)
-            {
-                var sessions = ControlServer.GetSessionsEnumerator();
-
-                while (sessions.MoveNext())
-                {
-                    sessions.Current.Value.GetProxy<IControllerService>().CloseClient();
-                }
-            }
-        }
+        
     }
 }
