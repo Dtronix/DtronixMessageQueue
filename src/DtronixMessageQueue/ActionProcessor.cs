@@ -289,6 +289,11 @@ namespace DtronixMessageQueue
             if (registeredAction.ProcessorThread == destination)
                 return;
 
+            // If the processor thread is null, it is either in the process of moving or
+            // completely removed as a valid action to process.
+            if (registeredAction.ProcessorThread == null)
+                return;
+
             registeredAction.ProcessorThread.DeregisterAction(registeredAction);
             destination.RegisterAction(registeredAction);
 
@@ -630,17 +635,17 @@ namespace DtronixMessageQueue
                     {
                         while (_actions.TryTake(out action, 1000, _cancellationTokenSource.Token))
                         {
-                            // If this action is not registered to this thread, add it back to be
-                            // processed again at a later time in hopes that the processor thread will be finally
-                            // set to an active processor.
-                            if (action.ProcessorThread == null)
-                            {
-                                _actions.Add(action);
-                                continue;
-                            }
-
                             // Decrement the total actions queued.
                             Interlocked.Decrement(ref Queued);
+
+                            // If this action is not registered to this thread or any thread, ignore it.
+                            // This most likely will occur when the registered action has been removed
+                            // and should not be activated any more.
+                            if (action.ProcessorThread == null)
+                                continue;
+
+                            // Decrement only if this is going to run on this thread.
+                            Interlocked.Decrement(ref action.QueuedCount);
 
                             // If this action was transferred to another thread, queue the action up on that other thread.
                             if (action.ProcessorThread != this)
@@ -648,9 +653,6 @@ namespace DtronixMessageQueue
                                 action.ProcessorThread.Queue(action, true);
                                 continue;
                             }
-
-                            // Decrement only if this is going to run on this thread.
-                            Interlocked.Decrement(ref action.QueuedCount);
 
                             // Update the idle time
                             RollingEstimate(ref _idleTime, _perfStopwatch.ElapsedMilliseconds, 10);

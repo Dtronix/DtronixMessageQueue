@@ -17,17 +17,27 @@
         <Grid.RowDefinitions>
             <RowDefinition Height="30"/>
             <RowDefinition Height="30"/>
+            <RowDefinition Height="30"/>
+            <RowDefinition Height="30"/>
             <RowDefinition Height="31*"/>
         </Grid.RowDefinitions>
-        
-        <TextBlock Text="Frames" VerticalAlignment="Center" HorizontalAlignment="Right" Margin="4" />
-        <TextBox Grid.Row="0" Grid.Column="1" VerticalAlignment="Center" Text="{Binding Frames, UpdateSourceTrigger=PropertyChanged}" TextChanged="ConfigChanged" />
 
-        <TextBlock Grid.Row="0" Grid.Column="2" Text="Frame Size" VerticalAlignment="Center" HorizontalAlignment="Right" Margin="4" />
-        <TextBox Grid.Row="0" Grid.Column="3" VerticalAlignment="Center" Text="{Binding FrameSize, UpdateSourceTrigger=PropertyChanged}" TextChanged="ConfigChanged" />
+        <TextBlock Grid.Row="0" Grid.Column="0" Text="Clients" VerticalAlignment="Center" HorizontalAlignment="Right" Margin="4" />
+        <TextBox Grid.Row="0" Grid.Column="1" VerticalAlignment="Center" Text="{Binding ConfigClients, UpdateSourceTrigger=PropertyChanged}" TextChanged="ConfigChanged" />
 
-        <TextBlock  Grid.Row="1" Grid.Column="0" Text="Total Bytes" VerticalAlignment="Center" HorizontalAlignment="Right" Margin="4" />
-        <TextBlock  Grid.Row="1" Grid.Column="1" Text="{Binding TotalBytes, UpdateSourceTrigger=PropertyChanged}" VerticalAlignment="Center" HorizontalAlignment="left"/>
+        <TextBlock Grid.Row="1" Grid.Column="0" Text="Frames" VerticalAlignment="Center" HorizontalAlignment="Right" Margin="4" />
+        <TextBox Grid.Row="1" Grid.Column="1" VerticalAlignment="Center" Text="{Binding ConfigFrames, UpdateSourceTrigger=PropertyChanged}" TextChanged="ConfigChanged" />
+
+        <TextBlock Grid.Row="2" Grid.Column="0" Text="Frame Size" VerticalAlignment="Center" HorizontalAlignment="Right" Margin="4" />
+        <TextBox Grid.Row="2" Grid.Column="1" VerticalAlignment="Center" Text="{Binding ConfigFrameSize, UpdateSourceTrigger=PropertyChanged}" TextChanged="ConfigChanged" />
+
+        <TextBlock  Grid.Row="3" Grid.Column="0" Text="Total Bytes" VerticalAlignment="Center" HorizontalAlignment="Right" Margin="4" />
+        <TextBlock  Grid.Row="4" Grid.Column="1" Text="{Binding TotalBytes, UpdateSourceTrigger=PropertyChanged}" VerticalAlignment="Center" HorizontalAlignment="left"/>
+
+
+
+        <TextBlock Grid.Row="0" Grid.Column="2" Text="Connections" VerticalAlignment="Center" HorizontalAlignment="Right" Margin="4" />
+        <TextBlock Grid.Row="0" Grid.Column="3" Text="{Binding TotalConnections}" VerticalAlignment="Center" HorizontalAlignment="Left" Margin="4" />
 
     </Grid>
 </UserControl>

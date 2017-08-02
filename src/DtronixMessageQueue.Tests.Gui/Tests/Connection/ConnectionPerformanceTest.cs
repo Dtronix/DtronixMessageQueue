@@ -1,4 +1,5 @@
-﻿using System.Windows.Controls;
+﻿using System.Collections.Generic;
+using System.Windows.Controls;
 using DtronixMessageQueue.Rpc;
 using DtronixMessageQueue.Socket;
 using DtronixMessageQueue.Tests.Gui.Services;
@@ -9,26 +10,23 @@ namespace DtronixMessageQueue.Tests.Gui.Tests.Connection
     {
 
         private MqServer<ConnectionPerformanceTestSession, MqConfig> _testServer;
+        private List<MqClient<ConnectionPerformanceTestSession, MqConfig>> _testClients;
 
-        private ConnectionPerformanceTestControl _control;
+        public ConnectionPerformanceTestControl ActualControl;
 
 
-        public ConnectionPerformanceTest(MainWindow mainWindow) : base("Connection Test", mainWindow)
+        public ConnectionPerformanceTest(TestController testController) : base("Connection Test", testController)
         {
-            _control = new ConnectionPerformanceTestControl();
-        }
-
-        public override UserControl GetConfigControl()
-        {
-            MainWindow.ClientConnections = "100";
-            return _control;
+            Control = ActualControl = new ConnectionPerformanceTestControl(this);
+            _testClients = new List<MqClient<ConnectionPerformanceTestSession, MqConfig>>();
         }
 
 
-        public override void StartServer(int clientConnections)
+
+        public override void StartServer()
         {
 
-            Log("Starting Test Server");
+            TestController.Log("Starting Test ControlServer");
 
             if (_testServer == null)
             {
@@ -37,45 +35,90 @@ namespace DtronixMessageQueue.Tests.Gui.Tests.Connection
                     Ip = "0.0.0.0",
                     Port = 2121,
                     PingTimeout = 1000,
-                    MaxConnections = 200
+                    MaxConnections = 2000
 
                 });
 
                 _testServer.Connected += (sender, args) =>
                 {
-                    Log("New Test Client Connected");
+                    ConnectionAdded();
                 };
 
                 _testServer.Closed += (sender, args) =>
                 {
-                    Log($"Test Client Disconnected. Reason: {args.CloseReason}");
+                    ConnectionRemoved(args.CloseReason);
                 };
             }
 
             _testServer.Start();
-
-            base.StartServer(clientConnections);
         }
 
-
-        protected override void OnServerReady(SessionEventArgs<ControllerSession, RpcConfig> args)
+        public override void StartClient()
         {
-            MainWindow.Dispatcher.Invoke(() =>
+            var configClients = ActualControl.ConfigClients;
+            var configPackageLength = ActualControl.ConfigBytesPerMessage;
+            var configPeriod = ActualControl.ConfigMessagePeriod;
+
+            for (int i = 0; i < configClients; i++)
             {
-                args.Session.GetProxy<IControllerService>()
-                    .StartConnectionTest(ClientConnections, _control.ConfigBytesPerMessage,
-                        _control.ConfigMessagePeriod);
+                var client = new MqClient<ConnectionPerformanceTestSession, MqConfig>(new MqConfig
+                {
+                    Ip = TestController.ControllClient.Config.Ip,
+                    Port = 2121,
+                    PingFrequency = 500
+                });
+
+                client.Connected += (sender, args) =>
+                {
+                    ConnectionAdded();
+                    args.Session.ConfigTest(configPackageLength, configPeriod);
+                    args.Session.StartTest();
+                };
+
+                client.Closed += (sender, args) =>
+                {
+                    ConnectionRemoved(args.CloseReason);
+                };
+
+                client.Connect();
+
+                _testClients.Add(client);
+            }
+        }
+
+        public override void TestControllerStartTest(ControllerSession session)
+        {
+            TestController.MainWindow.Dispatcher.Invoke(() =>
+            {
+                session.GetProxy<IControllerService>()
+                    .StartConnectionTest(ActualControl.ConfigClients,
+                        ActualControl.ConfigBytesPerMessage,
+                        ActualControl.ConfigMessagePeriod);
             });
         }
 
 
+        public override void PauseResumeTest()
+        {
+            if (_testClients.Count > 0)
+                foreach (var client in _testClients)
+                    client.Session.PauseTest();
+        }
+
 
         public override void StopTest()
         {
-            base.StopTest();
-            _testServer?.Stop();
-        }
+            if (_testClients.Count > 0)
+            {
+                foreach (var client in _testClients)
+                    client.Close();
 
+                _testClients.Clear();
+            }
+
+            _testServer?.Stop();
+            _testServer = null;
+        }
     }
 
 }

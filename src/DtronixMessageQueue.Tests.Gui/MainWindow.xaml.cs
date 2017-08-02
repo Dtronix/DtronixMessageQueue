@@ -1,22 +1,12 @@
 ﻿using System;
-using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using System.ComponentModel;
 using System.Diagnostics;
 using System.Linq;
 using System.Net;
-using System.Text;
 using System.Threading;
-using System.Threading.Tasks;
 using System.Windows;
 using System.Windows.Controls;
-using System.Windows.Data;
-using System.Windows.Documents;
-using System.Windows.Input;
-using System.Windows.Media;
-using System.Windows.Media.Imaging;
-using System.Windows.Navigation;
-using System.Windows.Shapes;
 using DtronixMessageQueue.Tests.Gui.Tests;
 using DtronixMessageQueue.Tests.Gui.Tests.Connection;
 using DtronixMessageQueue.Tests.Gui.Tests.MaxThroughput;
@@ -70,22 +60,6 @@ namespace DtronixMessageQueue.Tests.Gui
         public PerformanceTest SelectedPerformanceTest {
             get { return (PerformanceTest) GetValue(SelectedPerformanceTestProperty); }
             set { SetValue(SelectedPerformanceTestProperty, value); }
-        }
-
-        public static readonly DependencyProperty ClientProcessesProperty = DependencyProperty.Register(
-            "ClientProcesses", typeof(string), typeof(MainWindow), new PropertyMetadata(default(string)));
-
-        public string ClientProcesses {
-            get { return (string) GetValue(ClientProcessesProperty); }
-            set { SetValue(ClientProcessesProperty, value); }
-        }
-
-        public static readonly DependencyProperty ClientConnectionsProperty = DependencyProperty.Register(
-            "ClientConnections", typeof(string), typeof(MainWindow), new PropertyMetadata(default(string)));
-
-        public string ClientConnections {
-            get { return (string) GetValue(ClientConnectionsProperty); }
-            set { SetValue(ClientConnectionsProperty, value); }
         }
 
         public static readonly DependencyProperty TotalTransferredProperty = DependencyProperty.Register(
@@ -153,6 +127,8 @@ namespace DtronixMessageQueue.Tests.Gui
 
         private string[] _startupArgs;
 
+        private TestController _testController;
+
         public MainWindow(string[] args)
         {
             InitializeComponent();
@@ -161,11 +137,12 @@ namespace DtronixMessageQueue.Tests.Gui
 
             _currentProcess = Process.GetCurrentProcess();
 
+            _testController = new TestController(this);
+
             PerformanceTests = new ObservableCollection<PerformanceTest>()
             {
-                
-                new ConnectionPerformanceTest(this),
-                new MaxThroughputPerformanceTest(this),
+                new ConnectionPerformanceTest(_testController),
+                new MaxThroughputPerformanceTest(_testController),
             };
 
             DataContext = this;
@@ -179,8 +156,6 @@ namespace DtronixMessageQueue.Tests.Gui
             _processMemoryTimer = new Timer(MemoryTimer);
             _processMemoryTimer.Change(100, 1000);
             _totalTransferStopwatch = Stopwatch.StartNew();
-
-            ClientConnections = "100";
 
             IpAddress = Dns.GetHostEntry(Dns.GetHostName())
                 .AddressList.First(
@@ -248,7 +223,7 @@ namespace DtronixMessageQueue.Tests.Gui
 
         private void Stop(object sender, RoutedEventArgs e)
         {
-            SelectedPerformanceTest.StopTest();
+            _testController.StopTest();
             IsTestRunning = false;
             CanModifySettings = !IsTestRunning;
         }
@@ -256,14 +231,14 @@ namespace DtronixMessageQueue.Tests.Gui
 
         private void StartAsServer(object sender, RoutedEventArgs e)
         {
-            SelectedPerformanceTest.StartServer(int.Parse(ClientConnections));
+            _testController.StartServer();
             IsTestRunning = true;
             CanModifySettings = !IsTestRunning;
         }
 
-        private void StartAsClient(object sender, RoutedEventArgs e)
+        public void StartAsClient(object sender, RoutedEventArgs e)
         {
-            SelectedPerformanceTest.StartClient(IpAddress);
+            _testController.StartClient(IpAddress);
             IsTestRunning = true;
             CanModifySettings = !IsTestRunning;
         }
@@ -275,20 +250,20 @@ namespace DtronixMessageQueue.Tests.Gui
 
         private void MainWindow_OnClosing(object sender, CancelEventArgs e)
         {
-            SelectedPerformanceTest.StopTest();
-            SelectedPerformanceTest.CloseConnectedClients();
+            _testController.StopTest();
+            _testController.CloseConnectedClients();
         }
 
         private void TestChanged(object sender, SelectionChangedEventArgs e)
         {
-            var control = SelectedPerformanceTest.GetConfigControl();
+            var control = SelectedPerformanceTest.Control;
 
             if (control == null)
                 return;
 
             ConfigurationContainer.Content = control;
 
-
+            _testController.SetTest(SelectedPerformanceTest);
         }
 
         private void MainWindow_OnLoaded(object sender, RoutedEventArgs e)
@@ -301,7 +276,7 @@ namespace DtronixMessageQueue.Tests.Gui
             }
             else if (_startupArgs[0] == "client")
             {
-                CurrentMode = "Client";
+                CurrentMode = "ControllClient";
                 CanModifySettings = false;
                 StartAsClient(this, null);
                 IsServer = false;
@@ -310,7 +285,7 @@ namespace DtronixMessageQueue.Tests.Gui
 
         private void Pause(object sender, RoutedEventArgs e)
         {
-            SelectedPerformanceTest.PauseTest();
+            _testController.PauseTest();
         }
     }
 }

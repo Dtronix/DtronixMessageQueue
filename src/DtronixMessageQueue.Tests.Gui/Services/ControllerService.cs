@@ -13,20 +13,20 @@ namespace DtronixMessageQueue.Tests.Gui.Services
 {
     public class ControllerService : IControllerService
     {
-      
+        private readonly TestController _testController;
+
         public string Name { get; } = "ControllerService";
         public ControllerSession Session { get; set; }
         private RpcServer<ControllerSession, RpcConfig> _server;
 
         private List<MqClient<ConnectionPerformanceTestSession, MqConfig>> _connectionTestClientList;
-        private List<MqClient<MaxThroughputPerformanceTestSession, MqConfig>> _maxThroughputTestClientList;
+        
         private PerformanceTest TestBase;
 
-        public ControllerService(PerformanceTest testBase)
+        public ControllerService(TestController testController)
         {
-            TestBase = testBase;
+            _testController = testController;
             _connectionTestClientList = new List<MqClient<ConnectionPerformanceTestSession, MqConfig>>();
-            _maxThroughputTestClientList = new List<MqClient<MaxThroughputPerformanceTestSession, MqConfig>>();
         }
 
         public void ClientReady()
@@ -37,48 +37,29 @@ namespace DtronixMessageQueue.Tests.Gui.Services
             }
         }
 
-
-
-        public void StartConnectionTest(int clients, int packageLength, int period)
+        private T GetClientTest<T>() where T : PerformanceTest
         {
+            var test = (T)_testController.MainWindow.PerformanceTests.FirstOrDefault(pt => pt is T);
 
-            TestBase.Log("Started Connection Test");
-
-            for (int i = 0; i < clients; i++)
-            {
-                var client = new MqClient<ConnectionPerformanceTestSession, MqConfig>(new MqConfig
-                {
-                    Ip = Session.Config.Ip,
-                    Port = 2121,
-                    PingFrequency = 500
-                });
-
-                client.Connected += (sender, args) =>
-                {
-                    args.Session.ConfigTest(packageLength, period);
-                    TestBase.Log("Connection test client connected.");
-
-                    ConnectionTestLog();
-                    args.Session.StartTest();
-                };
-
-                client.Closed += (sender, args) =>
-                {
-                    ConnectionTestLog();
-                };
-
-                TestBase.Log("Connection test client connecting...");
-                client.Connect();
-
-                _connectionTestClientList.Add(client);
-            }
+            return test;
         }
 
-        private void ConnectionTestLog()
+        private T SetClientTest<T>() where T : PerformanceTest
         {
-            TestBase.ClearLog();
-            TestBase.Log($"Total Connections: {_connectionTestClientList.Count}");
+            var test = GetClientTest<T>();
+
+            _testController.MainWindow.SelectedPerformanceTest = test;
+
+            if (test != null)
+                _testController.Log("Activating " + test.Name);
+
+
+            return test;
         }
+
+
+
+
 
         public void StopConnectionTest()
         {
@@ -95,67 +76,51 @@ namespace DtronixMessageQueue.Tests.Gui.Services
 
         public void CloseClient()
         {
-            TestBase.MainWindow.Dispatcher.Invoke(() =>
+            _testController.MainWindow.Dispatcher.Invoke(() =>
             {
-                TestBase.MainWindow.Close();
+                _testController.MainWindow.Close();
             });
         }
 
         public void StopTest()
         {
-            //_connectionTestClientList.Clear();
-            foreach (var mqClient in _connectionTestClientList)
-            {
-                mqClient.Close();
-            }
+            _testController.StopTest();
         }
 
-        public void StartMaxThroughputTest(int clientConnections, int controlConfigFrames, int controlConfigFrameSize)
+        public void StartConnectionTest(int clients, int bytesPerMessage, int messagePeriod)
         {
-            TestBase.Log("Started Connection Test");
 
-            for (int i = 0; i < clientConnections; i++)
+            _testController.MainWindow.Dispatcher.Invoke(() =>
             {
-                var client = new MqClient<MaxThroughputPerformanceTestSession, MqConfig>(new MqConfig
-                {
-                    Ip = Session.Config.Ip,
-                    Port = 2121,
-                    PingFrequency = 500
-                });
+                var test = SetClientTest<ConnectionPerformanceTest>();
 
-                client.Connected += (sender, args) =>
-                {
-                    args.Session.ConfigTest(controlConfigFrameSize, controlConfigFrames);
-                    TestBase.Log("Connection test client connected.");
+                test.ActualControl.ConfigClients = clients;
+                test.ActualControl.ConfigMessagePeriod = messagePeriod;
+                test.ActualControl.ConfigBytesPerMessage = bytesPerMessage;
 
-                    ConnectionTestLog();
+                test.StartClient();
+            });
+        }
 
-                    args.Session.StartTest();
-                };
+        public void StartMaxThroughputTest(int clients, int frames, int frameSize)
+        {
 
-                client.Closed += (sender, args) =>
-                {
-                    ConnectionTestLog();
-                };
+            _testController.MainWindow.Dispatcher.Invoke(() =>
+            {
+                var test = SetClientTest<MaxThroughputPerformanceTest>();
 
-                TestBase.Log("Connection test client connecting...");
-                client.Connect();
+                test.ActualControl.ConfigClients = clients;
+                test.ActualControl.ConfigFrames = frames;
+                test.ActualControl.ConfigFrameSize = frameSize;
 
-                _maxThroughputTestClientList.Add(client);
-            }
+                test.StartClient();
+            });
         }
 
         public void PauseTest()
         {
-            foreach (var mqClient in _maxThroughputTestClientList)
-            {
-                mqClient.Session.PauseTest();
-            }
 
-            foreach (var mqClient in _connectionTestClientList)
-            {
-                mqClient.Session.PauseTest();
-            }
+            _testController.PauseTest();
         }
     }
 }

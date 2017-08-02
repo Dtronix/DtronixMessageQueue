@@ -26,7 +26,7 @@ namespace DtronixMessageQueue.Tests.Performance
 
             RpcSingleProcessTest(200000, 4, config, RpcTestType.Await);
 
-            //RpcSingleProcessTest(100, 4, config, RpcTestType.Block);
+			//RpcSingleProcessTest(100, 4, config, RpcTestType.Block);
 
             RpcSingleProcessTest(10000, 4, config, RpcTestType.Return);
 

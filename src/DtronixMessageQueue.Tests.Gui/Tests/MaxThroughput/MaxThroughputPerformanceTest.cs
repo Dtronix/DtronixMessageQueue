@@ -1,4 +1,6 @@
-﻿using System.Windows.Controls;
+﻿using System.Collections.Generic;
+using System.Threading;
+using System.Windows.Controls;
 using DtronixMessageQueue.Rpc;
 using DtronixMessageQueue.Socket;
 using DtronixMessageQueue.Tests.Gui.Services;
@@ -8,28 +10,25 @@ namespace DtronixMessageQueue.Tests.Gui.Tests.MaxThroughput
     public class MaxThroughputPerformanceTest : PerformanceTest
     {
 
-
         private MqServer<MaxThroughputPerformanceTestSession, MqConfig> _testServer;
-        
-        private MaxThroughputPerformanceTestControl _control;
+
+        private List<MqClient<MaxThroughputPerformanceTestSession, MqConfig>> _testClients;
 
 
+        public MaxThroughputPerformanceTestControl ActualControl { get; }
 
-        public MaxThroughputPerformanceTest(MainWindow mainWindow) : base("Max Throughput Test", mainWindow)
+
+        public MaxThroughputPerformanceTest(TestController testController) : base("Max Throughput Test", testController)
         {
-            _control = new MaxThroughputPerformanceTestControl();
+            Control = ActualControl = new MaxThroughputPerformanceTestControl(this);
+            _testClients = new List<MqClient<MaxThroughputPerformanceTestSession, MqConfig>>();
         }
 
-        public override UserControl GetConfigControl()
-        {
-            MainWindow.ClientConnections = "1";
-            return _control;
-        }
 
-        public override void StartServer(int clientConnections)
+        public override void StartServer()
         {
 
-            Log("Starting Test Server");
+            TestController.Log("Starting Test ControlServer");
 
             if (_testServer == null)
             {
@@ -44,36 +43,83 @@ namespace DtronixMessageQueue.Tests.Gui.Tests.MaxThroughput
 
                 _testServer.Connected += (sender, args) =>
                 {
-                    Log("New Test Client Connected");
+                    ConnectionAdded();
                 };
 
                 _testServer.Closed += (sender, args) =>
                 {
-                    Log($"Test Client Disconnected. Reason: {args.CloseReason}");
+                    ConnectionRemoved(args.CloseReason);
                 };
             }
 
             _testServer.Start();
-
-            base.StartServer(clientConnections);
         }
 
-
-        protected override void OnServerReady(SessionEventArgs<ControllerSession, RpcConfig> args)
+        public override void StartClient()
         {
-            MainWindow.Dispatcher.Invoke(() =>
+            var configClientConnections = ActualControl.ConfigClients;
+            var configFrames = ActualControl.ConfigFrames;
+            var configFrameSize = ActualControl.ConfigFrameSize;
+
+            for (int i = 0; i < configClientConnections; i++)
             {
-                args.Session.GetProxy<IControllerService>()
-                    .StartMaxThroughputTest(ClientConnections, _control.ConfigFrames,
-                        _control.ConfigFrameSize);
+                var client = new MqClient<MaxThroughputPerformanceTestSession, MqConfig>(new MqConfig
+                {
+                    Ip = TestController.ControllClient.Config.Ip,
+                    Port = 2121,
+                    PingFrequency = 500
+                });
+
+                client.Connected += (sender, args) =>
+                {
+                    ConnectionAdded();
+                    args.Session.ConfigTest(configFrameSize, configFrames);
+                    args.Session.StartTest();
+                };
+
+                client.Closed += (sender, args) =>
+                {
+                    ConnectionRemoved(args.CloseReason);
+                };
+
+                client.Connect();
+
+                _testClients.Add(client);
+            }
+        }
+
+        public override void TestControllerStartTest(ControllerSession session)
+        {
+            TestController.MainWindow.Dispatcher.Invoke(() =>
+            {
+                session.GetProxy<IControllerService>()
+                    .StartMaxThroughputTest(ActualControl.ConfigClients, ActualControl.ConfigFrames,
+                        ActualControl.ConfigFrameSize);
             });
+        }
+
+        public override void PauseResumeTest()
+        {
+            if (_testClients.Count > 0)
+                foreach (var client in _testClients)
+                    client.Session.PauseTest();
         }
 
         public override void StopTest()
         {
-            base.StopTest();
+            if (_testClients.Count > 0)
+            {
+                foreach (var client in _testClients)
+                    client.Close();
+
+                _testClients.Clear();
+            }
+
             _testServer?.Stop();
+            _testServer = null;
         }
+
+
     }
     
 }
