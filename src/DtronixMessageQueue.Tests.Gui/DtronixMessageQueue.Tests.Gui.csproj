@@ -59,6 +59,11 @@
     <Compile Include="ControllerSession.cs" />
     <Compile Include="Services\IControllerService.cs" />
     <Compile Include="TestControllerSession.cs" />
+    <Compile Include="Tests\Echo\EchoPerformanceTest.cs" />
+    <Compile Include="Tests\Echo\EchoPerformanceTestControl.xaml.cs">
+      <DependentUpon>EchoPerformanceTestControl.xaml</DependentUpon>
+    </Compile>
+    <Compile Include="Tests\Echo\EchoPerformanceTestSession.cs" />
     <Compile Include="Tests\MaxThroughput\MaxThroughputPerformanceTest.cs" />
     <Compile Include="Tests\MaxThroughput\MaxThroughputPerformanceTestControl.xaml.cs">
       <DependentUpon>MaxThroughputPerformanceTestControl.xaml</DependentUpon>
@@ -84,6 +89,10 @@
       <DependentUpon>MainWindow.xaml</DependentUpon>
       <SubType>Code</SubType>
     </Compile>
+    <Page Include="Tests\Echo\EchoPerformanceTestControl.xaml">
+      <Generator>MSBuild:Compile</Generator>
+      <SubType>Designer</SubType>
+    </Page>
     <Page Include="Tests\MaxThroughput\MaxThroughputPerformanceTestControl.xaml">
       <Generator>MSBuild:Compile</Generator>
       <SubType>Designer</SubType>

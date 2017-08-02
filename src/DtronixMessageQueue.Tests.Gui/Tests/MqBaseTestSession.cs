@@ -2,6 +2,7 @@
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.Threading;
+using DtronixMessageQueue.Socket;
 
 namespace DtronixMessageQueue.Tests.Gui.Tests
 {
@@ -43,6 +44,8 @@ namespace DtronixMessageQueue.Tests.Gui.Tests
 
             Reader = new MqMessageReader();
             Writer = new MqMessageWriter(Config);
+
+            IsServer = BaseSocket.Mode == SocketMode.Server;
         }
 
 

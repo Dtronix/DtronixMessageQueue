@@ -9,6 +9,7 @@ using System.Windows;
 using System.Windows.Controls;
 using DtronixMessageQueue.Tests.Gui.Tests;
 using DtronixMessageQueue.Tests.Gui.Tests.Connection;
+using DtronixMessageQueue.Tests.Gui.Tests.Echo;
 using DtronixMessageQueue.Tests.Gui.Tests.MaxThroughput;
 
 namespace DtronixMessageQueue.Tests.Gui
@@ -143,6 +144,7 @@ namespace DtronixMessageQueue.Tests.Gui
             {
                 new ConnectionPerformanceTest(_testController),
                 new MaxThroughputPerformanceTest(_testController),
+                new EchoPerformanceTest(_testController)
             };
 
             DataContext = this;

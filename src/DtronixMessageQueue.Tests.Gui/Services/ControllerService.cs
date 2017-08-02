@@ -7,6 +7,7 @@ using DtronixMessageQueue.Rpc;
 using DtronixMessageQueue.Socket;
 using DtronixMessageQueue.Tests.Gui.Tests;
 using DtronixMessageQueue.Tests.Gui.Tests.Connection;
+using DtronixMessageQueue.Tests.Gui.Tests.Echo;
 using DtronixMessageQueue.Tests.Gui.Tests.MaxThroughput;
 
 namespace DtronixMessageQueue.Tests.Gui.Services
@@ -121,6 +122,19 @@ namespace DtronixMessageQueue.Tests.Gui.Services
         {
 
             _testController.PauseTest();
+        }
+
+        public void StartEchoTest(int clients, int bytesPerMessage)
+        {
+            _testController.MainWindow.Dispatcher.Invoke(() =>
+            {
+                var test = SetClientTest<EchoPerformanceTest>();
+
+                test.ActualControl.ConfigClients = clients;
+                test.ActualControl.ConfigFrameSize = bytesPerMessage;
+
+                test.StartClient();
+            });
         }
     }
 }
