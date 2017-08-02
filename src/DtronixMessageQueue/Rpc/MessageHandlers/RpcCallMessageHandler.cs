@@ -21,8 +21,10 @@ namespace DtronixMessageQueue.Rpc.MessageHandlers
         /// <summary>
         /// Contains all services that can be remotely executed on this session.
         /// </summary>
-        public readonly Dictionary<string, IRemoteService<TSession, TConfig>> Services =
+        private readonly Dictionary<string, IRemoteService<TSession, TConfig>> _serviceInstances =
             new Dictionary<string, IRemoteService<TSession, TConfig>>();
+
+        
 
         /// <summary>
         /// Proxy objects to be invoked on this session and proxied to the recipient session.
@@ -50,6 +52,17 @@ namespace DtronixMessageQueue.Rpc.MessageHandlers
             Handlers.Add((byte) RpcCallMessageAction.MethodReturn, ProcessRpcReturnAction);
         }
 
+        public void AddService<T>(T instance) where T : IRemoteService<TSession, TConfig>
+        {
+            // Add the instance to this handler.
+            _serviceInstances.Add(instance.Name, instance);
+        }
+
+        /// <summary>
+        /// Cancels the specified action.
+        /// </summary>
+        /// <param name="actionId">byte associated with the RpcCallMessageAction enum.></param>
+        /// <param name="message">Message containing the cancellation information.</param>
         public void MethodCancelAction(byte actionId, MqMessage message)
         {
             var cancellationId = message[0].ReadUInt16(0);
@@ -67,7 +80,7 @@ namespace DtronixMessageQueue.Rpc.MessageHandlers
             // Execute the processing on the worker thread.
             Task.Run(() =>
             {
-                var messageType = (RpcCallMessageAction) actionId;
+                var messageType = (RpcCallMessageAction)actionId;
 
                 // Retrieve a serialization cache to work with.
                 var serialization = Session.SerializationCache.Get(message);
@@ -86,26 +99,18 @@ namespace DtronixMessageQueue.Rpc.MessageHandlers
                     var recMethodName = serialization.MessageReader.ReadString();
                     var recArgumentCount = serialization.MessageReader.ReadByte();
 
+                    // Get the method info from the cache.
+                    var serviceMethod = Session.ServiceMethodCache.GetMethodInfo(recServiceName, recMethodName);
+                   
+
                     // Verify that the requested service exists.
-                    if (Services.ContainsKey(recServiceName) == false)
-                    {
+                    if (serviceMethod == null || !_serviceInstances.ContainsKey(recServiceName))
                         throw new Exception($"Service '{recServiceName}' does not exist.");
-                    }
-
-                    // Get the service from the instance list.
-                    var service = Services[recServiceName];
-
-                    // Get the actual method.  TODO: Might want to cache this for performance purposes.
-                    var methodInfo = service.GetType().GetMethod(recMethodName);
-                    var methodParameters = methodInfo.GetParameters();
-
-                    // Determine if the last parameter is a cancellation token.
-                    var lastParam = methodInfo.GetParameters().LastOrDefault();
 
                     ResponseWaitHandle cancellationWait = null;
 
                     // If the past parameter is a cancellation token, setup a return wait for this call to allow for remote cancellation.
-                    if (recMessageReturnId != 0 && lastParam?.ParameterType == typeof(CancellationToken))
+                    if (recMessageReturnId != 0 && serviceMethod.HasCancellation)
                     {
                         cancellationWait = _remoteWaitOperations.CreateWaitHandle(recMessageReturnId);
 
@@ -121,26 +126,21 @@ namespace DtronixMessageQueue.Rpc.MessageHandlers
                     {
                         serialization.PrepareDeserializeReader();
 
-
                         // Parse each parameter to the parameter list.
-                        for (int i = 0; i < recArgumentCount; i++)
-                        {
-                            parameters[i] = serialization.DeserializeFromReader(methodParameters[i].ParameterType, i);
-                        }
+                        for (var i = 0; i < recArgumentCount; i++)
+                            parameters[i] = serialization.DeserializeFromReader(serviceMethod.ParameterTypes[i], i);
                     }
 
                     // Add the cancellation token to the parameters.
                     if (cancellationWait != null)
-                    {
                         parameters[parameters.Length - 1] = cancellationWait.Token;
-                    }
 
 
                     object returnValue;
                     try
                     {
                         // Invoke the requested method.
-                        returnValue = methodInfo.Invoke(service, parameters);
+                        returnValue = serviceMethod.Invoke(_serviceInstances[recServiceName], parameters);
                     }
                     catch (Exception ex)
                     {
@@ -170,13 +170,10 @@ namespace DtronixMessageQueue.Rpc.MessageHandlers
                         serialization.MessageWriter.Write(recMessageReturnId);
 
                         // Serialize the return value and add it to the stream.
-
                         serialization.SerializeToWriter(returnValue, 0);
 
                         // Send the return value message to the recipient.
-
-
-                        SendHandlerMessage((byte) RpcCallMessageAction.MethodReturn,
+                        SendHandlerMessage((byte)RpcCallMessageAction.MethodReturn,
                             serialization.MessageWriter.ToMessage(true));
                     }
                 }

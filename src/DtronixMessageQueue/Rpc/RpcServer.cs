@@ -46,15 +46,28 @@ namespace DtronixMessageQueue.Rpc
             ServerInfo = serverInfo ?? new RpcServerInfoDataContract();
         }
 
+        /// <summary>
+        /// Creates a session with the specified socket.
+        /// </summary>
+        /// <param name="sessionSocket">Socket to associate with the session.</param>
         protected override TSession CreateSession(System.Net.Sockets.Socket sessionSocket)
         {
             var session = base.CreateSession(sessionSocket);
 
+            // Add the service method cache.
+            session.ServiceMethodCache = ServiceMethodCache;
+
+
             session.Ready += (sender, e) => { Ready?.Invoke(sender, e); };
             session.Authenticate += (sender, e) => { Authenticate?.Invoke(sender, e); };
+
             return session;
         }
 
+        /// <summary>
+        /// Called by the timer to verify that the session is still connected.  If it has timed out, close it.
+        /// </summary>
+        /// <param name="state">Concurrent dictionary of the sessions.</param>
         protected override void TimeoutCallback(object state)
         {
             var timoutInt = Config.PingTimeout;

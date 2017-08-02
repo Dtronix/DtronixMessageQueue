@@ -20,7 +20,10 @@ namespace DtronixMessageQueue.Tests.Performance
         {
             var mode = args.Length == 0 ? null : args[0];
             var file_name = string.Join("-", args);
-            using (var cc = new ConsoleCopy($"MessageQueuePerformanceTest-{file_name}.txt"))
+
+            PerformanceTestBase.GetSysInfo(out var memory, out var filename, out var fullProcessor);
+
+            using (var cc = new ConsoleCopy(filename))
             {
                 PerformanceTestBase.WriteSysInfo();
 
