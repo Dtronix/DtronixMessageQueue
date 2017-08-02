@@ -81,6 +81,11 @@ namespace DtronixMessageQueue.Socket
             new ConcurrentDictionary<Guid, TSession>();
 
         /// <summary>
+        /// Cache for commonly called methods used throughout the session.
+        /// </summary>
+        protected readonly ServiceMethodCache ServiceMethodCache;
+
+        /// <summary>
         /// Base constructor to all socket classes.
         /// </summary>
         /// <param name="config">Configurations for this socket.</param>
@@ -88,6 +93,7 @@ namespace DtronixMessageQueue.Socket
         protected SessionHandler(TConfig config, SocketMode mode)
         {
             TimeoutTimer = new Timer(TimeoutCallback);
+            ServiceMethodCache = new ServiceMethodCache();
             Mode = mode;
             Config = config;
             var modeLower = mode.ToString().ToLower();
@@ -125,6 +131,8 @@ namespace DtronixMessageQueue.Socket
 
             OutboxProcessor.Start();
             InboxProcessor.Start();
+
+
         }
 
 
@@ -201,11 +209,17 @@ namespace DtronixMessageQueue.Socket
         /// <returns>New session instance.</returns>
         protected virtual TSession CreateSession(System.Net.Sockets.Socket socket)
         {
-            var session = SocketSession<TSession, TConfig>.Create(socket, AsyncManager, Config, this, InboxProcessor,
-                OutboxProcessor);
+            var session = SocketSession<TSession, TConfig>.Create(socket, 
+                AsyncManager, 
+                Config, 
+                this, 
+                InboxProcessor,
+                OutboxProcessor,
+                ServiceMethodCache);
 
             SessionSetup?.Invoke(this, new SessionEventArgs<TSession, TConfig>(session));
             session.Closed += (sender, args) => OnClose(session, args.CloseReason);
+
             return session;
         }
 

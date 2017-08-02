@@ -11,9 +11,6 @@ namespace DtronixMessageQueue.Tests.Rpc.Services.Server
 
         public event EventHandler LongRunningTaskCanceled;
 
-        public event EventHandler SuccessfulStreamTransport;
-        public event EventHandler FailedStreamTransport;
-
         public byte[] StreamBytes = null;
 
         public int Add(int number1, int number2)

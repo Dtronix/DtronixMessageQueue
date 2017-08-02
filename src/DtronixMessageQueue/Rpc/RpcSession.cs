@@ -60,7 +60,7 @@ namespace DtronixMessageQueue.Rpc
 
         private Task _authTimeout;
 
-        private CancellationTokenSource _authTimeoutCancel = new CancellationTokenSource();
+        private readonly CancellationTokenSource _authTimeoutCancel = new CancellationTokenSource();
 
         protected RpcSession()
         {
@@ -76,13 +76,9 @@ namespace DtronixMessageQueue.Rpc
 
             // Determine if this session is running on the server or client to retrieve the worker thread pool.
             if (BaseSocket.Mode == SocketMode.Server)
-            {
                 Server = (RpcServer<TSession, TConfig>) BaseSocket;
-            }
             else
-            {
                 Client = (RpcClient<TSession, TConfig>) BaseSocket;
-            }
 
             SerializationCache = new SerializationCache(Config);
 
@@ -388,8 +384,9 @@ namespace DtronixMessageQueue.Rpc
         /// <param name="instance">Instance to execute methods on.</param>
         public void AddService<T>(T instance) where T : IRemoteService<TSession, TConfig>
         {
-            RpcCallHandler.Services.Add(instance.Name, instance);
-            instance.Session = (TSession) this;
+            instance.Session = (TSession)this;
+            ServiceMethodCache.AddService(instance.Name, instance);
+            RpcCallHandler.AddService(instance);
         }
     }
 }
