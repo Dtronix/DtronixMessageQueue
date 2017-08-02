@@ -17,7 +17,7 @@ namespace DtronixMessageQueue.Tests.Gui.Tests.Connection
 
         public ConnectionPerformanceTest(TestController testController) : base("Connection Test", testController)
         {
-            Control = ActualControl = new ConnectionPerformanceTestControl();
+            Control = ActualControl = new ConnectionPerformanceTestControl(this);
             _testClients = new List<MqClient<ConnectionPerformanceTestSession, MqConfig>>();
         }
 
@@ -91,7 +91,8 @@ namespace DtronixMessageQueue.Tests.Gui.Tests.Connection
             TestController.MainWindow.Dispatcher.Invoke(() =>
             {
                 session.GetProxy<IControllerService>()
-                    .StartConnectionTest(ActualControl.ConfigClients, ActualControl.ConfigBytesPerMessage,
+                    .StartConnectionTest(ActualControl.ConfigClients,
+                        ActualControl.ConfigBytesPerMessage,
                         ActualControl.ConfigMessagePeriod);
             });
         }
@@ -117,14 +118,6 @@ namespace DtronixMessageQueue.Tests.Gui.Tests.Connection
 
             _testServer?.Stop();
             _testServer = null;
-        }
-
-        protected override void Update()
-        {
-            TestController.MainWindow.Dispatcher.Invoke(() =>
-            {
-                ActualControl.TotalConnections = TotalConnections;
-            });
         }
     }
 

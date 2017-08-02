@@ -1,4 +1,5 @@
-﻿using System.Windows;
+﻿using System.Threading;
+using System.Windows;
 using System.Windows.Controls;
 
 namespace DtronixMessageQueue.Tests.Gui.Tests.Connection
@@ -8,6 +9,7 @@ namespace DtronixMessageQueue.Tests.Gui.Tests.Connection
     /// </summary>
     public partial class ConnectionPerformanceTestControl : UserControl
     {
+        private readonly ConnectionPerformanceTest _test;
 
         public static readonly DependencyProperty ConfigClientsProperty = DependencyProperty.Register(
             "ConfigClients", typeof(int), typeof(ConnectionPerformanceTestControl), new PropertyMetadata(default(int)));
@@ -43,14 +45,29 @@ namespace DtronixMessageQueue.Tests.Gui.Tests.Connection
             set { SetValue(TotalConnectionsProperty, value); }
         }
 
-        public ConnectionPerformanceTestControl()
+        private Timer _updateTimer;
+
+        public ConnectionPerformanceTestControl(ConnectionPerformanceTest test)
         {
+            _test = test;
             InitializeComponent();
             DataContext = this;
 
             ConfigBytesPerMessage = 16381;
             ConfigClients = 100;
             ConfigMessagePeriod = 1000;
+
+            _updateTimer = new Timer(Update);
+
+            _updateTimer.Change(500, 500);
+        }
+
+        public void Update(object state)
+        {
+            Dispatcher.Invoke(() =>
+            {
+                TotalConnections = _test.TotalConnections;
+            });
         }
     }
 }

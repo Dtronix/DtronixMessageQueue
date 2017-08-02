@@ -20,7 +20,7 @@ namespace DtronixMessageQueue.Tests.Gui.Tests.MaxThroughput
 
         public MaxThroughputPerformanceTest(TestController testController) : base("Max Throughput Test", testController)
         {
-            Control = ActualControl = new MaxThroughputPerformanceTestControl();
+            Control = ActualControl = new MaxThroughputPerformanceTestControl(this);
             _testClients = new List<MqClient<MaxThroughputPerformanceTestSession, MqConfig>>();
         }
 
@@ -86,17 +86,6 @@ namespace DtronixMessageQueue.Tests.Gui.Tests.MaxThroughput
 
                 _testClients.Add(client);
             }
-        }
-
-
-
-
-        protected override void Update()
-        {
-            TestController.MainWindow.Dispatcher.Invoke(() =>
-            {
-                ActualControl.TotalConnections = TotalConnections;
-            });
         }
 
         public override void TestControllerStartTest(ControllerSession session)

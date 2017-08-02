@@ -10,7 +10,7 @@ namespace DtronixMessageQueue.Tests.Gui.Tests
     public abstract class PerformanceTest
     {
         public string Name { get; }
-        public TestController TestController { get; private set; }
+        public TestController TestController { get; }
         public bool Paused { get; set; }
 
         public long ServerThroughput { get; set; }
@@ -31,22 +31,16 @@ namespace DtronixMessageQueue.Tests.Gui.Tests
         {
             TestController.Log("Connection test client connected.");
             Interlocked.Increment(ref TotalConnections);
-            Update();
         }
 
         protected void ConnectionRemoved(SocketCloseReason reason)
         {
             TestController.Log($"Test client connection closed. Reason: {reason}");
             Interlocked.Decrement(ref TotalConnections);
-            Update();
         }
 
         public abstract void PauseResumeTest();
         public abstract void StopTest();
-
-
-        protected abstract void Update();
-
 
         public abstract void StartClient();
 
