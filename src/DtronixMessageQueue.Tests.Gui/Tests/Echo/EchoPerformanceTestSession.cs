@@ -27,7 +27,8 @@ namespace DtronixMessageQueue.Tests.Gui.Tests.Echo
         {
             
             var message = messageQueue.Dequeue();
-            Send(message);
+            if (RunTest)
+                Send(message);
             messageQueue.Enqueue(message);
 
             Interlocked.Increment(ref MessageCount);
@@ -40,10 +41,13 @@ namespace DtronixMessageQueue.Tests.Gui.Tests.Echo
         protected override void ClientMessage(Queue<MqMessage> messageQueue)
         {
             var message = messageQueue.Dequeue();
-            Send(message);
+
+            if(RunTest)
+                Send(message);
             messageQueue.Enqueue(message);
             Interlocked.Increment(ref MessageCount);
             base.ClientMessage(messageQueue);
+
 
 
         }

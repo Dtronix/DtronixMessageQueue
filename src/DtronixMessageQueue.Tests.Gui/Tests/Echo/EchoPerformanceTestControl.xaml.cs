@@ -77,7 +77,7 @@ namespace DtronixMessageQueue.Tests.Gui.Tests.Echo
 
             _updateTimer = new Timer(Update);
 
-            _updateTimer.Change(500, 500);
+            _updateTimer.Change(100, 100);
 
         }
 
