@@ -23,14 +23,16 @@ namespace DtronixMessageQueue.Tests.Rpc
         [Fact]
         public void Client_calls_proxy_method()
         {
-            Server.Ready += (sender, args) => { args.Session.AddService(new CalculatorService()); };
+            Server.SessionSetup += (sender, args) => { args.Session.AddService(new CalculatorService()); };
 
-            Client.Authenticate += (sender, args) => { };
+            Client.SessionSetup += (sender, args) =>
+            {
+                args.Session.AddProxy<ICalculatorService>("CalculatorService");
+            };
 
 
             Client.Ready += (sender, args) =>
             {
-                args.Session.AddProxy<ICalculatorService>("CalculatorService");
                 var service = Client.Session.GetProxy<ICalculatorService>();
                 var result = service.Add(100, 200);
 
