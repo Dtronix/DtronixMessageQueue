@@ -36,7 +36,8 @@ namespace DtronixMessageQueue.Tests.Gui.Tests
         protected void ConnectionRemoved(SocketCloseReason reason)
         {
             TestController.Log($"Test client connection closed. Reason: {reason}");
-            Interlocked.Decrement(ref TotalConnections);
+            if (reason != SocketCloseReason.ConnectionRefused)
+                Interlocked.Decrement(ref TotalConnections);
         }
 
         public abstract void PauseResumeTest();

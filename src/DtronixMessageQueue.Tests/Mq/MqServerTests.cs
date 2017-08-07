@@ -183,5 +183,38 @@ namespace DtronixMessageQueue.Tests.Mq
             }
         }
 
+        [Fact]
+        public void Server_invokes_stopped_event()
+        {
+
+            Server.Started += (sender, args) => Server.Stop();
+            Server.Started += (sender, args) => TestStatus.Set();
+
+            Server.Start();
+
+            TestStatus.Wait(new TimeSpan(0, 0, 0, 0, 2000));
+
+            if (TestStatus.IsSet == false)
+            {
+                throw new TimeoutException("Test timed out.");
+            }
+        }
+
+        [Fact]
+        public void Server_invokes_started_event()
+        {
+
+            Server.Started += (sender, args) => TestStatus.Set();
+
+            Server.Start();
+
+            TestStatus.Wait(new TimeSpan(0, 0, 0, 0, 2000));
+
+            if (TestStatus.IsSet == false)
+            {
+                throw new TimeoutException("Test timed out.");
+            }
+        }
+
     }
 }

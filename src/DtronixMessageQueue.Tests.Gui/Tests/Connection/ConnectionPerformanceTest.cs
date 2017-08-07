@@ -1,4 +1,5 @@
 ﻿using System.Collections.Generic;
+using System.Threading.Tasks;
 using System.Windows.Controls;
 using DtronixMessageQueue.Rpc;
 using DtronixMessageQueue.Socket;
@@ -59,31 +60,34 @@ namespace DtronixMessageQueue.Tests.Gui.Tests.Connection
             var configPackageLength = ActualControl.ConfigBytesPerMessage;
             var configPeriod = ActualControl.ConfigMessagePeriod;
 
-            for (int i = 0; i < configClients; i++)
+            Task.Run(() =>
             {
-                var client = new MqClient<ConnectionPerformanceTestSession, MqConfig>(new MqConfig
+                for (int i = 0; i < configClients; i++)
                 {
-                    Ip = TestController.ControllClient.Config.Ip,
-                    Port = 2121,
-                    PingFrequency = 500
-                });
+                    var client = new MqClient<ConnectionPerformanceTestSession, MqConfig>(new MqConfig
+                    {
+                        Ip = TestController.ControllClient.Config.Ip,
+                        Port = 2121,
+                        PingFrequency = 500
+                    });
 
-                client.Connected += (sender, args) =>
-                {
-                    ConnectionAdded();
-                    args.Session.ConfigTest(configPackageLength, configPeriod);
-                    args.Session.StartTest();
-                };
+                    client.Connected += (sender, args) =>
+                    {
+                        ConnectionAdded();
+                        args.Session.ConfigTest(configPackageLength, configPeriod);
+                        args.Session.StartTest();
+                    };
 
-                client.Closed += (sender, args) =>
-                {
-                    ConnectionRemoved(args.CloseReason);
-                };
+                    client.Closed += (sender, args) =>
+                    {
+                        ConnectionRemoved(args.CloseReason);
+                    };
 
-                client.Connect();
+                    client.Connect();
 
-                _testClients.Add(client);
-            }
+                    _testClients.Add(client);
+                }
+            });
         }
 
         public override void TestControllerStartTest(ControllerSession session)

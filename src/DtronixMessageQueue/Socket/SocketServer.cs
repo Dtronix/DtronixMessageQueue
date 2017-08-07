@@ -19,17 +19,30 @@ namespace DtronixMessageQueue.Socket
         /// </summary>
         private int _remainingConnections;
 
+        /// <summary>
+        /// Used to prevent more connections connecting to the server than allowed.
+        /// </summary>
         private readonly object _connectionLock = new object();
+
+        /// <summary> 
+        /// Set to true of this socket is stopped.
+        /// </summary>
+        private bool _isStopped = true;
 
         /// <summary>
         /// True if the server is listening and accepting connections.  False if the server is closed.
         /// </summary>
         public override bool IsRunning => _isStopped == false && (MainSocket?.IsBound ?? false);
 
-        /// <summary> 
-        /// Set to true of this socket is stopped.
+        /// <summary>
+        /// Event invoked when the server has stopped listening for connections and has shut down.
         /// </summary>
-        private bool _isStopped = true;
+        public event EventHandler Stopped;
+
+        /// <summary>
+        /// Event invoked when the server has started listening for incoming connections.
+        /// </summary>
+        public event EventHandler Started;
 
         /// <summary>
         /// Creates a socket server with the specified configurations.
@@ -67,6 +80,9 @@ namespace DtronixMessageQueue.Socket
             // post accepts on the listening socket
             StartAccept(null);
             _isStopped = false;
+
+            // Invoke the started event.
+            Started?.Invoke(this, EventArgs.Empty);
         }
 
         /// <summary>
@@ -132,6 +148,7 @@ namespace DtronixMessageQueue.Socket
 
             var session = CreateSession(e.AcceptSocket);
 
+            // If we are at max sessions, close the new connection with a connection refused reason.
             if (maxSessions)
             {
                 session.Close(SocketCloseReason.ConnectionRefused);
@@ -208,6 +225,9 @@ namespace DtronixMessageQueue.Socket
                 MainSocket.Close();
             }
             _isStopped = true;
+
+            // Invoke the stopped event.
+            Stopped?.Invoke(this, EventArgs.Empty);
         }
     }
 }
