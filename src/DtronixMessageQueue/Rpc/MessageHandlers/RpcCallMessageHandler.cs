@@ -128,7 +128,20 @@ namespace DtronixMessageQueue.Rpc.MessageHandlers
 
                         // Parse each parameter to the parameter list.
                         for (var i = 0; i < recArgumentCount; i++)
-                            parameters[i] = serialization.DeserializeFromReader(serviceMethod.ParameterTypes[i], i);
+                        {
+                            if (serviceMethod.ParameterTypes[i] == typeof(RpcStream<TSession, TConfig>))
+                            {
+                                var streamId = (ushort)serialization.DeserializeFromReader(typeof(ushort), i);
+                                // If this is a stream, setup the receiving end.
+                                parameters[i] = new RpcStream<TSession, TConfig>(Session, streamId);
+
+                            }
+                            else
+                            {
+                                parameters[i] = serialization.DeserializeFromReader(serviceMethod.ParameterTypes[i], i);
+                            }
+                        }
+                        
                     }
 
                     // Add the cancellation token to the parameters.

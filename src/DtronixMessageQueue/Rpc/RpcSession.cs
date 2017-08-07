@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Threading;
 using System.Threading.Tasks;
@@ -20,6 +21,15 @@ namespace DtronixMessageQueue.Rpc
         public Dictionary<byte, MessageHandler<TSession, TConfig>> MessageHandlers { get; }
 
         protected RpcCallMessageHandler<TSession, TConfig> RpcCallHandler;
+
+        protected ByteTransportMessageHandler<TSession, TConfig> ByteTransportHandler { get; set; }
+
+        /// <summary>
+        /// Contains all active stream handles for this session.
+        /// </summary>
+        private readonly ConcurrentDictionary<ushort, ResponseWaitHandle> stream_handles =
+            new ConcurrentDictionary<ushort, ResponseWaitHandle>();
+
 
         /// <summary>
         /// Store which contains instances of all classes for serialization and destabilization of data.
@@ -84,6 +94,9 @@ namespace DtronixMessageQueue.Rpc
 
             RpcCallHandler = new RpcCallMessageHandler<TSession, TConfig>((TSession) this);
             MessageHandlers.Add(RpcCallHandler.Id, RpcCallHandler);
+
+            ByteTransportHandler = new ByteTransportMessageHandler<TSession, TConfig>((TSession)this);
+            MessageHandlers.Add(ByteTransportHandler.Id, ByteTransportHandler);
         }
 
 
