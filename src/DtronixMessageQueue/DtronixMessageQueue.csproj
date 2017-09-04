@@ -70,18 +70,23 @@
     <Compile Include="Rpc\RpcSession.cs" />
     <Compile Include="Rpc\SerializationCache.cs" />
     <Compile Include="ServiceMethodCache.cs" />
-    <Compile Include="Socket\BufferManager.cs" />
-    <Compile Include="Socket\ISetupSocketSession.cs" />
+    <Compile Include="TransportLayer\TcpAsync\BufferManager.cs" />
+    <Compile Include="Socket\ISocketSession.cs" />
     <Compile Include="Socket\SessionEventArgs.cs" />
     <Compile Include="Socket\SessionClosedEventArgs.cs" />
-    <Compile Include="Socket\SocketAsyncEventArgsManager.cs" />
+    <Compile Include="TransportLayer\TcpAsync\SocketAsyncEventArgsManager.cs" />
     <Compile Include="Socket\SessionHandler.cs" />
     <Compile Include="Socket\SocketClient.cs" />
     <Compile Include="Socket\SocketCloseReason.cs" />
     <Compile Include="Socket\SocketConfig.cs" />
-    <Compile Include="Socket\SocketMode.cs" />
+    <Compile Include="TransportLayer\TcpAsync\TcpAsyncSessionTransportLayer.cs" />
+    <Compile Include="TransportLayer\TransportLayerMode.cs" />
     <Compile Include="Socket\SocketServer.cs" />
     <Compile Include="Socket\SocketSession.cs" />
+    <Compile Include="TransportLayer\ISessionTransportLayer.cs" />
+    <Compile Include="TransportLayer\ITransportLayer.cs" />
+    <Compile Include="TransportLayer\TcpAsync\TcpAsyncTransportLayer.cs" />
+    <Compile Include="TransportLayer\TransportLayerState.cs" />
     <Compile Include="Utilities.cs" />
     <Content Include="DtronixMessageQueue.nuspec">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
@@ -98,6 +103,7 @@
   <ItemGroup>
     <None Include="packages.config" />
   </ItemGroup>
+  <ItemGroup />
   <PropertyGroup Condition="'$(Configuration)|$(Platform)' == 'Nuget|AnyCPU'">
     <OutputPath>bin\Nuget\</OutputPath>
     <DefineConstants>TRACE</DefineConstants>

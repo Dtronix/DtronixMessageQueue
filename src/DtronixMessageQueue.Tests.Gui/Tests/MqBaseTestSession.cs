@@ -45,7 +45,7 @@ namespace DtronixMessageQueue.Tests.Gui.Tests
             Reader = new MqMessageReader();
             Writer = new MqMessageWriter(Config);
 
-            IsServer = BaseSocket.Mode == SocketMode.Server;
+            IsServer = BaseSocket.LayerMode == TransportLayerMode.Server;
         }
 
 

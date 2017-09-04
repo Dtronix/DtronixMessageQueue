@@ -30,7 +30,7 @@ namespace DtronixMessageQueue.Socket
         /// Creates a socket client with the specified configurations.
         /// </summary>
         /// <param name="config">Configurations to use.</param>
-        public SocketClient(TConfig config) : base(config, SocketMode.Client)
+        public SocketClient(TConfig config) : base(config, TransportLayerMode.Client)
         {
             // Override the number of processors to one for each sending queue and receiving queue.
             config.ProcessorThreads = 1;
@@ -96,7 +96,7 @@ namespace DtronixMessageQueue.Socket
 
                     ConnectedSessions.TryAdd(Session.Id, Session);
 
-                    ((ISetupSocketSession) Session).Start();
+                    ((ISocketSession) Session).Start();
                 }
             };
 

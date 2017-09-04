@@ -3,7 +3,7 @@
     /// <summary>
     /// Class to implement on classes which have setup events.
     /// </summary>
-    public interface ISetupSocketSession
+    public interface ISocketSession
     {
         /// <summary>
         /// Start the session's receive events.

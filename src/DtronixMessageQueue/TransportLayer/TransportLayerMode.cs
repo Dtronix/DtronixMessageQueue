@@ -3,7 +3,7 @@
     /// <summary>
     /// Mode that the current Socket base is in.
     /// </summary>
-    public enum SocketMode
+    public enum TransportLayerMode
     {
         /// <summary>
         /// Socket base is running in server mode.

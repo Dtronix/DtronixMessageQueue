@@ -32,7 +32,7 @@ namespace DtronixMessageQueue.Tests.Gui.Services
 
         public void ClientReady()
         {
-            if (Session.BaseSocket.Mode == SocketMode.Server && _server == null)
+            if (Session.BaseSocket.LayerMode == TransportLayerMode.Server && _server == null)
             {
                 _server = (RpcServer<ControllerSession, RpcConfig>) this.Session.BaseSocket;
             }

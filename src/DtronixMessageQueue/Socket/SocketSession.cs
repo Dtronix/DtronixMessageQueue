@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Net.Sockets;
 using System.Threading;
+using DtronixMessageQueue.TransportLayer.TcpAsync;
 
 namespace DtronixMessageQueue.Socket
 {
@@ -9,46 +10,10 @@ namespace DtronixMessageQueue.Socket
     /// </summary>
     /// <typeparam name="TConfig">Configuration for this connection.</typeparam>
     /// <typeparam name="TSession">Session for this connection.</typeparam>
-    public abstract class SocketSession<TSession, TConfig> : IDisposable, ISetupSocketSession
+    public abstract class SocketSession<TSession, TConfig> : IDisposable, ISocketSession
         where TSession : SocketSession<TSession, TConfig>, new()
         where TConfig : SocketConfig
     {
-        /// <summary>
-        /// Current state of the socket.
-        /// </summary>
-        public enum State : byte
-        {
-            /// <summary>
-            /// State has not been set.
-            /// </summary>
-            Unknown,
-
-            /// <summary>
-            /// Session is attempting to connect to remote connection.
-            /// </summary>
-            Connecting,
-
-            /// <summary>
-            /// Session has connected to remote session.
-            /// </summary>
-            Connected,
-
-            /// <summary>
-            /// Session is in the process of closing its connection.
-            /// </summary>
-            Closing,
-
-            /// <summary>
-            /// Session has been closed and no longer can be used.
-            /// </summary>
-            Closed,
-
-            /// <summary>
-            /// Socket is in an error state.
-            /// </summary>
-            Error
-        }
-
         private TConfig _config;
 
         /// <summary>
@@ -60,11 +25,6 @@ namespace DtronixMessageQueue.Socket
         /// Id for this session
         /// </summary>
         public Guid Id { get; }
-
-        /// <summary>
-        /// State that this socket is in.  Can only perform most operations when the socket is in a Connected state.
-        /// </summary>
-        public State CurrentState { get; protected set; }
 
         /// <summary>
         /// The last time that this session received a message.
@@ -96,29 +56,6 @@ namespace DtronixMessageQueue.Socket
         /// </summary>
         protected ActionProcessor<Guid> OutboxProcessor;
 
-
-        private System.Net.Sockets.Socket _socket;
-
-        /// <summary>
-        /// Raw socket for this session.
-        /// </summary>
-        public System.Net.Sockets.Socket Socket => _socket;
-
-        /// <summary>
-        /// Async args used to send data to the wire.
-        /// </summary>
-        private SocketAsyncEventArgs _sendArgs;
-
-        /// <summary>
-        /// Async args used to receive data off the wire.
-        /// </summary>
-        private SocketAsyncEventArgs _receiveArgs;
-
-        /// <summary>
-        /// Pool used by all the sessions on this SessionHandler.
-        /// </summary>
-        private SocketAsyncEventArgsManager _argsPool;
-
         /// <summary>
         /// Reset event used to ensure only one MqWorker can write to the socket at a time.
         /// </summary>
@@ -146,7 +83,6 @@ namespace DtronixMessageQueue.Socket
         protected SocketSession()
         {
             Id = Guid.NewGuid();
-            CurrentState = State.Connecting;
         }
 
         /// <summary>
@@ -159,9 +95,7 @@ namespace DtronixMessageQueue.Socket
         /// <param name="inboxProcessor">Processor which handles all inbox data.</param>
         /// /// <param name="outboxProcessor">Processor which handles all outbox data.</param>
         /// <param name="serviceMethodCache">Cache for commonly called methods used throughout the session.</param>
-        public static TSession Create(System.Net.Sockets.Socket sessionSocket, 
-            SocketAsyncEventArgsManager socketArgsManager,
-            TConfig sessionConfig, 
+        public static TSession Create(TConfig sessionConfig, 
             SessionHandler<TSession, TConfig> sessionHandler, 
             ActionProcessor<Guid> inboxProcessor,
             ActionProcessor<Guid> outboxProcessor,
@@ -170,31 +104,12 @@ namespace DtronixMessageQueue.Socket
             var session = new TSession
             {
                 _config = sessionConfig,
-                _argsPool = socketArgsManager,
-                _socket = sessionSocket,
                 _writeSemaphore = new SemaphoreSlim(1, 1),
                 BaseSocket = sessionHandler,
-                _sendArgs = socketArgsManager.Create(),
-                _receiveArgs = socketArgsManager.Create(),
                 InboxProcessor = inboxProcessor,
                 OutboxProcessor = outboxProcessor,
                 ServiceMethodCache = serviceMethodCache
             };
-
-            session._sendArgs.Completed += session.IoCompleted;
-            session._receiveArgs.Completed += session.IoCompleted;
-
-            if (session._config.SendTimeout > 0)
-                session._socket.SendTimeout = session._config.SendTimeout;
-
-            if (session._config.SendAndReceiveBufferSize > 0)
-                session._socket.ReceiveBufferSize = session._config.SendAndReceiveBufferSize;
-
-            if (session._config.SendAndReceiveBufferSize > 0)
-                session._socket.SendBufferSize = session._config.SendAndReceiveBufferSize;
-
-            session._socket.NoDelay = true;
-            session._socket.SetSocketOption(SocketOptionLevel.Socket, SocketOptionName.DontLinger, true);
 
             session.OnSetup();
 
@@ -204,7 +119,7 @@ namespace DtronixMessageQueue.Socket
         /// <summary>
         /// Start the session's receive events.
         /// </summary>
-        void ISetupSocketSession.Start()
+        void ISocketSession.Start()
         {
             if (CurrentState != State.Connecting)
                 return;
@@ -246,127 +161,6 @@ namespace DtronixMessageQueue.Socket
         /// <param name="buffer">Buffer of bytes to parse.</param>
         protected abstract void HandleIncomingBytes(byte[] buffer);
 
-        /// <summary>
-        /// This method is called whenever a receive or send operation is completed on a socket 
-        /// </summary>
-        /// <param name="sender"></param>
-        /// <param name="e">SocketAsyncEventArg associated with the completed receive operation</param>
-        protected virtual void IoCompleted(object sender, SocketAsyncEventArgs e)
-        {
-            // determine which type of operation just completed and call the associated handler
-            switch (e.LastOperation)
-            {
-                case SocketAsyncOperation.Disconnect:
-                    Close(SocketCloseReason.ClientClosing);
-                    break;
-
-                case SocketAsyncOperation.Receive:
-                    RecieveComplete(e);
-
-                    break;
-
-                case SocketAsyncOperation.Send:
-                    SendComplete(e);
-                    break;
-
-                default:
-                    throw new ArgumentException(
-                        "The last operation completed on the socket was not a receive, send connect or disconnect.");
-            }
-        }
-
-        /// <summary>
-        /// Sends raw bytes to the socket.  Blocks until data is sent.
-        /// </summary>
-        /// <param name="buffer">Buffer bytes to send.</param>
-        /// <param name="offset">Offset in the buffer.</param>
-        /// <param name="length">Total bytes to send.</param>
-        protected virtual void Send(byte[] buffer, int offset, int length)
-        {
-            if (Socket == null || Socket.Connected == false)
-                return;
-
-            _writeSemaphore.Wait(-1);
-
-            // Copy the bytes to the block buffer
-            Buffer.BlockCopy(buffer, offset, _sendArgs.Buffer, _sendArgs.Offset, length);
-
-            // Update the buffer length.
-            _sendArgs.SetBuffer(_sendArgs.Offset, length);
-
-            try
-            {
-                if (Socket.SendAsync(_sendArgs) == false)
-                {
-                    IoCompleted(this, _sendArgs);
-                }
-            }
-            catch (ObjectDisposedException)
-            {
-                Close(SocketCloseReason.SocketError);
-            }
-        }
-
-
-        /// <summary>
-        /// This method is invoked when an asynchronous send operation completes.  
-        /// The method issues another receive on the socket to read any additional data sent from the client
-        /// </summary>
-        /// <param name="e">Event args of this action.</param>
-        private void SendComplete(SocketAsyncEventArgs e)
-        {
-            if (e.SocketError != SocketError.Success)
-            {
-                Close(SocketCloseReason.SocketError);
-            }
-            _writeSemaphore.Release(1);
-        }
-
-        /// <summary>
-        /// This method is invoked when an asynchronous receive operation completes. 
-        /// If the remote host closed the connection, then the socket is closed.
-        /// </summary>
-        /// <param name="e">Event args of this action.</param>
-        protected void RecieveComplete(SocketAsyncEventArgs e)
-        {
-            if (CurrentState == State.Closing)
-                return;
-            
-            if (e.BytesTransferred == 0 && CurrentState == State.Connected)
-            {
-                CurrentState = State.Closing;
-                return;
-            }
-            if (e.BytesTransferred > 0 && e.SocketError == SocketError.Success)
-            {
-                // Update the last time this session was active to prevent timeout.
-                _lastReceived = DateTime.UtcNow;
-
-                // Create a copy of these bytes.
-                var buffer = new byte[e.BytesTransferred];
-
-                Buffer.BlockCopy(e.Buffer, e.Offset, buffer, 0, e.BytesTransferred);
-
-                HandleIncomingBytes(buffer);
-
-                try
-                {
-                    // Re-setup the receive async call.
-                    if (Socket.ReceiveAsync(e) == false)
-                    {
-                        IoCompleted(this, e);
-                    }
-                }
-                catch (ObjectDisposedException)
-                {
-                    Close(SocketCloseReason.SocketError);
-                }
-            }
-            else
-            {
-                Close(SocketCloseReason.SocketError);
-            }
-        }
 
         /// <summary>
         /// Called when this session is desired or requested to be closed.

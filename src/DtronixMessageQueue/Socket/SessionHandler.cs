@@ -2,6 +2,8 @@
 using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Threading;
+using DtronixMessageQueue.TransportLayer;
+using DtronixMessageQueue.TransportLayer.TcpAsync;
 
 namespace DtronixMessageQueue.Socket
 {
@@ -10,19 +12,22 @@ namespace DtronixMessageQueue.Socket
     /// </summary>
     /// <typeparam name="TSession">Session type for this connection.</typeparam>
     /// <typeparam name="TConfig">Configuration for this connection.</typeparam>
-    public abstract class SessionHandler<TSession, TConfig>
+    public abstract class SessionHandler<TSession, TConfig> : ISessionHandler
         where TSession : SocketSession<TSession, TConfig>, new()
         where TConfig : SocketConfig
     {
         /// <summary>
         /// Mode that this socket is running as.
         /// </summary>
-        public SocketMode Mode { get; }
+        public TransportLayerMode LayerMode => TransportLayer.Mode;
+
+
+        protected ITransportLayer TransportLayer;
 
         /// <summary>
         /// True if the socket is connected/listening.
         /// </summary>
-        public abstract bool IsRunning { get; }
+        public bool IsRunning => TransportLayer.IsRunning;
 
         /// <summary>
         /// This event fires when a connection has been established.
@@ -43,16 +48,6 @@ namespace DtronixMessageQueue.Socket
         /// Configurations of this socket.
         /// </summary>
         public TConfig Config { get; }
-
-        /// <summary>
-        /// Main socket used by the child class for connection or for the listening of incoming connections.
-        /// </summary>
-        protected System.Net.Sockets.Socket MainSocket;
-
-        /// <summary>
-        /// Pool of async args for sessions to use.
-        /// </summary>
-        protected SocketAsyncEventArgsManager AsyncManager;
 
         /// <summary>
         /// True if the timeout timer is running.  False otherwise.
@@ -89,16 +84,16 @@ namespace DtronixMessageQueue.Socket
         /// Base constructor to all socket classes.
         /// </summary>
         /// <param name="config">Configurations for this socket.</param>
-        /// <param name="mode">Mode of that this socket is running in.</param>
-        protected SessionHandler(TConfig config, SocketMode mode)
+        protected SessionHandler(TConfig config, ITransportLayer transportLayer)
         {
+            TransportLayer = transportLayer;
             TimeoutTimer = new Timer(TimeoutCallback);
             ServiceMethodCache = new ServiceMethodCache();
-            Mode = mode;
             Config = config;
-            var modeLower = mode.ToString().ToLower();
 
-            if (mode == SocketMode.Client)
+            var modeLower = TransportLayer.Mode.ToString().ToLower();
+
+            if (TransportLayer.Mode == TransportLayerMode.Client)
             {
                 OutboxProcessor = new ActionProcessor<Guid>(new ActionProcessor<Guid>.Config
                 {
@@ -190,27 +185,12 @@ namespace DtronixMessageQueue.Socket
         }
 
         /// <summary>
-        /// Called by the constructor of the sub-class to set all configurations.
-        /// </summary>
-        protected void Setup()
-        {
-            // Use the max connections plus one for the disconnecting of 
-            // new clients when the MaxConnections has been reached.
-            var maxConnections = Config.MaxConnections + 1;
-
-            // preallocate pool of SocketAsyncEventArgs objects
-            AsyncManager = new SocketAsyncEventArgsManager(Config.SendAndReceiveBufferSize * maxConnections * 2,
-                Config.SendAndReceiveBufferSize);
-        }
-
-        /// <summary>
         /// Method called when new sessions are created.  Override to change behavior.
         /// </summary>
         /// <returns>New session instance.</returns>
         protected virtual TSession CreateSession(System.Net.Sockets.Socket socket)
         {
-            var session = SocketSession<TSession, TConfig>.Create(socket, 
-                AsyncManager, 
+            var session = SocketSession<TSession, TConfig>.Create(socket,
                 Config, 
                 this, 
                 InboxProcessor,
@@ -227,5 +207,15 @@ namespace DtronixMessageQueue.Socket
         {
             return ConnectedSessions.GetEnumerator();
         }
+    }
+
+    public interface ISessionHandler
+    {
+        void OnReceive(byte[] buffer);
+        void OnListen();
+        void OnClose();
+        void OnConnect();
+        void OnDisconnect();
+
     }
 }

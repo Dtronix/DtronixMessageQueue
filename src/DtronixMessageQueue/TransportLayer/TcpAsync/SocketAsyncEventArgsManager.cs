@@ -1,9 +1,7 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Net.Sockets;
+﻿using System.Net.Sockets;
 using System.Threading;
 
-namespace DtronixMessageQueue.Socket
+namespace DtronixMessageQueue.TransportLayer.TcpAsync
 {
     /// <summary>
     /// Represents a collection of reusable SocketAsyncEventArgs objects.  
