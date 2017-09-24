@@ -341,7 +341,17 @@ namespace DtronixMessageQueue.Rpc
                 // See if we have a handler for the requested Id.
                 if (MessageHandlers.ContainsKey(handlerId))
                 {
-                    handledMessage = MessageHandlers[handlerId].HandleMessage(message);
+                    // If anything in the message handler throws, disconnect the connection.
+                    try
+                    {
+                        handledMessage = MessageHandlers[handlerId].HandleMessage(message);
+                    }
+                    catch
+                    {
+                        Close(SocketCloseReason.ApplicationError);
+                        return;
+                    }
+                    
                 }
 
                 // If the we can not handle this message, disconnect the session.
