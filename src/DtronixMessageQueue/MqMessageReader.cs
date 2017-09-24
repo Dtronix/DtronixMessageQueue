@@ -499,6 +499,20 @@ namespace DtronixMessageQueue
         }
 
         /// <summary>
+        /// Reads a Guid.
+        /// 16 Bytes.
+        /// </summary>
+        public Guid ReadGuid()
+        {
+            EnsureBuffer(16);
+            var value = _currentFrame.ReadGuid(_framePosition);
+            _framePosition += 16;
+            _absolutePosition += 16;
+
+            return value;
+        }
+
+        /// <summary>
         /// Reads the rest of the message bytes from the current position to the end.
         /// >1 Byte.
         /// 1 or more frames.
