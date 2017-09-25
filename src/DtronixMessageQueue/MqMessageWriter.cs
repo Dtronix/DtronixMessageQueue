@@ -296,6 +296,39 @@ namespace DtronixMessageQueue
             _position += 16;
         }
 
+
+        /// <summary>
+        /// Writes a string.
+        /// >4 Bytes.
+        /// 1 or more frames.
+        /// </summary>
+        /// <param name="value">Value to write to the message.</param>
+        public override void Write(string value)
+        {
+            var stringBytes = Encoding.UTF8.GetBytes(value);
+
+            // Write the length prefix
+            EnsureSpace(4);
+            _builderFrame.Write(_position, stringBytes.Length);
+            _position += 4;
+
+            // Write the buffer to the message.
+            Write(stringBytes, 0, stringBytes.Length);
+        }
+
+
+        /// <summary>
+        /// Writes a Guid.
+        /// 16 Bytes.
+        /// </summary>
+        /// <param name="value">Value to write to the message.</param>
+        public void Write(Guid value)
+        {
+            EnsureSpace(16);
+            _builderFrame.Write(_position, value);
+            _position += 16;
+        }
+
         /// <summary>
         /// Appends an existing message to this message.
         /// </summary>
@@ -323,25 +356,6 @@ namespace DtronixMessageQueue
         {
             InternalFinalizeFrame();
             _frames.Add(new MqFrame(null, MqFrameType.Empty, _config));
-        }
-
-        /// <summary>
-        /// Writes a string.
-        /// >4 Bytes.
-        /// 1 or more frames.
-        /// </summary>
-        /// <param name="value">Value to write to the message.</param>
-        public override void Write(string value)
-        {
-            var stringBytes = Encoding.UTF8.GetBytes(value);
-
-            // Write the length prefix
-            EnsureSpace(4);
-            _builderFrame.Write(_position, stringBytes.Length);
-            _position += 4;
-
-            // Write the buffer to the message.
-            Write(stringBytes, 0, stringBytes.Length);
         }
 
         /// <summary>

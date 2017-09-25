@@ -356,6 +356,7 @@ namespace DtronixMessageQueue.Tests.Mq
         [Fact]
         public void MessageWriter_multiple_reads_writes()
         {
+
             _messageBuilder.Write(true);
             _messageBuilder.Write(false);
 
@@ -386,6 +387,9 @@ namespace DtronixMessageQueue.Tests.Mq
             _messageBuilder.Write(expectedByteArray, 0, expectedByteArray.Length);
 
             _messageBuilder.Write(FillerText);
+
+            var expectedGuid = Guid.NewGuid();
+            _messageBuilder.Write((Guid)expectedGuid);
 
             var message = _messageBuilder.ToMessage();
 
@@ -423,6 +427,9 @@ namespace DtronixMessageQueue.Tests.Mq
             Assert.Equal(expectedByteArray, readByteArray);
 
             Assert.Equal(FillerText, _messageReader.ReadString());
+
+            Assert.Equal(expectedGuid, _messageReader.ReadGuid());
+
             Assert.True(_messageReader.IsAtEnd);
         }
 
@@ -663,6 +670,18 @@ namespace DtronixMessageQueue.Tests.Mq
 
             _messageReader.Position = 8;
             Assert.False(_messageReader.IsAtEnd);
+        }
+
+        [Fact]
+        public void MessageReader_writes_guid()
+        {
+            var expectedValue = (Guid)Guid.NewGuid();
+            _messageBuilder.Write(expectedValue);
+            var message = _messageBuilder.ToMessage();
+            _messageReader.Message = message;
+
+            Assert.Equal(expectedValue, _messageReader.ReadGuid());
+            Assert.True(_messageReader.IsAtEnd);
         }
     }
 }

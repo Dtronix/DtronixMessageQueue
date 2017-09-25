@@ -551,6 +551,7 @@ namespace DtronixMessageQueue
             return Encoding.ASCII.GetString(strBuffer);
         }
 
+
         /// <summary>
         /// Writes a ASCII encoded string.
         /// (uint16?)(string)
@@ -565,7 +566,7 @@ namespace DtronixMessageQueue
 
             if (prependSize)
             {
-                Write(index, (ushort) stringBytes.Length);
+                Write(index, (ushort)stringBytes.Length);
             }
 
             if (index + stringBytes.Length + (prependSize ? 2 : 0) > _config.FrameBufferSize)
@@ -575,6 +576,32 @@ namespace DtronixMessageQueue
 
             Write(index + (prependSize ? 2 : 0), stringBytes, 0, stringBytes.Length);
         }
+
+        /// <summary>
+        /// Writes a Guid byte array value.
+        /// 16 Bytes.
+        /// </summary>
+        /// <param name="index">The zero-based index to write the value to.</param>
+        /// <param name="value">Value to write to the specified index.</param>
+        public void Write(int index, Guid value)
+        {
+            var guidBytes = value.ToByteArray();
+
+            Write(index, guidBytes, 0, guidBytes.Length);
+        }
+
+        /// <summary>
+        /// Reads a Guid value at the specified index.
+        /// 16 Bytes.
+        /// </summary>
+        /// <param name="index">The zero-based index to read the value from.</param>
+        public Guid ReadGuid(int index)
+        {
+            var guidBuffer = new byte[16];
+            Read(index, guidBuffer, 0, 16);
+            return new Guid(guidBuffer);
+        }
+
 
         /// <summary>
         /// Reads the bytes from this frame.

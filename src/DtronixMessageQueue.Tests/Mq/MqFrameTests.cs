@@ -847,5 +847,59 @@ namespace DtronixMessageQueue.Tests.Mq
 
             Assert.Throws<InvalidOperationException>(() => _actualFrame.WriteAscii(0, value, false));
         }
+
+        [Fact]
+        public void Frame_writes_guid()
+        {
+            var value = Guid.NewGuid();
+
+            _expectedBytes = new byte[] { 3, 17, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 };
+
+            Buffer.BlockCopy(value.ToByteArray(), 0, _expectedBytes, 3, 16);
+
+            _actualFrame = new MqFrame(new byte[17], MqFrameType.Last, _config);
+            _actualFrame.Write(0, value);
+
+            _actualBytes = _actualFrame.RawFrame();
+
+            Assert.Equal(_expectedBytes, _actualBytes);
+        }
+
+        [Fact]
+        public void Frame_writes_guid_position()
+        {
+            var value = Guid.NewGuid();
+
+            _expectedBytes = new byte[] {3, 18, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0};
+
+            Buffer.BlockCopy(value.ToByteArray(), 0, _expectedBytes, 4, 16);
+
+            _actualFrame = new MqFrame(new byte[18], MqFrameType.Last, _config);
+            _actualFrame.Write(1, value);
+
+            _actualBytes = _actualFrame.RawFrame();
+
+            Assert.Equal(_expectedBytes, _actualBytes);
+        }
+
+        [Fact]
+        public void Frame_reads_guid()
+        {
+            var value = Guid.NewGuid();
+            _actualFrame = new MqFrame(new byte[16], MqFrameType.Last, _config);
+            _actualFrame.Write(0, value);
+
+            Assert.Equal(value, _actualFrame.ReadGuid(0));
+        }
+
+        [Fact]
+        public void Frame_reads_guid_position()
+        {
+            var value = Guid.NewGuid();
+            _actualFrame = new MqFrame(new byte[17], MqFrameType.Last, _config);
+            _actualFrame.Write(1, value);
+
+            Assert.Equal(value, _actualFrame.ReadGuid(1));
+        }
     }
 }
