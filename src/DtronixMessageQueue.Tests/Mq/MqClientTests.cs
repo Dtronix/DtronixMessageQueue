@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Threading;
 using DtronixMessageQueue.Socket;
+using DtronixMessageQueue.TransportLayer;
 using Xunit;
 using Xunit.Abstractions;
 
@@ -164,12 +165,12 @@ namespace DtronixMessageQueue.Tests.Mq
             {
                 //Thread.Sleep(1000);
                 //session.Session.Send(new MqMessage(new MqFrame(new byte[24], MqFrameType.Last)));
-                session.Session.Close(SocketCloseReason.ApplicationError);
+                session.Session.Close(SessionCloseReason.ApplicationError);
             };
 
             Client.Closed += (sender, args) =>
             {
-                if (args.CloseReason != SocketCloseReason.ApplicationError)
+                if (args.CloseReason != SessionCloseReason.ApplicationError)
                 {
                     LastException = new InvalidOperationException("Server did not return proper close reason.");
                 }
@@ -208,7 +209,7 @@ namespace DtronixMessageQueue.Tests.Mq
 
             Client.Closed += (sender, args) =>
             {
-                if (args.CloseReason == SocketCloseReason.TimeOut)
+                if (args.CloseReason == SessionCloseReason.TimeOut)
                 {
                     TestStatus.Set();
                 }
@@ -245,7 +246,7 @@ namespace DtronixMessageQueue.Tests.Mq
 
             Client.Closed += (sender, args) =>
             {
-                if (args.CloseReason == SocketCloseReason.TimeOut)
+                if (args.CloseReason == SessionCloseReason.TimeOut)
                 {
                     TestStatus.Set();
                 }
@@ -277,7 +278,7 @@ namespace DtronixMessageQueue.Tests.Mq
 
             Client.Closed += (sender, args) =>
             {
-                if (args.CloseReason == SocketCloseReason.TimeOut)
+                if (args.CloseReason == SessionCloseReason.TimeOut)
                 {
                     TestStatus.Set();
                 }
@@ -306,7 +307,7 @@ namespace DtronixMessageQueue.Tests.Mq
 
             Client.Closed += (sender, args) =>
             {
-                if (args.CloseReason == SocketCloseReason.TimeOut)
+                if (args.CloseReason == SessionCloseReason.TimeOut)
                 {
                     TestStatus.Set();
                 }

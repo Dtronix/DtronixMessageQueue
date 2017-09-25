@@ -1,5 +1,6 @@
 ﻿using System.Collections.Generic;
 using DtronixMessageQueue.Socket;
+using DtronixMessageQueue.TransportLayer;
 
 namespace DtronixMessageQueue.Rpc
 {
@@ -49,7 +50,7 @@ namespace DtronixMessageQueue.Rpc
         {
             if (message[0][0] != Id)
             {
-                Session.Close(SocketCloseReason.ProtocolError);
+                Session.Close(SessionCloseReason.ProtocolError);
             }
 
             // Read the type of message.
@@ -63,7 +64,7 @@ namespace DtronixMessageQueue.Rpc
             }
 
             // Unknown message type passed.  Disconnect the connection.
-            Session.Close(SocketCloseReason.ProtocolError);
+            Session.Close(SessionCloseReason.ProtocolError);
             return false;
         }
 

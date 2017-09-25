@@ -9,6 +9,7 @@ using DtronixMessageQueue.Tests.Gui.Tests;
 using DtronixMessageQueue.Tests.Gui.Tests.Connection;
 using DtronixMessageQueue.Tests.Gui.Tests.Echo;
 using DtronixMessageQueue.Tests.Gui.Tests.MaxThroughput;
+using DtronixMessageQueue.TransportLayer;
 
 namespace DtronixMessageQueue.Tests.Gui.Services
 {
@@ -32,9 +33,9 @@ namespace DtronixMessageQueue.Tests.Gui.Services
 
         public void ClientReady()
         {
-            if (Session.BaseSocket.LayerMode == TransportLayerMode.Server && _server == null)
+            if (Session.SessionHandler.LayerMode == TransportLayerMode.Server && _server == null)
             {
-                _server = (RpcServer<ControllerSession, RpcConfig>) this.Session.BaseSocket;
+                _server = (RpcServer<ControllerSession, RpcConfig>) this.Session.SessionHandler;
             }
         }
 

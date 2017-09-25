@@ -1,9 +1,9 @@
-﻿namespace DtronixMessageQueue.Socket
+﻿namespace DtronixMessageQueue.TransportLayer
 {
     /// <summary>
     /// Configurations for the server/client.
     /// </summary>
-    public class SocketConfig
+    public class TransportLayerConfig
     {
         /// <summary>
         /// Maximum number of connections allowed.  Only used by the server.

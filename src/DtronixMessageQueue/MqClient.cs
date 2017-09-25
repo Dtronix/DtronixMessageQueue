@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Threading;
 using DtronixMessageQueue.Socket;
+using DtronixMessageQueue.TransportLayer;
 
 
 namespace DtronixMessageQueue
@@ -54,7 +55,7 @@ namespace DtronixMessageQueue
             base.OnConnect(session);
         }
 
-        protected override void OnClose(TSession session, SocketCloseReason reason)
+        protected override void OnClose(TSession session, SessionCloseReason reason)
         {
             // Stop the timeout timer.
             _pingTimer.Change(Timeout.Infinite, Timeout.Infinite);
@@ -117,7 +118,7 @@ namespace DtronixMessageQueue
                 return;
             }
             Session.IncomingMessage -= OnIncomingMessage;
-            Session.Close(SocketCloseReason.ClientClosing);
+            Session.Close(SessionCloseReason.ClientClosing);
             Session.Dispose();
         }
 

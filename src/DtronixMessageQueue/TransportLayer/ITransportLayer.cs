@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
@@ -9,14 +10,36 @@ namespace DtronixMessageQueue.TransportLayer
 {
     public interface ITransportLayer
     {
-        bool IsRunning { get; }
+
+
+        event EventHandler<TransportLayerEventArgs> Starting;
+        event EventHandler<TransportLayerEventArgs> Started;
+
+        event EventHandler<TransportLayerStopEventArgs> Stopping;
+        event EventHandler<TransportLayerStopEventArgs> Stopped;
+
+        event EventHandler<TransportLayerSessionEventArgs> Connecting;
+        event EventHandler<TransportLayerSessionEventArgs> Connected;
+
+        event EventHandler<TransportLayerSessionCloseEventArgs> Closing;
+        event EventHandler<TransportLayerSessionCloseEventArgs> Closed;
+
+
+        event EventHandler<TransportLayerAcceptSessionEventArgs> AcceptedSession;
+
+        TransportLayerConfig Config { get; }
         TransportLayerMode Mode { get; }
         TransportLayerState State { get; }
-        void Send(byte[] buffer, int start, int count);
-        void Listen();
-        void Close();
+        ConcurrentDictionary<Guid, ITransportLayerSession> ConnectedSessions { get; }
+
+        void Start();
+
+        void Stop();
+
+        void AcceptSession();
+
         void Connect();
-        void Disconnect();
-        void AcceptConnection();
+
+        void Close();
     }
 }

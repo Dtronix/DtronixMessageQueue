@@ -3,6 +3,7 @@ using System.Diagnostics;
 using System.Threading;
 using DtronixMessageQueue.Socket;
 using DtronixMessageQueue.Tests.Rpc.Services.Server;
+using DtronixMessageQueue.TransportLayer;
 using Xunit;
 using Xunit.Abstractions;
 
@@ -197,7 +198,7 @@ namespace DtronixMessageQueue.Tests.Rpc
 
             Server.Closed += (sender, e) =>
             {
-                if (e.CloseReason != SocketCloseReason.AuthenticationFailure)
+                if (e.CloseReason != SessionCloseReason.AuthenticationFailure)
                 {
                     LastException = new Exception("Server closed session for invalid reason");
                 }
@@ -221,7 +222,7 @@ namespace DtronixMessageQueue.Tests.Rpc
 
             Client.Closed += (sender, e) =>
             {
-                if (e.CloseReason != SocketCloseReason.AuthenticationFailure)
+                if (e.CloseReason != SessionCloseReason.AuthenticationFailure)
                 {
                     LastException = new Exception("Server closed session for invalid reason");
                 }
@@ -266,7 +267,7 @@ namespace DtronixMessageQueue.Tests.Rpc
 
             Client.Closed += (sender, e) =>
             {
-                if (e.CloseReason != SocketCloseReason.TimeOut)
+                if (e.CloseReason != SessionCloseReason.TimeOut)
                 {
                     LastException = new Exception("Client was not notified that the authentication failed.");
                 }

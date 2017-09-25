@@ -3,6 +3,7 @@ using System.Net;
 using System.Net.Sockets;
 using System.Threading;
 using System.Threading.Tasks;
+using DtronixMessageQueue.TransportLayer;
 
 namespace DtronixMessageQueue.Socket
 {
@@ -13,7 +14,7 @@ namespace DtronixMessageQueue.Socket
     /// <typeparam name="TConfig">Configuration for this connection.</typeparam>
     public class SocketClient<TSession, TConfig> : SessionHandler<TSession, TConfig>
         where TSession : SocketSession<TSession, TConfig>, new()
-        where TConfig : SocketConfig
+        where TConfig : TransportLayerConfig
     {
         /// <summary>
         /// True if the client is connected to a server.
@@ -114,12 +115,12 @@ namespace DtronixMessageQueue.Socket
                 }
 
                 timedOut = true;
-                OnClose(null, SocketCloseReason.TimeOut);
+                OnClose(null, SessionCloseReason.TimeOut);
                 MainSocket.Close();
             }, _connectionTimeoutCancellation.Token);
         }
 
-        protected override void OnClose(TSession session, SocketCloseReason reason)
+        protected override void OnClose(TSession session, SessionCloseReason reason)
         {
             MainSocket.Close();
 

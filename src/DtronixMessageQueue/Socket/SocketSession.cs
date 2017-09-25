@@ -1,7 +1,7 @@
 ﻿using System;
 using System.Net.Sockets;
 using System.Threading;
-using DtronixMessageQueue.TransportLayer.TcpAsync;
+using DtronixMessageQueue.TransportLayer;
 
 namespace DtronixMessageQueue.Socket
 {
@@ -10,9 +10,9 @@ namespace DtronixMessageQueue.Socket
     /// </summary>
     /// <typeparam name="TConfig">Configuration for this connection.</typeparam>
     /// <typeparam name="TSession">Session for this connection.</typeparam>
-    public abstract class SocketSession<TSession, TConfig> : IDisposable, ISocketSession
+    public abstract class SocketSession<TSession, TConfig> : IDisposable
         where TSession : SocketSession<TSession, TConfig>, new()
-        where TConfig : SocketConfig
+        where TConfig : TransportLayerConfig
     {
         private TConfig _config;
 
@@ -44,28 +44,15 @@ namespace DtronixMessageQueue.Socket
         /// <summary>
         /// Base socket for this session.
         /// </summary>
-        public SessionHandler<TSession, TConfig> BaseSocket { get; private set; }
+        public SessionHandler<TSession, TConfig> SessionHandler { get; private set; }
 
-        /// <summary>
-        /// Processor to handle all inbound messages.
-        /// </summary>
-        protected ActionProcessor<Guid> InboxProcessor;
 
-        /// <summary>
-        /// Processor to handle all outbound messages.
-        /// </summary>
-        protected ActionProcessor<Guid> OutboxProcessor;
+        public ITransportLayerSession TransportSession { get; private set; }
 
         /// <summary>
         /// Reset event used to ensure only one MqWorker can write to the socket at a time.
         /// </summary>
         private SemaphoreSlim _writeSemaphore;
-
-
-        /// <summary>
-        /// Cache for commonly called methods used throughout the session.
-        /// </summary>
-        public ServiceMethodCache ServiceMethodCache;
 
         /// <summary>
         /// This event fires when a connection has been established.
@@ -95,20 +82,18 @@ namespace DtronixMessageQueue.Socket
         /// <param name="inboxProcessor">Processor which handles all inbox data.</param>
         /// /// <param name="outboxProcessor">Processor which handles all outbox data.</param>
         /// <param name="serviceMethodCache">Cache for commonly called methods used throughout the session.</param>
-        public static TSession Create(TConfig sessionConfig, 
-            SessionHandler<TSession, TConfig> sessionHandler, 
-            ActionProcessor<Guid> inboxProcessor,
-            ActionProcessor<Guid> outboxProcessor,
-            ServiceMethodCache serviceMethodCache)
+        public static TSession Create(
+            ITransportLayerSession transportSession,
+            TConfig sessionConfig, 
+            SessionHandler<TSession, TConfig> sessionHandler)
         {
             var session = new TSession
             {
+                TransportSession = transportSession,
                 _config = sessionConfig,
                 _writeSemaphore = new SemaphoreSlim(1, 1),
-                BaseSocket = sessionHandler,
-                InboxProcessor = inboxProcessor,
-                OutboxProcessor = outboxProcessor,
-                ServiceMethodCache = serviceMethodCache
+                ConnectedTime = DateTime.UtcNow,
+                SessionHandler = sessionHandler,
             };
 
             session.OnSetup();
@@ -116,26 +101,19 @@ namespace DtronixMessageQueue.Socket
             return session;
         }
 
-        /// <summary>
-        /// Start the session's receive events.
-        /// </summary>
-        void ISocketSession.Start()
-        {
-            if (CurrentState != State.Connecting)
-                return;
-
-            CurrentState = State.Connected;
-            ConnectedTime = DateTime.UtcNow;
-
-            // Start receiving data.
-            _socket.ReceiveAsync(_receiveArgs);
-            OnConnected();
-        }
 
         /// <summary>
         /// Called after the initial setup has occurred on the session.
         /// </summary>
         protected abstract void OnSetup();
+
+        public virtual void Connect()
+        {
+            // Start receiving data.
+            TransportSession.StartReceieve();
+
+            OnConnected();
+        }
 
         /// <summary>
         /// Called when this session is connected to the socket.
@@ -150,7 +128,7 @@ namespace DtronixMessageQueue.Socket
         /// Called when this session is disconnected from the socket.
         /// </summary>
         /// <param name="reason">Reason this socket is disconnecting</param>
-        protected virtual void OnDisconnected(SocketCloseReason reason)
+        protected virtual void OnClose(SessionCloseReason reason)
         {
             Closed?.Invoke(this, new SessionClosedEventArgs<TSession, TConfig>((TSession)this, reason));
         }
@@ -159,48 +137,19 @@ namespace DtronixMessageQueue.Socket
         /// Overridden to parse incoming bytes from the wire.
         /// </summary>
         /// <param name="buffer">Buffer of bytes to parse.</param>
-        protected abstract void HandleIncomingBytes(byte[] buffer);
+        protected abstract void OnReceive(byte[] buffer);
 
 
         /// <summary>
         /// Called when this session is desired or requested to be closed.
         /// </summary>
         /// <param name="reason">Reason this socket is closing.</param>
-        public virtual void Close(SocketCloseReason reason)
+        public virtual void Close(SessionCloseReason reason)
         {
-            // If this session has already been closed, nothing more to do.
-            if (CurrentState == State.Closed)
-                return;
 
-            // close the socket associated with the client
-            try
-            {
-                Socket.Shutdown(SocketShutdown.Receive);
-                Socket.Disconnect(false);
-            }
-            catch (Exception)
-            {
-                // ignored
-            }
-            finally
-            {
-                Socket.Close(1000);
-            }
-
-            _sendArgs.Completed -= IoCompleted;
-            _receiveArgs.Completed -= IoCompleted;
-
-            // Free the SocketAsyncEventArg so they can be reused by another client
-            _argsPool.Free(_sendArgs);
-            _argsPool.Free(_receiveArgs);
-
-            InboxProcessor.Deregister(Id);
-            OutboxProcessor.Deregister(Id);
-
-            CurrentState = State.Closed;
 
             // Notify the session has been closed.
-            OnDisconnected(reason);
+            OnClose(reason);
         }
 
         /// <summary>
@@ -209,7 +158,7 @@ namespace DtronixMessageQueue.Socket
         public void Dispose()
         {
             if (CurrentState == State.Connected)
-                Close(SocketCloseReason.ClientClosing);
+                Close(SessionCloseReason.ClientClosing);
 
         }
     }

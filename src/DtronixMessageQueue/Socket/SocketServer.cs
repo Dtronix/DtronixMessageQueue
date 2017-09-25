@@ -12,7 +12,7 @@ namespace DtronixMessageQueue.Socket
     /// <typeparam name="TConfig">Configuration for this connection.</typeparam>
     public class SocketServer<TSession, TConfig> : SessionHandler<TSession, TConfig>
         where TSession : SocketSession<TSession, TConfig>, new()
-        where TConfig : SocketConfig
+        where TConfig : TransportLayerConfig
     {
         /// <summary>
         /// Event invoked when the server has stopped listening for connections and has shut down.
@@ -85,7 +85,7 @@ namespace DtronixMessageQueue.Socket
 
             foreach (var session in sessions)
             {
-                session.Close(SocketCloseReason.ServerClosing);
+                session.Close(SessionCloseReason.ServerClosing);
             }
 
             try

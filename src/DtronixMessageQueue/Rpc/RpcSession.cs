@@ -5,6 +5,7 @@ using System.Threading.Tasks;
 using DtronixMessageQueue.Rpc.DataContract;
 using DtronixMessageQueue.Rpc.MessageHandlers;
 using DtronixMessageQueue.Socket;
+using DtronixMessageQueue.TransportLayer;
 
 namespace DtronixMessageQueue.Rpc
 {
@@ -17,6 +18,12 @@ namespace DtronixMessageQueue.Rpc
         where TSession : RpcSession<TSession, TConfig>, new()
         where TConfig : RpcConfig
     {
+
+        /// <summary>
+        /// Cache for commonly called methods used throughout the session.
+        /// </summary>
+        public ServiceMethodCache ServiceMethodCache;
+
         public Dictionary<byte, MessageHandler<TSession, TConfig>> MessageHandlers { get; }
 
         protected RpcCallMessageHandler<TSession, TConfig> RpcCallHandler;
@@ -28,13 +35,13 @@ namespace DtronixMessageQueue.Rpc
 
         /// <summary>
         /// Server base socket for this session.
-        /// Null if the BaseSocket is not running in server mode.
+        /// Null if the SessionHandler is not running in server mode.
         /// </summary>
         public RpcServer<TSession, TConfig> Server { get; private set; }
 
         /// <summary>
         /// Client base socket for this session.
-        /// Null if the BaseSocket is not running in client mode.
+        /// Null if the SessionHandler is not running in client mode.
         /// </summary>
         public RpcClient<TSession, TConfig> Client { get; private set; }
 
@@ -75,10 +82,10 @@ namespace DtronixMessageQueue.Rpc
             base.OnSetup();
 
             // Determine if this session is running on the server or client to retrieve the worker thread pool.
-            if (BaseSocket.LayerMode == TransportLayerMode.Server)
-                Server = (RpcServer<TSession, TConfig>) BaseSocket;
+            if (SessionHandler.LayerMode == TransportLayerMode.Server)
+                Server = (RpcServer<TSession, TConfig>) SessionHandler;
             else
-                Client = (RpcClient<TSession, TConfig>) BaseSocket;
+                Client = (RpcClient<TSession, TConfig>) SessionHandler;
 
             SerializationCache = new SerializationCache(Config);
 
@@ -112,9 +119,9 @@ namespace DtronixMessageQueue.Rpc
                     // RpcCommand:byte; RpcCommandType:byte; RpcServerInfoDataContract:byte[];
 
                     // Ensure that this command is running on the client.
-                    if (BaseSocket.LayerMode != TransportLayerMode.Client)
+                    if (SessionHandler.LayerMode != TransportLayerMode.Client)
                     {
-                        Close(SocketCloseReason.ProtocolError);
+                        Close(SessionCloseReason.ProtocolError);
                         return;
                     }
 
@@ -131,7 +138,7 @@ namespace DtronixMessageQueue.Rpc
 
                     if (Client.ServerInfo == null)
                     {
-                        Close(SocketCloseReason.ProtocolError);
+                        Close(SessionCloseReason.ProtocolError);
                         return;
                     }
 
@@ -169,7 +176,7 @@ namespace DtronixMessageQueue.Rpc
                             }
 
                             if (!_authTimeoutCancel.IsCancellationRequested)
-                                Close(SocketCloseReason.TimeOut);
+                                Close(SessionCloseReason.TimeOut);
                         });
 
                         // RpcCommand:byte; RpcCommandType:byte; AuthData:byte[];
@@ -194,16 +201,16 @@ namespace DtronixMessageQueue.Rpc
                     // RpcCommand:byte; RpcCommandType:byte; AuthData:byte[];
 
                     // If this is not run on the server, quit.
-                    if (BaseSocket.LayerMode != TransportLayerMode.Server)
+                    if (SessionHandler.LayerMode != TransportLayerMode.Server)
                     {
-                        Close(SocketCloseReason.ProtocolError);
+                        Close(SessionCloseReason.ProtocolError);
                         return;
                     }
 
                     // Ensure that the server requires authentication.
                     if (Server.Config.RequireAuthentication == false)
                     {
-                        Close(SocketCloseReason.ProtocolError);
+                        Close(SessionCloseReason.ProtocolError);
                         return;
                     }
 
@@ -222,7 +229,7 @@ namespace DtronixMessageQueue.Rpc
 
                     if (Authenticated == false)
                     {
-                        Close(SocketCloseReason.AuthenticationFailure);
+                        Close(SessionCloseReason.AuthenticationFailure);
                     }
                     else
                     {
@@ -249,15 +256,15 @@ namespace DtronixMessageQueue.Rpc
                     _authTimeoutCancel.Cancel();
 
                     // Ensure that this command is running on the client.
-                    if (BaseSocket.LayerMode != TransportLayerMode.Client)
+                    if (SessionHandler.LayerMode != TransportLayerMode.Client)
                     {
-                        Close(SocketCloseReason.ProtocolError);
+                        Close(SessionCloseReason.ProtocolError);
                         return;
                     }
 
                     if (Client.Config.RequireAuthentication == false)
                     {
-                        Close(SocketCloseReason.ProtocolError);
+                        Close(SessionCloseReason.ProtocolError);
                         return;
                     }
 
@@ -276,12 +283,12 @@ namespace DtronixMessageQueue.Rpc
                 }
                 else
                 {
-                    Close(SocketCloseReason.ProtocolError);
+                    Close(SessionCloseReason.ProtocolError);
                 }
             }
             catch (Exception)
             {
-                Close(SocketCloseReason.ProtocolError);
+                Close(SessionCloseReason.ProtocolError);
             }
         }
 
@@ -291,7 +298,7 @@ namespace DtronixMessageQueue.Rpc
         protected override void OnConnected()
         {
             // If this is a new session on the server, send the welcome message.
-            if (BaseSocket.LayerMode == TransportLayerMode.Server)
+            if (SessionHandler.LayerMode == TransportLayerMode.Server)
             {
                 Server.ServerInfo.RequireAuthentication = Config.RequireAuthentication;
 
@@ -312,7 +319,7 @@ namespace DtronixMessageQueue.Rpc
             base.OnConnected();
 
             // If the server does not require authentication, alert the server session that it is ready.
-            if (BaseSocket.LayerMode == TransportLayerMode.Server && Config.RequireAuthentication == false)
+            if (SessionHandler.LayerMode == TransportLayerMode.Server && Config.RequireAuthentication == false)
             {
                 Authenticated = true;
                 Ready?.Invoke(this, new SessionEventArgs<TSession, TConfig>((TSession) this));
@@ -348,7 +355,7 @@ namespace DtronixMessageQueue.Rpc
                     }
                     catch
                     {
-                        Close(SocketCloseReason.ApplicationError);
+                        Close(SessionCloseReason.ApplicationError);
                         return;
                     }
                     
@@ -357,7 +364,7 @@ namespace DtronixMessageQueue.Rpc
                 // If the we can not handle this message, disconnect the session.
                 if (handledMessage == false)
                 {
-                    Close(SocketCloseReason.ProtocolError);
+                    Close(SessionCloseReason.ProtocolError);
                     return;
                 }
             }

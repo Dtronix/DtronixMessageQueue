@@ -1,5 +1,6 @@
 ﻿using System;
 using DtronixMessageQueue.Socket;
+using DtronixMessageQueue.TransportLayer;
 
 namespace DtronixMessageQueue
 {
@@ -52,7 +53,7 @@ namespace DtronixMessageQueue
         /// </summary>
         /// <param name="session">Session which closed.</param>
         /// <param name="reason">Reason the session closed.</param>
-        protected override void OnClose(TSession session, SocketCloseReason reason)
+        protected override void OnClose(TSession session, SessionCloseReason reason)
         {
             session.IncomingMessage -= OnIncomingMessage;
             session.Dispose();

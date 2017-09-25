@@ -1,7 +1,7 @@
 ﻿using System.Net.Sockets;
 using System.Threading;
 
-namespace DtronixMessageQueue.TransportLayer.TcpAsync
+namespace DtronixMessageQueue.TransportLayer.Tcp
 {
     /// <summary>
     /// Represents a collection of reusable SocketAsyncEventArgs objects.  

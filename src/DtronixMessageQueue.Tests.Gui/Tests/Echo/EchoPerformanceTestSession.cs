@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Threading;
 using System.Threading.Tasks;
 using DtronixMessageQueue.Socket;
+using DtronixMessageQueue.TransportLayer;
 
 namespace DtronixMessageQueue.Tests.Gui.Tests.Echo
 {
@@ -58,7 +59,7 @@ namespace DtronixMessageQueue.Tests.Gui.Tests.Echo
         }
 
 
-        public override void Close(SocketCloseReason reason)
+        public override void Close(SessionCloseReason reason)
         {
             if (ResponseTimer != null)
             {

@@ -4,6 +4,7 @@ using System.Windows.Controls;
 using DtronixMessageQueue.Rpc;
 using DtronixMessageQueue.Socket;
 using DtronixMessageQueue.Tests.Gui.Services;
+using DtronixMessageQueue.TransportLayer;
 
 namespace DtronixMessageQueue.Tests.Gui.Tests
 {
@@ -33,10 +34,10 @@ namespace DtronixMessageQueue.Tests.Gui.Tests
             Interlocked.Increment(ref TotalConnections);
         }
 
-        protected void ConnectionRemoved(SocketCloseReason reason)
+        protected void ConnectionRemoved(SessionCloseReason reason)
         {
             TestController.Log($"Test client connection closed. Reason: {reason}");
-            if (reason != SocketCloseReason.ConnectionRefused)
+            if (reason != SessionCloseReason.ConnectionRefused)
                 Interlocked.Decrement(ref TotalConnections);
         }
 

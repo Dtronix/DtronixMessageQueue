@@ -4,6 +4,7 @@ using System.Collections.Generic;
 using System.IO;
 using System.Threading;
 using DtronixMessageQueue.Socket;
+using DtronixMessageQueue.TransportLayer;
 
 namespace DtronixMessageQueue
 {
@@ -16,6 +17,17 @@ namespace DtronixMessageQueue
         where TSession : MqSession<TSession, TConfig>, new()
         where TConfig : MqConfig
     {
+
+        /// <summary>
+        /// Processor to handle all inbound messages.
+        /// </summary>
+        protected ActionProcessor<Guid> InboxProcessor;
+
+        /// <summary>
+        /// Processor to handle all outbound messages.
+        /// </summary>
+        protected ActionProcessor<Guid> OutboxProcessor;
+
         /// <summary>
         /// Reference to the current message being processed by the inbox.
         /// </summary>
@@ -60,7 +72,7 @@ namespace DtronixMessageQueue
         /// Adds bytes from the client/server reading methods to be processed by the Postmaster.
         /// </summary>
         /// <param name="buffer">Buffer of bytes to read. Does not copy the bytes to the buffer.</param>
-        protected override void HandleIncomingBytes(byte[] buffer)
+        protected override void OnReceive(byte[] buffer)
         {
             if (CurrentState != State.Connected)
             {
@@ -170,7 +182,7 @@ namespace DtronixMessageQueue
                 {
                     //logger.Error(ex, "Connector {0}: Client send invalid data.", Connection.Id);
 
-                    Close(SocketCloseReason.ProtocolError);
+                    Close(SessionCloseReason.ProtocolError);
                     break;
                 }
 
@@ -184,7 +196,7 @@ namespace DtronixMessageQueue
                     // Do nothing if this is a ping frame.
                     if (frame.FrameType == MqFrameType.Ping)
                     {
-                        if (BaseSocket.LayerMode == TransportLayerMode.Server)
+                        if (SessionHandler.LayerMode == TransportLayerMode.Server)
                         {
                             // Re-send ping frame back to the client to refresh client connection timeout timer.
                             Send(CreateFrame(null, MqFrameType.Ping));
@@ -242,7 +254,7 @@ namespace DtronixMessageQueue
         /// Notifies the recipient connection the reason for the session's closure.
         /// </summary>
         /// <param name="reason">Reason for closing this session.</param>
-        public override void Close(SocketCloseReason reason)
+        public override void Close(SessionCloseReason reason)
         {
             if (CurrentState == State.Closed)
             {
@@ -353,11 +365,11 @@ namespace DtronixMessageQueue
             {
                 case MqCommandType.Disconnect:
                     CurrentState = State.Closing;
-                    Close((SocketCloseReason)frame.ReadByte(1));
+                    Close((SessionCloseReason)frame.ReadByte(1));
                     break;
 
                 default:
-                    Close(SocketCloseReason.ProtocolError);
+                    Close(SessionCloseReason.ProtocolError);
                     break;
             }
         }

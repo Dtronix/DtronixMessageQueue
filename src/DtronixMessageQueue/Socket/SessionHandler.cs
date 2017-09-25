@@ -3,7 +3,6 @@ using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Threading;
 using DtronixMessageQueue.TransportLayer;
-using DtronixMessageQueue.TransportLayer.TcpAsync;
 
 namespace DtronixMessageQueue.Socket
 {
@@ -12,9 +11,9 @@ namespace DtronixMessageQueue.Socket
     /// </summary>
     /// <typeparam name="TSession">Session type for this connection.</typeparam>
     /// <typeparam name="TConfig">Configuration for this connection.</typeparam>
-    public abstract class SessionHandler<TSession, TConfig> : ISessionHandler
+    public abstract class SessionHandler<TSession, TConfig>
         where TSession : SocketSession<TSession, TConfig>, new()
-        where TConfig : SocketConfig
+        where TConfig : TransportLayerConfig
     {
         /// <summary>
         /// Mode that this socket is running as.
@@ -144,7 +143,7 @@ namespace DtronixMessageQueue.Socket
             {
                 if (session.LastReceived < timeoutTime)
                 {
-                    session.Close(SocketCloseReason.TimeOut);
+                    session.Close(SessionCloseReason.TimeOut);
                 }
             }
         }
@@ -172,7 +171,7 @@ namespace DtronixMessageQueue.Socket
         /// </summary>
         /// <param name="session">Session that closed.</param>
         /// <param name="reason">Reason for the closing of the session.</param>
-        protected virtual void OnClose(TSession session, SocketCloseReason reason)
+        protected virtual void OnClose(TSession session, SessionCloseReason reason)
         {
             // If there are no clients connected, stop the timer.
             if (ConnectedSessions.IsEmpty)
@@ -188,14 +187,11 @@ namespace DtronixMessageQueue.Socket
         /// Method called when new sessions are created.  Override to change behavior.
         /// </summary>
         /// <returns>New session instance.</returns>
-        protected virtual TSession CreateSession(System.Net.Sockets.Socket socket)
+        protected virtual TSession CreateSession(ITransportLayerSession transportSession)
         {
-            var session = SocketSession<TSession, TConfig>.Create(socket,
+            var session = SocketSession<TSession, TConfig>.Create(transportSession,
                 Config, 
-                this, 
-                InboxProcessor,
-                OutboxProcessor,
-                ServiceMethodCache);
+                this);
 
             SessionSetup?.Invoke(this, new SessionEventArgs<TSession, TConfig>(session));
             session.Closed += (sender, args) => OnClose(session, args.CloseReason);
@@ -207,15 +203,5 @@ namespace DtronixMessageQueue.Socket
         {
             return ConnectedSessions.GetEnumerator();
         }
-    }
-
-    public interface ISessionHandler
-    {
-        void OnReceive(byte[] buffer);
-        void OnListen();
-        void OnClose();
-        void OnConnect();
-        void OnDisconnect();
-
     }
 }

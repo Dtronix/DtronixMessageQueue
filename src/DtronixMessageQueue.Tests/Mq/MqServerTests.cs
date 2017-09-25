@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Threading;
 using DtronixMessageQueue.Socket;
+using DtronixMessageQueue.TransportLayer;
 using Xunit;
 using Xunit.Abstractions;
 
@@ -120,7 +121,7 @@ namespace DtronixMessageQueue.Tests.Mq
             client.Connected += (sender, args) => client2.Connect();
             client2.Closed += (sender, args) =>
             {
-                if (args.CloseReason != SocketCloseReason.ConnectionRefused)
+                if (args.CloseReason != SessionCloseReason.ConnectionRefused)
                 {
                     invalidClosException = new Exception("Client socket did not close for the correct reason.");
                 }

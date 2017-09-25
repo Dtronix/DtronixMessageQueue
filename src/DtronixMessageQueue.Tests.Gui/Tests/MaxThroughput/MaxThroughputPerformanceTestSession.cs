@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Threading.Tasks;
 using DtronixMessageQueue.Socket;
+using DtronixMessageQueue.TransportLayer;
 
 namespace DtronixMessageQueue.Tests.Gui.Tests.MaxThroughput
 {
@@ -39,7 +40,7 @@ namespace DtronixMessageQueue.Tests.Gui.Tests.MaxThroughput
         }
 
 
-        public override void Close(SocketCloseReason reason)
+        public override void Close(SessionCloseReason reason)
         {
             if (ResponseTimer != null)
             {

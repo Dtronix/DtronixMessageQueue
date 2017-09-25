@@ -1,16 +1,11 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Net.Sockets;
-using System.Text;
-using System.Threading.Tasks;
+﻿using System.Net.Sockets;
 
-namespace DtronixMessageQueue.TransportLayer.TcpAsync
+namespace DtronixMessageQueue.TransportLayer.Tcp
 {
-    class TcpAsyncSessionTransportLayer
+    class TcpSessionTransportLayer
     {
 
-        public TcpAsyncSessionTransportLayer()
+        public TcpSessionTransportLayer()
         {
 
             if (session._config.SendTimeout > 0)

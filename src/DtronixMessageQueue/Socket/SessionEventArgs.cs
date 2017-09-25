@@ -1,4 +1,5 @@
 ﻿using System;
+using DtronixMessageQueue.TransportLayer;
 
 namespace DtronixMessageQueue.Socket
 {
@@ -9,7 +10,7 @@ namespace DtronixMessageQueue.Socket
     /// <typeparam name="TConfig">Configuration for this connection.</typeparam>
     public class SessionEventArgs<TSession, TConfig> : EventArgs
         where TSession : SocketSession<TSession, TConfig>, new()
-        where TConfig : SocketConfig
+        where TConfig : TransportLayerConfig
     {
         /// <summary>
         /// Connected session.

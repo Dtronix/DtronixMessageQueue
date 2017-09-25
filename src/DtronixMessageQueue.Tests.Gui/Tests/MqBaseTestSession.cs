@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Diagnostics;
 using System.Threading;
 using DtronixMessageQueue.Socket;
+using DtronixMessageQueue.TransportLayer;
 
 namespace DtronixMessageQueue.Tests.Gui.Tests
 {
@@ -45,7 +46,7 @@ namespace DtronixMessageQueue.Tests.Gui.Tests
             Reader = new MqMessageReader();
             Writer = new MqMessageWriter(Config);
 
-            IsServer = BaseSocket.LayerMode == TransportLayerMode.Server;
+            IsServer = SessionHandler.LayerMode == TransportLayerMode.Server;
         }
 
 

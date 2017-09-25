@@ -1,6 +1,7 @@
 ﻿using System;
 using DtronixMessageQueue.Rpc.DataContract;
 using DtronixMessageQueue.Socket;
+using DtronixMessageQueue.TransportLayer;
 
 namespace DtronixMessageQueue.Rpc
 {
@@ -78,12 +79,12 @@ namespace DtronixMessageQueue.Rpc
                 if (session.LastReceived < timeoutTime)
                 {
                     // Check for session timeout
-                    session.Close(SocketCloseReason.TimeOut);
+                    session.Close(SessionCloseReason.TimeOut);
                 }
                 else if (session.Authenticated == false && session.ConnectedTime < timeoutTime)
                 {
                     // Ensure that failed authentications are removed.
-                    session.Close(SocketCloseReason.AuthenticationFailure);
+                    session.Close(SessionCloseReason.AuthenticationFailure);
                 }
             }
         }
