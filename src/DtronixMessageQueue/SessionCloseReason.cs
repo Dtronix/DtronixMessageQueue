@@ -13,7 +13,7 @@
         /// <summary>
         /// Close for server shutdown
         /// </summary>
-        ServerShutdown = 1,
+        //ServerShutdown = 1,
 
         /// <summary>
         /// The client close the socket

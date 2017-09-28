@@ -74,7 +74,7 @@
     <Compile Include="Socket\SessionEventArgs.cs" />
     <Compile Include="Socket\SessionClosedEventArgs.cs" />
     <Compile Include="TransportLayer\Tcp\SocketAsyncEventArgsManager.cs" />
-    <Compile Include="Socket\SessionHandler.cs" />
+    <Compile Include="MqSessionHandler.cs" />
     <Compile Include="Socket\SocketClient.cs" />
     <Compile Include="SessionCloseReason.cs" />
     <Compile Include="TransportLayer\TransportLayerAcceptSessionEventArgs.cs" />
@@ -84,7 +84,6 @@
     <Compile Include="TransportLayer\Tcp\TcpTransportLayerSession.cs" />
     <Compile Include="TransportLayer\TransportLayerMode.cs" />
     <Compile Include="Socket\SocketServer.cs" />
-    <Compile Include="Socket\SocketSession.cs" />
     <Compile Include="TransportLayer\ITransportLayerSession.cs" />
     <Compile Include="TransportLayer\ITransportLayer.cs" />
     <Compile Include="TransportLayer\Tcp\TcpTransportLayer.cs" />

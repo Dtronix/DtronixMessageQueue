@@ -11,7 +11,7 @@ namespace DtronixMessageQueue.Socket
     /// <typeparam name="TSession">Session type for this connection.</typeparam>
     /// <typeparam name="TConfig">Configuration for this connection.</typeparam>
     public class SocketServer<TSession, TConfig> : SessionHandler<TSession, TConfig>
-        where TSession : SocketSession<TSession, TConfig>, new()
+        where TSession : DtronixMessageQueue.MqSession<TSession, TConfig>, new()
         where TConfig : TransportLayerConfig
     {
         /// <summary>

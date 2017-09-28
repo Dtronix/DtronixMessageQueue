@@ -13,10 +13,22 @@ namespace DtronixMessageQueue
     /// </summary>
     /// <typeparam name="TSession">Session type for this connection.</typeparam>
     /// <typeparam name="TConfig">Configuration for this connection.</typeparam>
-    public abstract class MqSession<TSession, TConfig> : SocketSession<TSession, TConfig>
+    public abstract class MqSession<TSession, TConfig>
         where TSession : MqSession<TSession, TConfig>, new()
         where TConfig : MqConfig
     {
+
+        /// <summary>
+        /// Id for this session
+        /// </summary>
+        public Guid Id => TransportSession.Id;
+
+        /// <summary>
+        /// Configurations for the associated socket.
+        /// </summary>
+        public TConfig Config { get; private set; }
+
+        public DateTime LastReceived => TransportSession.LastReceived;
 
         /// <summary>
         /// Processor to handle all inbound messages.
@@ -53,9 +65,56 @@ namespace DtronixMessageQueue
         private SemaphoreSlim _receivingSemaphore;
 
         /// <summary>
+        /// Base socket for this session.
+        /// </summary>
+        public SessionHandler<TSession, TConfig> SessionHandler { get; private set; }
+
+        /// <summary>
         /// Event fired when a new message has been processed by the Postmaster and ready to be read.
         /// </summary>
         public event EventHandler<IncomingMessageEventArgs<TSession, TConfig>> IncomingMessage;
+
+        /// <summary>
+        /// This event fires when a connection has been established.
+        /// </summary>
+        public event EventHandler<SessionEventArgs<TSession, TConfig>> Connected;
+
+        /// <summary>
+        /// This event fires when a connection has been shutdown.
+        /// </summary>
+        public event EventHandler<SessionClosedEventArgs<TSession, TConfig>> Closed;
+
+
+
+        public ITransportLayerSession TransportSession { get; private set; }
+
+        /// <summary>
+        /// Sets up this socket with the specified configurations.
+        /// </summary>
+        /// <param name="sessionSocket">Socket this session is to use.</param>
+        /// <param name="socketArgsManager">Argument pool for this session to use.  Pulls two asyncevents for reading and writing and returns them at the end of this socket's life.</param>
+        /// <param name="sessionConfig">Socket configurations this session is to use.</param>
+        /// <param name="sessionHandler">Handler base which is handling this session.</param>
+        /// <param name="inboxProcessor">Processor which handles all inbox data.</param>
+        /// /// <param name="outboxProcessor">Processor which handles all outbox data.</param>
+        /// <param name="serviceMethodCache">Cache for commonly called methods used throughout the session.</param>
+        public static TSession Create(
+            ITransportLayerSession transportSession,
+            TConfig sessionConfig,
+            SessionHandler<TSession, TConfig> sessionHandler)
+        {
+            var session = new TSession
+            {
+                TransportSession = transportSession,
+                Config = sessionConfig,
+                SessionHandler = sessionHandler
+            };
+
+            session.OnSetup();
+
+            return session;
+        }
+
 
 
         protected override void OnSetup()
@@ -383,6 +442,16 @@ namespace DtronixMessageQueue
             return $"MqSession; Reading {_inboxBytes.Count} byte packets; Sending {_outbox.Count} messages.";
         }
 
-        
+        /// <summary>
+        /// Disconnects client and releases resources.
+        /// </summary>
+        public void Dispose()
+        {
+            if (CurrentState == State.Connected)
+                Close(SessionCloseReason.ClientClosing);
+
+        }
+
+
     }
 }

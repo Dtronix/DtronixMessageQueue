@@ -13,7 +13,7 @@ namespace DtronixMessageQueue.Socket
     /// <typeparam name="TSession">Session type for this connection.</typeparam>
     /// <typeparam name="TConfig">Configuration for this connection.</typeparam>
     public class SocketClient<TSession, TConfig> : SessionHandler<TSession, TConfig>
-        where TSession : SocketSession<TSession, TConfig>, new()
+        where TSession : DtronixMessageQueue.MqSession<TSession, TConfig>, new()
         where TConfig : TransportLayerConfig
     {
         /// <summary>
@@ -56,7 +56,7 @@ namespace DtronixMessageQueue.Socket
         /// <param name="endPoint">Endpoint to connect to.</param>
         public void Connect(IPEndPoint endPoint)
         {
-            if (MainSocket != null && Session?.CurrentState != SocketSession<TSession, TConfig>.State.Closed)
+            if (MainSocket != null && Session?.CurrentState != DtronixMessageQueue.MqSession<TSession, TConfig>.State.Closed)
             {
                 throw new InvalidOperationException("Client is in the process of connecting.");
             }

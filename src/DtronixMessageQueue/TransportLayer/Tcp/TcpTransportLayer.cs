@@ -71,7 +71,9 @@ namespace DtronixMessageQueue.TransportLayer.Tcp
         {
             if(Mode != TransportLayerMode.Server)
                 throw new InvalidOperationException("Transport layer is running in client mode.  Start is a server mode method.");
-            
+
+            Starting?.Invoke(this, new TransportLayerEventArgs(this));
+
             // Reset the remaining connections.
             _remainingConnections = Config.MaxConnections;
 
@@ -226,14 +228,19 @@ namespace DtronixMessageQueue.TransportLayer.Tcp
                 return;
 
             State = TransportLayerState.Closing;
+            var closeReason = SessionCloseReason.ServerClosing;
 
+            Stopping?.Invoke(this, new TransportLayerStopEventArgs(this, closeReason));
+
+            /*
+             * TODO: Move closing logic to base
             ITransportLayerSession[] sessions = new ITransportLayerSession[ConnectedSessions.Values.Count];
             ConnectedSessions.Values.CopyTo(sessions, 0);
 
             foreach (var session in sessions)
             {
-                session.Close(SessionCloseReason.ServerClosing);
-            }
+                session.Close(closeReason);
+            }*/
 
             try
             {

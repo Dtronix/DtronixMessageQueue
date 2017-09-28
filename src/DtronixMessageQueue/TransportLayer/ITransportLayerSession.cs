@@ -10,7 +10,16 @@ namespace DtronixMessageQueue.TransportLayer
     {
         Guid Id { get; }
         TransportLayerState State { get; }
+
+        /// <summary>
+        /// Last time the session received anything from the socket.
+        /// </summary>
         DateTime LastReceived { get; }
+
+        /// <summary>
+        /// Time that this session connected to the server.
+        /// </summary>
+        DateTime ConnectedTime { get; }
 
         event EventHandler<TransportLayerSessionEventArgs> Connecting;
         event EventHandler<TransportLayerSessionEventArgs> Connected;

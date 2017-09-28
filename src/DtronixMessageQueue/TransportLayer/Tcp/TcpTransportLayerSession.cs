@@ -36,7 +36,15 @@ namespace DtronixMessageQueue.TransportLayer.Tcp
 
         private SemaphoreSlim _writeSemaphore;
 
+        /// <summary>
+        /// Last time the session received anything from the socket.
+        /// </summary>
         public DateTime LastReceived { get; private set; }
+
+        /// <summary>
+        /// Time that this session connected to the server.
+        /// </summary>
+        public DateTime ConnectedTime { get; private set; }
 
 
         public TcpTransportLayerSession(TcpTransportLayer transportLayer, System.Net.Sockets.Socket socket)
@@ -64,6 +72,7 @@ namespace DtronixMessageQueue.TransportLayer.Tcp
             switch (e.LastOperation)
             {
                 case SocketAsyncOperation.Receive:
+                    LastReceived = DateTime.Now;
                     RecieveComplete(e);
                     break;
 

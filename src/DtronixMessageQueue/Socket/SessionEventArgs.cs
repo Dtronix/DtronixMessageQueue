@@ -9,8 +9,8 @@ namespace DtronixMessageQueue.Socket
     /// <typeparam name="TSession">Session type for this connection.</typeparam>
     /// <typeparam name="TConfig">Configuration for this connection.</typeparam>
     public class SessionEventArgs<TSession, TConfig> : EventArgs
-        where TSession : SocketSession<TSession, TConfig>, new()
-        where TConfig : TransportLayerConfig
+        where TSession : MqSession<TSession, TConfig>, new()
+        where TConfig : MqConfig
     {
         /// <summary>
         /// Connected session.

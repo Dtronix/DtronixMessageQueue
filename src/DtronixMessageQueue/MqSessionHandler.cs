@@ -2,9 +2,10 @@
 using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Threading;
+using DtronixMessageQueue.Socket;
 using DtronixMessageQueue.TransportLayer;
 
-namespace DtronixMessageQueue.Socket
+namespace DtronixMessageQueue
 {
     /// <summary>
     /// Base socket for all server and client sockets.
@@ -12,8 +13,8 @@ namespace DtronixMessageQueue.Socket
     /// <typeparam name="TSession">Session type for this connection.</typeparam>
     /// <typeparam name="TConfig">Configuration for this connection.</typeparam>
     public abstract class SessionHandler<TSession, TConfig>
-        where TSession : SocketSession<TSession, TConfig>, new()
-        where TConfig : TransportLayerConfig
+        where TSession : MqSession<TSession, TConfig>, new()
+        where TConfig : MqConfig
     {
         /// <summary>
         /// Mode that this socket is running as.
@@ -22,11 +23,6 @@ namespace DtronixMessageQueue.Socket
 
 
         protected ITransportLayer TransportLayer;
-
-        /// <summary>
-        /// True if the socket is connected/listening.
-        /// </summary>
-        public bool IsRunning => TransportLayer.IsRunning;
 
         /// <summary>
         /// This event fires when a connection has been established.
@@ -189,7 +185,7 @@ namespace DtronixMessageQueue.Socket
         /// <returns>New session instance.</returns>
         protected virtual TSession CreateSession(ITransportLayerSession transportSession)
         {
-            var session = SocketSession<TSession, TConfig>.Create(transportSession,
+            var session = MqSession<TSession, TConfig>.Create(transportSession,
                 Config, 
                 this);
 
