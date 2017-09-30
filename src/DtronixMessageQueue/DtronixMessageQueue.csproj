@@ -55,6 +55,8 @@
     <Compile Include="Rpc\DataContract\RpcServerInfoDataContract.cs" />
     <Compile Include="Rpc\IRemoteService.cs" />
     <Compile Include="Rpc\MessageHandler.cs" />
+    <Compile Include="Rpc\MessageHandlers\RpcSyncedListMessageAction.cs" />
+    <Compile Include="Rpc\MessageHandlers\RpcSyncedListMessageHandler.cs" />
     <Compile Include="Rpc\ResponseWait.cs" />
     <Compile Include="Rpc\RpcAuthEventArgs.cs" />
     <Compile Include="Rpc\MessageHandlers\RpcCallMessageHandler.cs" />
