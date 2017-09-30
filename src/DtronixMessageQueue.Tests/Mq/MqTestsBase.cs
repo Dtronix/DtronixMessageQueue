@@ -31,7 +31,7 @@ namespace DtronixMessageQueue.Tests.Mq
 
             Config = new MqConfig
             {
-                Ip = "127.0.0.1",
+                ConnectAddress = "127.0.0.1",
                 Port = Port
             };
 

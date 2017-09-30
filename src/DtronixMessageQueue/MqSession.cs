@@ -3,7 +3,6 @@ using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.IO;
 using System.Threading;
-using DtronixMessageQueue.Socket;
 using DtronixMessageQueue.TransportLayer;
 
 namespace DtronixMessageQueue
@@ -75,14 +74,9 @@ namespace DtronixMessageQueue
         public event EventHandler<IncomingMessageEventArgs<TSession, TConfig>> IncomingMessage;
 
         /// <summary>
-        /// This event fires when a connection has been established.
-        /// </summary>
-        public event EventHandler<SessionEventArgs<TSession, TConfig>> Connected;
-
-        /// <summary>
         /// This event fires when a connection has been shutdown.
         /// </summary>
-        public event EventHandler<SessionClosedEventArgs<TSession, TConfig>> Closed;
+        public event EventHandler<SessionCloseEventArgs<TSession, TConfig>> Closed;
 
 
 
@@ -117,7 +111,7 @@ namespace DtronixMessageQueue
 
 
 
-        protected override void OnSetup()
+        private void OnSetup()
         {
             _frameBuilder = new MqFrameBuilder(Config);
             _sendingSemaphore = new SemaphoreSlim(Config.MaxQueuedOutgoingMessages, Config.MaxQueuedOutgoingMessages);
@@ -125,23 +119,59 @@ namespace DtronixMessageQueue
 
             InboxProcessor.Register(Id, ProcessIncomingQueue);
             OutboxProcessor.Register(Id, ProcessOutbox);
-        }
 
-        /// <summary>
-        /// Adds bytes from the client/server reading methods to be processed by the Postmaster.
-        /// </summary>
-        /// <param name="buffer">Buffer of bytes to read. Does not copy the bytes to the buffer.</param>
-        protected override void OnReceive(byte[] buffer)
-        {
-            if (CurrentState != State.Connected)
+            TransportSession.Received += (sender, buffer) =>
             {
-                return;
-            }
+                _inboxBytes.Enqueue(buffer);
+                InboxProcessor.QueueOnce(Id);
 
-            _receivingSemaphore.Wait();
+                // Wait until the next 
+                _receivingSemaphore.Wait();
 
-            _inboxBytes.Enqueue(buffer);
-            InboxProcessor.QueueOnce(Id);
+                TransportSession.Receive();
+            };
+
+            TransportSession.Closing += (sender, args) =>
+            {
+                if (TransportSession.State == TransportLayerState.Connected ||
+                    TransportSession.State == TransportLayerState.Connecting)
+                {
+                    var closeFrame = CreateFrame(new byte[2], MqFrameType.Command);
+
+                    closeFrame.Write(0, (byte) 0);
+                    closeFrame.Write(1, (byte) args.Reason);
+
+                    MqMessage msg;
+                    if (_outbox.IsEmpty == false)
+                    {
+                        while (_outbox.TryDequeue(out msg))
+                            _sendingSemaphore.Release();
+
+
+                        byte[] buffer;
+                        while (_inboxBytes.TryDequeue(out buffer))
+                            _receivingSemaphore.Release();
+                    }
+
+                    msg = new MqMessage(closeFrame);
+                    _outbox.Enqueue(msg);
+
+                    // QueueOnce the last bit of data.
+                    ProcessOutbox();
+                }
+
+                // Dispose of all the resources.
+                _receivingSemaphore.Dispose();
+                _sendingSemaphore.Dispose();
+                _frameBuilder.Dispose();
+            };
+
+            TransportSession.Closed += (sender, args) =>
+            {
+                Close(args.Reason);
+
+                Closed?.Invoke(this, new SessionCloseEventArgs<TSession, TConfig>((TSession)this, args.Reason));
+            };
         }
 
         /// <summary>
@@ -165,7 +195,7 @@ namespace DtronixMessageQueue
 
 
             // This will block 
-            Send(buffer, 0, buffer.Length);
+            TransportSession.Send(buffer, 0, buffer.Length);
         }
 
 
@@ -182,7 +212,7 @@ namespace DtronixMessageQueue
             while (_outbox.TryDequeue(out message))
             {
 
-                if(CurrentState != State.Closing)
+                if(TransportSession.State == TransportLayerState.Connected)
                     _sendingSemaphore.Release();
 
                 message.PrepareSend();
@@ -230,7 +260,7 @@ namespace DtronixMessageQueue
             while (_inboxBytes.TryDequeue(out buffer))
             {
 
-                if (CurrentState == State.Connected)
+                if (TransportSession.State == TransportLayerState.Connected)
                     _receivingSemaphore.Release();
 
                 try
@@ -313,51 +343,12 @@ namespace DtronixMessageQueue
         /// Notifies the recipient connection the reason for the session's closure.
         /// </summary>
         /// <param name="reason">Reason for closing this session.</param>
-        public override void Close(SessionCloseReason reason)
+        public void Close(SessionCloseReason reason)
         {
-            if (CurrentState == State.Closed)
-            {
+            if (TransportSession.State == TransportLayerState.Closed)
                 return;
-            }
 
-            MqFrame closeFrame = null;
-            if (CurrentState == State.Connected || CurrentState == State.Connecting)
-            {
-                CurrentState = State.Closing;
-
-                closeFrame = CreateFrame(new byte[2], MqFrameType.Command);
-
-                closeFrame.Write(0, (byte)0);
-                closeFrame.Write(1, (byte)reason);
-            }
-
-            // If we are passed a closing frame, then send it to the other connection.
-            if (closeFrame != null)
-            {
-                MqMessage msg;
-                byte[] buffer;
-                if (_outbox.IsEmpty == false)
-                {
-                    while (_outbox.TryDequeue(out msg))
-                        _sendingSemaphore.Release();
-
-
-                    while (_inboxBytes.TryDequeue(out buffer))
-                        _receivingSemaphore.Release();
-                }
-
-                msg = new MqMessage(closeFrame);
-                _outbox.Enqueue(msg);
-
-                // QueueOnce the last bit of data.
-                ProcessOutbox();
-            }
-
-            base.Close(reason);
-
-            _receivingSemaphore.Dispose();
-            _sendingSemaphore.Dispose();
-            _frameBuilder.Dispose();
+            TransportSession.Close(reason);
         }
 
         /// <summary>
@@ -379,7 +370,7 @@ namespace DtronixMessageQueue
             {
                 return;
             }
-            if (CurrentState != State.Connected)
+            if (TransportSession.State != TransportLayerState.Connected)
             {
                 return;
             }
@@ -423,7 +414,6 @@ namespace DtronixMessageQueue
             switch (commandType)
             {
                 case MqCommandType.Disconnect:
-                    CurrentState = State.Closing;
                     Close((SessionCloseReason)frame.ReadByte(1));
                     break;
 
@@ -447,7 +437,7 @@ namespace DtronixMessageQueue
         /// </summary>
         public void Dispose()
         {
-            if (CurrentState == State.Connected)
+            if (TransportSession.State == TransportLayerState.Connected)
                 Close(SessionCloseReason.ClientClosing);
 
         }

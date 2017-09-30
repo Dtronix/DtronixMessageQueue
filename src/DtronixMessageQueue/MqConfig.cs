@@ -1,5 +1,4 @@
-﻿using DtronixMessageQueue.Socket;
-using DtronixMessageQueue.TransportLayer;
+﻿using DtronixMessageQueue.TransportLayer;
 
 namespace DtronixMessageQueue
 {

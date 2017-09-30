@@ -21,18 +21,19 @@ namespace DtronixMessageQueue.TransportLayer
         /// </summary>
         DateTime ConnectedTime { get; }
 
-        event EventHandler<TransportLayerSessionEventArgs> Connecting;
-        event EventHandler<TransportLayerSessionEventArgs> Connected;
+        /// <summary>
+        /// Contains a reference to the session that has implemented this TransportLayerSession.
+        /// </summary>
+        object ImplementedSession { get; set; }
 
         event EventHandler<TransportLayerSessionCloseEventArgs> Closing;
         event EventHandler<TransportLayerSessionCloseEventArgs> Closed;
 
-        event EventHandler<byte[]> Received; 
-
         void Send(byte[] buffer, int start, int count);
 
-        void Receieve();
+        void Receive();
 
         void Close(SessionCloseReason reason);
+        event EventHandler<byte[]> Received;
     }
 }

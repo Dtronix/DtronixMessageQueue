@@ -2,8 +2,8 @@
 using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Threading;
-using DtronixMessageQueue.Socket;
 using DtronixMessageQueue.TransportLayer;
+using DtronixMessageQueue.TransportLayer.Tcp;
 
 namespace DtronixMessageQueue
 {
@@ -32,27 +32,12 @@ namespace DtronixMessageQueue
         /// <summary>
         /// This event fires when a connection has been closed.
         /// </summary>
-        public event EventHandler<SessionClosedEventArgs<TSession, TConfig>> Closed;
-
-        /// <summary>
-        /// Event called when a new session is created and is being setup but before the session is active.
-        /// </summary>
-        public event EventHandler<SessionEventArgs<TSession, TConfig>> SessionSetup;
+        public event EventHandler<SessionCloseEventArgs<TSession, TConfig>> Closed;
 
         /// <summary>
         /// Configurations of this socket.
         /// </summary>
         public TConfig Config { get; }
-
-        /// <summary>
-        /// True if the timeout timer is running.  False otherwise.
-        /// </summary>
-        protected bool TimeoutTimerRunning;
-
-        /// <summary>
-        /// Timer used to verify that the sessions are still connected.
-        /// </summary>
-        protected readonly Timer TimeoutTimer;
 
         /// <summary>
         /// Processor to handle all inbound and outbound message handling.
@@ -71,128 +56,61 @@ namespace DtronixMessageQueue
             new ConcurrentDictionary<Guid, TSession>();
 
         /// <summary>
-        /// Cache for commonly called methods used throughout the session.
-        /// </summary>
-        protected readonly ServiceMethodCache ServiceMethodCache;
-
-        /// <summary>
         /// Base constructor to all socket classes.
         /// </summary>
         /// <param name="config">Configurations for this socket.</param>
-        protected SessionHandler(TConfig config, ITransportLayer transportLayer)
+        /// <param name="mode">Mode this session handler is to </param>
+        protected SessionHandler(TConfig config, TransportLayerMode mode)
         {
-            TransportLayer = transportLayer;
-            TimeoutTimer = new Timer(TimeoutCallback);
-            ServiceMethodCache = new ServiceMethodCache();
+            // Determine the type of transport layer to use.
+            // If the transport layer is not defined, use the default Tcp layer.
+            TransportLayer = config.TransportLayer ?? new TcpTransportLayer(config, mode);
+
             Config = config;
 
-            var modeLower = TransportLayer.Mode.ToString().ToLower();
+            var modeLower = mode.ToString().ToLower();
 
-            if (TransportLayer.Mode == TransportLayerMode.Client)
-            {
-                OutboxProcessor = new ActionProcessor<Guid>(new ActionProcessor<Guid>.Config
-                {
-                    ThreadName = $"{modeLower}-outbox",
-                    StartThreads = 1
-                });
-                InboxProcessor = new ActionProcessor<Guid>(new ActionProcessor<Guid>.Config
-                {
-                    ThreadName = $"{modeLower}-inbox",
-                    StartThreads = 1
-                });
-            }
-            else
-            {
-                var processorThreads = config.ProcessorThreads == -1
-                    ? Environment.ProcessorCount
-                    : config.ProcessorThreads;
+            var processorThreads = config.ProcessorThreads == -1
+                ? Environment.ProcessorCount
+                : config.ProcessorThreads;
 
-                OutboxProcessor = new ActionProcessor<Guid>(new ActionProcessor<Guid>.Config
-                {
-                    ThreadName = $"{modeLower}-outbox",
-                    StartThreads = processorThreads
-                });
-                InboxProcessor = new ActionProcessor<Guid>(new ActionProcessor<Guid>.Config
-                {
-                    ThreadName = $"{modeLower}-inbox",
-                    StartThreads = processorThreads
-                });
-            }
+            // Modify the max number of connections allowed if the handler is functioning in client mode.
+            config.MaxConnections = mode == TransportLayerMode.Client ? 1 : config.MaxConnections;
+
+            OutboxProcessor = new ActionProcessor<Guid>(new ActionProcessor<Guid>.Config
+            {
+                ThreadName = $"{modeLower}-outbox",
+                StartThreads = mode == TransportLayerMode.Client ? 1 : processorThreads
+            });
+            InboxProcessor = new ActionProcessor<Guid>(new ActionProcessor<Guid>.Config
+            {
+                ThreadName = $"{modeLower}-inbox",
+                StartThreads = mode == TransportLayerMode.Client ? 1 : processorThreads
+            });
+
+            TransportLayer.Connected += (sender, args) =>
+            {
+                // Convert the TransportLayerSession into a MqSession
+                var session = MqSession<TSession, TConfig>.Create(args.Session, Config, this);
+                session.Closed += (s, a) => Closed?.Invoke(s, a);
+                args.Session.ImplementedSession = session;
+
+                // Invoke the outer connecting event.
+                Connected?.Invoke(this, new SessionEventArgs<TSession, TConfig>(session));
+            };
+
+            TransportLayer.Closed += (sender, args) =>
+            {
+
+                OutboxProcessor.Stop();
+                InboxProcessor.Stop();
+
+                Closed?.Invoke(this,
+                    new SessionCloseEventArgs<TSession, TConfig>((TSession) args.Session.ImplementedSession, args.Reason));
+            };
 
             OutboxProcessor.Start();
             InboxProcessor.Start();
-
-
-        }
-
-
-        /// <summary>
-        /// Called by the timer to verify that the session is still connected.  If it has timed out, close it.
-        /// </summary>
-        /// <param name="state">Concurrent dictionary of the sessions.</param>
-        protected virtual void TimeoutCallback(object state)
-        {
-            var timoutInt = Config.PingTimeout;
-            var timeoutTime = DateTime.UtcNow.Subtract(new TimeSpan(0, 0, 0, 0, timoutInt));
-
-            foreach (var session in ConnectedSessions.Values)
-            {
-                if (session.LastReceived < timeoutTime)
-                {
-                    session.Close(SessionCloseReason.TimeOut);
-                }
-            }
-        }
-
-
-        /// <summary>
-        /// Method called when a session connects.
-        /// </summary>
-        /// <param name="session">Session that connected.</param>
-        protected virtual void OnConnect(TSession session)
-        {
-            // Start the timeout timer if it is not already running.
-            if (TimeoutTimerRunning == false)
-            {
-                TimeoutTimer.Change(0, Config.PingTimeout);
-                TimeoutTimerRunning = true;
-            }
-
-            Connected?.Invoke(this, new SessionEventArgs<TSession, TConfig>(session));
-        }
-
-
-        /// <summary>
-        /// Method called when a session closes.
-        /// </summary>
-        /// <param name="session">Session that closed.</param>
-        /// <param name="reason">Reason for the closing of the session.</param>
-        protected virtual void OnClose(TSession session, SessionCloseReason reason)
-        {
-            // If there are no clients connected, stop the timer.
-            if (ConnectedSessions.IsEmpty)
-            {
-                TimeoutTimer.Change(Timeout.Infinite, Timeout.Infinite);
-                TimeoutTimerRunning = false;
-            }
-
-            Closed?.Invoke(this, new SessionClosedEventArgs<TSession, TConfig>(session, reason));
-        }
-
-        /// <summary>
-        /// Method called when new sessions are created.  Override to change behavior.
-        /// </summary>
-        /// <returns>New session instance.</returns>
-        protected virtual TSession CreateSession(ITransportLayerSession transportSession)
-        {
-            var session = MqSession<TSession, TConfig>.Create(transportSession,
-                Config, 
-                this);
-
-            SessionSetup?.Invoke(this, new SessionEventArgs<TSession, TConfig>(session));
-            session.Closed += (sender, args) => OnClose(session, args.CloseReason);
-
-            return session;
         }
 
         public IEnumerator<KeyValuePair<Guid, TSession>> GetSessionsEnumerator()

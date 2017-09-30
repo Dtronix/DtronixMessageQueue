@@ -1,17 +1,19 @@
 ﻿using System;
-using DtronixMessageQueue.TransportLayer;
 
-namespace DtronixMessageQueue.Socket
+namespace DtronixMessageQueue
 {
     /// <summary>
     /// Event args used when a session is closed.
     /// </summary>
     /// <typeparam name="TSession">Session type for this connection.</typeparam>
     /// <typeparam name="TConfig">Configuration for this connection.</typeparam>
-    public class SessionClosedEventArgs<TSession, TConfig> : EventArgs
+    public class SessionCloseEventArgs<TSession, TConfig> : EventArgs
         where TSession : MqSession<TSession, TConfig>, new()
         where TConfig : MqConfig
     {
+        private TSession implementedSession;
+        private SessionCloseReason reason;
+
         /// <summary>
         /// Closed session.
         /// </summary>
@@ -27,10 +29,9 @@ namespace DtronixMessageQueue.Socket
         /// </summary>
         /// <param name="session">Closed session.</param>
         /// <param name="closeReason">Reason the session was closed.</param>
-        public SessionClosedEventArgs(TSession session, SessionCloseReason closeReason)
+        public SessionCloseEventArgs(TSession session, SessionCloseReason closeReason)
         {
             Session = session;
             CloseReason = closeReason;
-        }
     }
 }

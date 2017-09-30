@@ -16,7 +16,7 @@ namespace DtronixMessageQueue.Tests.Performance
         {
             var config = new RpcConfig
             {
-                Ip = "127.0.0.1",
+                ConnectAddress = "127.0.0.1",
                 Port = 2828
             };
 

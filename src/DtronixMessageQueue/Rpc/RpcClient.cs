@@ -1,6 +1,5 @@
 ﻿using System;
 using DtronixMessageQueue.Rpc.DataContract;
-using DtronixMessageQueue.Socket;
 
 namespace DtronixMessageQueue.Rpc
 {
@@ -28,13 +27,18 @@ namespace DtronixMessageQueue.Rpc
         /// </summary>
         public event EventHandler<SessionEventArgs<TSession, TConfig>> Ready;
 
+
+        public ServiceMethodCache ServiceMethodCache { get; set; }
+
         /// <summary>
         /// Initializes a new instance of a Rpc client.
         /// </summary>
         /// <param name="config">Configurations for this client to use.</param>
         public RpcClient(TConfig config) : base(config)
         {
+            ServiceMethodCache = new ServiceMethodCache();
         }
+
 
         protected override TSession CreateSession(System.Net.Sockets.Socket sessionSocket)
         {

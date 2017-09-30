@@ -9,7 +9,7 @@ namespace DtronixMessageQueue
     /// <typeparam name="TSession">Session type for this connection.</typeparam>
     /// <typeparam name="TConfig">Configuration for this connection.</typeparam>
     public class IncomingMessageEventArgs<TSession, TConfig> : EventArgs
-        where TSession : MqSession<TSession, TConfig>, new()
+        where TSession : MqSession<TSession, TConfig>
         where TConfig : MqConfig
     {
         /// <summary>

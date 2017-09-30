@@ -32,7 +32,7 @@ namespace DtronixMessageQueue.Tests.Rpc
 
             Config = new RpcConfig
             {
-                Ip = "127.0.0.1",
+                ConnectAddress = "127.0.0.1",
                 Port = Port
             };
 

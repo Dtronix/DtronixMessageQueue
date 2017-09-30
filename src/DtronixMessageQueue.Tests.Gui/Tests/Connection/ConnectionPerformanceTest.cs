@@ -33,7 +33,7 @@ namespace DtronixMessageQueue.Tests.Gui.Tests.Connection
             {
                 _testServer = new MqServer<ConnectionPerformanceTestSession, MqConfig>(new MqConfig
                 {
-                    Ip = "0.0.0.0",
+                    ConnectAddress = "0.0.0.0",
                     Port = 2121,
                     PingTimeout = 1000,
                     MaxConnections = 2000
@@ -66,7 +66,7 @@ namespace DtronixMessageQueue.Tests.Gui.Tests.Connection
                 {
                     var client = new MqClient<ConnectionPerformanceTestSession, MqConfig>(new MqConfig
                     {
-                        Ip = TestController.ControllClient.Config.Ip,
+                        ConnectAddress = TestController.ControllClient.Config.ConnectAddress,
                         Port = 2121,
                         PingFrequency = 500
                     });

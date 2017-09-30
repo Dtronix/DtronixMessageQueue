@@ -32,8 +32,7 @@ namespace DtronixMessageQueue.Tests.Performance
 
             _config = new MqConfig
             {
-                Ip = "127.0.0.1",
-                Port = 2828
+                ConnectAddress = "127.0.0.1:2828"
             };
 
             _smallMessage = new MqMessage

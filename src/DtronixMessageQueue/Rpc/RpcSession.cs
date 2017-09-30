@@ -4,7 +4,6 @@ using System.Threading;
 using System.Threading.Tasks;
 using DtronixMessageQueue.Rpc.DataContract;
 using DtronixMessageQueue.Rpc.MessageHandlers;
-using DtronixMessageQueue.Socket;
 using DtronixMessageQueue.TransportLayer;
 
 namespace DtronixMessageQueue.Rpc

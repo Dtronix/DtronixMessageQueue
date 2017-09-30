@@ -195,7 +195,7 @@ namespace DtronixMessageQueue.Tests.Mq
         {
             var clientConfig = new MqConfig
             {
-                Ip = Config.Ip,
+                ConnectAddress = Config.ConnectAddress,
                 Port = Config.Port,
                 PingFrequency = 60000
             };
@@ -232,7 +232,7 @@ namespace DtronixMessageQueue.Tests.Mq
         {
             var clientConfig = new MqConfig
             {
-                Ip = Config.Ip,
+                ConnectAddress = Config.ConnectAddress,
                 Port = Config.Port,
                 PingFrequency = 100
             };

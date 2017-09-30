@@ -1,5 +1,4 @@
 ﻿using System.Collections.Generic;
-using DtronixMessageQueue.Socket;
 using DtronixMessageQueue.TransportLayer;
 
 namespace DtronixMessageQueue.Rpc

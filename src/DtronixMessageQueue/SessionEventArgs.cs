@@ -1,7 +1,6 @@
 ﻿using System;
-using DtronixMessageQueue.TransportLayer;
 
-namespace DtronixMessageQueue.Socket
+namespace DtronixMessageQueue
 {
     /// <summary>
     /// Event args used when the session has connected to a remote endpoint.

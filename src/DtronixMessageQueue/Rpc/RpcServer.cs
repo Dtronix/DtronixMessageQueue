@@ -1,6 +1,5 @@
 ﻿using System;
 using DtronixMessageQueue.Rpc.DataContract;
-using DtronixMessageQueue.Socket;
 using DtronixMessageQueue.TransportLayer;
 
 namespace DtronixMessageQueue.Rpc
@@ -29,13 +28,17 @@ namespace DtronixMessageQueue.Rpc
         /// </summary>
         public event EventHandler<SessionEventArgs<TSession, TConfig>> Ready;
 
+        public ServiceMethodCache ServiceMethodCache { get; set; }
+
         /// <summary>
         /// Creates a new instance of the server with the specified configurations.
         /// </summary>
         /// <param name="config">Configurations for this server.</param>
         public RpcServer(TConfig config) : this(config, new RpcServerInfoDataContract())
         {
+            ServiceMethodCache = new ServiceMethodCache();
         }
+
 
         /// <summary>
         /// Creates a new instance of the server with the specified configurations.

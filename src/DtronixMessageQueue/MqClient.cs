@@ -1,6 +1,5 @@
 ﻿using System;
 using System.Threading;
-using DtronixMessageQueue.Socket;
 using DtronixMessageQueue.TransportLayer;
 
 
@@ -11,7 +10,7 @@ namespace DtronixMessageQueue
     /// </summary>
     /// <typeparam name="TSession">Session type for this connection.</typeparam>
     /// <typeparam name="TConfig">Configuration for this connection.</typeparam>
-    public class MqClient<TSession, TConfig> : SocketClient<TSession, TConfig>
+    public class MqClient<TSession, TConfig> : SessionHandler<TSession, TConfig>
         where TSession : MqSession<TSession, TConfig>, new()
         where TConfig : MqConfig
     {
@@ -21,75 +20,41 @@ namespace DtronixMessageQueue
         public event EventHandler<IncomingMessageEventArgs<TSession, TConfig>> IncomingMessage;
 
         /// <summary>
-        /// Timer used to ping the server and verify that the sessions are still connected.
+        /// Session for this client.
         /// </summary>
-        private readonly Timer _pingTimer;
+        public TSession Session { get; private set; }
+
+
+        private Timer _pingTimer;
 
         /// <summary>
         /// Initializes a new instance of a message queue.
         /// </summary>
-        public MqClient(TConfig config) : base(config)
+        public MqClient(TConfig config) : base(config, TransportLayerMode.Client)
         {
-            // Override the default connection limit and read/write workers.
-            config.MaxConnections = 1;
-            _pingTimer = new Timer(PingCallback);
-            Setup();
-        }
-
-        protected override void OnConnect(TSession session)
-        {
-            // Start the timeout timer.
-            var pingFrequency = Config.PingFrequency;
-
-            if (pingFrequency > 0)
+            _pingTimer = new Timer(o =>
             {
-                _pingTimer.Change(pingFrequency / 2, pingFrequency);
-            }
+                Session.Send(Session.CreateFrame(null, MqFrameType.Ping));
+            });
 
-            if (TimeoutTimerRunning == false)
+            Connected += (sender, args) =>
             {
-                TimeoutTimer.Change(0, Config.PingTimeout);
-                TimeoutTimerRunning = true;
-            }
+                var pingFrequency = Config.PingFrequency;
 
-            base.OnConnect(session);
+                if (pingFrequency > 0)
+                {
+                    _pingTimer.Change(pingFrequency / 2, pingFrequency);
+                }
+
+                args.Session.IncomingMessage += (o, eventArgs) => IncomingMessage?.Invoke(sender, eventArgs);
+            };
+
+            Closed += (sender, args) =>
+            {
+                _pingTimer.Change(Timeout.Infinite, Timeout.Infinite);
+            };
         }
 
-        protected override void OnClose(TSession session, SessionCloseReason reason)
-        {
-            // Stop the timeout timer.
-            _pingTimer.Change(Timeout.Infinite, Timeout.Infinite);
-
-            base.OnClose(session, reason);
-        }
-
-
-        /// <summary>
-        /// Called by the ping timer to send a ping packet to the server.
-        /// </summary>
-        /// <param name="state">Concurrent dictionary of the sessions.</param>
-        private void PingCallback(object state)
-        {
-            Session.Send(Session.CreateFrame(null, MqFrameType.Ping));
-        }
-
-        /// <summary>
-        /// Event method invoker
-        /// </summary>
-        /// <param name="sender">The source of the event.</param>
-        /// <param name="e">The event object containing the mailbox to retrieve the message from.</param>
-        private void OnIncomingMessage(object sender, IncomingMessageEventArgs<TSession, TConfig> e)
-        {
-            IncomingMessage?.Invoke(sender, e);
-        }
-
-        protected override TSession CreateSession(System.Net.Sockets.Socket sessionSocket)
-        {
-            var session = base.CreateSession(sessionSocket);
-            session.IncomingMessage += OnIncomingMessage;
-
-            return session;
-        }
 
         /// <summary>
         /// Adds a frame to the outbox to be processed.
@@ -119,7 +84,6 @@ namespace DtronixMessageQueue
             }
             Session.IncomingMessage -= OnIncomingMessage;
             Session.Close(SessionCloseReason.ClientClosing);
-            Session.Dispose();
         }
 
         /// <summary>
@@ -128,7 +92,28 @@ namespace DtronixMessageQueue
         public void Dispose()
         {
             _pingTimer.Dispose();
-            Session.Dispose();
+            Session.Close(SessionCloseReason.ClientClosing);
+        }
+
+
+
+        /// <summary>
+        /// Connects to the configured endpoint.
+        /// </summary>
+        public void Connect()
+        {
+            TransportLayer.Connect();
+        }
+
+        /// <summary>
+        /// Cancellation token to cancel the timeout event for connections.
+        /// </summary>
+        private CancellationTokenSource _connectionTimeoutCancellation;
+
+
+        protected void Close(SessionCloseReason reason)
+        {
+            TransportLayer.Close(reason);
         }
     }
 }

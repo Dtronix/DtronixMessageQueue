@@ -1,4 +1,6 @@
-﻿namespace DtronixMessageQueue.TransportLayer
+﻿using DtronixMessageQueue.TransportLayer.Tcp;
+
+namespace DtronixMessageQueue.TransportLayer
 {
     /// <summary>
     /// Configurations for the server/client.
@@ -34,12 +36,7 @@
         /// <summary>
         /// IP address to bind or connect to.
         /// </summary>
-        public string Ip { get; set; }
-
-        /// <summary>
-        /// Port to bind or connect to.
-        /// </summary>
-        public int Port { get; set; }
+        public string ConnectAddress { get; set; }
 
         /// <summary>
         /// (Server)
@@ -54,5 +51,12 @@
         /// 0 disables the automatic disconnection functionality.
         /// </summary>
         public int PingTimeout { get; set; } = 60000;
+
+        /// <summary>
+        /// The default transport layer to use.  If left null, Tcp will the be default layer.
+        /// </summary>
+        public ITransportLayer TransportLayer { get; set; }
+
+
     }
 }
