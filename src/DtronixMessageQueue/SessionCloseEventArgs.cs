@@ -33,5 +33,6 @@ namespace DtronixMessageQueue
         {
             Session = session;
             CloseReason = closeReason;
+        }
     }
 }

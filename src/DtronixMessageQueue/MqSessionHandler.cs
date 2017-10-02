@@ -12,7 +12,7 @@ namespace DtronixMessageQueue
     /// </summary>
     /// <typeparam name="TSession">Session type for this connection.</typeparam>
     /// <typeparam name="TConfig">Configuration for this connection.</typeparam>
-    public abstract class SessionHandler<TSession, TConfig>
+    public abstract class MqSessionHandler<TSession, TConfig>
         where TSession : MqSession<TSession, TConfig>, new()
         where TConfig : MqConfig
     {
@@ -33,6 +33,11 @@ namespace DtronixMessageQueue
         /// This event fires when a connection has been closed.
         /// </summary>
         public event EventHandler<SessionCloseEventArgs<TSession, TConfig>> Closed;
+
+        /// <summary>
+        /// Event fired when a new message arrives at the mailbox.
+        /// </summary>
+        public event EventHandler<IncomingMessageEventArgs<TSession, TConfig>> IncomingMessage;
 
         /// <summary>
         /// Configurations of this socket.
@@ -60,7 +65,7 @@ namespace DtronixMessageQueue
         /// </summary>
         /// <param name="config">Configurations for this socket.</param>
         /// <param name="mode">Mode this session handler is to </param>
-        protected SessionHandler(TConfig config, TransportLayerMode mode)
+        protected MqSessionHandler(TConfig config, TransportLayerMode mode)
         {
             // Determine the type of transport layer to use.
             // If the transport layer is not defined, use the default Tcp layer.
@@ -95,6 +100,8 @@ namespace DtronixMessageQueue
                 session.Closed += (s, a) => Closed?.Invoke(s, a);
                 args.Session.ImplementedSession = session;
 
+                session.IncomingMessage += (s, a) => IncomingMessage?.Invoke(this, a);
+
                 // Invoke the outer connecting event.
                 Connected?.Invoke(this, new SessionEventArgs<TSession, TConfig>(session));
             };
@@ -108,6 +115,8 @@ namespace DtronixMessageQueue
                 Closed?.Invoke(this,
                     new SessionCloseEventArgs<TSession, TConfig>((TSession) args.Session.ImplementedSession, args.Reason));
             };
+
+
 
             OutboxProcessor.Start();
             InboxProcessor.Start();

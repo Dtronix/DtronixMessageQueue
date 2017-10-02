@@ -66,7 +66,7 @@ namespace DtronixMessageQueue
         /// <summary>
         /// Base socket for this session.
         /// </summary>
-        public SessionHandler<TSession, TConfig> SessionHandler { get; private set; }
+        public MqSessionHandler<TSession, TConfig> SessionHandler { get; private set; }
 
         /// <summary>
         /// Event fired when a new message has been processed by the Postmaster and ready to be read.
@@ -95,7 +95,7 @@ namespace DtronixMessageQueue
         public static TSession Create(
             ITransportLayerSession transportSession,
             TConfig sessionConfig,
-            SessionHandler<TSession, TConfig> sessionHandler)
+            MqSessionHandler<TSession, TConfig> sessionHandler)
         {
             var session = new TSession
             {

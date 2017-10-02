@@ -2,6 +2,7 @@
 using System.Collections.Concurrent;
 using System.Net;
 using System.Net.Sockets;
+using System.Threading;
 using System.Threading.Tasks;
 
 namespace DtronixMessageQueue.TransportLayer.Tcp
@@ -28,6 +29,8 @@ namespace DtronixMessageQueue.TransportLayer.Tcp
 
         public ConcurrentDictionary<Guid, ITransportLayerSession> ConnectedSessions { get; private set; }
 
+        public ITransportLayerSession ClientSession { get; private set; }
+
         /// <summary>
         /// Used to prevent more connections connecting to the server than allowed.
         /// </summary>
@@ -44,6 +47,8 @@ namespace DtronixMessageQueue.TransportLayer.Tcp
         protected System.Net.Sockets.Socket MainSocket;
 
         private SocketAsyncEventArgs listenEventArgs;
+
+        private CancellationTokenSource _connectionTimeoutCancellation;
 
         /// <summary>
         /// Pool of async args for sessions to use.
@@ -71,7 +76,7 @@ namespace DtronixMessageQueue.TransportLayer.Tcp
         public void Start()
         {
             if(Mode != TransportLayerMode.Server)
-                throw new InvalidOperationException("Transport layer is running in client mode.  Start is a server mode method.");
+                throw new InvalidOperationException("Transport layer is running in client mode.");
 
             // Reset the remaining connections.
             _remainingConnections = Config.MaxConnections;
@@ -93,185 +98,6 @@ namespace DtronixMessageQueue.TransportLayer.Tcp
             Started?.Invoke(this, new TransportLayerEventArgs(this));
         }
 
-        /// <summary>
-        /// Begins an operation to accept a connection request from the client 
-        /// </summary>
-        public void AcceptSession()
-        {
-            if (listenEventArgs == null)
-            {
-                IsListening = true;
-                listenEventArgs = new SocketAsyncEventArgs();
-                listenEventArgs.Completed += (sender, completedE) => AcceptCompleted(completedE);
-            }
-            else
-            {
-                // socket must be cleared since the context object is being reused
-                listenEventArgs.AcceptSocket = null;
-            }
-
-
-            try
-            {
-                if (MainSocket.AcceptAsync(listenEventArgs) == false)
-                {
-                    AcceptCompleted(listenEventArgs);
-                }
-            }
-            catch (ObjectDisposedException)
-            {
-                // ignored
-            }
-        }
-
-        public void Connect()
-        {
-            if (MainSocket != null && Session?.CurrentState != DtronixMessageQueue.MqSession<TSession, TConfig>.State.Closed)
-            {
-                throw new InvalidOperationException("Client is in the process of connecting.");
-            }
-
-            MainSocket = new System.Net.Sockets.Socket(endPoint.AddressFamily, SocketType.Stream, ProtocolType.Tcp)
-            {
-                NoDelay = true
-            };
-
-            // Set to true if the client connection either timed out or was canceled.
-            bool timedOut = false;
-
-            _connectionTimeoutCancellation?.Cancel();
-
-            _connectionTimeoutCancellation = new CancellationTokenSource();
-
-
-
-
-            var eventArg = new SocketAsyncEventArgs
-            {
-                RemoteEndPoint = endPoint
-            };
-
-            eventArg.Completed += (sender, args) =>
-            {
-                if (timedOut)
-                {
-                    return;
-                }
-                if (args.LastOperation == SocketAsyncOperation.Connect)
-                {
-                    // Stop the timeout timer.
-                    _connectionTimeoutCancellation.Cancel();
-
-                    Session = CreateSession(MainSocket);
-                    OnConnect(Session);
-
-                    ConnectedSessions.TryAdd(Session.Id, Session);
-
-                    ((ISocketSession)Session).Start();
-                }
-            };
-
-            MainSocket.ConnectAsync(eventArg);
-
-            Task.Run(async () =>
-            {
-                try
-                {
-                    await Task.Delay(Config.ConnectionTimeout, _connectionTimeoutCancellation.Token);
-                }
-                catch
-                {
-                    return;
-                }
-
-                timedOut = true;
-                OnClose(null, SessionCloseReason.TimeOut);
-                MainSocket.Close();
-            }, _connectionTimeoutCancellation.Token);
-        }
-
-        public void Close(SessionCloseReason reason)
-        {
-            MainSocket.Close();
-
-            TSession sessOut;
-
-            // If the session is null, the connection timed out while trying to connect.
-            if (session != null)
-            {
-                ConnectedSessions.TryRemove(Session.Id, out sessOut);
-            }
-
-            base.OnClose(session, reason);
-        }
-
-        /// <summary>
-        /// Called by the socket when a new connection has been accepted.
-        /// </summary>
-        /// <param name="e">Event args for this event.</param>
-        private void AcceptCompleted(SocketAsyncEventArgs e)
-        {
-            if (MainSocket.IsBound == false)
-            {
-                return;
-            }
-
-            bool maxSessions = false;
-
-            // Check if we are maxed out on concurrent connections.
-            // If so, stop listening for new connections until we can accept a new connection
-            lock (_connectionLock)
-            {
-
-                if (_remainingConnections == 0)
-                {
-                    maxSessions = true;
-                }
-                else
-                {
-                    _remainingConnections--;
-                }
-            }
-
-            e.AcceptSocket.NoDelay = true;
-
-            var session = new TcpTransportLayerSession(this, e.AcceptSocket);
-
-            // Add the connection and closing events.
-            session.Closing += SessionOnClosing;
-            session.Closed += SessionOnClosed;
-
-            // If we are at max sessions, close the new connection with a connection refused reason.
-            if (maxSessions)
-            {
-                session.Close(SessionCloseReason.ConnectionRefused);
-                return;
-            }
-
-            // Add this session to the list of connected sessions.
-            ConnectedSessions.TryAdd(session.Id, session);
-
-            // Start to receive data on this session.
-            session.Receive();
-
-            // Fire off the connected events.
-            Connected?.Invoke(this, new TransportLayerSessionEventArgs(session));
-
-        }
-
-
-
-        private void SessionOnClosed(object sender, TransportLayerSessionCloseEventArgs e)
-        {
-            // Remove all the events.
-            e.Session.Closing -= SessionOnClosing;
-            e.Session.Closed -= SessionOnClosed;
-        }
-
-        private void SessionOnClosing(object sender, TransportLayerSessionCloseEventArgs e)
-        {
-            Closing?.Invoke(sender, e);
-        }
 
         /// <summary>
         /// Terminates this server and notify all connected clients.
@@ -315,6 +141,189 @@ namespace DtronixMessageQueue.TransportLayer.Tcp
 
             // Invoke the stopped event.
             Stopped?.Invoke(this, new TransportLayerStopEventArgs(this, SessionCloseReason.ServerClosing));
+        }
+
+        /// <summary>
+        /// Begins an operation to accept a connection request from the client 
+        /// </summary>
+        public void AcceptSession()
+        {
+            if (listenEventArgs == null)
+            {
+                IsListening = true;
+                listenEventArgs = new SocketAsyncEventArgs();
+                listenEventArgs.Completed += (sender, completedE) => AcceptCompleted(completedE);
+            }
+            else
+            {
+                // socket must be cleared since the context object is being reused
+                listenEventArgs.AcceptSocket = null;
+            }
+
+
+            try
+            {
+                if (MainSocket.AcceptAsync(listenEventArgs) == false)
+                {
+                    AcceptCompleted(listenEventArgs);
+                }
+            }
+            catch (ObjectDisposedException)
+            {
+                // ignored
+            }
+        }
+
+
+        public void Connect()
+        {
+            if (Mode != TransportLayerMode.Client)
+                throw new InvalidOperationException("Transport layer is running in server mode.");
+
+
+            if (MainSocket != null && State != TransportLayerState.Closed)
+                throw new InvalidOperationException("Client is in the process of connecting.");
+
+            var endPoint = Utilities.CreateIPEndPoint(Config.ConnectAddress);
+
+            MainSocket = new System.Net.Sockets.Socket(endPoint.AddressFamily, SocketType.Stream, ProtocolType.Tcp)
+            {
+                NoDelay = true
+            };
+
+            // Set to true if the client connection either timed out or was canceled.
+            bool timedOut = false;
+
+            _connectionTimeoutCancellation?.Cancel();
+
+            _connectionTimeoutCancellation = new CancellationTokenSource();
+
+            var eventArg = new SocketAsyncEventArgs
+            {
+                RemoteEndPoint = endPoint
+            };
+
+            eventArg.Completed += (sender, args) =>
+            {
+                if (timedOut)
+                {
+                    return;
+                }
+                if (args.LastOperation == SocketAsyncOperation.Connect)
+                {
+                    ClientSession = CreateSession(MainSocket);
+                }
+            };
+
+            MainSocket.ConnectAsync(eventArg);
+
+            Task.Run(async () =>
+            {
+                try
+                {
+                    await Task.Delay(Config.ConnectionTimeout, _connectionTimeoutCancellation.Token);
+                }
+                catch
+                {
+                    return;
+                }
+
+                timedOut = true;
+                Close(SessionCloseReason.TimeOut);
+
+                MainSocket.Close();
+
+            }, _connectionTimeoutCancellation.Token);
+        }
+
+        public void Close(SessionCloseReason reason)
+        {
+            MainSocket.Close();
+
+            ITransportLayerSession sessOut;
+
+            // If the session is null, the connection timed out while trying to connect.
+            if (ClientSession != null)
+            {
+                ConnectedSessions.TryRemove(ClientSession.Id, out sessOut);
+            }
+
+            ClientSession?.Close(reason);
+        }
+
+        /// <summary>
+        /// Called by the socket when a new connection has been accepted.
+        /// </summary>
+        /// <param name="e">Event args for this event.</param>
+        private void AcceptCompleted(SocketAsyncEventArgs e)
+        {
+            if (MainSocket.IsBound == false)
+            {
+                return;
+            }
+
+            CreateSession(e.AcceptSocket);
+        }
+
+        private ITransportLayerSession CreateSession(Socket socket)
+        {
+
+            bool maxSessions = false;
+
+            // Check if we are maxed out on concurrent connections.
+            // If so, stop listening for new connections until we can accept a new connection
+            lock (_connectionLock)
+            {
+
+                if (_remainingConnections == 0)
+                {
+                    maxSessions = true;
+                }
+                else
+                {
+                    _remainingConnections--;
+                }
+            }
+
+            socket.NoDelay = true;
+
+            var session = new TcpTransportLayerSession(this, socket);
+
+            // Add the connection and closing events.
+            session.Closing += SessionOnClosing;
+            session.Closed += SessionOnClosed;
+
+            // If we are at max sessions, close the new connection with a connection refused reason.
+            if (maxSessions)
+            {
+                session.Close(SessionCloseReason.ConnectionRefused);
+                return null;
+            }
+
+            // Add this session to the list of connected sessions.
+            ConnectedSessions.TryAdd(session.Id, session);
+
+            // Start to receive data on this session.
+            session.Receive();
+
+            // Fire off the connected events.
+            Connected?.Invoke(this, new TransportLayerSessionEventArgs(session));
+
+            return session;
+        }
+
+
+
+        private void SessionOnClosed(object sender, TransportLayerSessionCloseEventArgs e)
+        {
+            // Remove all the events.
+            e.Session.Closing -= SessionOnClosing;
+            e.Session.Closed -= SessionOnClosed;
+        }
+
+        private void SessionOnClosing(object sender, TransportLayerSessionCloseEventArgs e)
+        {
+            Closing?.Invoke(sender, e);
         }
 
     }

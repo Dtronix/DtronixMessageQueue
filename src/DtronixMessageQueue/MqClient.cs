@@ -10,15 +10,10 @@ namespace DtronixMessageQueue
     /// </summary>
     /// <typeparam name="TSession">Session type for this connection.</typeparam>
     /// <typeparam name="TConfig">Configuration for this connection.</typeparam>
-    public class MqClient<TSession, TConfig> : SessionHandler<TSession, TConfig>
+    public class MqClient<TSession, TConfig> : MqSessionHandler<TSession, TConfig>
         where TSession : MqSession<TSession, TConfig>, new()
         where TConfig : MqConfig
     {
-        /// <summary>
-        /// Event fired when a new message arrives at the mailbox.
-        /// </summary>
-        public event EventHandler<IncomingMessageEventArgs<TSession, TConfig>> IncomingMessage;
-
         /// <summary>
         /// Session for this client.
         /// </summary>
@@ -45,8 +40,6 @@ namespace DtronixMessageQueue
                 {
                     _pingTimer.Change(pingFrequency / 2, pingFrequency);
                 }
-
-                args.Session.IncomingMessage += (o, eventArgs) => IncomingMessage?.Invoke(sender, eventArgs);
             };
 
             Closed += (sender, args) =>
@@ -78,12 +71,7 @@ namespace DtronixMessageQueue
 
         public void Close()
         {
-            if (Session == null)
-            {
-                return;
-            }
-            Session.IncomingMessage -= OnIncomingMessage;
-            Session.Close(SessionCloseReason.ClientClosing);
+            Session?.Close(SessionCloseReason.ClientClosing);
         }
 
         /// <summary>
@@ -104,11 +92,6 @@ namespace DtronixMessageQueue
         {
             TransportLayer.Connect();
         }
-
-        /// <summary>
-        /// Cancellation token to cancel the timeout event for connections.
-        /// </summary>
-        private CancellationTokenSource _connectionTimeoutCancellation;
 
 
         protected void Close(SessionCloseReason reason)

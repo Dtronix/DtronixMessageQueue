@@ -34,13 +34,13 @@ namespace DtronixMessageQueue.Rpc
 
         /// <summary>
         /// Server base socket for this session.
-        /// Null if the SessionHandler is not running in server mode.
+        /// Null if the MqSessionHandler is not running in server mode.
         /// </summary>
         public RpcServer<TSession, TConfig> Server { get; private set; }
 
         /// <summary>
         /// Client base socket for this session.
-        /// Null if the SessionHandler is not running in client mode.
+        /// Null if the MqSessionHandler is not running in client mode.
         /// </summary>
         public RpcClient<TSession, TConfig> Client { get; private set; }
 

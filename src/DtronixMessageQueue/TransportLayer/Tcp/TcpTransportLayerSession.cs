@@ -18,6 +18,7 @@ namespace DtronixMessageQueue.TransportLayer.Tcp
         public object ImplementedSession { get; set; }
 
         public TransportLayerState State { get; private set; }
+
         public event EventHandler<TransportLayerSessionCloseEventArgs> Closing;
         public event EventHandler<TransportLayerSessionCloseEventArgs> Closed;
         public event EventHandler<byte[]> Received;
