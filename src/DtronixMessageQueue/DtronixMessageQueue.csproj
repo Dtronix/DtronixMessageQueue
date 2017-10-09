@@ -109,7 +109,7 @@
     <CodeAnalysisRuleSet>MinimumRecommendedRules.ruleset</CodeAnalysisRuleSet>
     <PostBuildEvent>
 	 del $(TargetDir)\*.nupkg
-     $(SolutionDir)packages\NuGet.CommandLine.3.4.3\tools\nuget.exe pack $(SolutionDir)DtronixMessageQueue\DtronixMessageQueue.csproj -Symbols -Prop Configuration=Nuget -Verbosity Detailed
+     $(SolutionDir)packages\NuGet.CommandLine.4.1.0\tools\nuget.exe pack $(SolutionDir)DtronixMessageQueue\DtronixMessageQueue.csproj -Symbols -Prop Configuration=Nuget -Verbosity Detailed
      copy  "$(SolutionDir)..\tools\NugetPush.bat" "$(TargetDir)NugetPush.bat"
   </PostBuildEvent>
   </PropertyGroup>
