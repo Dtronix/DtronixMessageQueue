@@ -16,6 +16,14 @@ namespace DtronixMessageQueue.TransportLayer
         /// </summary>
         Unknown,
 
+        Starting,
+
+        Started,
+
+        Stopping,
+
+        Stopped,
+
         /// <summary>
         /// Session is attempting to connect to remote connection.
         /// </summary>

@@ -2,6 +2,7 @@
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
+using System.Threading;
 using System.Threading.Tasks;
 
 namespace DtronixMessageQueue.TransportLayer
@@ -9,6 +10,7 @@ namespace DtronixMessageQueue.TransportLayer
     public interface ITransportLayerSession
     {
         Guid Id { get; }
+
         TransportLayerState State { get; }
 
         /// <summary>
@@ -26,14 +28,14 @@ namespace DtronixMessageQueue.TransportLayer
         /// </summary>
         object ImplementedSession { get; set; }
 
-        event EventHandler<TransportLayerSessionCloseEventArgs> Closing;
-        event EventHandler<TransportLayerSessionCloseEventArgs> Closed;
+        event EventHandler<TransportLayerStateChangedEventArgs> StateChanged;
+
+        event EventHandler<TransportLayerReceiveAsyncEventArgs> Received;
 
         void Send(byte[] buffer, int start, int count);
 
-        void Receive();
+        void ReceiveAsync();
 
         void Close(SessionCloseReason reason);
-        event EventHandler<byte[]> Received;
     }
 }

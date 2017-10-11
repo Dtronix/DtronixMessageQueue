@@ -13,15 +13,7 @@ namespace DtronixMessageQueue.TransportLayer.Tcp
         public TransportLayerMode Mode { get; }
         public TransportLayerState State { get; private set; }
 
-        public event EventHandler<TransportLayerEventArgs> Started;
-
-        public event EventHandler<TransportLayerStopEventArgs> Stopping;
-        public event EventHandler<TransportLayerStopEventArgs> Stopped;
-
-        public event EventHandler<TransportLayerSessionEventArgs> Connected;
-
-        public event EventHandler<TransportLayerSessionCloseEventArgs> Closing;
-        public event EventHandler<TransportLayerSessionCloseEventArgs> Closed;
+        public event EventHandler<TransportLayerStateChangedEventArgs> StateChanged;
 
         public TransportLayerConfig Config { get; }
 
@@ -78,6 +70,8 @@ namespace DtronixMessageQueue.TransportLayer.Tcp
             if(Mode != TransportLayerMode.Server)
                 throw new InvalidOperationException("Transport layer is running in client mode.");
 
+            StateChanged?.Invoke(this, new TransportLayerStateChangedEventArgs(this, TransportLayerState.Starting));
+
             // Reset the remaining connections.
             _remainingConnections = Config.MaxConnections;
 
@@ -94,8 +88,7 @@ namespace DtronixMessageQueue.TransportLayer.Tcp
             // start the server with a listen backlog.
             MainSocket.Listen(Config.ListenerBacklog);
 
-            // Invoke the started event.
-            Started?.Invoke(this, new TransportLayerEventArgs(this));
+            StateChanged?.Invoke(this, new TransportLayerStateChangedEventArgs(this, TransportLayerState.Started));
         }
 
 
@@ -113,7 +106,10 @@ namespace DtronixMessageQueue.TransportLayer.Tcp
             State = TransportLayerState.Closing;
             var closeReason = SessionCloseReason.ServerClosing;
 
-            Stopping?.Invoke(this, new TransportLayerStopEventArgs(this, closeReason));
+            StateChanged?.Invoke(this, new TransportLayerStateChangedEventArgs(this, TransportLayerState.Stopping)
+            {
+                Reason = closeReason
+            });
 
             ITransportLayerSession[] sessions = new ITransportLayerSession[ConnectedSessions.Values.Count];
             ConnectedSessions.Values.CopyTo(sessions, 0);
@@ -140,13 +136,16 @@ namespace DtronixMessageQueue.TransportLayer.Tcp
             State = TransportLayerState.Closed;
 
             // Invoke the stopped event.
-            Stopped?.Invoke(this, new TransportLayerStopEventArgs(this, SessionCloseReason.ServerClosing));
+            StateChanged?.Invoke(this, new TransportLayerStateChangedEventArgs(this, TransportLayerState.Stopped)
+            {
+                Reason = closeReason
+            });
         }
 
         /// <summary>
         /// Begins an operation to accept a connection request from the client 
         /// </summary>
-        public void AcceptSession()
+        public void AcceptAsync()
         {
             if (listenEventArgs == null)
             {
@@ -172,6 +171,20 @@ namespace DtronixMessageQueue.TransportLayer.Tcp
             {
                 // ignored
             }
+        }
+
+        /// <summary>
+        /// Called by the socket when a new connection has been accepted.
+        /// </summary>
+        /// <param name="e">Event args for this event.</param>
+        private void AcceptCompleted(SocketAsyncEventArgs e)
+        {
+            if (MainSocket.IsBound == false)
+            {
+                return;
+            }
+
+            CreateSession(e.AcceptSocket);
         }
 
 
@@ -238,6 +251,9 @@ namespace DtronixMessageQueue.TransportLayer.Tcp
 
         public void Close(SessionCloseReason reason)
         {
+            if (Mode != TransportLayerMode.Client)
+                throw new InvalidOperationException("Transport layer is running in server mode.");
+
             MainSocket.Close();
 
             ITransportLayerSession sessOut;
@@ -251,23 +267,9 @@ namespace DtronixMessageQueue.TransportLayer.Tcp
             ClientSession?.Close(reason);
         }
 
-        /// <summary>
-        /// Called by the socket when a new connection has been accepted.
-        /// </summary>
-        /// <param name="e">Event args for this event.</param>
-        private void AcceptCompleted(SocketAsyncEventArgs e)
-        {
-            if (MainSocket.IsBound == false)
-            {
-                return;
-            }
-
-            CreateSession(e.AcceptSocket);
-        }
 
         private ITransportLayerSession CreateSession(Socket socket)
         {
-
             bool maxSessions = false;
 
             // Check if we are maxed out on concurrent connections.
@@ -289,9 +291,11 @@ namespace DtronixMessageQueue.TransportLayer.Tcp
 
             var session = new TcpTransportLayerSession(this, socket);
 
+            StateChanged?.Invoke(this,
+                new TransportLayerStateChangedEventArgs(this, TransportLayerState.Connecting, session));
+
             // Add the connection and closing events.
-            session.Closing += SessionOnClosing;
-            session.Closed += SessionOnClosed;
+            session.StateChanged += SessionStateChanged;
 
             // If we are at max sessions, close the new connection with a connection refused reason.
             if (maxSessions)
@@ -304,27 +308,24 @@ namespace DtronixMessageQueue.TransportLayer.Tcp
             ConnectedSessions.TryAdd(session.Id, session);
 
             // Start to receive data on this session.
-            session.Receive();
+            session.ReceiveAsync();
 
             // Fire off the connected events.
-            Connected?.Invoke(this, new TransportLayerSessionEventArgs(session));
+            StateChanged?.Invoke(this,
+                new TransportLayerStateChangedEventArgs(this, TransportLayerState.Connected, session));
 
             return session;
         }
 
-
-
-        private void SessionOnClosed(object sender, TransportLayerSessionCloseEventArgs e)
+        private void SessionStateChanged(object sender, TransportLayerStateChangedEventArgs e)
         {
-            // Remove all the events.
-            e.Session.Closing -= SessionOnClosing;
-            e.Session.Closed -= SessionOnClosed;
-        }
+            if (e.State == TransportLayerState.Closed)
+            {
+                // Remove all the events.
+                e.Session.StateChanged -= SessionStateChanged;
+            }
 
-        private void SessionOnClosing(object sender, TransportLayerSessionCloseEventArgs e)
-        {
-            Closing?.Invoke(sender, e);
+            StateChanged?.Invoke(this, e);
         }
-
     }
 }

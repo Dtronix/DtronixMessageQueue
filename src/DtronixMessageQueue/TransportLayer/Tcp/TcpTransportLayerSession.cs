@@ -16,12 +16,10 @@ namespace DtronixMessageQueue.TransportLayer.Tcp
 
 
         public object ImplementedSession { get; set; }
+        public event EventHandler<TransportLayerStateChangedEventArgs> StateChanged;
+        public event EventHandler<TransportLayerReceiveAsyncEventArgs> Received;
 
         public TransportLayerState State { get; private set; }
-
-        public event EventHandler<TransportLayerSessionCloseEventArgs> Closing;
-        public event EventHandler<TransportLayerSessionCloseEventArgs> Closed;
-        public event EventHandler<byte[]> Received;
 
         public TcpTransportLayer TransportLayer { get; }
 
@@ -34,6 +32,10 @@ namespace DtronixMessageQueue.TransportLayer.Tcp
         /// Async args used to receive data off the wire.
         /// </summary>
         private SocketAsyncEventArgs _receiveArgs;
+
+        private TransportLayerReceiveAsyncEventArgs _tlReceiveArgs;
+
+        private SemaphoreSlim _writeSemaphore;
 
         //private SemaphoreSlim _writeSemaphore;
 
@@ -72,6 +74,10 @@ namespace DtronixMessageQueue.TransportLayer.Tcp
 
             socket.NoDelay = true;
             socket.SetSocketOption(SocketOptionLevel.Socket, SocketOptionName.DontLinger, true);
+
+            _tlReceiveArgs = new TransportLayerReceiveAsyncEventArgs();
+
+            _writeSemaphore = new SemaphoreSlim(1);
         }
 
 
@@ -104,7 +110,7 @@ namespace DtronixMessageQueue.TransportLayer.Tcp
 
 
         /// <summary>
-        /// Sends raw bytes to the socket.  Blocks until data is sent.
+        /// Sends raw bytes to the socket.  Blocks until data is queued on the TCP stack .
         /// </summary>
         /// <param name="buffer">Buffer bytes to send.</param>
         /// <param name="offset">Offset in the buffer.</param>
@@ -114,7 +120,7 @@ namespace DtronixMessageQueue.TransportLayer.Tcp
             if (Socket == null || Socket.Connected == false)
                 return;
 
-            //_writeSemaphore.Wait(-1);
+            _writeSemaphore.Wait(-1);
 
             // Copy the bytes to the block buffer
             Buffer.BlockCopy(buffer, offset, _sendArgs.Buffer, _sendArgs.Offset, length);
@@ -135,7 +141,8 @@ namespace DtronixMessageQueue.TransportLayer.Tcp
             }
         }
 
-        public void Receive()
+
+        public void ReceiveAsync()
         {
             try
             {
@@ -168,6 +175,7 @@ namespace DtronixMessageQueue.TransportLayer.Tcp
                 State = TransportLayerState.Closing;
                 return;
             }
+
             if (e.BytesTransferred > 0 && e.SocketError == SocketError.Success)
             {
                 // Update the last time this session was active to prevent timeout.
@@ -178,7 +186,9 @@ namespace DtronixMessageQueue.TransportLayer.Tcp
 
                 Buffer.BlockCopy(e.Buffer, e.Offset, buffer, 0, e.BytesTransferred);
 
-                Received?.Invoke(this, buffer);
+                _tlReceiveArgs.Buffer = buffer;
+
+                Received?.Invoke(this, _tlReceiveArgs);
             }
             else
             {
@@ -192,10 +202,13 @@ namespace DtronixMessageQueue.TransportLayer.Tcp
             if (State == TransportLayerState.Closed)
                 return;
 
-            Closing?.Invoke(this, new TransportLayerSessionCloseEventArgs(this, reason));
-
             // Set the state to closing to restrict what can be done.
             State = TransportLayerState.Closing;
+
+            StateChanged?.Invoke(this, new TransportLayerStateChangedEventArgs(TransportLayer, TransportLayerState.Closing, this)
+            {
+                Reason =  reason
+            });
 
             // Prevent any more bytes from being received.
             Received = null;
@@ -224,7 +237,10 @@ namespace DtronixMessageQueue.TransportLayer.Tcp
 
             State = TransportLayerState.Closed;
 
-            Closed?.Invoke(this, new TransportLayerSessionCloseEventArgs(this, reason));
+            StateChanged?.Invoke(this, new TransportLayerStateChangedEventArgs(TransportLayer, TransportLayerState.Closed, this)
+            {
+                Reason = reason
+            });
         }
 
 

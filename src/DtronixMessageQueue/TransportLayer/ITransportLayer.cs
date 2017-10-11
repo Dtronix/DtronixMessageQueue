@@ -9,17 +9,7 @@ namespace DtronixMessageQueue.TransportLayer
 {
     public interface ITransportLayer
     {
-
-        event EventHandler<TransportLayerEventArgs> Started;
-
-        event EventHandler<TransportLayerStopEventArgs> Stopping;
-        event EventHandler<TransportLayerStopEventArgs> Stopped;
-
-        event EventHandler<TransportLayerSessionEventArgs> Connected;
-
-        event EventHandler<TransportLayerSessionCloseEventArgs> Closing;
-        event EventHandler<TransportLayerSessionCloseEventArgs> Closed;
-
+        event EventHandler<TransportLayerStateChangedEventArgs> StateChanged;
 
         TransportLayerConfig Config { get; }
         TransportLayerMode Mode { get; }
@@ -30,7 +20,7 @@ namespace DtronixMessageQueue.TransportLayer
 
         void Stop();
 
-        void AcceptSession();
+        void AcceptAsync();
 
         void Connect();
 

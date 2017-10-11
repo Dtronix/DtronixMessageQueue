@@ -41,7 +41,7 @@ namespace DtronixMessageQueue
         {
             TransportLayer.Start();
 
-            TransportLayer.AcceptSession();
+            TransportLayer.AcceptAsync();
 
             // Invoke the started event.
             Started?.Invoke(this, EventArgs.Empty);

@@ -128,7 +128,7 @@ namespace DtronixMessageQueue
                 // Wait until the next 
                 _receivingSemaphore.Wait();
 
-                TransportSession.Receive();
+                TransportSession.Received();
             };
 
             TransportSession.Closing += (sender, args) =>
