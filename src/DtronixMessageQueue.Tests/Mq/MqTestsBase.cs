@@ -2,6 +2,7 @@
 using System.Net;
 using System.Net.Sockets;
 using System.Threading;
+using DtronixMessageQueue.TransportLayer;
 using Xunit;
 using Xunit.Abstractions;
 
@@ -31,8 +32,7 @@ namespace DtronixMessageQueue.Tests.Mq
 
             Config = new MqConfig
             {
-                ConnectAddress = "127.0.0.1",
-                Port = Port
+                ConnectAddress = $"127.0.0.1:{Port}"
             };
 
             Server = new MqServer<SimpleMqSession, MqConfig>(Config);
@@ -56,11 +56,11 @@ namespace DtronixMessageQueue.Tests.Mq
 
         public void StartAndWait(bool timeoutError = true, int timeoutLength = -1, bool startServer = true, bool startClient = true)
         {
-            if (startServer && Server.IsRunning == false)
+            if (startServer && Server.State != TransportLayerState.Started)
             {
                 Server.Start();
             }
-            if (startClient && Client.IsRunning == false)
+            if (startClient && Client.State != TransportLayerState.Connected)
             {
                 Client.Connect();
             }

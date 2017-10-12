@@ -1,6 +1,5 @@
 ﻿using System;
 using System.Threading;
-using DtronixMessageQueue.Socket;
 using DtronixMessageQueue.TransportLayer;
 using Xunit;
 using Xunit.Abstractions;
@@ -80,9 +79,9 @@ namespace DtronixMessageQueue.Tests.Mq
         public void Server_stops()
         {
             Server.Start();
-            Assert.Equal(true, Server.IsRunning);
+            Assert.Equal(TransportLayerState.Started, Server.State);
             Server.Stop();
-            Assert.Equal(false, Server.IsRunning);
+            Assert.Equal(TransportLayerState.Stopped, Server.State);
         }
 
         [Fact]

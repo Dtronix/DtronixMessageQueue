@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
+using System.Configuration;
 using System.Threading;
 using DtronixMessageQueue.TransportLayer;
 using DtronixMessageQueue.TransportLayer.Tcp;
@@ -12,7 +13,7 @@ namespace DtronixMessageQueue
     /// </summary>
     /// <typeparam name="TSession">Session type for this connection.</typeparam>
     /// <typeparam name="TConfig">Configuration for this connection.</typeparam>
-    public abstract class MqSessionHandler<TSession, TConfig>
+    public abstract class MqSessionHandler<TSession, TConfig> : IDisposable
         where TSession : MqSession<TSession, TConfig>, new()
         where TConfig : MqConfig
     {
@@ -20,6 +21,8 @@ namespace DtronixMessageQueue
         /// Mode that this socket is running as.
         /// </summary>
         public TransportLayerMode LayerMode => TransportLayer.Mode;
+
+        public TransportLayerState State => TransportLayer.State;
 
 
         protected ITransportLayer TransportLayer;
@@ -60,6 +63,23 @@ namespace DtronixMessageQueue
         protected readonly ConcurrentDictionary<Guid, TSession> ConnectedSessions =
             new ConcurrentDictionary<Guid, TSession>();
 
+
+        private Timer TimeoutTimer;
+
+        protected bool IsTimeoutTimerRunning;
+
+
+        /// <summary>
+        /// Used to prevent more connections connecting to the server than allowed.
+        /// </summary>
+        private readonly object _connectionLock = new object();
+
+        /// <summary>
+        /// Set to the max number of connections allowed for the server.
+        /// Decremented when a new connection occurs and incremented when 
+        /// </summary>
+        private int _remainingConnections;
+
         /// <summary>
         /// Base constructor to all socket classes.
         /// </summary>
@@ -72,6 +92,11 @@ namespace DtronixMessageQueue
             TransportLayer = config.TransportLayer ?? new TcpTransportLayer(config, mode);
 
             Config = config;
+
+            TimeoutTimer = new Timer(OnTimeoutTimer);
+
+            // Reset the remaining connections.
+            _remainingConnections = Config.MaxConnections;
 
             var modeLower = mode.ToString().ToLower();
 
@@ -93,38 +118,130 @@ namespace DtronixMessageQueue
                 StartThreads = mode == TransportLayerMode.Client ? 1 : processorThreads
             });
 
-            TransportLayer.Connected += (sender, args) =>
-            {
-                // Convert the TransportLayerSession into a MqSession
-                var session = MqSession<TSession, TConfig>.Create(args.Session, Config, this);
-                session.Closed += (s, a) => Closed?.Invoke(s, a);
-                args.Session.ImplementedSession = session;
-
-                session.IncomingMessage += (s, a) => IncomingMessage?.Invoke(this, a);
-
-                // Invoke the outer connecting event.
-                Connected?.Invoke(this, new SessionEventArgs<TSession, TConfig>(session));
-            };
-
-            TransportLayer.Closed += (sender, args) =>
-            {
-
-                OutboxProcessor.Stop();
-                InboxProcessor.Stop();
-
-                Closed?.Invoke(this,
-                    new SessionCloseEventArgs<TSession, TConfig>((TSession) args.Session.ImplementedSession, args.Reason));
-            };
-
-
+            TransportLayer.StateChanged += TransportLayerOnStateChanged;
 
             OutboxProcessor.Start();
             InboxProcessor.Start();
         }
 
+        private void TransportLayerOnStateChanged(object o, TransportLayerStateChangedEventArgs e)
+        {
+            switch (e.State)
+            {
+                case TransportLayerState.Connected:
+                    var maxSessions = false;
+
+                    // Check if we are maxed out on concurrent connections.
+                    // If so, stop listening for new connections until we can accept a new connection
+                    lock (_connectionLock)
+                    {
+
+                        if (_remainingConnections == 0)
+                        {
+                            maxSessions = true;
+                        }
+                        else
+                        {
+                            _remainingConnections--;
+                        }
+                    }
+
+                    // Convert the TransportLayerSession into a MqSession
+                    var session = MqSession<TSession, TConfig>.Create(e.Session, Config, this);
+                    e.Session.ImplementedSession = session;
+
+                    // If we are at max sessions, close the new connection with a connection refused reason.
+                    if (maxSessions)
+                    {
+                        session.Close(SessionCloseReason.ConnectionRefused);
+                        return;
+                    }
+
+                    ConnectedSessions.TryAdd(session.Id, session);
+
+                    session.IncomingMessage += (s, a) => IncomingMessage?.Invoke(this, a);
+
+                    // Invoke the outer connecting event.
+                    OnConnected(session);
+                    break;
+
+                case TransportLayerState.Closed:
+
+                    // Remove the session from the list of active sessions and release the semaphore.
+                    if (ConnectedSessions.TryRemove(e.Session.Id, out var connSession))
+                    {
+                        // If the remaining connection is now 1, that means that the server need to begin
+                        // accepting new client connections.
+                        lock (_connectionLock)
+                            _remainingConnections++;
+                    }
+
+                    if (ConnectedSessions.Count == 0)
+                    {
+                        OutboxProcessor.Stop();
+                        InboxProcessor.Stop();
+                    }
+
+
+
+                    OnClose(new SessionCloseEventArgs<TSession, TConfig>((TSession) e.Session.ImplementedSession,
+                        e.Reason));
+                    break;
+            }
+        }
+
+        protected virtual void OnConnected(TSession session)
+        {
+            Connected?.Invoke(this, new SessionEventArgs<TSession, TConfig>(session));
+
+            if (IsTimeoutTimerRunning)
+                return;
+
+            var timeout = LayerMode == TransportLayerMode.Server ? Config.PingTimeout : Config.PingFrequency;
+
+            if (timeout > 0)
+            {
+                if (IsTimeoutTimerRunning)
+                    return;
+
+                IsTimeoutTimerRunning = true;
+                TimeoutTimer.Change(timeout, timeout);
+            }
+        }
+
+        protected virtual void OnClose(SessionCloseEventArgs<TSession, TConfig> closeEventArgs)
+        {
+            Closed?.Invoke(this, closeEventArgs);
+
+            if (ConnectedSessions.Count > 0 
+                || !IsTimeoutTimerRunning 
+                || Config.PingTimeout == 0)
+                return;
+
+            IsTimeoutTimerRunning = false;
+            TimeoutTimer.Change(Timeout.Infinite, Timeout.Infinite);
+        }
+
+
+        protected virtual void OnTimeoutTimer(object state)
+        {
+            var past = DateTime.Now.Subtract(TimeSpan.FromMilliseconds(Config.PingTimeout));
+            foreach (var connectedSession in ConnectedSessions)
+            {
+                if(connectedSession.Value.LastReceived < past)
+                    connectedSession.Value.Close(SessionCloseReason.TimeOut);
+            }
+        }
+
+
         public IEnumerator<KeyValuePair<Guid, TSession>> GetSessionsEnumerator()
         {
             return ConnectedSessions.GetEnumerator();
+        }
+
+        public void Dispose()
+        {
+            TimeoutTimer?.Dispose();
         }
     }
 }

@@ -27,7 +27,7 @@ namespace DtronixMessageQueue.TransportLayer
         /// <summary>
         /// Session is attempting to connect to remote connection.
         /// </summary>
-        Connecting,
+        //Connecting,
 
         /// <summary>
         /// Session has connected to remote session.

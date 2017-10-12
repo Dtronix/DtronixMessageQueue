@@ -22,17 +22,6 @@ namespace DtronixMessageQueue.TransportLayer.Tcp
         public ConcurrentDictionary<Guid, ITransportLayerSession> ConnectedSessions { get; private set; }
 
         public ITransportLayerSession ClientSession { get; private set; }
-
-        /// <summary>
-        /// Used to prevent more connections connecting to the server than allowed.
-        /// </summary>
-        private readonly object _connectionLock = new object();
-        /// <summary>
-        /// Set to the max number of connections allowed for the server.
-        /// Decremented when a new connection occurs and incremented when 
-        /// </summary>
-        private int _remainingConnections;
-
         /// <summary>
         /// Main socket used by the child class for connection or for the listening of incoming connections.
         /// </summary>
@@ -70,10 +59,8 @@ namespace DtronixMessageQueue.TransportLayer.Tcp
             if(Mode != TransportLayerMode.Server)
                 throw new InvalidOperationException("Transport layer is running in client mode.");
 
+            State = TransportLayerState.Starting;
             StateChanged?.Invoke(this, new TransportLayerStateChangedEventArgs(this, TransportLayerState.Starting));
-
-            // Reset the remaining connections.
-            _remainingConnections = Config.MaxConnections;
 
             var localEndPoint = Utilities.CreateIPEndPoint(Config.ConnectAddress);
 
@@ -88,6 +75,7 @@ namespace DtronixMessageQueue.TransportLayer.Tcp
             // start the server with a listen backlog.
             MainSocket.Listen(Config.ListenerBacklog);
 
+            State = TransportLayerState.Started;
             StateChanged?.Invoke(this, new TransportLayerStateChangedEventArgs(this, TransportLayerState.Started));
         }
 
@@ -100,10 +88,10 @@ namespace DtronixMessageQueue.TransportLayer.Tcp
             if (Mode != TransportLayerMode.Server)
                 throw new InvalidOperationException("Transport layer is running in client mode.  Start is a server mode method.");
 
-            if (State != TransportLayerState.Connected)
+            if (State != TransportLayerState.Started)
                 return;
 
-            State = TransportLayerState.Closing;
+            State = TransportLayerState.Stopping;
             var closeReason = SessionCloseReason.ServerClosing;
 
             StateChanged?.Invoke(this, new TransportLayerStateChangedEventArgs(this, TransportLayerState.Stopping)
@@ -133,7 +121,7 @@ namespace DtronixMessageQueue.TransportLayer.Tcp
                 MainSocket.Close();
             }
 
-            State = TransportLayerState.Closed;
+            State = TransportLayerState.Stopped;
 
             // Invoke the stopped event.
             StateChanged?.Invoke(this, new TransportLayerStateChangedEventArgs(this, TransportLayerState.Stopped)
@@ -147,6 +135,9 @@ namespace DtronixMessageQueue.TransportLayer.Tcp
         /// </summary>
         public void AcceptAsync()
         {
+            if (Mode != TransportLayerMode.Server)
+                throw new InvalidOperationException("Transport layer is running in client mode.  Start is a server mode method.");
+
             if (listenEventArgs == null)
             {
                 IsListening = true;
@@ -180,9 +171,7 @@ namespace DtronixMessageQueue.TransportLayer.Tcp
         private void AcceptCompleted(SocketAsyncEventArgs e)
         {
             if (MainSocket.IsBound == false)
-            {
                 return;
-            }
 
             CreateSession(e.AcceptSocket);
         }
@@ -254,55 +243,27 @@ namespace DtronixMessageQueue.TransportLayer.Tcp
             if (Mode != TransportLayerMode.Client)
                 throw new InvalidOperationException("Transport layer is running in server mode.");
 
+            if (State != TransportLayerState.Connected)
+                return;
+
+            State = TransportLayerState.Closing;
+
             MainSocket.Close();
 
-            ITransportLayerSession sessOut;
-
-            // If the session is null, the connection timed out while trying to connect.
-            if (ClientSession != null)
-            {
-                ConnectedSessions.TryRemove(ClientSession.Id, out sessOut);
-            }
-
             ClientSession?.Close(reason);
+
+            State = TransportLayerState.Closed;
         }
 
 
         private ITransportLayerSession CreateSession(Socket socket)
         {
-            bool maxSessions = false;
-
-            // Check if we are maxed out on concurrent connections.
-            // If so, stop listening for new connections until we can accept a new connection
-            lock (_connectionLock)
-            {
-
-                if (_remainingConnections == 0)
-                {
-                    maxSessions = true;
-                }
-                else
-                {
-                    _remainingConnections--;
-                }
-            }
-
             socket.NoDelay = true;
 
             var session = new TcpTransportLayerSession(this, socket);
 
-            StateChanged?.Invoke(this,
-                new TransportLayerStateChangedEventArgs(this, TransportLayerState.Connecting, session));
-
             // Add the connection and closing events.
             session.StateChanged += SessionStateChanged;
-
-            // If we are at max sessions, close the new connection with a connection refused reason.
-            if (maxSessions)
-            {
-                session.Close(SessionCloseReason.ConnectionRefused);
-                return null;
-            }
 
             // Add this session to the list of connected sessions.
             ConnectedSessions.TryAdd(session.Id, session);
@@ -319,11 +280,16 @@ namespace DtronixMessageQueue.TransportLayer.Tcp
 
         private void SessionStateChanged(object sender, TransportLayerStateChangedEventArgs e)
         {
-            if (e.State == TransportLayerState.Closed)
+            switch (e.State)
             {
-                // Remove all the events.
-                e.Session.StateChanged -= SessionStateChanged;
+                case TransportLayerState.Closed:
+                    e.Session.StateChanged -= SessionStateChanged;
+
+                    ITransportLayerSession sessOut;
+                    ConnectedSessions?.TryRemove(ClientSession.Id, out sessOut);
+                    break;
             }
+
 
             StateChanged?.Invoke(this, e);
         }

@@ -1,7 +1,6 @@
 ﻿using System;
 using System.Diagnostics;
 using System.Threading;
-using DtronixMessageQueue.Socket;
 using DtronixMessageQueue.Tests.Rpc.Services.Server;
 using DtronixMessageQueue.TransportLayer;
 using Xunit;
@@ -24,9 +23,9 @@ namespace DtronixMessageQueue.Tests.Rpc
         [Fact]
         public void Client_calls_proxy_method()
         {
-            Server.SessionSetup += (sender, args) => { args.Session.AddService(new CalculatorService()); };
+            Server.Connected += (sender, args) => { args.Session.AddService(new CalculatorService()); };
 
-            Client.SessionSetup += (sender, args) =>
+            Client.Connected += (sender, args) =>
             {
                 args.Session.AddProxy<ICalculatorService>("CalculatorService");
             };
@@ -51,7 +50,7 @@ namespace DtronixMessageQueue.Tests.Rpc
         [Fact]
         public void Client_calls_proxy_method_sequential()
         {
-            Server.SessionSetup += (sender, args) => { args.Session.AddService(new CalculatorService()); };
+            Server.Connected += (sender, args) => { args.Session.AddService(new CalculatorService()); };
 
 
             Client.Ready += (sender, args) =>
@@ -76,7 +75,7 @@ namespace DtronixMessageQueue.Tests.Rpc
         [Fact]
         public void Client_calls_proxy_method_and_canceles()
         {
-            Server.SessionSetup += (sender, args) =>
+            Server.Connected += (sender, args) =>
             {
                 var service = new CalculatorService();
                 args.Session.AddService<ICalculatorService>(service);
@@ -129,7 +128,7 @@ namespace DtronixMessageQueue.Tests.Rpc
         {
             Server.Config.RequireAuthentication = false;
 
-            Server.SessionSetup +=
+            Server.Connected +=
                 (sender, args) => { args.Session.AddService<ICalculatorService>(new CalculatorService()); };
 
             Client.Authenticate += (sender, e) => { };
@@ -161,7 +160,7 @@ namespace DtronixMessageQueue.Tests.Rpc
 
             Server.Config.RequireAuthentication = true;
 
-            Server.SessionSetup +=
+            Server.Connected +=
                 (sender, args) => { args.Session.AddService<ICalculatorService>(new CalculatorService()); };
 
             Server.Authenticate += (sender, e) =>
@@ -191,7 +190,7 @@ namespace DtronixMessageQueue.Tests.Rpc
         {
             Server.Config.RequireAuthentication = true;
 
-            Server.SessionSetup +=
+            Server.Connected +=
                 (sender, args) => { args.Session.AddService<ICalculatorService>(new CalculatorService()); };
 
             Server.Authenticate += (sender, e) => { e.Authenticated = false; };
@@ -215,7 +214,7 @@ namespace DtronixMessageQueue.Tests.Rpc
         {
             Server.Config.RequireAuthentication = true;
 
-            Server.SessionSetup +=
+            Server.Connected +=
                 (sender, args) => { args.Session.AddService<ICalculatorService>(new CalculatorService()); };
 
             Server.Authenticate += (sender, e) => { e.Authenticated = false; };
@@ -240,7 +239,7 @@ namespace DtronixMessageQueue.Tests.Rpc
         {
             Server.Config.RequireAuthentication = true;
 
-            Server.SessionSetup +=
+            Server.Connected +=
                 (sender, args) => { args.Session.AddService<ICalculatorService>(new CalculatorService()); };
 
             Server.Authenticate += (sender, e) => { e.Authenticated = true; };

@@ -15,7 +15,7 @@ namespace DtronixMessageQueue
         /// Milliseconds between pings.
         /// 0 disables pings.
         /// </summary>
-        public int PingFrequency { get; set; } = 0;
+        public int PingFrequency { get; set; } = 3000;
 
         /// <summary>
         /// Sets a limit on the maximum outgoing queue size.

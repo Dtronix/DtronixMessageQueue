@@ -39,14 +39,13 @@ namespace DtronixMessageQueue.Rpc
             ServiceMethodCache = new ServiceMethodCache();
         }
 
-
-        protected override TSession CreateSession(System.Net.Sockets.Socket sessionSocket)
+        protected override void OnConnected(TSession session)
         {
-            var session = base.CreateSession(sessionSocket);
 
             session.Ready += (sender, e) => { Ready?.Invoke(sender, e); };
             session.Authenticate += (sender, e) => { Authenticate?.Invoke(sender, e); };
-            return session;
+
+            base.OnConnected(session);
         }
     }
 }

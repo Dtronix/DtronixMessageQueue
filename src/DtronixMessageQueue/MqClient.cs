@@ -19,33 +19,26 @@ namespace DtronixMessageQueue
         /// </summary>
         public TSession Session { get; private set; }
 
-
-        private Timer _pingTimer;
-
         /// <summary>
         /// Initializes a new instance of a message queue.
         /// </summary>
         public MqClient(TConfig config) : base(config, TransportLayerMode.Client)
         {
-            _pingTimer = new Timer(o =>
-            {
-                Session.Send(Session.CreateFrame(null, MqFrameType.Ping));
-            });
+        }
 
-            Connected += (sender, args) =>
-            {
-                var pingFrequency = Config.PingFrequency;
+        protected override void OnConnected(TSession session)
+        {
+            Session = session;
+            base.OnConnected(session);
+        }
 
-                if (pingFrequency > 0)
-                {
-                    _pingTimer.Change(pingFrequency / 2, pingFrequency);
-                }
-            };
 
-            Closed += (sender, args) =>
-            {
-                _pingTimer.Change(Timeout.Infinite, Timeout.Infinite);
-            };
+        protected override void OnTimeoutTimer(object state)
+        {
+            // Ping the server.
+            Session.Send(Session.CreateFrame(null, MqFrameType.Ping));
+
+            base.OnTimeoutTimer(state);
         }
 
 
@@ -79,7 +72,6 @@ namespace DtronixMessageQueue
         /// </summary>
         public void Dispose()
         {
-            _pingTimer.Dispose();
             Session.Close(SessionCloseReason.ClientClosing);
         }
 

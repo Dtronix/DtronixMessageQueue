@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Threading;
 using DtronixMessageQueue.TransportLayer;
 
 namespace DtronixMessageQueue
@@ -22,15 +23,13 @@ namespace DtronixMessageQueue
         /// </summary>
         public event EventHandler Started;
 
+        
+
         /// <summary>
         /// Initializes a new instance of a message queue.
         /// </summary>
         public MqServer(TConfig config) : base(config, TransportLayerMode.Server)
         {
-            TransportLayer.Connected += (sender, args) =>
-            {
-                args.Session.
-            }
         }
 
 
@@ -43,31 +42,14 @@ namespace DtronixMessageQueue
 
             TransportLayer.AcceptAsync();
 
-            // Invoke the started event.
-            Started?.Invoke(this, EventArgs.Empty);
         }
 
 
-
-        /// <summary>
-        /// Event called to remove the disconnected session from the list of active connections.
-        /// </summary>
-        /// <param name="sender">Sender of the disconnection event.</param>
-        /// <param name="e">Session events.</param>
-        private void RemoveClientEvent(object sender, SessionCloseEventArgs<TSession, TConfig> e)
+        protected override void OnConnected(TSession session)
         {
-            TSession sessionOut;
-            // Remove the session from the list of active sessions and release the semaphore.
-            if (ConnectedSessions.TryRemove(e.Session.Id, out sessionOut))
-            {
-                // If the remaining connection is now 1, that means that the server need to begin
-                // accepting new client connections.
-                lock (_connectionLock)
-                    _remainingConnections++;
+            base.OnConnected(session);
 
-            }
-
-            e.Session.Closed -= RemoveClientEvent;
+            TransportLayer.AcceptAsync();
         }
 
         /// <summary>
@@ -75,35 +57,7 @@ namespace DtronixMessageQueue
         /// </summary>
         public void Stop()
         {
-            if (_isStopped)
-            {
-                return;
-            }
-            TSession[] sessions = new TSession[ConnectedSessions.Values.Count];
-            ConnectedSessions.Values.CopyTo(sessions, 0);
-
-            foreach (var session in sessions)
-            {
-                session.Close(SessionCloseReason.ServerClosing);
-            }
-
-            try
-            {
-                MainSocket.Shutdown(SocketShutdown.Both);
-                MainSocket.Disconnect(true);
-            }
-            catch
-            {
-                //ignored
-            }
-            finally
-            {
-                MainSocket.Close();
-            }
-            _isStopped = true;
-
-            // Invoke the stopped event.
-            Stopped?.Invoke(this, EventArgs.Empty);
+            TransportLayer.Stop();
         }
     }
 }

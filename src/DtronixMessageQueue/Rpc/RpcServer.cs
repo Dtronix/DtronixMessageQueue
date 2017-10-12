@@ -50,32 +50,27 @@ namespace DtronixMessageQueue.Rpc
             ServerInfo = serverInfo ?? new RpcServerInfoDataContract();
         }
 
-        /// <summary>
-        /// Creates a session with the specified socket.
-        /// </summary>
-        /// <param name="sessionSocket">Socket to associate with the session.</param>
-        protected override TSession CreateSession(System.Net.Sockets.Socket sessionSocket)
+        protected override void OnConnected(TSession session)
         {
-            var session = base.CreateSession(sessionSocket);
+            base.OnConnected(session);
+
 
             // Add the service method cache.
             session.ServiceMethodCache = ServiceMethodCache;
 
-
             session.Ready += (sender, e) => { Ready?.Invoke(sender, e); };
             session.Authenticate += (sender, e) => { Authenticate?.Invoke(sender, e); };
-
-            return session;
         }
+
 
         /// <summary>
         /// Called by the timer to verify that the session is still connected.  If it has timed out, close it.
         /// </summary>
         /// <param name="state">Concurrent dictionary of the sessions.</param>
-        protected override void TimeoutCallback(object state)
+        protected override void OnTimeoutTimer(object state)
         {
             var timoutInt = Config.PingTimeout;
-            var timeoutTime = DateTime.UtcNow.Subtract(new TimeSpan(0, 0, 0, 0, timoutInt));
+            var timeoutTime = DateTime.UtcNow.Subtract(TimeSpan.FromMilliseconds(timoutInt));
 
             foreach (var session in ConnectedSessions.Values)
             {
@@ -84,12 +79,14 @@ namespace DtronixMessageQueue.Rpc
                     // Check for session timeout
                     session.Close(SessionCloseReason.TimeOut);
                 }
-                else if (session.Authenticated == false && session.ConnectedTime < timeoutTime)
+                else if (session.Authenticated == false && session.ConnectTime < timeoutTime)
                 {
                     // Ensure that failed authentications are removed.
                     session.Close(SessionCloseReason.AuthenticationFailure);
                 }
             }
         }
+
+
     }
 }

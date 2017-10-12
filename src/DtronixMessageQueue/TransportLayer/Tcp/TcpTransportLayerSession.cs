@@ -35,8 +35,6 @@ namespace DtronixMessageQueue.TransportLayer.Tcp
 
         private TransportLayerReceiveAsyncEventArgs _tlReceiveArgs;
 
-        private SemaphoreSlim _writeSemaphore;
-
         //private SemaphoreSlim _writeSemaphore;
 
         /// <summary>
@@ -47,7 +45,7 @@ namespace DtronixMessageQueue.TransportLayer.Tcp
         /// <summary>
         /// Time that this session connected to the server.
         /// </summary>
-        public DateTime ConnectedTime { get; private set; }
+        public DateTime ConnectedTime { get; }
 
 
         public TcpTransportLayerSession(TcpTransportLayer transportLayer, Socket socket)
@@ -77,7 +75,9 @@ namespace DtronixMessageQueue.TransportLayer.Tcp
 
             _tlReceiveArgs = new TransportLayerReceiveAsyncEventArgs();
 
-            _writeSemaphore = new SemaphoreSlim(1);
+            ConnectedTime = DateTime.Now;
+
+            State = TransportLayerState.Connected;
         }
 
 
@@ -86,7 +86,7 @@ namespace DtronixMessageQueue.TransportLayer.Tcp
         /// </summary>
         /// <param name="sender"></param>
         /// <param name="e">SocketAsyncEventArg associated with the completed receive operation</param>
-        protected virtual void IoCompleted(object sender, SocketAsyncEventArgs e)
+        private void IoCompleted(object sender, SocketAsyncEventArgs e)
         {
             // determine which type of operation just completed and call the associated handler
             switch (e.LastOperation)
@@ -97,7 +97,8 @@ namespace DtronixMessageQueue.TransportLayer.Tcp
                     break;
 
                 case SocketAsyncOperation.Send:
-                    SendComplete(e);
+                    if (e.SocketError != SocketError.Success)
+                        Close(SessionCloseReason.SocketError);
                     break;
 
                 default:
@@ -115,12 +116,12 @@ namespace DtronixMessageQueue.TransportLayer.Tcp
         /// <param name="buffer">Buffer bytes to send.</param>
         /// <param name="offset">Offset in the buffer.</param>
         /// <param name="length">Total bytes to send.</param>
-        public virtual void Send(byte[] buffer, int offset, int length)
+        public void Send(byte[] buffer, int offset, int length)
         {
             if (Socket == null || Socket.Connected == false)
                 return;
 
-            _writeSemaphore.Wait(-1);
+            //_writeSemaphore.Wait(-1);
 
             // Copy the bytes to the block buffer
             Buffer.BlockCopy(buffer, offset, _sendArgs.Buffer, _sendArgs.Offset, length);
@@ -165,7 +166,7 @@ namespace DtronixMessageQueue.TransportLayer.Tcp
         /// If the remote host closed the connection, then the socket is closed.
         /// </summary>
         /// <param name="e">Event args of this action.</param>
-        protected void ReceiveComplete(SocketAsyncEventArgs e)
+        private void ReceiveComplete(SocketAsyncEventArgs e)
         {
             if (State == TransportLayerState.Closing)
                 return;
@@ -199,7 +200,7 @@ namespace DtronixMessageQueue.TransportLayer.Tcp
         public void Close(SessionCloseReason reason)
         {
             // If this session has already been closed, nothing more to do.
-            if (State == TransportLayerState.Closed)
+            if (State == TransportLayerState.Closed || State == TransportLayerState.Closing)
                 return;
 
             // Set the state to closing to restrict what can be done.
@@ -243,19 +244,5 @@ namespace DtronixMessageQueue.TransportLayer.Tcp
             });
         }
 
-
-        /// <summary>
-        /// This method is invoked when an asynchronous send operation completes.  
-        /// The method issues another receive on the socket to read any additional data sent from the client
-        /// </summary>
-        /// <param name="e">Event args of this action.</param>
-        private void SendComplete(SocketAsyncEventArgs e)
-        {
-            if (e.SocketError != SocketError.Success)
-            {
-                Close(SessionCloseReason.SocketError);
-            }
-            //_writeSemaphore.Release(1);
-        }
     }
 }

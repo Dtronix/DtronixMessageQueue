@@ -29,6 +29,8 @@ namespace DtronixMessageQueue
 
         public DateTime LastReceived => TransportSession.LastReceived;
 
+        public DateTime ConnectTime => TransportSession.ConnectedTime;
+
         /// <summary>
         /// Processor to handle all inbound messages.
         /// </summary>
@@ -86,7 +88,8 @@ namespace DtronixMessageQueue
         /// Sets up this socket with the specified configurations.
         /// </summary>
         /// <param name="sessionSocket">Socket this session is to use.</param>
-        /// <param name="socketArgsManager">Argument pool for this session to use.  Pulls two asyncevents for reading and writing and returns them at the end of this socket's life.</param>
+        /// <param name="socketArgsManager">Argument pool for this session to use.  Pulls two async events for reading and writing and returns them at the end of this socket's life.</param>
+        /// <param name="transportSession"></param>
         /// <param name="sessionConfig">Socket configurations this session is to use.</param>
         /// <param name="sessionHandler">Handler base which is handling this session.</param>
         /// <param name="inboxProcessor">Processor which handles all inbox data.</param>
@@ -111,7 +114,7 @@ namespace DtronixMessageQueue
 
 
 
-        private void OnSetup()
+        protected virtual void OnSetup()
         {
             _frameBuilder = new MqFrameBuilder(Config);
             _sendingSemaphore = new SemaphoreSlim(Config.MaxQueuedOutgoingMessages, Config.MaxQueuedOutgoingMessages);
@@ -120,59 +123,103 @@ namespace DtronixMessageQueue
             InboxProcessor.Register(Id, ProcessIncomingQueue);
             OutboxProcessor.Register(Id, ProcessOutbox);
 
-            TransportSession.Received += (sender, buffer) =>
+            TransportSession.Received += (sender, e) =>
             {
-                _inboxBytes.Enqueue(buffer);
+                _inboxBytes.Enqueue(e.Buffer);
                 InboxProcessor.QueueOnce(Id);
 
                 // Wait until the next 
                 _receivingSemaphore.Wait();
 
-                TransportSession.Received();
+                TransportSession.ReceiveAsync();
             };
 
-            TransportSession.Closing += (sender, args) =>
+            TransportSession.StateChanged += (sender, args) =>
             {
-                if (TransportSession.State == TransportLayerState.Connected ||
-                    TransportSession.State == TransportLayerState.Connecting)
+                switch (args.State)
                 {
-                    var closeFrame = CreateFrame(new byte[2], MqFrameType.Command);
+                    case TransportLayerState.Connected:
+                        OnConnected();
+                        break;
 
-                    closeFrame.Write(0, (byte) 0);
-                    closeFrame.Write(1, (byte) args.Reason);
+                    case TransportLayerState.Closing:
+                        OnClosing(args.Reason);
+                        break;
 
-                    MqMessage msg;
-                    if (_outbox.IsEmpty == false)
-                    {
-                        while (_outbox.TryDequeue(out msg))
-                            _sendingSemaphore.Release();
+                    case TransportLayerState.Closed:
+                        OnClosed(args.Reason);
+                        break;
 
-
-                        byte[] buffer;
-                        while (_inboxBytes.TryDequeue(out buffer))
-                            _receivingSemaphore.Release();
-                    }
-
-                    msg = new MqMessage(closeFrame);
-                    _outbox.Enqueue(msg);
-
-                    // QueueOnce the last bit of data.
-                    ProcessOutbox();
+                    default:
+                        Close(SessionCloseReason.ApplicationError);
+                        break;
                 }
 
-                // Dispose of all the resources.
-                _receivingSemaphore.Dispose();
-                _sendingSemaphore.Dispose();
-                _frameBuilder.Dispose();
-            };
-
-            TransportSession.Closed += (sender, args) =>
-            {
-                Close(args.Reason);
-
-                Closed?.Invoke(this, new SessionCloseEventArgs<TSession, TConfig>((TSession)this, args.Reason));
             };
         }
+
+        protected virtual void OnConnected()
+        {
+
+        }
+
+
+        protected virtual void OnClosing(SessionCloseReason reason)
+        {
+
+            if (TransportSession.State == TransportLayerState.Connected)
+            {
+                var closeFrame = CreateFrame(new byte[2], MqFrameType.Command);
+
+                closeFrame.Write(0, (byte)0);
+                closeFrame.Write(1, (byte)reason);
+
+                MqMessage msg;
+                if (_outbox.IsEmpty == false)
+                {
+                    while (_outbox.TryDequeue(out msg))
+                        _sendingSemaphore.Release();
+
+
+                    byte[] buffer;
+                    while (_inboxBytes.TryDequeue(out buffer))
+                        _receivingSemaphore.Release();
+                }
+
+                msg = new MqMessage(closeFrame);
+                _outbox.Enqueue(msg);
+
+                // QueueOnce the last bit of data.
+                ProcessOutbox();
+            }
+        }
+
+        protected virtual void OnClosed(SessionCloseReason reason)
+        {
+            Close(reason);
+
+            Closed?.Invoke(this, new SessionCloseEventArgs<TSession, TConfig>((TSession)this, reason));
+
+            // Dispose of all the resources.
+            _receivingSemaphore.Dispose();
+            _sendingSemaphore.Dispose();
+            _frameBuilder.Dispose();
+        }
+
+        /// <summary>
+        /// Closes this session with the specified reason.
+        /// Notifies the recipient connection the reason for the session's closure.
+        /// </summary>
+        /// <param name="reason">Reason for closing this session.</param>
+        public void Close(SessionCloseReason reason)
+        {
+            if (TransportSession.State == TransportLayerState.Closed
+                || TransportSession.State == TransportLayerState.Closing)
+                return;
+
+            TransportSession.Close(reason);
+        }
+
 
         /// <summary>
         /// Sends a queue of bytes to the connected client/server.
@@ -335,20 +382,6 @@ namespace DtronixMessageQueue
         protected virtual void OnIncomingMessage(object sender, IncomingMessageEventArgs<TSession, TConfig> e)
         {
             IncomingMessage?.Invoke(sender, e);
-        }
-
-
-        /// <summary>
-        /// Closes this session with the specified reason.
-        /// Notifies the recipient connection the reason for the session's closure.
-        /// </summary>
-        /// <param name="reason">Reason for closing this session.</param>
-        public void Close(SessionCloseReason reason)
-        {
-            if (TransportSession.State == TransportLayerState.Closed)
-                return;
-
-            TransportSession.Close(reason);
         }
 
         /// <summary>
