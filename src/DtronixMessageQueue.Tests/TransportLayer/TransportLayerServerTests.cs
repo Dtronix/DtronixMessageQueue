@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Threading;
+using System.Threading.Tasks;
 using DtronixMessageQueue.Tests.Mq;
 using DtronixMessageQueue.TransportLayer;
 using Xunit;
@@ -159,26 +160,69 @@ namespace DtronixMessageQueue.Tests.TransportLayer
             StartAndWait();
         }
 
+
         [Fact]
-        public void Server_waits_to_accept_additional_client()
+        public void Server_stops_accepting_connections()
         {
-            var randomBytes = Utilities.SequentialBytes(128);
-            Server.StateChanged += (sender, args) =>
+            int connectedCount = 0;
+            Client.StateChanged += (sender, args) =>
             {
                 if (args.State == TransportLayerState.Connected)
-                    args.Session.Send(randomBytes, 0, randomBytes.Length);
+                    args.Session.Close(SessionCloseReason.Closing);
             };
 
-            Client.Received += (sender, args) =>
+            Server.StateChanged += async (sender, args) =>
             {
-                try
+                if (args.State == TransportLayerState.Connected)
                 {
-                    Assert.Equal(randomBytes, args.Buffer);
+                    if (++connectedCount == 2)
+                    {
+                        LastException = new Exception("Server accepted new connection when it should not.");
+                    }
+
+                    await Task.Delay(500);
                     TestComplete.Set();
                 }
-                catch (Exception e)
+
+
+
+                if (args.State == TransportLayerState.Closed)
                 {
-                    LastException = e;
+                    Client.Connect();
+                }
+            };
+
+            StartAndWait();
+        }
+
+        [Fact]
+        public void Server_accepts_additional_connections()
+        {
+            int connectedCount = 0;
+            Client.StateChanged += (sender, args) =>
+            {
+                if (args.State == TransportLayerState.Connected)
+                    args.Session.Close(SessionCloseReason.Closing);
+            };
+
+            Server.StateChanged += async (sender, args) =>
+            {
+                if (args.State == TransportLayerState.Connected)
+                {
+                    if (++connectedCount == 2)
+                    {
+                        TestComplete.Set();
+                    }
+
+                    await Task.Delay(500);
+                    LastException = new Exception("Server accepted new connection when it should not.");
+                   
+                }
+
+                if (args.State == TransportLayerState.Closed)
+                {
+                    Client.Connect();
+                    Server.AcceptAsync();
                 }
             };
 

@@ -310,6 +310,9 @@ namespace DtronixMessageQueue.TransportLayer.Tcp
         {
             switch (e.State)
             {
+                case TransportLayerState.Closing:
+                    break;
+
                 case TransportLayerState.Closed:
                     e.Session.StateChanged -= SessionStateChanged;
                     e.Session.Received -= SessionReceived;
@@ -319,8 +322,16 @@ namespace DtronixMessageQueue.TransportLayer.Tcp
                     break;
             }
 
+            if (Mode == TransportLayerMode.Client)
+                State = e.State;
+
 
             StateChanged?.Invoke(this, e);
+        }
+
+        public override string ToString()
+        {
+            return $"{Mode}: State: {State}; Connections: {ConnectedSessions.Count}";
         }
     }
 }

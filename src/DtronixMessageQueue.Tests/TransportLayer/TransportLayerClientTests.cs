@@ -34,9 +34,6 @@ namespace DtronixMessageQueue.Tests.TransportLayer
             {
                 if (args.State == TransportLayerState.Connected)
                     args.Session.Close(SessionCloseReason.Closing);
-
-                if (args.State == TransportLayerState.Closed)
-                    Client.Connect();
             };
 
             Server.StateChanged += (sender, args) =>
@@ -46,10 +43,17 @@ namespace DtronixMessageQueue.Tests.TransportLayer
                     if (++connectedCount == 2)
                         TestComplete.Set();
                 }
+
+                if (args.State == TransportLayerState.Closed)
+                {
+                    Client.Connect();
+                    Server.AcceptAsync();
+                }
             };
 
             StartAndWait();
         }
+
 
         [Fact]
         public void Client_disconnects_from_server()
