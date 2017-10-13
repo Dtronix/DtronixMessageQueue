@@ -39,9 +39,6 @@ namespace DtronixMessageQueue
         public void Start()
         {
             TransportLayer.Start();
-
-            TransportLayer.AcceptAsync();
-
         }
 
 

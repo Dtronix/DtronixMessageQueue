@@ -14,6 +14,7 @@ namespace DtronixMessageQueue.TransportLayer.Tcp
         public TransportLayerState State { get; private set; }
 
         public event EventHandler<TransportLayerStateChangedEventArgs> StateChanged;
+        public event EventHandler<TransportLayerReceiveAsyncEventArgs> Received;
 
         public TransportLayerConfig Config { get; }
 
@@ -41,6 +42,8 @@ namespace DtronixMessageQueue.TransportLayer.Tcp
             Config = config;
             Mode = mode;
 
+            ConnectedSessions = new ConcurrentDictionary<Guid, ITransportLayerSession>();
+
             // Use the max connections plus one for the disconnecting of 
             // new clients when the MaxConnections has been reached.
             var maxConnections = Config.MaxConnections + 1;
@@ -48,6 +51,9 @@ namespace DtronixMessageQueue.TransportLayer.Tcp
             // preallocate pool of SocketAsyncEventArgs objects
             AsyncManager = new SocketAsyncEventArgsManager(Config.SendAndReceiveBufferSize * maxConnections * 2,
                 Config.SendAndReceiveBufferSize);
+
+            if(mode == TransportLayerMode.Server)
+                State = TransportLayerState.Stopped;
         }
 
 
@@ -59,10 +65,13 @@ namespace DtronixMessageQueue.TransportLayer.Tcp
             if(Mode != TransportLayerMode.Server)
                 throw new InvalidOperationException("Transport layer is running in client mode.");
 
+            if (State != TransportLayerState.Stopped)
+                throw new InvalidOperationException("Server can not be started again while running.");
+
             State = TransportLayerState.Starting;
             StateChanged?.Invoke(this, new TransportLayerStateChangedEventArgs(this, TransportLayerState.Starting));
 
-            var localEndPoint = Utilities.CreateIPEndPoint(Config.ConnectAddress);
+            var localEndPoint = Utilities.CreateIPEndPoint(Config.BindAddress);
 
             if (IsListening)
                 throw new InvalidOperationException("Server is already listening for connections");
@@ -75,8 +84,13 @@ namespace DtronixMessageQueue.TransportLayer.Tcp
             // start the server with a listen backlog.
             MainSocket.Listen(Config.ListenerBacklog);
 
+            MainSocket.NoDelay = true;
+
             State = TransportLayerState.Started;
             StateChanged?.Invoke(this, new TransportLayerStateChangedEventArgs(this, TransportLayerState.Started));
+
+            // Accept the first connection.
+            AcceptAsync();
         }
 
 
@@ -92,7 +106,7 @@ namespace DtronixMessageQueue.TransportLayer.Tcp
                 return;
 
             State = TransportLayerState.Stopping;
-            var closeReason = SessionCloseReason.ServerClosing;
+            var closeReason = SessionCloseReason.Closing;
 
             StateChanged?.Invoke(this, new TransportLayerStateChangedEventArgs(this, TransportLayerState.Stopping)
             {
@@ -109,8 +123,11 @@ namespace DtronixMessageQueue.TransportLayer.Tcp
 
             try
             {
-                MainSocket.Shutdown(SocketShutdown.Both);
-                MainSocket.Disconnect(true);
+                if (MainSocket.Connected)
+                {
+                    MainSocket.Shutdown(SocketShutdown.Both);
+                    MainSocket.Disconnect(true);
+                }
             }
             catch
             {
@@ -173,7 +190,11 @@ namespace DtronixMessageQueue.TransportLayer.Tcp
             if (MainSocket.IsBound == false)
                 return;
 
-            CreateSession(e.AcceptSocket);
+            var session = CreateSession(e.AcceptSocket);
+
+            // Fire off the connected events.
+            StateChanged?.Invoke(this,
+                new TransportLayerStateChangedEventArgs(this, TransportLayerState.Connected, session));
         }
 
 
@@ -188,7 +209,7 @@ namespace DtronixMessageQueue.TransportLayer.Tcp
 
             var endPoint = Utilities.CreateIPEndPoint(Config.ConnectAddress);
 
-            MainSocket = new System.Net.Sockets.Socket(endPoint.AddressFamily, SocketType.Stream, ProtocolType.Tcp)
+            MainSocket = new Socket(endPoint.AddressFamily, SocketType.Stream, ProtocolType.Tcp)
             {
                 NoDelay = true
             };
@@ -214,6 +235,11 @@ namespace DtronixMessageQueue.TransportLayer.Tcp
                 if (args.LastOperation == SocketAsyncOperation.Connect)
                 {
                     ClientSession = CreateSession(MainSocket);
+
+                    State = TransportLayerState.Connected;
+                    // Fire off the connected events.
+                    StateChanged?.Invoke(this,
+                        new TransportLayerStateChangedEventArgs(this, TransportLayerState.Connected, ClientSession));
                 }
             };
 
@@ -264,6 +290,7 @@ namespace DtronixMessageQueue.TransportLayer.Tcp
 
             // Add the connection and closing events.
             session.StateChanged += SessionStateChanged;
+            session.Received += SessionReceived;
 
             // Add this session to the list of connected sessions.
             ConnectedSessions.TryAdd(session.Id, session);
@@ -271,11 +298,12 @@ namespace DtronixMessageQueue.TransportLayer.Tcp
             // Start to receive data on this session.
             session.ReceiveAsync();
 
-            // Fire off the connected events.
-            StateChanged?.Invoke(this,
-                new TransportLayerStateChangedEventArgs(this, TransportLayerState.Connected, session));
-
             return session;
+        }
+
+        private void SessionReceived(object sender, TransportLayerReceiveAsyncEventArgs e)
+        {
+            Received?.Invoke(this, e);
         }
 
         private void SessionStateChanged(object sender, TransportLayerStateChangedEventArgs e)
@@ -284,9 +312,10 @@ namespace DtronixMessageQueue.TransportLayer.Tcp
             {
                 case TransportLayerState.Closed:
                     e.Session.StateChanged -= SessionStateChanged;
+                    e.Session.Received -= SessionReceived;
 
                     ITransportLayerSession sessOut;
-                    ConnectedSessions?.TryRemove(ClientSession.Id, out sessOut);
+                    ConnectedSessions?.TryRemove(e.Session.Id, out sessOut);
                     break;
             }
 

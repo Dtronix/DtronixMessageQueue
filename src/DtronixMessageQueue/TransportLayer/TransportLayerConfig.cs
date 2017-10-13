@@ -34,9 +34,16 @@ namespace DtronixMessageQueue.TransportLayer
         public int ConnectionTimeout { get; set; } = 60000;
 
         /// <summary>
-        /// IP address to bind or connect to.
+        /// (Client) Connection address.
+        /// Parses standard IP:Port notation.
         /// </summary>
         public string ConnectAddress { get; set; }
+
+        /// <summary>
+        /// (Server) Connection binding address
+        /// Parses standard IP:Port notation.
+        /// </summary>
+        public string BindAddress { get; set; }
 
         /// <summary>
         /// (Server)

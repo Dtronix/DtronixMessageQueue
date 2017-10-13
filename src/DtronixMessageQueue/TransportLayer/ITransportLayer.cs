@@ -11,6 +11,8 @@ namespace DtronixMessageQueue.TransportLayer
     {
         event EventHandler<TransportLayerStateChangedEventArgs> StateChanged;
 
+        event EventHandler<TransportLayerReceiveAsyncEventArgs> Received;
+
         TransportLayerConfig Config { get; }
         TransportLayerMode Mode { get; }
         TransportLayerState State { get; }

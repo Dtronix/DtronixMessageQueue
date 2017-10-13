@@ -56,6 +56,9 @@ namespace DtronixMessageQueue.TransportLayer.Tcp
             _sendArgs = transportLayer.AsyncManager.Create();
             _receiveArgs = transportLayer.AsyncManager.Create();
 
+            _sendArgs.Completed += IoCompleted;
+            _receiveArgs.Completed += IoCompleted;
+
             // TODO: Review if this is necessary due to the new ActionProcessor.
             //_writeSemaphore = new SemaphoreSlim(1, 1);
 
@@ -73,7 +76,7 @@ namespace DtronixMessageQueue.TransportLayer.Tcp
             socket.NoDelay = true;
             socket.SetSocketOption(SocketOptionLevel.Socket, SocketOptionName.DontLinger, true);
 
-            _tlReceiveArgs = new TransportLayerReceiveAsyncEventArgs();
+            _tlReceiveArgs = new TransportLayerReceiveAsyncEventArgs(this);
 
             ConnectedTime = DateTime.Now;
 
@@ -173,7 +176,7 @@ namespace DtronixMessageQueue.TransportLayer.Tcp
 
             if (e.BytesTransferred == 0 && State == TransportLayerState.Connected)
             {
-                State = TransportLayerState.Closing;
+                Close(SessionCloseReason.Closing);
                 return;
             }
 

@@ -471,7 +471,7 @@ namespace DtronixMessageQueue
         public void Dispose()
         {
             if (TransportSession.State == TransportLayerState.Connected)
-                Close(SessionCloseReason.ClientClosing);
+                Close(SessionCloseReason.Closing);
 
         }
 

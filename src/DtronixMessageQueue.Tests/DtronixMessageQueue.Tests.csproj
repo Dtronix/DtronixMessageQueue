@@ -84,6 +84,10 @@
     <Compile Include="Rpc\Services\Server\CalculatorService.cs" />
     <Compile Include="Mq\SimpleMqSession.cs" />
     <Compile Include="Rpc\SimpleRpcSession.cs" />
+    <Compile Include="TestBase.cs" />
+    <Compile Include="TransportLayer\TransportLayerServerTests.cs" />
+    <Compile Include="TransportLayer\TransportLayerClientTests.cs" />
+    <Compile Include="TransportLayer\TransportLayerTestsBase.cs" />
     <Compile Include="Utilities.cs" />
   </ItemGroup>
   <ItemGroup>

@@ -18,12 +18,12 @@
         /// <summary>
         /// The client close the socket
         /// </summary>
-        ClientClosing = 2,
+        Closing = 2,
 
         /// <summary>
         /// The server side close the socket
         /// </summary>
-        ServerClosing = 3,
+        //ServerClosing = 3,
 
         /// <summary>
         /// Application error

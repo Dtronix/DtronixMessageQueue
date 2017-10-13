@@ -64,7 +64,7 @@ namespace DtronixMessageQueue
 
         public void Close()
         {
-            Session?.Close(SessionCloseReason.ClientClosing);
+            Session?.Close(SessionCloseReason.Closing);
         }
 
         /// <summary>
@@ -72,7 +72,7 @@ namespace DtronixMessageQueue
         /// </summary>
         public void Dispose()
         {
-            Session.Close(SessionCloseReason.ClientClosing);
+            Session.Close(SessionCloseReason.Closing);
         }
 
 

@@ -32,7 +32,8 @@ namespace DtronixMessageQueue.Tests.Mq
 
             Config = new MqConfig
             {
-                ConnectAddress = $"127.0.0.1:{Port}"
+                ConnectAddress = $"127.0.0.1:{Port}",
+                BindAddress = $"127.0.0.1:{Port}",
             };
 
             Server = new MqServer<SimpleMqSession, MqConfig>(Config);
