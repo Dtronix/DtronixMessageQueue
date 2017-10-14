@@ -46,7 +46,7 @@ namespace DtronixMessageQueue.Tests.Mq
 
                 if (receivedMessages == number)
                 {
-                    TestStatus.Set();
+                    TestComplete.Set();
                 }
             };
 
@@ -76,7 +76,7 @@ namespace DtronixMessageQueue.Tests.Mq
                     {
                         LastException = new Exception("Server received an empty message.");
                     }
-                    TestStatus.Set();
+                    TestComplete.Set();
                 }
             };
 
@@ -90,11 +90,11 @@ namespace DtronixMessageQueue.Tests.Mq
 
             Client.Connected += (sender, args) => { Client.Send(commandFrame); };
 
-            Server.IncomingMessage += (sender, args) => { TestStatus.Set(); };
+            Server.IncomingMessage += (sender, args) => { TestComplete.Set(); };
 
             StartAndWait(false, 500);
 
-            if (TestStatus.IsSet)
+            if (TestComplete.IsSet)
             {
                 throw new Exception("Server read command frame.");
             }
@@ -107,11 +107,11 @@ namespace DtronixMessageQueue.Tests.Mq
 
             Client.Connected += (sender, args) => { Client.Send(commandFrame); };
 
-            Server.IncomingMessage += (sender, args) => { TestStatus.Set(); };
+            Server.IncomingMessage += (sender, args) => { TestComplete.Set(); };
 
             StartAndWait(false, 500);
 
-            if (TestStatus.IsSet)
+            if (TestComplete.IsSet)
             {
                 throw new Exception("Server read command frame.");
             }
@@ -121,7 +121,7 @@ namespace DtronixMessageQueue.Tests.Mq
         [Fact]
         public void Client_connects_to_server()
         {
-            Client.Connected += (sender, args) => TestStatus.Set();
+            Client.Connected += (sender, args) => TestComplete.Set();
 
             StartAndWait();
         }
@@ -132,7 +132,7 @@ namespace DtronixMessageQueue.Tests.Mq
         {
             Client.Connected += (sender, args) => { Client.Close(); };
 
-            Client.Closed += (sender, args) => TestStatus.Set();
+            Client.Closed += (sender, args) => TestComplete.Set();
 
             StartAndWait(true, 500000);
         }
@@ -142,7 +142,7 @@ namespace DtronixMessageQueue.Tests.Mq
         {
             Server.Connected += (sender, session) => Server.Stop();
 
-            Client.Closed += (sender, args) => TestStatus.Set();
+            Client.Closed += (sender, args) => TestComplete.Set();
 
             StartAndWait();
         }
@@ -152,7 +152,7 @@ namespace DtronixMessageQueue.Tests.Mq
         {
             Client.Connected += (sender, args) => Client.Close();
 
-            Client.Closed += (sender, args) => TestStatus.Set();
+            Client.Closed += (sender, args) => TestComplete.Set();
 
             StartAndWait();
         }
@@ -162,8 +162,6 @@ namespace DtronixMessageQueue.Tests.Mq
         {
             Server.Connected += (sender, session) =>
             {
-                //Thread.Sleep(1000);
-                //session.Session.Send(new MqMessage(new MqFrame(new byte[24], MqFrameType.Last)));
                 session.Session.Close(SessionCloseReason.ApplicationError);
             };
 
@@ -173,7 +171,7 @@ namespace DtronixMessageQueue.Tests.Mq
                 {
                     LastException = new InvalidOperationException("Server did not return proper close reason.");
                 }
-                TestStatus.Set();
+                TestComplete.Set();
             };
 
             StartAndWait();
@@ -184,7 +182,7 @@ namespace DtronixMessageQueue.Tests.Mq
         {
             Client.Connected += (sender, args) => Client.Close();
 
-            Server.Closed += (sender, args) => TestStatus.Set();
+            Server.Closed += (sender, args) => TestComplete.Set();
 
             StartAndWait();
         }
@@ -209,7 +207,7 @@ namespace DtronixMessageQueue.Tests.Mq
             {
                 if (args.CloseReason == SessionCloseReason.TimeOut)
                 {
-                    TestStatus.Set();
+                    TestComplete.Set();
                 }
                 else
                 {
@@ -219,7 +217,7 @@ namespace DtronixMessageQueue.Tests.Mq
 
             StartAndWait(false, 2000);
 
-            if (TestStatus.IsSet == false)
+            if (TestComplete.IsSet == false)
             {
                 throw new Exception("Socket did not timeout.");
             }
@@ -245,7 +243,7 @@ namespace DtronixMessageQueue.Tests.Mq
             {
                 if (args.CloseReason == SessionCloseReason.TimeOut)
                 {
-                    TestStatus.Set();
+                    TestComplete.Set();
                 }
                 else
                 {
@@ -255,7 +253,7 @@ namespace DtronixMessageQueue.Tests.Mq
 
             StartAndWait(false, 1500);
 
-            if (TestStatus.IsSet)
+            if (TestComplete.IsSet)
             {
                 throw new Exception("Client timed out.");
             }
@@ -277,7 +275,7 @@ namespace DtronixMessageQueue.Tests.Mq
             {
                 if (args.CloseReason == SessionCloseReason.TimeOut)
                 {
-                    TestStatus.Set();
+                    TestComplete.Set();
                 }
                 else
                 {
@@ -287,7 +285,7 @@ namespace DtronixMessageQueue.Tests.Mq
 
             StartAndWait(false, 1000);
 
-            if (TestStatus.IsSet == false)
+            if (TestComplete.IsSet == false)
             {
                 throw new Exception("Socket did not timeout.");
             }
@@ -306,7 +304,7 @@ namespace DtronixMessageQueue.Tests.Mq
             {
                 if (args.CloseReason == SessionCloseReason.TimeOut)
                 {
-                    TestStatus.Set();
+                    TestComplete.Set();
                 }
                 else
                 {
@@ -316,7 +314,7 @@ namespace DtronixMessageQueue.Tests.Mq
 
             StartAndWait(false, 10000, false);
 
-            if (TestStatus.IsSet == false)
+            if (TestComplete.IsSet == false)
             {
                 throw new Exception("Socket did not timeout.");
             }
@@ -332,7 +330,7 @@ namespace DtronixMessageQueue.Tests.Mq
             {
                 if (++connected_times == 2)
                 {
-                    TestStatus.Set();
+                    TestComplete.Set();
                 }
                 Client.Close();
 
@@ -349,9 +347,9 @@ namespace DtronixMessageQueue.Tests.Mq
             
 
 
-            TestStatus.Wait(new TimeSpan(0, 0, 0, 0, 2000));
+            TestComplete.Wait(new TimeSpan(0, 0, 0, 0, 2000));
 
-            if (TestStatus.IsSet == false)
+            if (TestComplete.IsSet == false)
             {
                 throw new TimeoutException("Test timed out.");
             }

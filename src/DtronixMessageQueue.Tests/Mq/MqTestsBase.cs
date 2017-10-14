@@ -8,81 +8,53 @@ using Xunit.Abstractions;
 
 namespace DtronixMessageQueue.Tests.Mq
 {
-    public class MqTestsBase : IDisposable
+    public class MqTestsBase : TestBase
     {
-        private Random _random = new Random();
-        public ITestOutputHelper Output;
+
 
         public MqServer<SimpleMqSession, MqConfig> Server { get; protected set; }
         public MqClient<SimpleMqSession, MqConfig> Client { get; protected set; }
-        public int Port { get; }
 
         protected MqConfig Config;
 
-        public Exception LastException { get; set; }
 
-        public TimeSpan TestTimeout { get; set; } = new TimeSpan(0, 0, 0, 0, 2000);
-
-        public ManualResetEventSlim TestStatus { get; set; } = new ManualResetEventSlim(false);
-
-        public MqTestsBase(ITestOutputHelper output)
+        public MqTestsBase(ITestOutputHelper output) : base(output)
         {
-            Output = output;
-            Port = FreeTcpPort();
-
             Config = new MqConfig
             {
                 ConnectAddress = $"127.0.0.1:{Port}",
-                BindAddress = $"127.0.0.1:{Port}",
+                BindAddress = $"127.0.0.1:{Port}"
+                
             };
 
             Server = new MqServer<SimpleMqSession, MqConfig>(Config);
             Client = CreateClient(Config);
         }
 
-        public MqClient<SimpleMqSession, MqConfig> CreateClient(MqConfig config)
-        {
-            return new MqClient<SimpleMqSession, MqConfig>(config);
-        }
-
-
-        public static int FreeTcpPort()
-        {
-            TcpListener l = new TcpListener(IPAddress.Loopback, 0);
-            l.Start();
-            int port = ((IPEndPoint) l.LocalEndpoint).Port;
-            l.Stop();
-            return port;
-        }
 
         public void StartAndWait(bool timeoutError = true, int timeoutLength = -1, bool startServer = true, bool startClient = true)
         {
-            if (startServer && Server.State != TransportLayerState.Started)
-            {
+            if (startServer)
                 Server.Start();
-            }
-            if (startClient && Client.State != TransportLayerState.Connected)
-            {
+
+            if (startClient)
                 Client.Connect();
-            }
 
-            timeoutLength = timeoutLength != -1 ? timeoutLength : (int) TestTimeout.TotalMilliseconds;
+            base.StartAndWait(timeoutError, timeoutLength);
+        }
 
-            TestStatus.Wait(new TimeSpan(0, 0, 0, 0, timeoutLength));
-
-            if (timeoutError && TestStatus.IsSet == false)
-            {
-                throw new TimeoutException("Test timed out.");
-            }
-
-            if (LastException != null)
-            {
-                throw LastException;
-            }
-
+        protected override void StopClientServer()
+        {
             try
             {
                 Server.Stop();
+            }
+            catch
+            {
+                // ignored
+            }
+            try
+            {
                 Client.Close();
             }
             catch
@@ -90,6 +62,13 @@ namespace DtronixMessageQueue.Tests.Mq
                 // ignored
             }
         }
+
+
+        public MqClient<SimpleMqSession, MqConfig> CreateClient(MqConfig config)
+        {
+            return new MqClient<SimpleMqSession, MqConfig>(config);
+        }
+
 
         public void CompareMessages(MqMessage expected, MqMessage actual)
         {
@@ -114,7 +93,7 @@ namespace DtronixMessageQueue.Tests.Mq
 
         public MqMessage GenerateRandomMessage(int frames = -1, int frameLength = -1)
         {
-            var frameCount = frames == -1 ? _random.Next(8, 16) : frames;
+            var frameCount = frames == -1 ? Random.Next(8, 16) : frames;
             var message = new MqMessage();
             for (int i = 0; i < frameCount; i++)
             {
@@ -122,7 +101,7 @@ namespace DtronixMessageQueue.Tests.Mq
 
                 if (frameLength == -1)
                 {
-                    frame = new MqFrame(Utilities.SequentialBytes(_random.Next(50, 1024 * 16 - 3)),
+                    frame = new MqFrame(Utilities.SequentialBytes(Random.Next(50, 1024 * 16 - 3)),
                         (i + 1 < frameCount) ? MqFrameType.More : MqFrameType.Last, Config);
                 }
                 else
@@ -136,23 +115,5 @@ namespace DtronixMessageQueue.Tests.Mq
             return message;
         }
 
-
-        public void Dispose()
-        {
-            try
-            {
-                Server.Stop();
-            }
-            catch
-            {
-            }
-            try
-            {
-                Client.Close();
-            }
-            catch
-            {
-            }
-        }
     }
 }

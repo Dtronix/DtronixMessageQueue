@@ -89,7 +89,7 @@ namespace DtronixMessageQueue.Tests.TransportLayer
                     Client.Connect();
 
                 if (args.State == TransportLayerState.Connected)
-                    args.Session.Close(SessionCloseReason.Closing);
+                    args.Session.Close(SessionCloseReason.Closing, false);
 
                 if (args.State == TransportLayerState.Closed)
                     TestComplete.Set();
@@ -104,7 +104,7 @@ namespace DtronixMessageQueue.Tests.TransportLayer
             Server.StateChanged += (sender, args) =>
             {
                 if (args.State == TransportLayerState.Connected)
-                    args.Session.Close(SessionCloseReason.Closing);
+                    args.Session.Close(SessionCloseReason.Closing, false);
             };
 
             Client.StateChanged += (sender, args) =>
@@ -117,7 +117,7 @@ namespace DtronixMessageQueue.Tests.TransportLayer
         }
 
         [Fact]
-        public void Server_notifies_client_stopping()
+        public void Server_notifies_client_of_stopping()
         {
             Server.StateChanged += (sender, args) =>
             {
@@ -168,7 +168,7 @@ namespace DtronixMessageQueue.Tests.TransportLayer
             Client.StateChanged += (sender, args) =>
             {
                 if (args.State == TransportLayerState.Connected)
-                    args.Session.Close(SessionCloseReason.Closing);
+                    args.Session.Close(SessionCloseReason.Closing, false);
             };
 
             Server.StateChanged += async (sender, args) =>
@@ -180,7 +180,7 @@ namespace DtronixMessageQueue.Tests.TransportLayer
                         LastException = new Exception("Server accepted new connection when it should not.");
                     }
 
-                    await Task.Delay(500);
+                    await Task.Delay(200);
                     TestComplete.Set();
                 }
 
@@ -202,7 +202,7 @@ namespace DtronixMessageQueue.Tests.TransportLayer
             Client.StateChanged += (sender, args) =>
             {
                 if (args.State == TransportLayerState.Connected)
-                    args.Session.Close(SessionCloseReason.Closing);
+                    args.Session.Close(SessionCloseReason.Closing, false);
             };
 
             Server.StateChanged += async (sender, args) =>

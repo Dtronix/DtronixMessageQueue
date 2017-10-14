@@ -49,7 +49,7 @@ namespace DtronixMessageQueue.Tests.Mq
 
                 if (clientMessageCount == number)
                 {
-                    TestStatus.Set();
+                    TestComplete.Set();
                 }
             };
 
@@ -59,7 +59,7 @@ namespace DtronixMessageQueue.Tests.Mq
         [Fact]
         public void Server_accepts_new_connection()
         {
-            Server.Connected += (sender, session) => { TestStatus.Set(); };
+            Server.Connected += (sender, session) => { TestComplete.Set(); };
 
             StartAndWait();
         }
@@ -69,7 +69,7 @@ namespace DtronixMessageQueue.Tests.Mq
         {
             Client.Connected += (sender, args) => { Client.Close(); };
 
-            Server.Closed += (session, value) => { TestStatus.Set(); };
+            Server.Closed += (session, value) => { TestComplete.Set(); };
 
             StartAndWait();
         }
@@ -96,12 +96,12 @@ namespace DtronixMessageQueue.Tests.Mq
 
             client.Connected += (sender, args) => client.Close();
             client.Closed += (sender, args) => client2.Connect();
-            client2.Connected += (sender, args) => TestStatus.Set();
+            client2.Connected += (sender, args) => TestComplete.Set();
             client.Connect();
 
-            TestStatus.Wait(new TimeSpan(0, 0, 0, 0, 1000));
+            TestComplete.Wait(new TimeSpan(0, 0, 0, 0, 1000));
 
-            if (TestStatus.IsSet == false)
+            if (TestComplete.IsSet == false)
             {
                 throw new TimeoutException("Test timed out.");
             }
@@ -124,14 +124,14 @@ namespace DtronixMessageQueue.Tests.Mq
                 {
                     invalidClosException = new Exception("Client socket did not close for the correct reason.");
                 }
-                TestStatus.Set();
+                TestComplete.Set();
             };
             client.Connect();
             
 
-            TestStatus.Wait(new TimeSpan(0, 0, 0, 0, 1000));
+            TestComplete.Wait(new TimeSpan(0, 0, 0, 0, 1000));
 
-            if (TestStatus.IsSet == false)
+            if (TestComplete.IsSet == false)
             {
                 throw new TimeoutException("Test timed out.");
             }
@@ -154,7 +154,7 @@ namespace DtronixMessageQueue.Tests.Mq
                 Client.Close();
                 if (++connected_times == 2)
                 {
-                    TestStatus.Set();
+                    TestComplete.Set();
                 }
                 else
                 {
@@ -175,9 +175,9 @@ namespace DtronixMessageQueue.Tests.Mq
 
 
 
-            TestStatus.Wait(new TimeSpan(0, 0, 0, 0, 2000));
+            TestComplete.Wait(new TimeSpan(0, 0, 0, 0, 2000));
 
-            if (TestStatus.IsSet == false)
+            if (TestComplete.IsSet == false)
             {
                 throw new TimeoutException("Test timed out.");
             }
@@ -188,13 +188,13 @@ namespace DtronixMessageQueue.Tests.Mq
         {
 
             Server.Started += (sender, args) => Server.Stop();
-            Server.Started += (sender, args) => TestStatus.Set();
+            Server.Started += (sender, args) => TestComplete.Set();
 
             Server.Start();
 
-            TestStatus.Wait(new TimeSpan(0, 0, 0, 0, 2000));
+            TestComplete.Wait(new TimeSpan(0, 0, 0, 0, 2000));
 
-            if (TestStatus.IsSet == false)
+            if (TestComplete.IsSet == false)
             {
                 throw new TimeoutException("Test timed out.");
             }
@@ -204,13 +204,13 @@ namespace DtronixMessageQueue.Tests.Mq
         public void Server_invokes_started_event()
         {
 
-            Server.Started += (sender, args) => TestStatus.Set();
+            Server.Started += (sender, args) => TestComplete.Set();
 
             Server.Start();
 
-            TestStatus.Wait(new TimeSpan(0, 0, 0, 0, 2000));
+            TestComplete.Wait(new TimeSpan(0, 0, 0, 0, 2000));
 
-            if (TestStatus.IsSet == false)
+            if (TestComplete.IsSet == false)
             {
                 throw new TimeoutException("Test timed out.");
             }

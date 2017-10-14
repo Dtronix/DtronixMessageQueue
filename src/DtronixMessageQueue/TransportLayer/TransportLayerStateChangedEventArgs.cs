@@ -13,6 +13,13 @@ namespace DtronixMessageQueue.TransportLayer
         public ITransportLayer TransportLayer { get; }
         public SessionCloseReason Reason { get; set; }
 
+
+        public TransportLayerStateChangedEventArgs(ITransportLayer transportLayer, TransportLayerState state)
+        {
+            TransportLayer = transportLayer;
+            State = state;
+        }
+
         public TransportLayerStateChangedEventArgs(ITransportLayer transportLayer, TransportLayerState state, ITransportLayerSession session)
         {
             TransportLayer = transportLayer;
@@ -20,10 +27,13 @@ namespace DtronixMessageQueue.TransportLayer
             State = state;
         }
 
-        public TransportLayerStateChangedEventArgs(ITransportLayer transportLayer, TransportLayerState state)
+        public TransportLayerStateChangedEventArgs(ITransportLayer transportLayer, TransportLayerState state, ITransportLayerSession session, SessionCloseReason reason)
         {
             TransportLayer = transportLayer;
+            Session = session;
             State = state;
+            Reason = reason;
         }
+
     }
 }

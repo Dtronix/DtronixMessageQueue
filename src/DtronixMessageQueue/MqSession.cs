@@ -25,7 +25,7 @@ namespace DtronixMessageQueue
         /// <summary>
         /// Configurations for the associated socket.
         /// </summary>
-        public TConfig Config { get; private set; }
+        public TConfig Config { get; internal set; }
 
         public DateTime LastReceived => TransportSession.LastReceived;
 
@@ -34,12 +34,19 @@ namespace DtronixMessageQueue
         /// <summary>
         /// Processor to handle all inbound messages.
         /// </summary>
-        protected ActionProcessor<Guid> InboxProcessor;
+        internal ActionProcessor<Guid> InboxProcessor;
 
         /// <summary>
         /// Processor to handle all outbound messages.
         /// </summary>
-        protected ActionProcessor<Guid> OutboxProcessor;
+        internal ActionProcessor<Guid> OutboxProcessor;
+
+        /// <summary>
+        /// Base socket for this session.
+        /// </summary>
+        public MqSessionHandler<TSession, TConfig> SessionHandler { get; internal set; }
+
+        public ITransportLayerSession TransportSession { get; internal set; }
 
         /// <summary>
         /// Reference to the current message being processed by the inbox.
@@ -66,9 +73,9 @@ namespace DtronixMessageQueue
         private SemaphoreSlim _receivingSemaphore;
 
         /// <summary>
-        /// Base socket for this session.
+        /// True if this connection was requested to be closed by the other end.
         /// </summary>
-        public MqSessionHandler<TSession, TConfig> SessionHandler { get; private set; }
+        private bool CloseRequested = false;
 
         /// <summary>
         /// Event fired when a new message has been processed by the Postmaster and ready to be read.
@@ -81,38 +88,34 @@ namespace DtronixMessageQueue
         public event EventHandler<SessionCloseEventArgs<TSession, TConfig>> Closed;
 
 
-
-        public ITransportLayerSession TransportSession { get; private set; }
-
         /// <summary>
         /// Sets up this socket with the specified configurations.
         /// </summary>
-        /// <param name="sessionSocket">Socket this session is to use.</param>
-        /// <param name="socketArgsManager">Argument pool for this session to use.  Pulls two async events for reading and writing and returns them at the end of this socket's life.</param>
-        /// <param name="transportSession"></param>
-        /// <param name="sessionConfig">Socket configurations this session is to use.</param>
+        /// <param name="transportSession">Underlying session handling all transport information.</param>
         /// <param name="sessionHandler">Handler base which is handling this session.</param>
         /// <param name="inboxProcessor">Processor which handles all inbox data.</param>
         /// /// <param name="outboxProcessor">Processor which handles all outbox data.</param>
-        /// <param name="serviceMethodCache">Cache for commonly called methods used throughout the session.</param>
         public static TSession Create(
+            MqSessionHandler<TSession, TConfig> sessionHandler,
             ITransportLayerSession transportSession,
-            TConfig sessionConfig,
-            MqSessionHandler<TSession, TConfig> sessionHandler)
+            ActionProcessor<Guid> inboxProcessor,
+            ActionProcessor<Guid> outboxProcessor)
         {
             var session = new TSession
             {
                 TransportSession = transportSession,
-                Config = sessionConfig,
-                SessionHandler = sessionHandler
+                Config = sessionHandler.Config,
+                SessionHandler = sessionHandler,
+                InboxProcessor = inboxProcessor,
+                OutboxProcessor = outboxProcessor
             };
+
+            transportSession.ImplementedSession = session;
 
             session.OnSetup();
 
             return session;
         }
-
-
 
         protected virtual void OnSetup()
         {
@@ -138,10 +141,6 @@ namespace DtronixMessageQueue
             {
                 switch (args.State)
                 {
-                    case TransportLayerState.Connected:
-                        OnConnected();
-                        break;
-
                     case TransportLayerState.Closing:
                         OnClosing(args.Reason);
                         break;
@@ -158,40 +157,31 @@ namespace DtronixMessageQueue
             };
         }
 
-        protected virtual void OnConnected()
-        {
-
-        }
-
-
         protected virtual void OnClosing(SessionCloseReason reason)
         {
+            var closeFrame = CreateFrame(new byte[2], MqFrameType.Command);
 
-            if (TransportSession.State == TransportLayerState.Connected)
+            closeFrame.Write(0, (byte) 0);
+            closeFrame.Write(1, (byte) reason);
+
+            MqMessage msg;
+            if (_outbox.IsEmpty == false)
             {
-                var closeFrame = CreateFrame(new byte[2], MqFrameType.Command);
-
-                closeFrame.Write(0, (byte)0);
-                closeFrame.Write(1, (byte)reason);
-
-                MqMessage msg;
-                if (_outbox.IsEmpty == false)
-                {
-                    while (_outbox.TryDequeue(out msg))
-                        _sendingSemaphore.Release();
+                while (_outbox.TryDequeue(out msg))
+                    _sendingSemaphore.Release();
 
 
-                    byte[] buffer;
-                    while (_inboxBytes.TryDequeue(out buffer))
-                        _receivingSemaphore.Release();
-                }
-
-                msg = new MqMessage(closeFrame);
-                _outbox.Enqueue(msg);
-
-                // QueueOnce the last bit of data.
-                ProcessOutbox();
+                byte[] buffer;
+                while (_inboxBytes.TryDequeue(out buffer))
+                    _receivingSemaphore.Release();
             }
+
+            msg = new MqMessage(closeFrame);
+            _outbox.Enqueue(msg);
+
+            // QueueOnce the last bit of data.
+            ProcessOutbox();
+
         }
 
         protected virtual void OnClosed(SessionCloseReason reason)
@@ -217,7 +207,7 @@ namespace DtronixMessageQueue
                 || TransportSession.State == TransportLayerState.Closing)
                 return;
 
-            TransportSession.Close(reason);
+            TransportSession.Close(reason, CloseRequested);
         }
 
 
@@ -447,6 +437,7 @@ namespace DtronixMessageQueue
             switch (commandType)
             {
                 case MqCommandType.Disconnect:
+                    CloseRequested = true;
                     Close((SessionCloseReason)frame.ReadByte(1));
                     break;
 
@@ -462,7 +453,7 @@ namespace DtronixMessageQueue
         /// <returns>String representation.</returns>
         public override string ToString()
         {
-            return $"MqSession; Reading {_inboxBytes.Count} byte packets; Sending {_outbox.Count} messages.";
+            return $"{SessionHandler.LayerMode} MqSession; Reading {_inboxBytes.Count} byte packets; Sending {_outbox.Count} messages.";
         }
 
         /// <summary>

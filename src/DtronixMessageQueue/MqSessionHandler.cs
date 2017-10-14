@@ -147,8 +147,7 @@ namespace DtronixMessageQueue
                     }
 
                     // Convert the TransportLayerSession into a MqSession
-                    var session = MqSession<TSession, TConfig>.Create(e.Session, Config, this);
-                    e.Session.ImplementedSession = session;
+                    var session = MqSession<TSession, TConfig>.Create(this, e.Session, InboxProcessor, OutboxProcessor);
 
                     // If we are at max sessions, close the new connection with a connection refused reason.
                     if (maxSessions)

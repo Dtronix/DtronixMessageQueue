@@ -73,6 +73,8 @@ namespace DtronixMessageQueue.Rpc
             MessageHandlers = new Dictionary<byte, MessageHandler<TSession, TConfig>>();
         }
 
+
+
         /// <summary>
         /// Called when this session is being setup.
         /// </summary>
@@ -90,6 +92,34 @@ namespace DtronixMessageQueue.Rpc
 
             RpcCallHandler = new RpcCallMessageHandler<TSession, TConfig>((TSession) this);
             MessageHandlers.Add(RpcCallHandler.Id, RpcCallHandler);
+
+
+
+            // If this is a new session on the server, send the welcome message.
+            if (SessionHandler.LayerMode == TransportLayerMode.Server)
+            {
+                Server.ServerInfo.RequireAuthentication = Config.RequireAuthentication;
+
+                var serializer = SerializationCache.Get();
+
+                serializer.MessageWriter.Write((byte)MqCommandType.RpcCommand);
+                serializer.MessageWriter.Write((byte)RpcCommandType.WelcomeMessage);
+                serializer.SerializeToWriter(Server.ServerInfo);
+
+                var message = serializer.MessageWriter.ToMessage(true);
+
+                message[0].FrameType = MqFrameType.Command;
+
+                // RpcCommand:byte; RpcCommandType:byte; RpcServerInfoDataContract:byte[];
+                Send(message);
+            }
+
+            // If the server does not require authentication, alert the server session that it is ready.
+            if (SessionHandler.LayerMode == TransportLayerMode.Server && Config.RequireAuthentication == false)
+            {
+                Authenticated = true;
+                Ready?.Invoke(this, new SessionEventArgs<TSession, TConfig>((TSession)this));
+            }
         }
 
 
@@ -290,41 +320,6 @@ namespace DtronixMessageQueue.Rpc
                 Close(SessionCloseReason.ProtocolError);
             }
         }
-
-        /// <summary>
-        /// Called when this RpcSession is connected to the socket.
-        /// </summary>
-        protected override void OnConnected()
-        {
-            // If this is a new session on the server, send the welcome message.
-            if (SessionHandler.LayerMode == TransportLayerMode.Server)
-            {
-                Server.ServerInfo.RequireAuthentication = Config.RequireAuthentication;
-
-                var serializer = SerializationCache.Get();
-
-                serializer.MessageWriter.Write((byte) MqCommandType.RpcCommand);
-                serializer.MessageWriter.Write((byte) RpcCommandType.WelcomeMessage);
-                serializer.SerializeToWriter(Server.ServerInfo);
-
-                var message = serializer.MessageWriter.ToMessage(true);
-
-                message[0].FrameType = MqFrameType.Command;
-
-                // RpcCommand:byte; RpcCommandType:byte; RpcServerInfoDataContract:byte[];
-                Send(message);
-            }
-
-            base.OnConnected();
-
-            // If the server does not require authentication, alert the server session that it is ready.
-            if (SessionHandler.LayerMode == TransportLayerMode.Server && Config.RequireAuthentication == false)
-            {
-                Authenticated = true;
-                Ready?.Invoke(this, new SessionEventArgs<TSession, TConfig>((TSession) this));
-            }
-        }
-
 
         /// <summary>
         /// Event fired when one or more new messages are ready for use.
