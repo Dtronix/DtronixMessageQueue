@@ -55,7 +55,7 @@ namespace DtronixMessageQueue.Tests
 
         protected void StartAndWait(bool timeoutError = true, int timeoutLength = -1)
         {
-#if DEBUG
+#if false
             timeoutLength = 100000;
 #else
             timeoutLength = timeoutLength != -1 ? timeoutLength : (int)TestTimeout.TotalMilliseconds;

@@ -33,7 +33,7 @@ namespace DtronixMessageQueue.Tests.TransportLayer
             Client.StateChanged += (sender, args) =>
             {
                 if (args.State == TransportLayerState.Connected)
-                    args.Session.Close(SessionCloseReason.Closing, false);
+                    args.Session.Close(SessionCloseReason.Closing);
             };
 
             Server.StateChanged += (sender, args) =>
@@ -61,7 +61,7 @@ namespace DtronixMessageQueue.Tests.TransportLayer
             Client.StateChanged += (sender, args) =>
             {
                 if (args.State == TransportLayerState.Connected)
-                    args.Session.Close(SessionCloseReason.Closing, false);
+                    args.Session.Close(SessionCloseReason.Closing);
 
                 if (args.State == TransportLayerState.Closed)
                     TestComplete.Set();
@@ -76,7 +76,7 @@ namespace DtronixMessageQueue.Tests.TransportLayer
             Client.StateChanged += (sender, args) =>
             {
                 if (args.State == TransportLayerState.Connected)
-                    args.Session.Close(SessionCloseReason.Closing, false);
+                    args.Session.Close(SessionCloseReason.Closing);
             };
 
             Server.StateChanged += (sender, args) =>

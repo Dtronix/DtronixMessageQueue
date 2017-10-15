@@ -1,6 +1,8 @@
 ﻿using System;
+using System.Net.Sockets;
 using System.Threading;
 using DtronixMessageQueue.TransportLayer;
+using DtronixMessageQueue.TransportLayer.Tcp;
 using Xunit;
 using Xunit.Abstractions;
 
@@ -12,15 +14,12 @@ namespace DtronixMessageQueue.Tests.Mq
         {
         }
 
-        [Theory]
-        [InlineData(1, false)]
-        [InlineData(1, true)]
-        [InlineData(100, true)]
-        [InlineData(1000, true)]
-        public void Client_should_send_data_to_server(int number, bool validate)
+        [Fact]
+        public void Client_should_send_data_to_server()
         {
             var messageSource = GenerateRandomMessage(4, 50);
             int receivedMessages = 0;
+            var number = 1000;
             Client.Connected += (sender, args) =>
             {
                 for (int i = 0; i < number; i++)
@@ -37,10 +36,7 @@ namespace DtronixMessageQueue.Tests.Mq
                 {
                     message = args.Messages.Dequeue();
                     Interlocked.Increment(ref receivedMessages);
-                    if (validate)
-                    {
-                        CompareMessages(messageSource, message);
-                    }
+                    CompareMessages(messageSource, message);
                 }
 
 
@@ -88,9 +84,15 @@ namespace DtronixMessageQueue.Tests.Mq
         {
             var commandFrame = new MqFrame(new byte[21], MqFrameType.Command, Config);
 
-            Client.Connected += (sender, args) => { Client.Send(commandFrame); };
+            Client.Connected += (sender, args) =>
+            {
+                Client.Send(commandFrame);
+            };
 
-            Server.IncomingMessage += (sender, args) => { TestComplete.Set(); };
+            Server.IncomingMessage += (sender, args) =>
+            {
+                TestComplete.Set();
+            };
 
             StartAndWait(false, 500);
 
@@ -259,7 +261,7 @@ namespace DtronixMessageQueue.Tests.Mq
             }
         }
 
-        /*[Fact]
+        [Fact]
         public void Client_times_out_after_server_dropped_session()
         {
             Config.PingTimeout = 500;
@@ -268,7 +270,12 @@ namespace DtronixMessageQueue.Tests.Mq
 
             Server = new MqServer<SimpleMqSession, MqConfig>(Config);
 
-            Server.Connected += (sender, args) => { args.Session.Socket.Close(); };
+            Server.Connected += (sender, args) =>
+            {
+                var socket = ((TcpTransportLayerSession) args.Session.TransportSession).Socket;
+                socket.LingerState = new LingerOption(false, 0);
+                socket.Close();
+            };
 
 
             Client.Closed += (sender, args) =>
@@ -289,15 +296,19 @@ namespace DtronixMessageQueue.Tests.Mq
             {
                 throw new Exception("Socket did not timeout.");
             }
-        }*/
+        }
 
-        /*[Fact]
+
+        [Fact]
         public void Client_times_out_while_connecting_for_too_long()
         {
             Config.ConnectionTimeout = 100;
             Client = new MqClient<SimpleMqSession, MqConfig>(Config);
 
-            Server.Connected += (sender, args) => { args.Session.Socket.Close(); };
+            Server.Connected += (sender, args) =>
+            {
+                ((TcpTransportLayerSession)args.Session.TransportSession).Socket.Close();
+            };
 
 
             Client.Closed += (sender, args) =>
@@ -318,7 +329,7 @@ namespace DtronixMessageQueue.Tests.Mq
             {
                 throw new Exception("Socket did not timeout.");
             }
-        }*/
+        }
 
         [Fact]
         public void Client_reconnects_after_close()

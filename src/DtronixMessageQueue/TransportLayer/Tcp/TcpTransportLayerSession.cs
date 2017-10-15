@@ -65,7 +65,7 @@ namespace DtronixMessageQueue.TransportLayer.Tcp
             Id = Guid.NewGuid();
 
             if (transportLayer.Config.SendTimeout > 0)
-               socket.SendTimeout = transportLayer.Config.SendTimeout;
+                socket.SendTimeout = transportLayer.Config.SendTimeout;
 
             if (transportLayer.Config.SendAndReceiveBufferSize > 0)
                 socket.ReceiveBufferSize = transportLayer.Config.SendAndReceiveBufferSize;
@@ -77,9 +77,6 @@ namespace DtronixMessageQueue.TransportLayer.Tcp
             socket.SetSocketOption(SocketOptionLevel.Socket, SocketOptionName.DontLinger, true);
 
             _tlReceiveArgs = new TransportLayerReceiveAsyncEventArgs(this);
-
-            LastReceived = ConnectedTime = DateTime.Now;
-
             State = TransportLayerState.Connected;
         }
 
@@ -95,13 +92,12 @@ namespace DtronixMessageQueue.TransportLayer.Tcp
             switch (e.LastOperation)
             {
                 case SocketAsyncOperation.Receive:
-                    LastReceived = DateTime.Now;
                     ReceiveComplete(e);
                     break;
 
                 case SocketAsyncOperation.Send:
                     if (e.SocketError != SocketError.Success)
-                        Close(SessionCloseReason.SocketError, false);
+                        Close(SessionCloseReason.SocketError);
                     break;
 
                 default:
@@ -141,7 +137,7 @@ namespace DtronixMessageQueue.TransportLayer.Tcp
             }
             catch (ObjectDisposedException)
             {
-                Close(SessionCloseReason.SocketError, false);
+                Close(SessionCloseReason.SocketError);
             }
         }
 
@@ -158,9 +154,9 @@ namespace DtronixMessageQueue.TransportLayer.Tcp
             }
             catch (ObjectDisposedException)
             {
-                Close(SessionCloseReason.SocketError, false);
+                Close(SessionCloseReason.SocketError);
             }
-            
+
         }
 
 
@@ -176,14 +172,17 @@ namespace DtronixMessageQueue.TransportLayer.Tcp
 
             if (e.BytesTransferred == 0 && State == TransportLayerState.Connected)
             {
-                Close(SessionCloseReason.Closing, true);
+                // Ensure this close signal did not follow directly behind a close command.
+                if ((DateTime.Now - LastReceived).TotalMilliseconds > 100)
+                    //Close(SessionCloseReason.Closing);
+
                 return;
             }
 
             if (e.BytesTransferred > 0 && e.SocketError == SocketError.Success)
             {
                 // Update the last time this session was active to prevent timeout.
-                LastReceived = DateTime.UtcNow;
+                LastReceived = DateTime.Now;
 
                 // Create a copy of these bytes.
                 var buffer = new byte[e.BytesTransferred];
@@ -196,7 +195,7 @@ namespace DtronixMessageQueue.TransportLayer.Tcp
             }
             else
             {
-                Close(SessionCloseReason.SocketError, false);
+                Close(SessionCloseReason.SocketError);
             }
         }
 
@@ -204,10 +203,7 @@ namespace DtronixMessageQueue.TransportLayer.Tcp
         /// Closes the current session.
         /// </summary>
         /// <param name="reason">Reason this session is being closed.</param>
-        /// <param name="requested">
-        /// If the close is requested  by the other party, this value is true.
-        /// If it is false, the close was initiated from this end of the connection.</param>
-        public async void Close(SessionCloseReason reason, bool requested)
+        public void Close(SessionCloseReason reason)
         {
             // If this session has already been closed, nothing more to do.
             if (State == TransportLayerState.Closed || State == TransportLayerState.Closing)
@@ -216,22 +212,12 @@ namespace DtronixMessageQueue.TransportLayer.Tcp
             // Set the state to closing to restrict what can be done.
             State = TransportLayerState.Closing;
 
-            if (!requested)
-            {
-                StateChanged?.Invoke(this,
-                    new TransportLayerStateChangedEventArgs(TransportLayer, TransportLayerState.Closing, this, reason));
-            }
+            StateChanged?.Invoke(this,
+                new TransportLayerStateChangedEventArgs(TransportLayer, TransportLayerState.Closing, this, reason));
 
             // Prevent any more bytes from being received.
             Received = null;
 
-            // Bugfix.
-            // If this connection's close is being initiated from this side, wait a moment before
-            // Sending the final "close" to allow the other end of the connection to parse the close reason.
-            if(!requested)
-                await Task.Delay(500);
-
-            // close the socket associated with the client
             try
             {
                 Socket.Shutdown(SocketShutdown.Receive);
@@ -255,10 +241,11 @@ namespace DtronixMessageQueue.TransportLayer.Tcp
 
             State = TransportLayerState.Closed;
 
-            StateChanged?.Invoke(this, new TransportLayerStateChangedEventArgs(TransportLayer, TransportLayerState.Closed, this)
-            {
-                Reason = reason
-            });
+            StateChanged?.Invoke(this,
+                new TransportLayerStateChangedEventArgs(TransportLayer, TransportLayerState.Closed, this)
+                {
+                    Reason = reason
+                });
         }
 
         public override string ToString()

@@ -70,7 +70,7 @@ namespace DtronixMessageQueue.Rpc
         protected override void OnTimeoutTimer(object state)
         {
             var timoutInt = Config.PingTimeout;
-            var timeoutTime = DateTime.UtcNow.Subtract(TimeSpan.FromMilliseconds(timoutInt));
+            var timeoutTime = DateTime.Now.Subtract(TimeSpan.FromMilliseconds(timoutInt));
 
             foreach (var session in ConnectedSessions.Values)
             {

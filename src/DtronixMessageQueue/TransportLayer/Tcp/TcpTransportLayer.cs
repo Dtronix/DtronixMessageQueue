@@ -118,7 +118,7 @@ namespace DtronixMessageQueue.TransportLayer.Tcp
 
             foreach (var session in sessions)
             {
-                session.Close(closeReason, false);
+                session.Close(closeReason);
             }
 
             try
@@ -276,7 +276,7 @@ namespace DtronixMessageQueue.TransportLayer.Tcp
 
             MainSocket.Close();
 
-            ClientSession?.Close(reason, false);
+            ClientSession?.Close(reason);
 
             State = TransportLayerState.Closed;
         }
