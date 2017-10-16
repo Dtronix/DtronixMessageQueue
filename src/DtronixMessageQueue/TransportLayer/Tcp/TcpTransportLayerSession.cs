@@ -47,6 +47,8 @@ namespace DtronixMessageQueue.TransportLayer.Tcp
         /// </summary>
         public DateTime ConnectedTime { get; }
 
+        public bool SimulateConnectionDrop;
+
 
         public TcpTransportLayerSession(TcpTransportLayer transportLayer, Socket socket)
         {
@@ -78,6 +80,8 @@ namespace DtronixMessageQueue.TransportLayer.Tcp
 
             _tlReceiveArgs = new TransportLayerReceiveAsyncEventArgs(this);
             State = TransportLayerState.Connected;
+
+            ConnectedTime = DateTime.Now;
         }
 
 
@@ -88,6 +92,9 @@ namespace DtronixMessageQueue.TransportLayer.Tcp
         /// <param name="e">SocketAsyncEventArg associated with the completed receive operation</param>
         private void IoCompleted(object sender, SocketAsyncEventArgs e)
         {
+            if (SimulateConnectionDrop)
+                return;
+
             // determine which type of operation just completed and call the associated handler
             switch (e.LastOperation)
             {
@@ -117,6 +124,9 @@ namespace DtronixMessageQueue.TransportLayer.Tcp
         /// <param name="length">Total bytes to send.</param>
         public void Send(byte[] buffer, int offset, int length)
         {
+            if (SimulateConnectionDrop)
+                return;
+
             if (Socket == null || Socket.Connected == false)
                 return;
 
@@ -144,6 +154,8 @@ namespace DtronixMessageQueue.TransportLayer.Tcp
 
         public void ReceiveAsync()
         {
+            if (SimulateConnectionDrop)
+                return;
             try
             {
                 // Re-setup the receive async call.
@@ -174,7 +186,7 @@ namespace DtronixMessageQueue.TransportLayer.Tcp
             {
                 // Ensure this close signal did not follow directly behind a close command.
                 if ((DateTime.Now - LastReceived).TotalMilliseconds > 100)
-                    //Close(SessionCloseReason.Closing);
+                    Close(SessionCloseReason.Closing);
 
                 return;
             }

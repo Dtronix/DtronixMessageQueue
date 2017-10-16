@@ -2,6 +2,7 @@
 using System.Threading;
 using DtronixMessageQueue.Tests.Mq;
 using DtronixMessageQueue.TransportLayer;
+using DtronixMessageQueue.TransportLayer.Tcp;
 using Xunit;
 using Xunit.Abstractions;
 
@@ -113,5 +114,75 @@ namespace DtronixMessageQueue.Tests.TransportLayer
 
             StartAndWait();
         }
+
+        [Fact]
+        public void Client_times_out_on_long_connection()
+        {
+            ClientConfig.ConnectionTimeout = 500;
+
+            Client.StateChanged += (sender, args) =>
+            {
+                if (args.State == TransportLayerState.Closed)
+                {
+                    if (args.Reason == SessionCloseReason.TimeOut)
+                    {
+                        TestComplete.Set();
+                    }
+                    else
+                    {
+                        LastException = new Exception("Client closed for the wrong reason.");
+                    }
+                }
+                    
+            };
+
+            StartAndWait(false, 10000, false);
+
+            if (TestComplete.IsSet == false)
+            {
+                throw new Exception("Socket did not timeout.");
+            }
+        }
+
+        [Fact]
+        public void Client_times_out_after_server_dropped_session()
+        {
+            ClientConfig.PingTimeout = 200;
+
+            Server.StateChanged += (sender, args) =>
+            {
+                if(args.State == TransportLayerState.Connected)
+                    ((TcpTransportLayerSession)args.Session).SimulateConnectionDrop = true;
+
+                if(args.State == TransportLayerState.Started)
+                    Client.Connect();
+            };
+
+
+            Client.StateChanged += (sender, args) =>
+            {
+                if (args.State == TransportLayerState.Closed)
+                {
+                    if (args.Reason == SessionCloseReason.TimeOut)
+                    {
+                        TestComplete.Set();
+                    }
+                    else
+                    {
+                        LastException = new Exception("Client closed for reason other than timeout.");
+                    }
+                }
+            };
+
+            StartAndWait(false, 1000, true, false);
+
+            if (TestComplete.IsSet == false)
+            {
+                throw new Exception("Socket did not timeout.");
+            }
+        }
+
+
+
     }
 }

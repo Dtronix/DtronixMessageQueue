@@ -30,6 +30,21 @@ namespace DtronixMessageQueue
         /// </summary>
         public MqServer(TConfig config) : base(config, TransportLayerMode.Server)
         {
+            TransportLayer.StateChanged += (sender, args) =>
+            {
+                switch (args.State)
+                {
+                    case TransportLayerState.Started:
+                        Started?.Invoke(this, EventArgs.Empty);
+                        break;
+
+                    case TransportLayerState.Stopped:
+                        Stopped?.Invoke(this, EventArgs.Empty);
+                        break;
+
+                }
+
+            };
         }
 
 

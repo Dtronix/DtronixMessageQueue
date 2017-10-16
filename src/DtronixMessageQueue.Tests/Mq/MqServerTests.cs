@@ -89,8 +89,8 @@ namespace DtronixMessageQueue.Tests.Mq
         {
             Server.Config.MaxConnections = 1;
 
-            var client = CreateClient(Config);
-            var client2 = CreateClient(Config);
+            var client = CreateClient(ClientConfig);
+            var client2 = CreateClient(ClientConfig);
 
             Server.Start();
 
@@ -112,8 +112,8 @@ namespace DtronixMessageQueue.Tests.Mq
         {
             Server.Config.MaxConnections = 1;
             Exception invalidClosException = null;
-            var client = CreateClient(Config);
-            var client2 = CreateClient(Config);
+            var client = CreateClient(ClientConfig);
+            var client2 = CreateClient(ClientConfig);
 
             Server.Start();
 

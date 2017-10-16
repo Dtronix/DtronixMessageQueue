@@ -15,25 +15,31 @@ namespace DtronixMessageQueue.Tests.Mq
         public MqServer<SimpleMqSession, MqConfig> Server { get; protected set; }
         public MqClient<SimpleMqSession, MqConfig> Client { get; protected set; }
 
-        protected MqConfig Config;
+        protected MqConfig ClientConfig;
+        protected MqConfig ServerConfig;
 
 
         public MqTestsBase(ITestOutputHelper output) : base(output)
         {
-            Config = new MqConfig
+            ClientConfig = new MqConfig
             {
                 ConnectAddress = $"127.0.0.1:{Port}",
-                BindAddress = $"127.0.0.1:{Port}"
-                
             };
 
-            Server = new MqServer<SimpleMqSession, MqConfig>(Config);
-            Client = CreateClient(Config);
+            ServerConfig = new MqConfig
+            {
+                BindAddress = $"127.0.0.1:{Port}"
+            };
+
+            Server = new MqServer<SimpleMqSession, MqConfig>(ServerConfig);
+            Client = CreateClient(ClientConfig);
+
         }
 
 
         public void StartAndWait(bool timeoutError = true, int timeoutLength = -1, bool startServer = true, bool startClient = true)
         {
+
             if (startServer)
                 Server.Start();
 
@@ -70,7 +76,7 @@ namespace DtronixMessageQueue.Tests.Mq
         }
 
 
-        public void CompareMessages(MqMessage expected, MqMessage actual)
+        public bool CompareMessages(MqMessage expected, MqMessage actual)
         {
             try
             {
@@ -84,10 +90,13 @@ namespace DtronixMessageQueue.Tests.Mq
 
                     Assert.Equal(expected[i].Buffer, actual[i].Buffer);
                 }
+
+                return true;
             }
             catch (Exception e)
             {
                 LastException = e;
+                return false;
             }
         }
 
@@ -102,12 +111,12 @@ namespace DtronixMessageQueue.Tests.Mq
                 if (frameLength == -1)
                 {
                     frame = new MqFrame(Utilities.SequentialBytes(Random.Next(50, 1024 * 16 - 3)),
-                        (i + 1 < frameCount) ? MqFrameType.More : MqFrameType.Last, Config);
+                        (i + 1 < frameCount) ? MqFrameType.More : MqFrameType.Last, ClientConfig);
                 }
                 else
                 {
                     frame = new MqFrame(Utilities.SequentialBytes(frameLength),
-                        (i + 1 < frameCount) ? MqFrameType.More : MqFrameType.Last, Config);
+                        (i + 1 < frameCount) ? MqFrameType.More : MqFrameType.Last, ClientConfig);
                 }
                 message.Add(frame);
             }

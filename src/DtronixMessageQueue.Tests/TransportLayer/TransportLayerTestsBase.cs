@@ -13,25 +13,34 @@ namespace DtronixMessageQueue.Tests.TransportLayer
     public abstract class TransportLayerTestsBase : TestBase
     {
 
-        public ITransportLayer Client { get; }
-        public ITransportLayer Server { get; }
-        public TransportLayerConfig Config { get; set; }
+        public ITransportLayer Client { get; set; }
+        public ITransportLayer Server { get; set; }
+
+        public TransportLayerConfig ClientConfig { get; set; }
+        public TransportLayerConfig ServerConfig { get; set; }
+        
 
         protected TransportLayerTestsBase(ITestOutputHelper output) : base(output)
         {
-            Config = new MqConfig
+            ClientConfig = new TransportLayerConfig
             {
                 ConnectAddress = $"127.0.0.1:{Port}",
+            };
+
+            ServerConfig = new TransportLayerConfig
+            {
                 BindAddress = $"127.0.0.1:{Port}"
             };
 
-            Server = new TcpTransportLayer(Config, TransportLayerMode.Server);
-            Client = new TcpTransportLayer(Config, TransportLayerMode.Client);
+            Server = new TcpTransportLayer(ServerConfig, TransportLayerMode.Server);
+            Client = new TcpTransportLayer(ClientConfig, TransportLayerMode.Client);
         }
+
+       
 
         public void StartAndWait(bool timeoutError = true, int timeoutLength = -1, bool startServer = true, bool startClient = true)
         {
-            if(startServer)
+            if (startServer)
                 Server.Start();
 
             if(startClient)

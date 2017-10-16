@@ -19,7 +19,7 @@ namespace DtronixMessageQueue.Tests.Mq
         {
             var messageSource = GenerateRandomMessage(4, 50);
             int receivedMessages = 0;
-            var number = 1000;
+            var number = 100;
             Client.Connected += (sender, args) =>
             {
                 for (int i = 0; i < number; i++)
@@ -82,7 +82,7 @@ namespace DtronixMessageQueue.Tests.Mq
         [Fact]
         public void Client_does_not_notify_on_command_frame()
         {
-            var commandFrame = new MqFrame(new byte[21], MqFrameType.Command, Config);
+            var commandFrame = new MqFrame(new byte[21], MqFrameType.Command, ClientConfig);
 
             Client.Connected += (sender, args) =>
             {
@@ -105,18 +105,32 @@ namespace DtronixMessageQueue.Tests.Mq
         [Fact]
         public void Client_does_not_notify_on_ping_frame()
         {
-            var commandFrame = new MqFrame(null, MqFrameType.Ping, Config);
+            ServerConfig.PingFrequency = 0;
+            ClientConfig.PingFrequency = 0;
 
-            Client.Connected += (sender, args) => { Client.Send(commandFrame); };
+            var commandFrame = new MqFrame(new byte[]{1,2,3}, MqFrameType.Ping, ClientConfig);
+            var randomMessage = GenerateRandomMessage(1, 10);
 
-            Server.IncomingMessage += (sender, args) => { TestComplete.Set(); };
-
-            StartAndWait(false, 500);
-
-            if (TestComplete.IsSet)
+            Client.Connected += (sender, args) =>
             {
-                throw new Exception("Server read command frame.");
-            }
+                Client.Send(commandFrame);
+                Client.Send(randomMessage);
+            };
+
+            Server.IncomingMessage += (sender, args) =>
+            {
+
+                if (CompareMessages(randomMessage, args.Messages.Dequeue()))
+                {
+                    TestComplete.Set();
+                }
+                else
+                {
+                    LastException = new Exception("Server read command frame.");
+                }
+            };
+
+            StartAndWait(true, 10000);
         }
 
 
@@ -192,18 +206,8 @@ namespace DtronixMessageQueue.Tests.Mq
         [Fact]
         public void Client_times_out()
         {
-            var clientConfig = new MqConfig
-            {
-                ConnectAddress = Config.ConnectAddress,
-                PingFrequency = 60000
-            };
-
-
-            Client = new MqClient<SimpleMqSession, MqConfig>(clientConfig);
-
-            Config.PingTimeout = 500;
-            Server = new MqServer<SimpleMqSession, MqConfig>(Config);
-
+            ClientConfig.PingFrequency = 60000;
+            ServerConfig.PingTimeout = 500;
 
             Client.Closed += (sender, args) =>
             {
@@ -228,17 +232,8 @@ namespace DtronixMessageQueue.Tests.Mq
         [Fact]
         public void Client_prevents_times_out()
         {
-            var clientConfig = new MqConfig
-            {
-                ConnectAddress = Config.ConnectAddress,
-                PingFrequency = 100
-            };
-
-
-            Client = new MqClient<SimpleMqSession, MqConfig>(clientConfig);
-
-            Config.PingTimeout = 200;
-            Server = new MqServer<SimpleMqSession, MqConfig>(Config);
+            ClientConfig.PingFrequency = 100;
+            ClientConfig.PingTimeout = 200;
 
 
             Client.Closed += (sender, args) =>
@@ -264,17 +259,16 @@ namespace DtronixMessageQueue.Tests.Mq
         [Fact]
         public void Client_times_out_after_server_dropped_session()
         {
-            Config.PingTimeout = 500;
-            Client = new MqClient<SimpleMqSession, MqConfig>(Config);
-
-
-            Server = new MqServer<SimpleMqSession, MqConfig>(Config);
+            ClientConfig.PingTimeout = 500;
 
             Server.Connected += (sender, args) =>
             {
-                var socket = ((TcpTransportLayerSession) args.Session.TransportSession).Socket;
-                socket.LingerState = new LingerOption(false, 0);
-                socket.Close();
+                ((TcpTransportLayerSession) args.Session.TransportSession).SimulateConnectionDrop = true;
+            };
+
+            Server.Started += (sender, args) =>
+            {
+                Client.Connect();
             };
 
 
@@ -290,7 +284,7 @@ namespace DtronixMessageQueue.Tests.Mq
                 }
             };
 
-            StartAndWait(false, 1000);
+            StartAndWait(false, 5000, true, false);
 
             if (TestComplete.IsSet == false)
             {
@@ -302,14 +296,7 @@ namespace DtronixMessageQueue.Tests.Mq
         [Fact]
         public void Client_times_out_while_connecting_for_too_long()
         {
-            Config.ConnectionTimeout = 100;
-            Client = new MqClient<SimpleMqSession, MqConfig>(Config);
-
-            Server.Connected += (sender, args) =>
-            {
-                ((TcpTransportLayerSession)args.Session.TransportSession).Socket.Close();
-            };
-
+            ClientConfig.ConnectionTimeout = 500;
 
             Client.Closed += (sender, args) =>
             {

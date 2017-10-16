@@ -167,7 +167,7 @@ namespace DtronixMessageQueue
                 case TransportLayerState.Closed:
 
                     // Remove the session from the list of active sessions and release the semaphore.
-                    if (ConnectedSessions.TryRemove(e.Session.Id, out var connSession))
+                    if (e.Session != null && ConnectedSessions.TryRemove(e.Session.Id, out var connSession))
                     {
                         // If the remaining connection is now 1, that means that the server need to begin
                         // accepting new client connections.
@@ -175,15 +175,7 @@ namespace DtronixMessageQueue
                             _remainingConnections++;
                     }
 
-                    if (ConnectedSessions.Count == 0)
-                    {
-                        OutboxProcessor.Stop();
-                        InboxProcessor.Stop();
-                    }
-
-
-
-                    OnClose(new SessionCloseEventArgs<TSession, TConfig>((TSession) e.Session.ImplementedSession,
+                    OnClose(new SessionCloseEventArgs<TSession, TConfig>(e.Session?.ImplementedSession as TSession,
                         e.Reason));
                     break;
             }
