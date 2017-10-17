@@ -3,19 +3,14 @@ using System.Threading;
 using DtronixMessageQueue.Tests.Mq;
 using DtronixMessageQueue.TransportLayer;
 using DtronixMessageQueue.TransportLayer.Tcp;
-using Xunit;
-using Xunit.Abstractions;
+using NUnit.Framework;
 
 namespace DtronixMessageQueue.Tests.TransportLayer
 {
     public class TransportLayerClientTests : TransportLayerTestsBase
     {
-        public TransportLayerClientTests(ITestOutputHelper output) : base(output)
-        {
-        }
 
-
-        [Fact]
+        [Test]
         public void Client_connects_to_server()
         {
             Client.StateChanged += (sender, args) =>
@@ -27,7 +22,7 @@ namespace DtronixMessageQueue.Tests.TransportLayer
             StartAndWait();
         }
 
-        [Fact]
+        [Test]
         public void Client_reconnects_to_server()
         {
             int connectedCount = 0;
@@ -56,7 +51,7 @@ namespace DtronixMessageQueue.Tests.TransportLayer
         }
 
 
-        [Fact]
+        [Test]
         public void Client_disconnects_from_server()
         {
             Client.StateChanged += (sender, args) =>
@@ -71,7 +66,7 @@ namespace DtronixMessageQueue.Tests.TransportLayer
             StartAndWait();
         }
 
-        [Fact]
+        [Test]
         public void Client_notifies_server_of_close()
         {
             Client.StateChanged += (sender, args) =>
@@ -89,7 +84,7 @@ namespace DtronixMessageQueue.Tests.TransportLayer
             StartAndWait();
         }
 
-        [Fact]
+        [Test]
         public void Client_sends_data()
         {
             var randomBytes = Utilities.SequentialBytes(128);
@@ -103,7 +98,7 @@ namespace DtronixMessageQueue.Tests.TransportLayer
             {
                 try
                 {
-                    Assert.Equal(randomBytes, args.Buffer);
+                    Assert.AreEqual(randomBytes, args.Buffer);
                     TestComplete.Set();
                 }
                 catch (Exception e)
@@ -115,7 +110,7 @@ namespace DtronixMessageQueue.Tests.TransportLayer
             StartAndWait();
         }
 
-        [Fact]
+        [Test]
         public void Client_times_out_on_long_connection()
         {
             ClientConfig.ConnectionTimeout = 500;

@@ -1,23 +1,18 @@
 ﻿using System;
 using System.Threading;
 using DtronixMessageQueue.TransportLayer;
-using Xunit;
-using Xunit.Abstractions;
+using NUnit.Framework;
 
 namespace DtronixMessageQueue.Tests.Mq
 {
     public class MqServerTests : MqTestsBase
     {
-        public MqServerTests(ITestOutputHelper output) : base(output)
-        {
-        }
 
 
-        [Theory]
-        [InlineData(1, false)]
-        [InlineData(1, true)]
-        [InlineData(100, true)]
-        [InlineData(1000, true)]
+        [TestCase(1, false)]
+        [TestCase(1, true)]
+        [TestCase(100, true)]
+        [TestCase(1000, true)]
         public void Server_should_send_data_to_client(int number, bool validate)
         {
             var messageSource = GenerateRandomMessage(4, 50);
@@ -56,7 +51,7 @@ namespace DtronixMessageQueue.Tests.Mq
             StartAndWait();
         }
 
-        [Fact]
+        [Test]
         public void Server_accepts_new_connection()
         {
             Server.Connected += (sender, session) => { TestComplete.Set(); };
@@ -64,7 +59,7 @@ namespace DtronixMessageQueue.Tests.Mq
             StartAndWait();
         }
 
-        [Fact]
+        [Test]
         public void Server_detects_client_disconnect()
         {
             Client.Connected += (sender, args) => { Client.Close(); };
@@ -75,16 +70,16 @@ namespace DtronixMessageQueue.Tests.Mq
         }
 
 
-        [Fact]
+        [Test]
         public void Server_stops()
         {
             Server.Start();
-            Assert.Equal(TransportLayerState.Started, Server.State);
+            Assert.AreEqual(TransportLayerState.Started, Server.State);
             Server.Stop();
-            Assert.Equal(TransportLayerState.Stopped, Server.State);
+            Assert.AreEqual(TransportLayerState.Stopped, Server.State);
         }
 
-        [Fact]
+        [Test]
         public void Server_accepts_new_connection_after_max()
         {
             Server.Config.MaxConnections = 1;
@@ -107,7 +102,7 @@ namespace DtronixMessageQueue.Tests.Mq
             }
         }
 
-        [Fact]
+        [Test]
         public void Server_refuses_new_connection_after_max()
         {
             ServerConfig.MaxConnections = 1;
@@ -144,7 +139,7 @@ namespace DtronixMessageQueue.Tests.Mq
             }
         }
 
-        [Fact]
+        [Test]
         public void Server_restarts_after_stop()
         {
             int connected_times = 0;
@@ -185,7 +180,7 @@ namespace DtronixMessageQueue.Tests.Mq
             }
         }
 
-        [Fact]
+        [Test]
         public void Server_invokes_stopped_event()
         {
 
@@ -202,7 +197,7 @@ namespace DtronixMessageQueue.Tests.Mq
             }
         }
 
-        [Fact]
+        [Test]
         public void Server_invokes_started_event()
         {
 

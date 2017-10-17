@@ -36,7 +36,7 @@ namespace DtronixMessageQueue.Rpc
         /// <param name="config">Configurations for this server.</param>
         public RpcServer(TConfig config) : this(config, new RpcServerInfoDataContract())
         {
-            ServiceMethodCache = new ServiceMethodCache();
+            
         }
 
 
@@ -48,18 +48,19 @@ namespace DtronixMessageQueue.Rpc
         public RpcServer(TConfig config, RpcServerInfoDataContract serverInfo) : base(config)
         {
             ServerInfo = serverInfo ?? new RpcServerInfoDataContract();
+            ServiceMethodCache = new ServiceMethodCache();
         }
 
         protected override void OnConnected(TSession session)
         {
-            base.OnConnected(session);
-
 
             // Add the service method cache.
             session.ServiceMethodCache = ServiceMethodCache;
 
             session.Ready += (sender, e) => { Ready?.Invoke(sender, e); };
             session.Authenticate += (sender, e) => { Authenticate?.Invoke(sender, e); };
+
+            base.OnConnected(session);
         }
 
 

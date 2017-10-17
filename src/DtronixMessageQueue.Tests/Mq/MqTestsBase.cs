@@ -3,8 +3,7 @@ using System.Net;
 using System.Net.Sockets;
 using System.Threading;
 using DtronixMessageQueue.TransportLayer;
-using Xunit;
-using Xunit.Abstractions;
+using NUnit.Framework;
 
 namespace DtronixMessageQueue.Tests.Mq
 {
@@ -18,9 +17,10 @@ namespace DtronixMessageQueue.Tests.Mq
         protected MqConfig ClientConfig;
         protected MqConfig ServerConfig;
 
-
-        public MqTestsBase(ITestOutputHelper output) : base(output)
+        public override void Init()
         {
+            base.Init();
+
             ClientConfig = new MqConfig
             {
                 ConnectAddress = $"127.0.0.1:{Port}",
@@ -80,15 +80,16 @@ namespace DtronixMessageQueue.Tests.Mq
         {
             try
             {
+
                 // Total frame count comparison.
-                Assert.Equal(expected.Count, actual.Count);
+                Assert.AreEqual(expected.Count, actual.Count);
 
                 for (int i = 0; i < expected.Count; i++)
                 {
                     // Frame length comparison.
-                    Assert.Equal(expected[i].DataLength, actual[i].DataLength);
+                    Assert.AreEqual(expected[i].DataLength, actual[i].DataLength);
 
-                    Assert.Equal(expected[i].Buffer, actual[i].Buffer);
+                    Assert.AreEqual(expected[i].Buffer, actual[i].Buffer);
                 }
 
                 return true;

@@ -5,8 +5,7 @@ using System.Threading;
 using DtronixMessageQueue.Tests.Mq;
 using DtronixMessageQueue.TransportLayer;
 using DtronixMessageQueue.TransportLayer.Tcp;
-using Xunit;
-using Xunit.Abstractions;
+
 
 namespace DtronixMessageQueue.Tests.TransportLayer
 {
@@ -18,10 +17,12 @@ namespace DtronixMessageQueue.Tests.TransportLayer
 
         public TransportLayerConfig ClientConfig { get; set; }
         public TransportLayerConfig ServerConfig { get; set; }
-        
 
-        protected TransportLayerTestsBase(ITestOutputHelper output) : base(output)
+
+        public override void Init()
         {
+            base.Init();
+
             ClientConfig = new TransportLayerConfig
             {
                 ConnectAddress = $"127.0.0.1:{Port}",
@@ -36,7 +37,6 @@ namespace DtronixMessageQueue.Tests.TransportLayer
             Client = new TcpTransportLayer(ClientConfig, TransportLayerMode.Client);
         }
 
-       
 
         public void StartAndWait(bool timeoutError = true, int timeoutLength = -1, bool startServer = true, bool startClient = true)
         {

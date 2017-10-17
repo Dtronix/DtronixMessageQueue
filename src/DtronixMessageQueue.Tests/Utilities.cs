@@ -1,5 +1,5 @@
 ﻿using System;
-using Xunit;
+using NUnit.Framework;
 
 namespace DtronixMessageQueue.Tests
 {
@@ -10,8 +10,8 @@ namespace DtronixMessageQueue.Tests
             if (expected == null) throw new ArgumentNullException(nameof(expected));
             if (actual == null) throw new ArgumentNullException(nameof(actual));
 
-            Assert.Equal(expected.FrameType, actual.FrameType);
-            Assert.Equal(expected.Buffer, actual.Buffer);
+            Assert.AreEqual(expected.FrameType, actual.FrameType);
+            Assert.AreEqual(expected.Buffer, actual.Buffer);
         }
 
         public static byte[] SequentialBytes(int len)

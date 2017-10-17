@@ -1,1 +1,1 @@
-..\src\packages\xunit.runner.console.2.1.0\tools\xunit.console.exe ..\src\DtronixMessageQueue.Tests\bin\Debug\DtronixMessageQueue.Tests.dll
+..\src\packages\NUnit.ConsoleRunner.3.7.0\tools\nunit3-console.exe ..\src\DtronixMessageQueue.Tests\bin\Debug\DtronixMessageQueue.Tests.dll

@@ -4,19 +4,18 @@ using System.Threading.Tasks;
 using DtronixMessageQueue.Tests.Mq;
 using DtronixMessageQueue.TransportLayer;
 using DtronixMessageQueue.TransportLayer.Tcp;
-using Xunit;
-using Xunit.Abstractions;
+using NUnit.Framework;
 
 namespace DtronixMessageQueue.Tests.TransportLayer
 {
     public class TransportLayerServerTests : TransportLayerTestsBase
     {
-        public TransportLayerServerTests(ITestOutputHelper output) : base(output)
+        public TransportLayerServerTests()
         {
         }
 
 
-        [Fact]
+        [Test]
         public void Server_starts()
         {
             Server.StateChanged += (sender, args) =>
@@ -28,7 +27,7 @@ namespace DtronixMessageQueue.Tests.TransportLayer
             StartAndWait();
         }
 
-        [Fact]
+        [Test]
         public void Server_stops()
         {
             Server.StateChanged += (sender, args) =>
@@ -44,7 +43,7 @@ namespace DtronixMessageQueue.Tests.TransportLayer
             StartAndWait(true, -1, true, false);
         }
 
-        [Fact]
+        [Test]
         public void Server_restarts()
         {
             int starts = 0;
@@ -66,7 +65,7 @@ namespace DtronixMessageQueue.Tests.TransportLayer
             StartAndWait(true, -1, true, false);
         }
 
-        [Fact]
+        [Test]
         public void Server_accepts_client_connection()
         {
             Server.StateChanged += (sender, args) =>
@@ -81,7 +80,7 @@ namespace DtronixMessageQueue.Tests.TransportLayer
             StartAndWait(true, -1, true, false);
         }
 
-        [Fact]
+        [Test]
         public void Server_disconnects_client_connection()
         {
             Server.StateChanged += (sender, args) =>
@@ -99,7 +98,7 @@ namespace DtronixMessageQueue.Tests.TransportLayer
             StartAndWait(true, -1, true, false);
         }
 
-        [Fact]
+        [Test]
         public void Server_notifies_client_of_close()
         {
             Server.StateChanged += (sender, args) =>
@@ -117,7 +116,7 @@ namespace DtronixMessageQueue.Tests.TransportLayer
             StartAndWait();
         }
 
-        [Fact]
+        [Test]
         public void Server_notifies_client_of_stopping()
         {
             Server.StateChanged += (sender, args) =>
@@ -135,7 +134,7 @@ namespace DtronixMessageQueue.Tests.TransportLayer
             StartAndWait();
         }
 
-        [Fact]
+        [Test]
         public void Server_sends_data()
         {
             var randomBytes = Utilities.SequentialBytes(128);
@@ -149,7 +148,7 @@ namespace DtronixMessageQueue.Tests.TransportLayer
             {
                 try
                 {
-                    Assert.Equal(randomBytes, args.Buffer);
+                    Assert.AreEqual(randomBytes, args.Buffer);
                     TestComplete.Set();
                 }
                 catch (Exception e)
@@ -162,7 +161,7 @@ namespace DtronixMessageQueue.Tests.TransportLayer
         }
 
 
-        [Fact]
+        [Test]
         public void Server_stops_accepting_connections()
         {
             int connectedCount = 0;
@@ -196,7 +195,7 @@ namespace DtronixMessageQueue.Tests.TransportLayer
             StartAndWait();
         }
 
-        [Fact]
+        [Test]
         public void Server_accepts_additional_connections()
         {
             int connectedCount = 0;

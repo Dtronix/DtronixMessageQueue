@@ -7,18 +7,16 @@ using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
 using DtronixMessageQueue.TransportLayer;
-using Xunit.Abstractions;
+using NUnit.Framework;
 
 namespace DtronixMessageQueue.Tests
 {
     public abstract class TestBase : IDisposable
     {
         protected Random Random = new Random();
-
-        public ITestOutputHelper Output;
         private Exception _lastException;
 
-        public int Port { get; }
+        public static int Port { get; private set; }
 
         public Exception LastException
         {
@@ -32,15 +30,21 @@ namespace DtronixMessageQueue.Tests
 
         public TimeSpan TestTimeout { get; } = new TimeSpan(0, 0, 0, 0, 2000);
 
-        public ManualResetEventSlim TestComplete { get; } = new ManualResetEventSlim(false);
+        public ManualResetEventSlim TestComplete { get; private set; }
 
-        protected TestBase(ITestOutputHelper output)
+        static TestBase()
         {
-            Output = output;
             Port = FreeTcpPort();
         }
 
-       
+        [SetUp]
+        public virtual void Init()
+        {
+            TestComplete = new ManualResetEventSlim(false);
+            _lastException = null;
+        }
+
+
 
         public static int FreeTcpPort()
         {
@@ -76,6 +80,28 @@ namespace DtronixMessageQueue.Tests
             StopClientServer();
         }
 
+        public void CompareMessages(MqMessage expected, MqMessage actual)
+        {
+            try
+            {
+                // Total frame count comparison.
+                Assert.AreEqual(expected.Count, actual.Count);
+
+                for (int i = 0; i < expected.Count; i++)
+                {
+                    // Frame length comparison.
+                    Assert.AreEqual(expected[i].DataLength, actual[i].DataLength);
+
+                    Assert.AreEqual(expected[i].Buffer, actual[i].Buffer);
+                }
+            }
+            catch (Exception e)
+            {
+                LastException = e;
+            }
+        }
+
+        [TearDown]
         public void Dispose()
         {
             TestComplete?.Dispose();

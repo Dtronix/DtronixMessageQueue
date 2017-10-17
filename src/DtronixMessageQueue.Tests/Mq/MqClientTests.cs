@@ -3,22 +3,18 @@ using System.Net.Sockets;
 using System.Threading;
 using DtronixMessageQueue.TransportLayer;
 using DtronixMessageQueue.TransportLayer.Tcp;
-using Xunit;
-using Xunit.Abstractions;
+using NUnit;
+using NUnit.Framework;
 
 namespace DtronixMessageQueue.Tests.Mq
 {
     public class MqClientTests : MqTestsBase
     {
-        public MqClientTests(ITestOutputHelper output) : base(output)
-        {
-        }
 
-        [Theory]
-        [InlineData(1, false)]
-        [InlineData(1, true)]
-        [InlineData(100, true)]
-        [InlineData(1000, true)]
+        [TestCase(1, false)]
+        [TestCase(1, true)]
+        [TestCase(100, true)]
+        [TestCase(1000, true)]
         public void Client_should_send_data_to_server(int number, bool validate)
         {
             var messageSource = GenerateRandomMessage(4, 50);
@@ -53,7 +49,7 @@ namespace DtronixMessageQueue.Tests.Mq
         }
 
 
-        [Fact]
+        [Test]
         public void Client_does_not_send_empty_message()
         {
             var messageSource = GenerateRandomMessage(2, 50);
@@ -82,7 +78,7 @@ namespace DtronixMessageQueue.Tests.Mq
             StartAndWait();
         }
 
-        [Fact]
+        [Test]
         public void Client_does_not_notify_on_command_frame()
         {
             var commandFrame = new MqFrame(new byte[21], MqFrameType.Command, ClientConfig);
@@ -105,7 +101,7 @@ namespace DtronixMessageQueue.Tests.Mq
             }
         }
 
-        [Fact]
+        [Test]
         public void Client_does_not_notify_on_ping_frame()
         {
             ClientConfig.PingTimeout = ServerConfig.PingTimeout = 0;
@@ -137,7 +133,7 @@ namespace DtronixMessageQueue.Tests.Mq
         }
 
 
-        [Fact]
+        [Test]
         public void Client_connects_to_server()
         {
             Client.Connected += (sender, args) => TestComplete.Set();
@@ -146,7 +142,7 @@ namespace DtronixMessageQueue.Tests.Mq
         }
 
 
-        [Fact]
+        [Test]
         public void Client_disconects_from_server()
         {
             Client.Connected += (sender, args) => { Client.Close(); };
@@ -156,7 +152,7 @@ namespace DtronixMessageQueue.Tests.Mq
             StartAndWait(true, 500000);
         }
 
-        [Fact]
+        [Test]
         public void Client_notified_server_stopping()
         {
             Server.Connected += (sender, session) => Server.Stop();
@@ -166,7 +162,7 @@ namespace DtronixMessageQueue.Tests.Mq
             StartAndWait();
         }
 
-        [Fact]
+        [Test]
         public void Client_closes_self()
         {
             Client.Connected += (sender, args) => Client.Close();
@@ -176,7 +172,7 @@ namespace DtronixMessageQueue.Tests.Mq
             StartAndWait();
         }
 
-        [Fact]
+        [Test]
         public void Client_notified_server_session_closed()
         {
             Server.Connected += (sender, session) =>
@@ -196,7 +192,7 @@ namespace DtronixMessageQueue.Tests.Mq
             StartAndWait();
         }
 
-        [Fact]
+        [Test]
         public void Client_notifies_server_closing_session()
         {
             Client.Connected += (sender, args) => Client.Close();
@@ -206,7 +202,7 @@ namespace DtronixMessageQueue.Tests.Mq
             StartAndWait();
         }
 
-        [Fact]
+        [Test]
         public void Client_times_out()
         {
             ClientConfig.PingFrequency = 60000;
@@ -232,7 +228,7 @@ namespace DtronixMessageQueue.Tests.Mq
             }
         }
 
-        [Fact]
+        [Test]
         public void Client_prevents_times_out()
         {
             ClientConfig.PingFrequency = 50;
@@ -254,7 +250,7 @@ namespace DtronixMessageQueue.Tests.Mq
             StartAndWait(false, 500);
         }
 
-        [Fact]
+        [Test]
         public void Client_times_out_after_server_dropped_session()
         {
             ClientConfig.PingTimeout = 500;
@@ -291,7 +287,7 @@ namespace DtronixMessageQueue.Tests.Mq
         }
 
 
-        [Fact]
+        [Test]
         public void Client_times_out_while_connecting_for_too_long()
         {
             ClientConfig.ConnectionTimeout = 200;
@@ -316,7 +312,7 @@ namespace DtronixMessageQueue.Tests.Mq
             }
         }
 
-        [Fact]
+        [Test]
         public void Client_reconnects_after_close()
         {
             int connected_times = 0;

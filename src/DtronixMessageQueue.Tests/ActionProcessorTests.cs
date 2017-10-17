@@ -4,20 +4,15 @@ using System.Linq;
 using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
-using Xunit;
-using Xunit.Abstractions;
+using NUnit.Framework;
+
 
 namespace DtronixMessageQueue.Tests
 {
     public class ActionProcessorTests
     {
-        private readonly ITestOutputHelper _output;
-        private ManualResetEventSlim completeEvent = new ManualResetEventSlim(false);
+        private ManualResetEventSlim completeEvent;
 
-        public ActionProcessorTests(ITestOutputHelper output)
-        {
-            _output = output;
-        }
 
         private ActionProcessor<Guid> CreateProcessor(int threads, bool start, Action<ActionProcessor<Guid>> complete = null, int rebalanceTime = 10000)
         {
@@ -34,29 +29,35 @@ namespace DtronixMessageQueue.Tests
             return processor;
         }
 
-        [Fact]
+        [SetUp]
+        public void Init()
+        {
+            completeEvent = new ManualResetEventSlim(false);
+        }
+
+        [Test]
         public void Processor_adds_threads()
         {
             var processor = CreateProcessor(1, false);
 
-            Assert.Equal(processor.ThreadCount, 1);
+            Assert.AreEqual(processor.ThreadCount, 1);
             processor.AddThread(2);
 
-            Assert.Equal(processor.ThreadCount, 3);
+            Assert.AreEqual(processor.ThreadCount, 3);
         }
 
-        [Fact]
+        [Test]
         public void Processor_removes_thread()
         {
             var processor = CreateProcessor(2, true);
 
-            Assert.Equal(processor.ThreadCount, 2);
+            Assert.AreEqual(processor.ThreadCount, 2);
             processor.RemoveThread(1);
 
-            Assert.Equal(processor.ThreadCount, 1);
+            Assert.AreEqual(processor.ThreadCount, 1);
         }
 
-        [Fact]
+        [Test]
         public void Processor_throws_on_non_started_processor()
         {
             var processor = CreateProcessor(1, false);
@@ -67,7 +68,7 @@ namespace DtronixMessageQueue.Tests
 
         }
 
-        [Fact]
+        [Test]
         public void Processor_throws_on_too_few_threads()
         {
             var processor = CreateProcessor(1, true);
@@ -92,7 +93,7 @@ namespace DtronixMessageQueue.Tests
             return processor.GetActionById(id);
         }
 
-        [Fact]
+        [Test]
         public void Processor_balances_on_registration()
         {
             var processor = CreateProcessor(3, true);
@@ -102,15 +103,15 @@ namespace DtronixMessageQueue.Tests
             var thirdRegisteredAction = RegisterQueueGet(processor, () => Thread.Sleep(50));
 
 
-            Assert.NotEqual(firstRegisteredAction.ProcessorThread, secondRegisteredAction.ProcessorThread);
-            Assert.NotEqual(firstRegisteredAction.ProcessorThread, secondRegisteredAction.ProcessorThread);
-            Assert.NotEqual(secondRegisteredAction.ProcessorThread, thirdRegisteredAction.ProcessorThread);
-            Assert.NotEqual(firstRegisteredAction.ProcessorThread, thirdRegisteredAction.ProcessorThread);
+            Assert.AreNotEqual(firstRegisteredAction.ProcessorThread, secondRegisteredAction.ProcessorThread);
+            Assert.AreNotEqual(firstRegisteredAction.ProcessorThread, secondRegisteredAction.ProcessorThread);
+            Assert.AreNotEqual(secondRegisteredAction.ProcessorThread, thirdRegisteredAction.ProcessorThread);
+            Assert.AreNotEqual(firstRegisteredAction.ProcessorThread, thirdRegisteredAction.ProcessorThread);
 
         }
 
 
-        [Fact]
+        [Test]
         public void Processor_adds_to_least_used_thread()
         {
             var processor = CreateProcessor(2, true);
@@ -120,13 +121,13 @@ namespace DtronixMessageQueue.Tests
             var thirdRegisteredAction = RegisterGet(processor, () => Thread.Sleep(50));
 
 
-            Assert.NotEqual(firstRegisteredAction.ProcessorThread, secondRegisteredAction.ProcessorThread);
-            Assert.NotEqual(firstRegisteredAction.ProcessorThread, secondRegisteredAction.ProcessorThread);
+            Assert.AreNotEqual(firstRegisteredAction.ProcessorThread, secondRegisteredAction.ProcessorThread);
+            Assert.AreNotEqual(firstRegisteredAction.ProcessorThread, secondRegisteredAction.ProcessorThread);
 
-            Assert.Equal(firstRegisteredAction.ProcessorThread, thirdRegisteredAction.ProcessorThread);
+            Assert.AreEqual(firstRegisteredAction.ProcessorThread, thirdRegisteredAction.ProcessorThread);
         }
 
-        [Fact]
+        [Test]
         public void Processor_queues_once()
         {
             var processor = CreateProcessor(1, true);
@@ -136,10 +137,10 @@ namespace DtronixMessageQueue.Tests
             processor.QueueOnce(firstRegisteredAction.Id);
             processor.QueueOnce(firstRegisteredAction.Id);
 
-            Assert.Equal(1, firstRegisteredAction.ProcessorThread.Queued);
+            Assert.AreEqual(1, firstRegisteredAction.ProcessorThread.Queued);
         }
 
-        [Fact]
+        [Test]
         public void Processor_queues_multiple()
         {
             var processor = CreateProcessor(1, true);
@@ -153,10 +154,10 @@ namespace DtronixMessageQueue.Tests
             // Wait a period of time for the processor to pickup the call.
             Thread.Sleep(50);
 
-            Assert.Equal(2, firstRegisteredAction.ProcessorThread.Queued);
+            Assert.AreEqual(2, firstRegisteredAction.ProcessorThread.Queued);
         }
 
-        [Fact]
+        [Test]
         public void Processor_balances_on_removed_thread()
         {
             Action<ActionProcessor<Guid>> complete = ap => completeEvent.Set();
@@ -188,12 +189,12 @@ namespace DtronixMessageQueue.Tests
 
             Assert.True(completeEvent.Wait(2000));
 
-            Assert.Equal(totalLoops * 2, interlockedInt);
+            Assert.AreEqual(totalLoops * 2, interlockedInt);
 
-            Assert.Equal(3, thirdRegisteredAction.ProcessorThread.RegisteredActionsCount);
+            Assert.AreEqual(3, thirdRegisteredAction.ProcessorThread.RegisteredActionsCount);
         }
 
-        [Fact]
+        [Test]
         public void Processor_balances_on_added_thread()
         {
             Action<ActionProcessor<Guid>> complete = ap => completeEvent.Set();
@@ -225,11 +226,13 @@ namespace DtronixMessageQueue.Tests
 
             Assert.True(completeEvent.Wait(2000));
 
-            Assert.Equal(totalLoops * 2, interlockedInt);
+            Assert.AreEqual(totalLoops * 2, interlockedInt);
 
-            Assert.Equal(1, firstRegisteredAction.ProcessorThread.RegisteredActionsCount);
-            Assert.Equal(1, secondRegisteredAction.ProcessorThread.RegisteredActionsCount);
-            Assert.Equal(1, thirdRegisteredAction.ProcessorThread.RegisteredActionsCount);
+            Assert.AreEqual(1, firstRegisteredAction.ProcessorThread.RegisteredActionsCount);
+            Assert.AreEqual(1, secondRegisteredAction.ProcessorThread.RegisteredActionsCount);
+            Assert.AreEqual(1, thirdRegisteredAction.ProcessorThread.RegisteredActionsCount);
         }
+
+
     }
 }
