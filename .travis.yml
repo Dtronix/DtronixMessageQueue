@@ -4,4 +4,4 @@ before_script:
 script:
   - xbuild /p:Configuration=Release ./src/DtronixMessageQueue/DtronixMessageQueue.csproj
   - xbuild /p:Configuration=Release ./src/DtronixMessageQueue.Tests/DtronixMessageQueue.Tests.csproj
-  - mono ./src/packages/NUnit.ConsoleRunner.3.7.0/tools/nunit3-console.exe ./src/DtronixMessageQueue.Tests/bin/Release/DtronixMessageQueue.Tests.dll --workers=1
+  - mono ./src/packages/NUnit.ConsoleRunner.3.7.0/tools/nunit3-console.exe ./src/DtronixMessageQueue.Tests/bin/Release/DtronixMessageQueue.Tests.dll
