@@ -63,11 +63,9 @@ namespace DtronixMessageQueue
         protected readonly ConcurrentDictionary<Guid, TSession> ConnectedSessions =
             new ConcurrentDictionary<Guid, TSession>();
 
+        private readonly Timer _timeoutTimer;
 
-        private Timer TimeoutTimer;
-
-        protected bool IsTimeoutTimerRunning;
-
+        private bool _isTimeoutTimerRunning;
 
         /// <summary>
         /// Used to prevent more connections connecting to the server than allowed.
@@ -93,7 +91,7 @@ namespace DtronixMessageQueue
 
             Config = config;
 
-            TimeoutTimer = new Timer(OnTimeoutTimer);
+            _timeoutTimer = new Timer(OnTimeoutTimer);
 
             // Reset the remaining connections.
             _remainingConnections = Config.MaxConnections;
@@ -183,21 +181,18 @@ namespace DtronixMessageQueue
 
         protected virtual void OnConnected(TSession session)
         {
-            Connected?.Invoke(this, new SessionEventArgs<TSession, TConfig>(session));
-
-            if (IsTimeoutTimerRunning)
+            if (_isTimeoutTimerRunning)
                 return;
 
-            var timeout = LayerMode == TransportLayerMode.Server ? Config.PingTimeout : Config.PingFrequency;
+            var timeout = Config.PingTimeout;
 
-            if (timeout > 0)
+            if (timeout > 0 && !_isTimeoutTimerRunning)
             {
-                if (IsTimeoutTimerRunning)
-                    return;
-
-                IsTimeoutTimerRunning = true;
-                TimeoutTimer.Change(timeout, timeout);
+                _isTimeoutTimerRunning = true;
+                _timeoutTimer.Change(timeout, timeout);
             }
+
+            Connected?.Invoke(this, new SessionEventArgs<TSession, TConfig>(session));
         }
 
         protected virtual void OnClose(SessionCloseEventArgs<TSession, TConfig> closeEventArgs)
@@ -205,12 +200,11 @@ namespace DtronixMessageQueue
             Closed?.Invoke(this, closeEventArgs);
 
             if (ConnectedSessions.Count > 0 
-                || !IsTimeoutTimerRunning 
-                || Config.PingTimeout == 0)
+                || !_isTimeoutTimerRunning)
                 return;
 
-            IsTimeoutTimerRunning = false;
-            TimeoutTimer.Change(Timeout.Infinite, Timeout.Infinite);
+            _isTimeoutTimerRunning = false;
+            _timeoutTimer.Change(Timeout.Infinite, Timeout.Infinite);
         }
 
 
@@ -219,11 +213,10 @@ namespace DtronixMessageQueue
             var past = DateTime.Now.Subtract(TimeSpan.FromMilliseconds(Config.PingTimeout));
             foreach (var connectedSession in ConnectedSessions)
             {
-                if(connectedSession.Value.LastReceived < past)
+                if (connectedSession.Value.LastReceived < past)
                     connectedSession.Value.Close(SessionCloseReason.TimeOut);
             }
         }
-
 
         public IEnumerator<KeyValuePair<Guid, TSession>> GetSessionsEnumerator()
         {
@@ -232,7 +225,7 @@ namespace DtronixMessageQueue
 
         public void Dispose()
         {
-            TimeoutTimer?.Dispose();
+            _timeoutTimer?.Dispose();
         }
     }
 }

@@ -14,6 +14,9 @@ namespace DtronixMessageQueue
         where TSession : MqSession<TSession, TConfig>, new()
         where TConfig : MqConfig
     {
+        private bool _isPingTimerRunning;
+        private readonly Timer _pingTimer;
+
         /// <summary>
         /// Session for this client.
         /// </summary>
@@ -24,21 +27,28 @@ namespace DtronixMessageQueue
         /// </summary>
         public MqClient(TConfig config) : base(config, TransportLayerMode.Client)
         {
+            _pingTimer = new Timer(OnPingTimer);
         }
 
         protected override void OnConnected(TSession session)
         {
             Session = session;
+
+            var pingFrequency = Config.PingFrequency;
+
+            if (pingFrequency > 0 && !_isPingTimerRunning)
+            {
+                _isPingTimerRunning = true;
+                _pingTimer.Change(pingFrequency, pingFrequency);
+            }
+
             base.OnConnected(session);
         }
 
-
-        protected override void OnTimeoutTimer(object state)
+        protected virtual void OnPingTimer(object state)
         {
             // Ping the server.
             Session.Send(Session.CreateFrame(null, MqFrameType.Ping));
-
-            base.OnTimeoutTimer(state);
         }
 
 

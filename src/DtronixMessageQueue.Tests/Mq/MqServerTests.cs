@@ -110,7 +110,9 @@ namespace DtronixMessageQueue.Tests.Mq
         [Fact]
         public void Server_refuses_new_connection_after_max()
         {
-            Server.Config.MaxConnections = 1;
+            ServerConfig.MaxConnections = 1;
+            Server = new MqServer<SimpleMqSession, MqConfig>(ServerConfig);
+
             Exception invalidClosException = null;
             var client = CreateClient(ClientConfig);
             var client2 = CreateClient(ClientConfig);
@@ -129,7 +131,7 @@ namespace DtronixMessageQueue.Tests.Mq
             client.Connect();
             
 
-            TestComplete.Wait(new TimeSpan(0, 0, 0, 0, 1000));
+            TestComplete.Wait(new TimeSpan(0, 0, 0, 0, 8000));
 
             if (TestComplete.IsSet == false)
             {

@@ -14,12 +14,15 @@ namespace DtronixMessageQueue.Tests.Mq
         {
         }
 
-        [Fact]
-        public void Client_should_send_data_to_server()
+        [Theory]
+        [InlineData(1, false)]
+        [InlineData(1, true)]
+        [InlineData(100, true)]
+        [InlineData(1000, true)]
+        public void Client_should_send_data_to_server(int number, bool validate)
         {
             var messageSource = GenerateRandomMessage(4, 50);
             int receivedMessages = 0;
-            var number = 100;
             Client.Connected += (sender, args) =>
             {
                 for (int i = 0; i < number; i++)
@@ -105,10 +108,10 @@ namespace DtronixMessageQueue.Tests.Mq
         [Fact]
         public void Client_does_not_notify_on_ping_frame()
         {
-            ServerConfig.PingFrequency = 0;
+            ClientConfig.PingTimeout = ServerConfig.PingTimeout = 0;
             ClientConfig.PingFrequency = 0;
 
-            var commandFrame = new MqFrame(new byte[]{1,2,3}, MqFrameType.Ping, ClientConfig);
+            var commandFrame = new MqFrame(null, MqFrameType.Ping, ClientConfig);
             var randomMessage = GenerateRandomMessage(1, 10);
 
             Client.Connected += (sender, args) =>
@@ -232,15 +235,15 @@ namespace DtronixMessageQueue.Tests.Mq
         [Fact]
         public void Client_prevents_times_out()
         {
-            ClientConfig.PingFrequency = 100;
-            ClientConfig.PingTimeout = 200;
+            ClientConfig.PingFrequency = 50;
+            ServerConfig.PingTimeout = 100;
 
 
             Client.Closed += (sender, args) =>
             {
                 if (args.CloseReason == SessionCloseReason.TimeOut)
                 {
-                    TestComplete.Set();
+                    LastException = new Exception("Client timed out.");
                 }
                 else
                 {
@@ -248,12 +251,7 @@ namespace DtronixMessageQueue.Tests.Mq
                 }
             };
 
-            StartAndWait(false, 1500);
-
-            if (TestComplete.IsSet)
-            {
-                throw new Exception("Client timed out.");
-            }
+            StartAndWait(false, 500);
         }
 
         [Fact]
@@ -296,7 +294,7 @@ namespace DtronixMessageQueue.Tests.Mq
         [Fact]
         public void Client_times_out_while_connecting_for_too_long()
         {
-            ClientConfig.ConnectionTimeout = 500;
+            ClientConfig.ConnectionTimeout = 200;
 
             Client.Closed += (sender, args) =>
             {

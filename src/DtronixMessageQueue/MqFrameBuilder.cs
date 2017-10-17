@@ -208,7 +208,7 @@ namespace DtronixMessageQueue
                     _currentFrameType == MqFrameType.Ping)
                 {
                     EnqueueAndReset();
-                    break;
+                    continue;
                 }
 
                 // Read the length from the stream if there are enough buffer.

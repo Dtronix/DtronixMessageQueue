@@ -48,6 +48,7 @@ namespace DtronixMessageQueue.TransportLayer.Tcp
         public DateTime ConnectedTime { get; }
 
         public bool SimulateConnectionDrop;
+        private Semaphore _writeSemaphore;
 
 
         public TcpTransportLayerSession(TcpTransportLayer transportLayer, Socket socket)
@@ -62,7 +63,7 @@ namespace DtronixMessageQueue.TransportLayer.Tcp
             _receiveArgs.Completed += IoCompleted;
 
             // TODO: Review if this is necessary due to the new ActionProcessor.
-            //_writeSemaphore = new SemaphoreSlim(1, 1);
+            _writeSemaphore = new Semaphore(1, 1);
 
             Id = Guid.NewGuid();
 
@@ -103,6 +104,7 @@ namespace DtronixMessageQueue.TransportLayer.Tcp
                     break;
 
                 case SocketAsyncOperation.Send:
+                    _writeSemaphore.Release();
                     if (e.SocketError != SocketError.Success)
                         Close(SessionCloseReason.SocketError);
                     break;
@@ -130,7 +132,7 @@ namespace DtronixMessageQueue.TransportLayer.Tcp
             if (Socket == null || Socket.Connected == false)
                 return;
 
-            //_writeSemaphore.Wait(-1);
+             _writeSemaphore.WaitOne(-1);
 
             // Copy the bytes to the block buffer
             Buffer.BlockCopy(buffer, offset, _sendArgs.Buffer, _sendArgs.Offset, length);

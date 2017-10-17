@@ -46,20 +46,6 @@ namespace DtronixMessageQueue.TransportLayer
         public string BindAddress { get; set; }
 
         /// <summary>
-        /// (Server)
-        /// Number of threads used to read and write.
-        /// If set to -1 (default), it will use the number of logical processors.
-        /// </summary>
-        public int ProcessorThreads { get; set; } = -1;
-
-        /// <summary>
-        /// (Server/Client)
-        /// Max milliseconds since the last received packet before the session is disconnected.
-        /// 0 disables the automatic disconnection functionality.
-        /// </summary>
-        public int PingTimeout { get; set; } = 60000;
-
-        /// <summary>
         /// The default transport layer to use.  If left null, Tcp will the be default layer.
         /// </summary>
         public ITransportLayer TransportLayer { get; set; }

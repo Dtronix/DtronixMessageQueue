@@ -387,6 +387,7 @@ namespace DtronixMessageQueue
             }
 
             _sendingSemaphore.Wait();
+
             _outbox.Enqueue(message);
 
             _outboxProcessor.QueueOnce(Id);

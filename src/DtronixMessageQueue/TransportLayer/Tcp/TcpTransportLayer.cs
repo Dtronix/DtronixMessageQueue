@@ -268,6 +268,7 @@ namespace DtronixMessageQueue.TransportLayer.Tcp
                 }
 
                 timedOut = true;
+                MainSocket.Close();
 
             }, _connectionTimeoutCancellation.Token);
         }

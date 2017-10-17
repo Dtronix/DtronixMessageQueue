@@ -229,40 +229,5 @@ namespace DtronixMessageQueue.Tests.TransportLayer
 
             StartAndWait();
         }
-
-        [Fact]
-        public void Client_times_out_after_server_dropped_session()
-        {
-            ServerConfig.PingTimeout = 500;
-
-            Client.StateChanged += (sender, args) =>
-            {
-                if (args.State == TransportLayerState.Connected)
-                    ((TcpTransportLayerSession)args.Session).SimulateConnectionDrop = true;
-            };
-
-
-            Server.StateChanged += (sender, args) =>
-            {
-                if (args.State == TransportLayerState.Closed)
-                {
-                    if (args.Reason == SessionCloseReason.TimeOut)
-                    {
-                        TestComplete.Set();
-                    }
-                    else
-                    {
-                        LastException = new Exception("Client closed for reason other than timeout.");
-                    }
-                }
-            };
-
-            StartAndWait(false, 1000);
-
-            if (TestComplete.IsSet == false)
-            {
-                throw new Exception("Socket did not timeout.");
-            }
-        }
     }
 }
