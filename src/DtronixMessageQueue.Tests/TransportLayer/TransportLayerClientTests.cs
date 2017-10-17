@@ -23,35 +23,6 @@ namespace DtronixMessageQueue.Tests.TransportLayer
         }
 
         [Test]
-        public void Client_reconnects_to_server()
-        {
-            int connectedCount = 0;
-            Client.StateChanged += (sender, args) =>
-            {
-                if (args.State == TransportLayerState.Connected)
-                    args.Session.Close(SessionCloseReason.Closing);
-            };
-
-            Server.StateChanged += (sender, args) =>
-            {
-                if (args.State == TransportLayerState.Connected)
-                {
-                    if (++connectedCount == 2)
-                        TestComplete.Set();
-                }
-
-                if (args.State == TransportLayerState.Closed)
-                {
-                    Client.Connect();
-                    Server.AcceptAsync();
-                }
-            };
-
-            StartAndWait();
-        }
-
-
-        [Test]
         public void Client_disconnects_from_server()
         {
             Client.StateChanged += (sender, args) =>
@@ -75,9 +46,10 @@ namespace DtronixMessageQueue.Tests.TransportLayer
                     args.Session.Close(SessionCloseReason.Closing);
             };
 
-            Server.StateChanged += (sender, args) =>
+
+            Server.Received += (sender, args) =>
             {
-                if (args.State == TransportLayerState.Closed)
+                if(args.Buffer == null)
                     TestComplete.Set();
             };
 
@@ -113,7 +85,7 @@ namespace DtronixMessageQueue.Tests.TransportLayer
         [Test]
         public void Client_times_out_on_long_connection()
         {
-            ClientConfig.ConnectionTimeout = 500;
+            ClientConfig.ConnectionTimeout = 200;
 
             Client.StateChanged += (sender, args) =>
             {

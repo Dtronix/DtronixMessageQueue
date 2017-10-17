@@ -288,6 +288,9 @@ namespace DtronixMessageQueue
                 if (TransportSession.State == TransportLayerState.Connected)
                     _receivingSemaphore.Release();
 
+                if(buffer == null)
+                    Close(SessionCloseReason.Closing);
+
                 try
                 {
                     _frameBuilder.Write(buffer, 0, buffer.Length);

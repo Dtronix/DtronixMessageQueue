@@ -184,16 +184,7 @@ namespace DtronixMessageQueue.TransportLayer.Tcp
             if (State == TransportLayerState.Closing)
                 return;
 
-            if (e.BytesTransferred == 0 && State == TransportLayerState.Connected)
-            {
-                // Ensure this close signal did not follow directly behind a close command.
-                if ((DateTime.Now - LastReceived).TotalMilliseconds > 100)
-                    Close(SessionCloseReason.Closing);
-
-                return;
-            }
-
-            if (e.BytesTransferred > 0 && e.SocketError == SocketError.Success)
+            if (e.SocketError == SocketError.Success)
             {
                 // Update the last time this session was active to prevent timeout.
                 LastReceived = DateTime.Now;
@@ -201,7 +192,10 @@ namespace DtronixMessageQueue.TransportLayer.Tcp
                 // Create a copy of these bytes.
                 var buffer = new byte[e.BytesTransferred];
 
-                Buffer.BlockCopy(e.Buffer, e.Offset, buffer, 0, e.BytesTransferred);
+                if (e.BytesTransferred > 0)
+                    Buffer.BlockCopy(e.Buffer, e.Offset, buffer, 0, e.BytesTransferred);
+                else
+                    buffer = null;
 
                 _tlReceiveArgs.Buffer = buffer;
 

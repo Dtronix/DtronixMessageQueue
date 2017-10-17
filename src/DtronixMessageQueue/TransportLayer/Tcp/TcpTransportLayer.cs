@@ -18,8 +18,6 @@ namespace DtronixMessageQueue.TransportLayer.Tcp
 
         public TransportLayerConfig Config { get; }
 
-        public bool IsListening { get; private set; }
-
         public ConcurrentDictionary<Guid, ITransportLayerSession> ConnectedSessions { get; }
 
         public ITransportLayerSession ClientSession { get; private set; }
@@ -28,7 +26,7 @@ namespace DtronixMessageQueue.TransportLayer.Tcp
         /// </summary>
         protected System.Net.Sockets.Socket MainSocket;
 
-        private SocketAsyncEventArgs listenEventArgs;
+        private SocketAsyncEventArgs _listenEventArgs;
 
         private CancellationTokenSource _connectionTimeoutCancellation;
 
@@ -77,9 +75,6 @@ namespace DtronixMessageQueue.TransportLayer.Tcp
             StateChanged?.Invoke(this, new TransportLayerStateChangedEventArgs(this, TransportLayerState.Starting));
 
             var localEndPoint = Utilities.CreateIPEndPoint(Config.BindAddress);
-
-            if (IsListening)
-                throw new InvalidOperationException("Server is already listening for connections");
 
             // create the socket which listens for incoming connections
             MainSocket = new Socket(localEndPoint.AddressFamily, SocketType.Stream, ProtocolType.Tcp);
@@ -160,24 +155,23 @@ namespace DtronixMessageQueue.TransportLayer.Tcp
             if (Mode != TransportLayerMode.Server)
                 throw new InvalidOperationException("Transport layer is running in client mode.  Start is a server mode method.");
 
-            if (listenEventArgs == null)
+            if (_listenEventArgs == null)
             {
-                IsListening = true;
-                listenEventArgs = new SocketAsyncEventArgs();
-                listenEventArgs.Completed += (sender, completedE) => AcceptCompleted(completedE);
+                _listenEventArgs = new SocketAsyncEventArgs();
+                _listenEventArgs.Completed += (sender, completedE) => AcceptCompleted(completedE);
             }
             else
             {
                 // socket must be cleared since the context object is being reused
-                listenEventArgs.AcceptSocket = null;
+                _listenEventArgs.AcceptSocket = null;
             }
 
 
             try
             {
-                if (MainSocket.AcceptAsync(listenEventArgs) == false)
+                if (MainSocket.AcceptAsync(_listenEventArgs) == false)
                 {
-                    AcceptCompleted(listenEventArgs);
+                    AcceptCompleted(_listenEventArgs);
                 }
             }
             catch (ObjectDisposedException)
@@ -212,7 +206,7 @@ namespace DtronixMessageQueue.TransportLayer.Tcp
                 throw new InvalidOperationException("Transport layer is running in server mode.");
 
 
-            if (MainSocket != null && State != TransportLayerState.Closed)
+            if (State != TransportLayerState.Closed)
                 throw new InvalidOperationException("Client is in the process of connecting.");
 
             SetConfigs();
@@ -334,6 +328,9 @@ namespace DtronixMessageQueue.TransportLayer.Tcp
 
                         ITransportLayerSession sessOut;
                         ConnectedSessions?.TryRemove(e.Session.Id, out sessOut);
+
+                        if (Mode == TransportLayerMode.Client)
+                            MainSocket = null;
                     }
                     break;
             }

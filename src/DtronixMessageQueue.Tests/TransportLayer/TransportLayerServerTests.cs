@@ -107,10 +107,12 @@ namespace DtronixMessageQueue.Tests.TransportLayer
                     args.Session.Close(SessionCloseReason.Closing);
             };
 
-            Client.StateChanged += (sender, args) =>
+            Client.Received += (sender, args) =>
             {
-                if (args.State == TransportLayerState.Closed)
+                if (args.Buffer == null)
                     TestComplete.Set();
+                else
+                    LastException = new Exception("Client did not receive a close notification.");
             };
 
             StartAndWait();
@@ -125,10 +127,12 @@ namespace DtronixMessageQueue.Tests.TransportLayer
                     Server.Stop();
             };
 
-            Client.StateChanged += (sender, args) =>
+            Client.Received += (sender, args) =>
             {
-                if (args.State == TransportLayerState.Closed)
+                if (args.Buffer == null)
                     TestComplete.Set();
+                else
+                    LastException = new Exception("Client did not receive a close notification.");
             };
 
             StartAndWait();
@@ -168,7 +172,10 @@ namespace DtronixMessageQueue.Tests.TransportLayer
             Client.StateChanged += (sender, args) =>
             {
                 if (args.State == TransportLayerState.Connected)
+                {
                     args.Session.Close(SessionCloseReason.Closing);
+                    Client.Connect();
+                }
             };
 
             Server.StateChanged += async (sender, args) =>
@@ -180,15 +187,8 @@ namespace DtronixMessageQueue.Tests.TransportLayer
                         LastException = new Exception("Server accepted new connection when it should not.");
                     }
 
-                    await Task.Delay(200);
+                    await Task.Delay(300);
                     TestComplete.Set();
-                }
-
-
-
-                if (args.State == TransportLayerState.Closed)
-                {
-                    Client.Connect();
                 }
             };
 
@@ -202,7 +202,10 @@ namespace DtronixMessageQueue.Tests.TransportLayer
             Client.StateChanged += (sender, args) =>
             {
                 if (args.State == TransportLayerState.Connected)
+                {
                     args.Session.Close(SessionCloseReason.Closing);
+                    Client.Connect();
+                }
             };
 
             Server.StateChanged += async (sender, args) =>
@@ -210,19 +213,13 @@ namespace DtronixMessageQueue.Tests.TransportLayer
                 if (args.State == TransportLayerState.Connected)
                 {
                     if (++connectedCount == 2)
-                    {
                         TestComplete.Set();
-                    }
+
+                    Server.AcceptAsync();
 
                     await Task.Delay(500);
                     LastException = new Exception("Server accepted new connection when it should not.");
                    
-                }
-
-                if (args.State == TransportLayerState.Closed)
-                {
-                    Client.Connect();
-                    Server.AcceptAsync();
                 }
             };
 
