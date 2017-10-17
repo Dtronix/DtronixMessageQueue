@@ -239,7 +239,7 @@ namespace DtronixMessageQueue.Tests.Rpc
         [Test]
         public void Client_notified_of_authentication_success()
         {
-            Server.Config.RequireAuthentication = true;
+            ClientConfig.RequireAuthentication = ServerConfig.RequireAuthentication = true;
 
             Server.Connected +=
                 (sender, args) => { args.Session.AddService<ICalculatorService>(new CalculatorService()); };
@@ -284,7 +284,7 @@ namespace DtronixMessageQueue.Tests.Rpc
         [Test]
         public void Client_does_not_ready_before_server_authenticates()
         {
-            Server.Config.RequireAuthentication = true;
+            ClientConfig.RequireAuthentication = ServerConfig.RequireAuthentication = true;
             var serverAuth = false;
             Server.Authenticate += (sender, args) =>
             {

@@ -234,11 +234,12 @@ namespace DtronixMessageQueue.TransportLayer.Tcp
             {
                 if (timedOut)
                 {
-                    Close(SessionCloseReason.TimeOut);
                     return;
                 }
                 if (args.LastOperation == SocketAsyncOperation.Connect)
                 {
+                    _connectionTimeoutCancellation?.Cancel();
+
                     ClientSession = CreateSession(MainSocket);
 
                     State = TransportLayerState.Connected;
@@ -263,6 +264,7 @@ namespace DtronixMessageQueue.TransportLayer.Tcp
 
                 timedOut = true;
                 MainSocket.Close();
+                Close(SessionCloseReason.TimeOut);
 
             }, _connectionTimeoutCancellation.Token);
         }
