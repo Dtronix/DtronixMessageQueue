@@ -34,7 +34,6 @@ namespace DtronixMessageQueue.Tests
 
         static TestBase()
         {
-            Port = FreeTcpPort();
         }
 
         [SetUp]
@@ -42,6 +41,7 @@ namespace DtronixMessageQueue.Tests
         {
             TestComplete = new ManualResetEventSlim(false);
             _lastException = null;
+            Port = FreeTcpPort();
         }
 
 

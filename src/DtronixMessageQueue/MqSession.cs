@@ -96,6 +96,7 @@ namespace DtronixMessageQueue
             ActionProcessor<Guid> inboxProcessor,
             ActionProcessor<Guid> outboxProcessor)
         {
+            Utilities.TraceHelper($"{sessionHandler.LayerMode} Created Session");
             var session = new TSession
             {
                 TransportSession = transportSession,
@@ -109,11 +110,14 @@ namespace DtronixMessageQueue
 
             session.OnSetup();
 
+            transportSession.ReceiveAsync();
+
             return session;
         }
 
         protected virtual void OnSetup()
         {
+            Utilities.TraceHelper($"{SessionHandler.LayerMode}");
             _frameBuilder = new MqFrameBuilder(Config);
             _sendingSemaphore = new SemaphoreSlim(Config.MaxQueuedOutgoingMessages, Config.MaxQueuedOutgoingMessages);
             _receivingSemaphore = new SemaphoreSlim(Config.MaxQueuedInboundPackets, Config.MaxQueuedInboundPackets);
@@ -123,8 +127,13 @@ namespace DtronixMessageQueue
 
             TransportSession.Received += (sender, e) =>
             {
+                Utilities.TraceHelper($"{SessionHandler.LayerMode} Buffer Len: {e.Buffer.Length}");
                 _inboxBytes.Enqueue(e.Buffer);
                 _inboxProcessor.QueueOnce(Id);
+
+                // If the buffer is null, the connection is closed.
+                if (e.Buffer == null)
+                    return;
 
                 // Wait until the next 
                 _receivingSemaphore.Wait();
@@ -134,6 +143,7 @@ namespace DtronixMessageQueue
 
             TransportSession.StateChanged += (sender, args) =>
             {
+                Utilities.TraceHelper($"{SessionHandler.LayerMode}");
                 switch (args.State)
                 {
                     case TransportLayerState.Closing:
@@ -154,6 +164,7 @@ namespace DtronixMessageQueue
 
         protected virtual void OnClosing(SessionCloseReason reason)
         {
+            Utilities.TraceHelper($"{SessionHandler.LayerMode}");
             var closeFrame = CreateFrame(new byte[2], MqFrameType.Command);
             closeFrame.Write(0, (byte) MqCommandType.Disconnect);
             closeFrame.Write(1, (byte) reason);
@@ -179,6 +190,7 @@ namespace DtronixMessageQueue
 
         protected virtual void OnClosed(SessionCloseReason reason)
         {
+            Utilities.TraceHelper($"{SessionHandler.LayerMode}");
             Closed?.Invoke(this, new SessionCloseEventArgs<TSession, TConfig>((TSession)this, reason));
 
             Dispose();
@@ -191,6 +203,7 @@ namespace DtronixMessageQueue
         /// <param name="reason">Reason for closing this session.</param>
         public void Close(SessionCloseReason reason)
         {
+            Utilities.TraceHelper($"{SessionHandler.LayerMode}");
             if (TransportSession.State == TransportLayerState.Closed
                 || TransportSession.State == TransportLayerState.Closing)
                 return;
@@ -206,6 +219,7 @@ namespace DtronixMessageQueue
         /// <param name="length">Total length of the bytes in the queue to send.</param>
         private void SendBufferQueue(Queue<byte[]> bufferQueue, int length)
         {
+            Utilities.TraceHelper($"{SessionHandler.LayerMode}");
             var buffer = new byte[length];
             var offset = 0;
 
@@ -230,6 +244,7 @@ namespace DtronixMessageQueue
         /// <returns>True if messages were sent.  False if nothing was sent.</returns>
         private void ProcessOutbox()
         {
+            Utilities.TraceHelper($"{SessionHandler.LayerMode} Msgs: {_outbox.Count}");
             MqMessage message;
             var length = 0;
             var bufferQueue = new Queue<byte[]>();
@@ -262,6 +277,7 @@ namespace DtronixMessageQueue
 
             if (bufferQueue.Count == 0)
             {
+                Utilities.TraceHelper($"{SessionHandler.LayerMode} Empty");
                 return;
             }
 
@@ -275,6 +291,7 @@ namespace DtronixMessageQueue
         /// <returns>True if incoming queue was processed; False if nothing was available for process.</returns>
         private void ProcessIncomingQueue()
         {
+            Utilities.TraceHelper($"{SessionHandler.LayerMode} Pkgs: {_inboxBytes.Count}");
             if (_processMessage == null)
             {
                 _processMessage = new MqMessage();
@@ -300,14 +317,11 @@ namespace DtronixMessageQueue
                 }
                 catch (InvalidDataException)
                 {
-                    //logger.Error(ex, "Connector {0}: Client send invalid data.", Connection.Id);
-
                     Close(SessionCloseReason.ProtocolError);
-                    break;
+                    return;
                 }
 
                 var frameCount = _frameBuilder.Frames.Count;
-                //logger.Debug("Connector {0}: Parsed {1} frames.", Connection.Id, frame_count);
 
                 for (var i = 0; i < frameCount; i++)
                 {
@@ -350,6 +364,7 @@ namespace DtronixMessageQueue
 
             if (messages == null)
             {
+                Utilities.TraceHelper($"{SessionHandler.LayerMode} No full messages parsed.");
                 return;
             }
 
@@ -365,6 +380,7 @@ namespace DtronixMessageQueue
         /// <param name="e">Event args for the message.</param>
         protected virtual void OnIncomingMessage(object sender, IncomingMessageEventArgs<TSession, TConfig> e)
         {
+            Utilities.TraceHelper($"{SessionHandler.LayerMode}");
             IncomingMessage?.Invoke(sender, e);
         }
 
@@ -383,6 +399,7 @@ namespace DtronixMessageQueue
         /// <param name="message">Message to send.</param>
         public void Send(MqMessage message)
         {
+            Utilities.TraceHelper($"{SessionHandler.LayerMode}");
             if (message.Count == 0)
             {
                 return;
@@ -406,6 +423,7 @@ namespace DtronixMessageQueue
         /// <returns>Configured frame.</returns>
         public MqFrame CreateFrame(byte[] bytes)
         {
+            Utilities.TraceHelper($"{SessionHandler.LayerMode}");
             return Utilities.CreateFrame(bytes, MqFrameType.Unset, Config);
         }
 
@@ -417,6 +435,7 @@ namespace DtronixMessageQueue
         /// <returns>Configured frame.</returns>
         public MqFrame CreateFrame(byte[] bytes, MqFrameType type)
         {
+            Utilities.TraceHelper($"{SessionHandler.LayerMode}");
             return Utilities.CreateFrame(bytes, type, Config);
         }
 
@@ -427,6 +446,7 @@ namespace DtronixMessageQueue
         /// <param name="frame">Command frame to process.</param>
         protected virtual void ProcessCommand(MqFrame frame)
         {
+            Utilities.TraceHelper($"{SessionHandler.LayerMode}");
             var commandType = (MqCommandType)frame.ReadByte(0);
 
             switch (commandType)
@@ -455,6 +475,7 @@ namespace DtronixMessageQueue
         /// </summary>
         public void Dispose()
         {
+            Utilities.TraceHelper($"{SessionHandler.LayerMode}");
             if (TransportSession.State == TransportLayerState.Connected)
                 Close(SessionCloseReason.Closing);
 

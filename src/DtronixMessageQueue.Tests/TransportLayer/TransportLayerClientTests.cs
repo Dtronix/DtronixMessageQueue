@@ -53,6 +53,12 @@ namespace DtronixMessageQueue.Tests.TransportLayer
                     TestComplete.Set();
             };
 
+            Server.StateChanged += (sender, args) =>
+            {
+                if (args.State == TransportLayerState.Connected)
+                    args.Session.ReceiveAsync();
+            };
+
             StartAndWait();
         }
 
@@ -77,6 +83,12 @@ namespace DtronixMessageQueue.Tests.TransportLayer
                 {
                     LastException = e;
                 }
+            };
+
+            Server.StateChanged += (sender, args) =>
+            {
+                if (args.State == TransportLayerState.Connected)
+                    args.Session.ReceiveAsync();
             };
 
             StartAndWait();

@@ -1,6 +1,10 @@
 ﻿using System;
+using System.Diagnostics;
 using System.Globalization;
+using System.IO;
 using System.Net;
+using System.Runtime.CompilerServices;
+using System.Threading;
 
 namespace DtronixMessageQueue
 {
@@ -64,6 +68,19 @@ namespace DtronixMessageQueue
                 throw new FormatException("Invalid port");
             }
             return new IPEndPoint(ip, port);
+        }
+
+        private static Stopwatch sw = new Stopwatch();
+
+        internal static void TraceHelper(string text = "", [CallerMemberName] string callerName = "",
+            [CallerFilePath] string file = "", [CallerLineNumber] int lineNumber = 0)
+        {
+#if false
+            if (!sw.IsRunning)
+                sw.Start();
+
+            Console.WriteLine($"{sw.Elapsed}{Thread.CurrentThread.Name,-20}{Path.GetFileNameWithoutExtension(file),-30}:{lineNumber:0000} {callerName,-15:5}: {text}");
+#endif
         }
     }
 }

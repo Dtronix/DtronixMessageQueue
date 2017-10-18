@@ -115,6 +115,12 @@ namespace DtronixMessageQueue.Tests.TransportLayer
                     LastException = new Exception("Client did not receive a close notification.");
             };
 
+            Client.StateChanged += (sender, args) =>
+            {
+                if (args.State == TransportLayerState.Connected)
+                    args.Session.ReceiveAsync();
+            };
+
             StartAndWait();
         }
 
@@ -133,6 +139,12 @@ namespace DtronixMessageQueue.Tests.TransportLayer
                     TestComplete.Set();
                 else
                     LastException = new Exception("Client did not receive a close notification.");
+            };
+
+            Client.StateChanged += (sender, args) =>
+            {
+                if (args.State == TransportLayerState.Connected)
+                    args.Session.ReceiveAsync();
             };
 
             StartAndWait();
@@ -159,6 +171,12 @@ namespace DtronixMessageQueue.Tests.TransportLayer
                 {
                     LastException = e;
                 }
+            };
+
+            Client.StateChanged += (sender, args) =>
+            {
+                if (args.State == TransportLayerState.Connected)
+                    args.Session.ReceiveAsync();
             };
 
             StartAndWait();
