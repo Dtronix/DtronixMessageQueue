@@ -37,7 +37,6 @@ namespace DtronixMessageQueue.TransportLayer.Tcp
 
         public TcpTransportLayer(TransportLayerConfig config, TransportLayerMode mode)
         {
-            Utilities.TraceHelper(mode.ToString());
             Config = config;
             Mode = mode;
 
@@ -48,7 +47,6 @@ namespace DtronixMessageQueue.TransportLayer.Tcp
 
         public void SetConfigs()
         {
-            Utilities.TraceHelper(Mode.ToString());
             // Use the max connections plus one for the disconnecting of 
             // new clients when the MaxConnections has been reached.
             var maxConnections = Config.MaxConnections + 1;
@@ -65,7 +63,6 @@ namespace DtronixMessageQueue.TransportLayer.Tcp
         /// </summary>
         public void Start()
         {
-            Utilities.TraceHelper(Mode.ToString());
             if (Mode != TransportLayerMode.Server)
                 throw new InvalidOperationException("Transport layer is running in client mode.");
 
@@ -102,7 +99,6 @@ namespace DtronixMessageQueue.TransportLayer.Tcp
         /// </summary>
         public void Stop()
         {
-            Utilities.TraceHelper(Mode.ToString());
             if (Mode != TransportLayerMode.Server)
                 throw new InvalidOperationException("Transport layer is running in client mode.  Start is a server mode method.");
 
@@ -156,7 +152,6 @@ namespace DtronixMessageQueue.TransportLayer.Tcp
         /// </summary>
         public void AcceptAsync()
         {
-            Utilities.TraceHelper(Mode.ToString());
             if (Mode != TransportLayerMode.Server)
                 throw new InvalidOperationException("Transport layer is running in client mode.  Start is a server mode method.");
 
@@ -191,7 +186,6 @@ namespace DtronixMessageQueue.TransportLayer.Tcp
         /// <param name="e">Event args for this event.</param>
         private void AcceptCompleted(SocketAsyncEventArgs e)
         {
-            Utilities.TraceHelper(Mode.ToString());
             if (MainSocket.IsBound == false)
                 return;
 
@@ -208,7 +202,6 @@ namespace DtronixMessageQueue.TransportLayer.Tcp
 
         public void Connect()
         {
-            Utilities.TraceHelper(Mode.ToString());
             if (Mode != TransportLayerMode.Client)
                 throw new InvalidOperationException("Transport layer is running in server mode.");
 
@@ -239,7 +232,6 @@ namespace DtronixMessageQueue.TransportLayer.Tcp
 
             eventArg.Completed += (sender, args) =>
             {
-                Utilities.TraceHelper(Mode.ToString());
                 if (timedOut)
                 {
                     return;
@@ -279,7 +271,6 @@ namespace DtronixMessageQueue.TransportLayer.Tcp
 
         public void Close(SessionCloseReason reason)
         {
-            Utilities.TraceHelper(Mode.ToString());
             if (Mode != TransportLayerMode.Client)
                 throw new InvalidOperationException("Transport layer is running in server mode.");
 
@@ -301,7 +292,6 @@ namespace DtronixMessageQueue.TransportLayer.Tcp
 
         private ITransportLayerSession CreateSession(Socket socket)
         {
-            Utilities.TraceHelper(Mode.ToString());
             socket.NoDelay = true;
 
             var session = new TcpTransportLayerSession(this, socket);
@@ -318,13 +308,11 @@ namespace DtronixMessageQueue.TransportLayer.Tcp
 
         private void SessionReceived(object sender, TransportLayerReceiveAsyncEventArgs e)
         {
-            Utilities.TraceHelper(Mode.ToString());
             Received?.Invoke(this, e);
         }
 
         private void SessionStateChanged(object sender, TransportLayerStateChangedEventArgs e)
         {
-            Utilities.TraceHelper(Mode.ToString());
             switch (e.State)
             {
                 case TransportLayerState.Closing:

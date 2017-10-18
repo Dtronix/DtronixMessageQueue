@@ -54,15 +54,12 @@ namespace DtronixMessageQueue.Tests.Rpc
             {
                 args.Session.AddProxy<ICalculatorService>("CalculatorService");
                 var service = Client.Session.GetProxy<ICalculatorService>();
-                Stopwatch stopwatch = Stopwatch.StartNew();
 
                 int addedInt = 0;
                 for (int i = 0; i < 10; i++)
                 {
                     addedInt = service.Add(addedInt, 1);
                 }
-
-                Console.WriteLine($"{stopwatch.ElapsedMilliseconds}");
                 TestComplete.Set();
             };
 

@@ -53,7 +53,6 @@ namespace DtronixMessageQueue.TransportLayer.Tcp
 
         public TcpTransportLayerSession(TcpTransportLayer transportLayer, Socket socket)
         {
-            Utilities.TraceHelper(transportLayer.Mode.ToString());
             Socket = socket;
             TransportLayer = transportLayer;
 
@@ -94,7 +93,6 @@ namespace DtronixMessageQueue.TransportLayer.Tcp
         /// <param name="e">SocketAsyncEventArg associated with the completed receive operation</param>
         private void IoCompleted(object sender, SocketAsyncEventArgs e)
         {
-            Utilities.TraceHelper($"{TransportLayer.Mode} {e.LastOperation}");
             if (SimulateConnectionDrop)
                 return;
 
@@ -128,7 +126,6 @@ namespace DtronixMessageQueue.TransportLayer.Tcp
         /// <param name="length">Total bytes to send.</param>
         public void Send(byte[] buffer, int offset, int length)
         {
-            Utilities.TraceHelper(TransportLayer.Mode.ToString());
             if (SimulateConnectionDrop)
                 return;
 
@@ -159,7 +156,6 @@ namespace DtronixMessageQueue.TransportLayer.Tcp
 
         public void ReceiveAsync()
         {
-            Utilities.TraceHelper(TransportLayer.Mode.ToString());
             if (SimulateConnectionDrop)
                 return;
             try
@@ -185,7 +181,6 @@ namespace DtronixMessageQueue.TransportLayer.Tcp
         /// <param name="e">Event args of this action.</param>
         private void ReceiveComplete(SocketAsyncEventArgs e)
         {
-            Utilities.TraceHelper(TransportLayer.Mode.ToString());
             if (State == TransportLayerState.Closing)
                 return;
 
@@ -218,7 +213,6 @@ namespace DtronixMessageQueue.TransportLayer.Tcp
         /// <param name="reason">Reason this session is being closed.</param>
         public void Close(SessionCloseReason reason)
         {
-            Utilities.TraceHelper(TransportLayer.Mode.ToString());
             // If this session has already been closed, nothing more to do.
             if (State == TransportLayerState.Closed || State == TransportLayerState.Closing)
                 return;
