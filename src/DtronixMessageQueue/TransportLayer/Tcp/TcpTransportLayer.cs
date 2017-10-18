@@ -116,9 +116,11 @@ namespace DtronixMessageQueue.TransportLayer.Tcp
             ITransportLayerSession[] sessions = new ITransportLayerSession[ConnectedSessions.Values.Count];
             ConnectedSessions.Values.CopyTo(sessions, 0);
 
+            // Close all connected sessions.
             foreach (var session in sessions)
             {
-                session.Close(closeReason);
+                if(session.State == TransportLayerState.Connected)
+                    session.Close(closeReason);
             }
 
             try

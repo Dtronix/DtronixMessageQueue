@@ -125,6 +125,9 @@ namespace DtronixMessageQueue
 
             TransportSession.Received += (sender, e) =>
             {
+                // Wait until the next 
+                _receivingSemaphore.Wait();
+
                 _inboxBytes.Enqueue(e.Buffer);
                 _inboxProcessor.QueueOnce(Id);
 
@@ -132,8 +135,6 @@ namespace DtronixMessageQueue
                 if (e.Buffer == null)
                     return;
 
-                // Wait until the next 
-                _receivingSemaphore.Wait();
 
                 TransportSession.ReceiveAsync();
             };
@@ -290,6 +291,8 @@ namespace DtronixMessageQueue
             byte[] buffer;
             while (_inboxBytes.TryDequeue(out buffer))
             {
+                if (TransportSession.State != TransportLayerState.Connected)
+                    return;
 
                 if (TransportSession.State == TransportLayerState.Connected)
                     _receivingSemaphore.Release();
@@ -302,11 +305,13 @@ namespace DtronixMessageQueue
 
                 try
                 {
-                    _frameBuilder.Write(buffer, 0, buffer.Length);
+                    _frameBuilder.Write(buffer);
                 }
                 catch (InvalidDataException)
                 {
-                    Close(SessionCloseReason.ProtocolError);
+                    if(TransportSession.State == TransportLayerState.Connected)
+                        Close(SessionCloseReason.ProtocolError);
+
                     return;
                 }
 
@@ -314,6 +319,9 @@ namespace DtronixMessageQueue
 
                 for (var i = 0; i < frameCount; i++)
                 {
+                    if (TransportSession.State != TransportLayerState.Connected)
+                        return;
+
                     var frame = _frameBuilder.Frames.Dequeue();
 
                     // Do nothing if this is a ping frame.

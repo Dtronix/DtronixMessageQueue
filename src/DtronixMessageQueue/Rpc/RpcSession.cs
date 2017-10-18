@@ -131,10 +131,12 @@ namespace DtronixMessageQueue.Rpc
         protected override void ProcessCommand(MqFrame frame)
         {
             var commandType = (MqCommandType) frame.ReadByte(0);
+            
 
             // If this is a base MqCommand, pass this directly on to the base command handler.
             if (commandType != MqCommandType.RpcCommand)
             {
+                Utilities.TraceHelper($"{SessionHandler.LayerMode} {commandType} Non RPC Command Processing");
                 base.ProcessCommand(frame);
                 return;
             }
@@ -145,6 +147,7 @@ namespace DtronixMessageQueue.Rpc
 
                 if (rpcCommandType == RpcCommandType.WelcomeMessage)
                 {
+                    Utilities.TraceHelper($"{SessionHandler.LayerMode} {rpcCommandType} Command Processing");
                     // RpcCommand:byte; RpcCommandType:byte; RpcServerInfoDataContract:byte[];
 
                     // Ensure that this command is running on the client.
@@ -183,9 +186,7 @@ namespace DtronixMessageQueue.Rpc
                         serializer.MessageWriter.Write((byte) RpcCommandType.AuthenticationRequest);
 
                         if (authArgs.AuthData == null)
-                        {
                             authArgs.AuthData = new byte[] {0};
-                        }
 
 
                         serializer.MessageWriter.Write(authArgs.AuthData, 0, authArgs.AuthData.Length);
@@ -227,6 +228,7 @@ namespace DtronixMessageQueue.Rpc
                 }
                 else if (rpcCommandType == RpcCommandType.AuthenticationRequest)
                 {
+                    Utilities.TraceHelper($"{SessionHandler.LayerMode} {rpcCommandType} Command Processing");
                     // RpcCommand:byte; RpcCommandType:byte; AuthData:byte[];
 
                     // If this is not run on the server, quit.
@@ -279,6 +281,7 @@ namespace DtronixMessageQueue.Rpc
                 }
                 else if (rpcCommandType == RpcCommandType.AuthenticationResult)
                 {
+                    Utilities.TraceHelper($"{SessionHandler.LayerMode} {rpcCommandType} Command Processing");
                     // RpcCommand:byte; RpcCommandType:byte; AuthResult:bool;
 
                     // Cancel the timeout request.

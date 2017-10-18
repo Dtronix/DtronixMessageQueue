@@ -125,7 +125,7 @@ namespace DtronixMessageQueue.Tests.Rpc
         [Test]
         public void Server_does_not_request_authentication()
         {
-            Server.Config.RequireAuthentication = false;
+            ServerConfig.RequireAuthentication = false;
 
             Server.Connected +=
                 (sender, args) => { args.Session.AddService<ICalculatorService>(new CalculatorService()); };
@@ -262,7 +262,7 @@ namespace DtronixMessageQueue.Tests.Rpc
         {
             ClientConfig.RequireAuthentication = ServerConfig.RequireAuthentication = true;
             
-            ClientConfig.ConnectionTimeout = 100;
+            ClientConfig.ConnectionTimeout = 200;
 
             Client.Closed += (sender, e) =>
             {
@@ -275,7 +275,7 @@ namespace DtronixMessageQueue.Tests.Rpc
 
             Server.Authenticate += (sender, e) => { Thread.Sleep(500); };
 
-            StartAndWait(true, 5000);
+            StartAndWait();
         }
 
         [Test]

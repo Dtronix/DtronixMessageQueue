@@ -35,7 +35,7 @@ namespace DtronixMessageQueue.TransportLayer.Tcp
 
         private TransportLayerReceiveAsyncEventArgs _tlReceiveArgs;
 
-        //private SemaphoreSlim _writeSemaphore;
+        private Semaphore _writeSemaphore;
 
         /// <summary>
         /// Last time the session received anything from the socket.
@@ -48,7 +48,6 @@ namespace DtronixMessageQueue.TransportLayer.Tcp
         public DateTime ConnectedTime { get; }
 
         public bool SimulateConnectionDrop;
-        private Semaphore _writeSemaphore;
 
 
         public TcpTransportLayerSession(TcpTransportLayer transportLayer, Socket socket)
@@ -105,7 +104,8 @@ namespace DtronixMessageQueue.TransportLayer.Tcp
 
                 case SocketAsyncOperation.Send:
                     _writeSemaphore.Release();
-                    if (e.SocketError != SocketError.Success)
+                    if (State == TransportLayerState.Connected 
+                        && e.SocketError != SocketError.Success)
                         Close(SessionCloseReason.SocketError);
                     break;
 
@@ -129,8 +129,8 @@ namespace DtronixMessageQueue.TransportLayer.Tcp
             if (SimulateConnectionDrop)
                 return;
 
-            if (Socket == null || Socket.Connected == false)
-                return;
+            if (State == TransportLayerState.Closed)
+                throw new InvalidOperationException("Can not send while the session is closed.");
 
              _writeSemaphore.WaitOne(-1);
 
@@ -158,6 +158,10 @@ namespace DtronixMessageQueue.TransportLayer.Tcp
         {
             if (SimulateConnectionDrop)
                 return;
+
+            if(State != TransportLayerState.Connected)
+                throw new InvalidOperationException("Can not receive when the connection is not established.");
+
             try
             {
                 // Re-setup the receive async call.
@@ -170,7 +174,6 @@ namespace DtronixMessageQueue.TransportLayer.Tcp
             {
                 Close(SessionCloseReason.SocketError);
             }
-
         }
 
 
@@ -181,7 +184,7 @@ namespace DtronixMessageQueue.TransportLayer.Tcp
         /// <param name="e">Event args of this action.</param>
         private void ReceiveComplete(SocketAsyncEventArgs e)
         {
-            if (State == TransportLayerState.Closing)
+            if (State != TransportLayerState.Connected)
                 return;
 
             if (e.SocketError == SocketError.Success)
@@ -192,6 +195,7 @@ namespace DtronixMessageQueue.TransportLayer.Tcp
                 // Create a copy of these bytes.
                 var buffer = new byte[e.BytesTransferred];
 
+                // If the client received a 0 byte message, the connection is closed.
                 if (e.BytesTransferred > 0)
                     Buffer.BlockCopy(e.Buffer, e.Offset, buffer, 0, e.BytesTransferred);
                 else
@@ -215,7 +219,7 @@ namespace DtronixMessageQueue.TransportLayer.Tcp
         {
             // If this session has already been closed, nothing more to do.
             if (State == TransportLayerState.Closed || State == TransportLayerState.Closing)
-                return;
+                throw new InvalidOperationException("Can not close because the connection is already closed.");
 
             // Set the state to closing to restrict what can be done.
             State = TransportLayerState.Closing;

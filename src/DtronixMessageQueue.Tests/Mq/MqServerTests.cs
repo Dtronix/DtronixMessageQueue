@@ -115,6 +115,7 @@ namespace DtronixMessageQueue.Tests.Mq
             Server.Start();
 
             client.Connected += (sender, args) => client2.Connect();
+
             client2.Closed += (sender, args) =>
             {
                 if (args.CloseReason != SessionCloseReason.ConnectionRefused)

@@ -79,29 +79,6 @@ namespace DtronixMessageQueue.Tests.Mq
         }
 
         [Test]
-        public void Client_does_not_notify_on_command_frame()
-        {
-            var commandFrame = new MqFrame(new byte[21], MqFrameType.Command, ClientConfig);
-
-            Client.Connected += (sender, args) =>
-            {
-                Client.Send(commandFrame);
-            };
-
-            Server.IncomingMessage += (sender, args) =>
-            {
-                TestComplete.Set();
-            };
-
-            StartAndWait(false, 500);
-
-            if (TestComplete.IsSet)
-            {
-                throw new Exception("Server read command frame.");
-            }
-        }
-
-        [Test]
         public void Client_does_not_notify_on_ping_frame()
         {
             ClientConfig.PingTimeout = ServerConfig.PingTimeout = 0;

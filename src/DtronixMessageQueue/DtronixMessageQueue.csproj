@@ -46,6 +46,7 @@
     <Reference Include="System.Xml" />
   </ItemGroup>
   <ItemGroup>
+    <Compile Include="MemoryQueueBufferStream.cs" />
     <Compile Include="MqCommandType.cs" />
     <Compile Include="MqMessageReader.cs" />
     <Compile Include="MqMessageWriter.cs" />
