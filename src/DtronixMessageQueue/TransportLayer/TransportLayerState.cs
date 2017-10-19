@@ -16,11 +16,7 @@ namespace DtronixMessageQueue.TransportLayer
         /// </summary>
         Unknown,
 
-        Starting,
-
         Started,
-
-        Stopping,
 
         Stopped,
 

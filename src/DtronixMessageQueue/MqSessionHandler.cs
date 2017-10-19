@@ -156,7 +156,9 @@ namespace DtronixMessageQueue
 
                     ConnectedSessions.TryAdd(session.Id, session);
 
+                    // Add the events.
                     session.IncomingMessage += (s, a) => IncomingMessage?.Invoke(this, a);
+                    session.Closed += OnClosed;
 
                     // Invoke the outer connecting event.
                     OnConnected(session);
@@ -164,19 +166,23 @@ namespace DtronixMessageQueue
 
                 case TransportLayerState.Closed:
 
-                    // Remove the session from the list of active sessions and release the semaphore.
-                    if (e.Session != null && ConnectedSessions.TryRemove(e.Session.Id, out var connSession))
-                    {
-                        // If the remaining connection is now 1, that means that the server need to begin
-                        // accepting new client connections.
-                        lock (_connectionLock)
-                            _remainingConnections++;
-                    }
 
-                    OnClose(new SessionCloseEventArgs<TSession, TConfig>(e.Session?.ImplementedSession as TSession,
-                        e.Reason));
                     break;
             }
+        }
+
+        protected virtual void OnClosed(object sender, SessionCloseEventArgs<TSession, TConfig> e)
+        {
+            // Remove the session from the list of active sessions and release the semaphore.
+            if (e.Session != null && ConnectedSessions.TryRemove(e.Session.Id, out var connSession))
+            {
+                // If the remaining connection is now 1, that means that the server need to begin
+                // accepting new client connections.
+                lock (_connectionLock)
+                    _remainingConnections++;
+            }
+
+            Closed?.Invoke(this, e);
         }
 
         protected virtual void OnConnected(TSession session)

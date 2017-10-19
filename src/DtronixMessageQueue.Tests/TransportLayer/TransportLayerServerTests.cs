@@ -220,6 +220,7 @@ namespace DtronixMessageQueue.Tests.TransportLayer
         public void Server_accepts_additional_connections()
         {
             int connectedCount = 0;
+
             Client.StateChanged += (sender, args) =>
             {
                 if (args.State == TransportLayerState.Connected)
@@ -238,8 +239,8 @@ namespace DtronixMessageQueue.Tests.TransportLayer
 
                     Server.AcceptAsync();
 
-                    await Task.Delay(500);
-                    LastException = new Exception("Server accepted new connection when it should not.");
+                    await Task.Delay(2000);
+                    LastException = new Exception("Server did not accept new connection.");
                    
                 }
             };

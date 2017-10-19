@@ -72,9 +72,6 @@ namespace DtronixMessageQueue.TransportLayer.Tcp
 
             SetConfigs();
 
-            State = TransportLayerState.Starting;
-            StateChanged?.Invoke(this, new TransportLayerStateChangedEventArgs(this, TransportLayerState.Starting));
-
             var localEndPoint = Utilities.CreateIPEndPoint(Config.BindAddress);
 
             // create the socket which listens for incoming connections
@@ -106,13 +103,8 @@ namespace DtronixMessageQueue.TransportLayer.Tcp
             if (State != TransportLayerState.Started)
                 return;
 
-            State = TransportLayerState.Stopping;
-            var closeReason = SessionCloseReason.Closing;
 
-            StateChanged?.Invoke(this, new TransportLayerStateChangedEventArgs(this, TransportLayerState.Stopping)
-            {
-                Reason = closeReason
-            });
+            State = TransportLayerState.Stopped;
 
             ITransportLayerSession[] sessions = new ITransportLayerSession[ConnectedSessions.Values.Count];
             ConnectedSessions.Values.CopyTo(sessions, 0);
@@ -141,13 +133,10 @@ namespace DtronixMessageQueue.TransportLayer.Tcp
                 MainSocket.Close();
             }
 
-            State = TransportLayerState.Stopped;
-
             // Invoke the stopped event.
-            StateChanged?.Invoke(this, new TransportLayerStateChangedEventArgs(this, TransportLayerState.Stopped)
-            {
-                Reason = closeReason
-            });
+            StateChanged?.Invoke(this,
+                new TransportLayerStateChangedEventArgs(this, TransportLayerState.Stopped, null,
+                    SessionCloseReason.Closing));
         }
 
         /// <summary>
@@ -293,15 +282,19 @@ namespace DtronixMessageQueue.TransportLayer.Tcp
 
         private void SessionReceived(object sender, TransportLayerReceiveAsyncEventArgs e)
         {
-            if (e.Buffer == null && e.Session != null)
+            if (e.Buffer == null)
             {
-                e.Session.Received -= SessionReceived;
+                State = TransportLayerState.Closed;
 
-                ITransportLayerSession sessOut;
-                ConnectedSessions?.TryRemove(e.Session.Id, out sessOut);
+                if (e.Session != null) {
+                    e.Session.Received -= SessionReceived;
 
-                if (Mode == TransportLayerMode.Client)
-                    MainSocket = null;
+                    ITransportLayerSession sessOut;
+                    ConnectedSessions?.TryRemove(e.Session.Id, out sessOut);
+
+                    if (Mode == TransportLayerMode.Client)
+                        MainSocket = null;
+                }
             }
 
             Received?.Invoke(this, e);

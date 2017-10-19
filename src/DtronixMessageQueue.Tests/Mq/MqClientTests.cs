@@ -316,7 +316,7 @@ namespace DtronixMessageQueue.Tests.Mq
             
 
 
-            TestComplete.Wait(new TimeSpan(0, 0, 0, 0, 2000));
+            TestComplete.Wait(new TimeSpan(0, 0, 0, 0, 100000));
 
             if (TestComplete.IsSet == false)
             {

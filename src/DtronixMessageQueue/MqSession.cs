@@ -31,6 +31,8 @@ namespace DtronixMessageQueue
 
         public DateTime ConnectTime => TransportSession.ConnectedTime;
 
+        public TransportLayerState State => TransportSession.State;
+
         /// <summary>
         /// Base socket for this session.
         /// </summary>
@@ -126,7 +128,8 @@ namespace DtronixMessageQueue
             TransportSession.Received += (sender, e) =>
             {
                 // Wait until the next 
-                _receivingSemaphore.Wait();
+                if (e.Buffer != null)
+                    _receivingSemaphore.Wait();
 
                 _inboxBytes.Enqueue(e.Buffer);
                 _inboxProcessor.QueueOnce(Id);
@@ -134,7 +137,6 @@ namespace DtronixMessageQueue
                 // If the buffer is null, the connection is closed.
                 if (e.Buffer == null)
                     return;
-
 
                 TransportSession.ReceiveAsync();
             };
@@ -228,7 +230,8 @@ namespace DtronixMessageQueue
             while (_outbox.TryDequeue(out message))
             {
 
-                if(TransportSession.State == TransportLayerState.Connected)
+                if(TransportSession.State == TransportLayerState.Connected 
+                    && _sendingSemaphore.CurrentCount != Config.MaxQueuedOutgoingMessages)
                     _sendingSemaphore.Release();
 
                 message.PrepareSend();
@@ -275,9 +278,6 @@ namespace DtronixMessageQueue
             byte[] buffer;
             while (_inboxBytes.TryDequeue(out buffer))
             {
-                if (TransportSession.State != TransportLayerState.Connected)
-                    return;
-
                 if (TransportSession.State == TransportLayerState.Connected)
                     _receivingSemaphore.Release();
 

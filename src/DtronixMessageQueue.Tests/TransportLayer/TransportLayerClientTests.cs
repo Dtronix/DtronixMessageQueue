@@ -101,7 +101,7 @@ namespace DtronixMessageQueue.Tests.TransportLayer
         [Test]
         public void Client_times_out_on_long_connection()
         {
-            ClientConfig.ConnectionTimeout = 1800;
+            ClientConfig.ConnectionTimeout = 100;
 
             Client.Received += (sender, args) =>
             {

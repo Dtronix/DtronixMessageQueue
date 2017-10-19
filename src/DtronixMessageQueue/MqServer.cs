@@ -69,6 +69,16 @@ namespace DtronixMessageQueue
         /// </summary>
         public void Stop()
         {
+            TSession[] sessions = new TSession[ConnectedSessions.Values.Count];
+            ConnectedSessions.Values.CopyTo(sessions, 0);
+
+            // Close all connected sessions.
+            foreach (var session in sessions)
+            {
+                if (session.State == TransportLayerState.Connected)
+                    session.Close(SessionCloseReason.Closing);
+            }
+
             TransportLayer.Stop();
         }
     }
