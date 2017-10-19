@@ -138,25 +138,6 @@ namespace DtronixMessageQueue
 
                 TransportSession.ReceiveAsync();
             };
-
-            TransportSession.StateChanged += (sender, args) =>
-            {
-                switch (args.State)
-                {
-                    case TransportLayerState.Closing:
-                        OnClosing(args.Reason);
-                        break;
-
-                    case TransportLayerState.Closed:
-                        OnClosed(args.Reason);
-                        break;
-
-                    default:
-                        Close(SessionCloseReason.ApplicationError);
-                        break;
-                }
-
-            };
         }
 
         protected virtual void OnClosing(SessionCloseReason reason)
@@ -198,11 +179,14 @@ namespace DtronixMessageQueue
         /// <param name="reason">Reason for closing this session.</param>
         public void Close(SessionCloseReason reason)
         {
-            if (TransportSession.State == TransportLayerState.Closed
-                || TransportSession.State == TransportLayerState.Closing)
+            if (TransportSession.State == TransportLayerState.Closed)
                 return;
 
+            OnClosing(reason);
+
             TransportSession.Close(reason);
+
+            OnClosed(reason);
         }
 
 

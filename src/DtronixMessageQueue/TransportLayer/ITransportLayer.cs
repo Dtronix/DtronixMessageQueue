@@ -18,6 +18,8 @@ namespace DtronixMessageQueue.TransportLayer
         TransportLayerState State { get; }
         ConcurrentDictionary<Guid, ITransportLayerSession> ConnectedSessions { get; }
 
+        ITransportLayerSession ClientSession { get; }
+
         void Start();
 
         void Stop();
@@ -25,7 +27,5 @@ namespace DtronixMessageQueue.TransportLayer
         void AcceptAsync();
 
         void Connect();
-
-        void Close(SessionCloseReason reason);
     }
 }

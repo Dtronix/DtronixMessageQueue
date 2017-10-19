@@ -21,6 +21,7 @@ namespace DtronixMessageQueue.TransportLayer.Tcp
         public ConcurrentDictionary<Guid, ITransportLayerSession> ConnectedSessions { get; }
 
         public ITransportLayerSession ClientSession { get; private set; }
+
         /// <summary>
         /// Main socket used by the child class for connection or for the listening of incoming connections.
         /// </summary>
@@ -251,6 +252,8 @@ namespace DtronixMessageQueue.TransportLayer.Tcp
                 }
             };
 
+            
+
             MainSocket.ConnectAsync(eventArg);
 
             Task.Run(async () =>
@@ -266,29 +269,9 @@ namespace DtronixMessageQueue.TransportLayer.Tcp
 
                 timedOut = true;
                 MainSocket.Close();
-                Close(SessionCloseReason.TimeOut);
+                ClientSession?.Close(SessionCloseReason.TimeOut);
 
             }, _connectionTimeoutCancellation.Token);
-        }
-
-        public void Close(SessionCloseReason reason)
-        {
-            if (Mode != TransportLayerMode.Client)
-                throw new InvalidOperationException("Transport layer is running in server mode.");
-
-            if (State != TransportLayerState.Connected && reason != SessionCloseReason.TimeOut)
-                return;
-
-            State = TransportLayerState.Closing;
-
-            MainSocket.Close();
-
-            State = TransportLayerState.Closed;
-
-            if (ClientSession == null)
-                SessionStateChanged(this, new TransportLayerStateChangedEventArgs(this, State, null, SessionCloseReason.TimeOut));
-            else
-                ClientSession.Close(reason);
         }
 
 
@@ -299,7 +282,6 @@ namespace DtronixMessageQueue.TransportLayer.Tcp
             var session = new TcpTransportLayerSession(this, socket);
 
             // Add the connection and closing events.
-            session.StateChanged += SessionStateChanged;
             session.Received += SessionReceived;
 
             // Add this session to the list of connected sessions.
@@ -310,38 +292,20 @@ namespace DtronixMessageQueue.TransportLayer.Tcp
 
         private void SessionReceived(object sender, TransportLayerReceiveAsyncEventArgs e)
         {
+            if (e.Buffer == null)
+            {
+                e.Session.Received -= SessionReceived;
+
+                ITransportLayerSession sessOut;
+                ConnectedSessions?.TryRemove(e.Session.Id, out sessOut);
+
+                if (Mode == TransportLayerMode.Client)
+                    MainSocket = null;
+            }
+
             Received?.Invoke(this, e);
         }
 
-        private void SessionStateChanged(object sender, TransportLayerStateChangedEventArgs e)
-        {
-            switch (e.State)
-            {
-                case TransportLayerState.Closing:
-                    break;
-
-                case TransportLayerState.Closed:
-                    // If the session is null, that means the connection never was made.
-                    if (e.Session != null)
-                    {
-                        e.Session.StateChanged -= SessionStateChanged;
-                        e.Session.Received -= SessionReceived;
-
-                        ITransportLayerSession sessOut;
-                        ConnectedSessions?.TryRemove(e.Session.Id, out sessOut);
-
-                        if (Mode == TransportLayerMode.Client)
-                            MainSocket = null;
-                    }
-                    break;
-            }
-
-            if (Mode == TransportLayerMode.Client)
-                State = e.State;
-
-
-            StateChanged?.Invoke(this, e);
-        }
 
         public override string ToString()
         {

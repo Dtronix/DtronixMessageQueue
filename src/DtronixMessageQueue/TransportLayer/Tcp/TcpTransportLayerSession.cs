@@ -16,7 +16,7 @@ namespace DtronixMessageQueue.TransportLayer.Tcp
 
 
         public object ImplementedSession { get; set; }
-        public event EventHandler<TransportLayerStateChangedEventArgs> StateChanged;
+
         public event EventHandler<TransportLayerReceiveAsyncEventArgs> Received;
 
         public TransportLayerState State { get; private set; }
@@ -218,14 +218,15 @@ namespace DtronixMessageQueue.TransportLayer.Tcp
         public void Close(SessionCloseReason reason)
         {
             // If this session has already been closed, nothing more to do.
-            if (State == TransportLayerState.Closed || State == TransportLayerState.Closing)
+            if (State == TransportLayerState.Closed)
                 throw new InvalidOperationException("Can not close because the connection is already closed.");
 
-            // Set the state to closing to restrict what can be done.
-            State = TransportLayerState.Closing;
+            State = TransportLayerState.Closed;
 
-            StateChanged?.Invoke(this,
-                new TransportLayerStateChangedEventArgs(TransportLayer, TransportLayerState.Closing, this, reason));
+            Received?.Invoke(this, new TransportLayerReceiveAsyncEventArgs(this)
+            {
+                Buffer = null
+            });
 
             // Prevent any more bytes from being received.
             Received = null;
@@ -250,14 +251,6 @@ namespace DtronixMessageQueue.TransportLayer.Tcp
             // Free the SocketAsyncEventArg so they can be reused by another client
             TransportLayer.AsyncManager.Free(_sendArgs);
             TransportLayer.AsyncManager.Free(_receiveArgs);
-
-            State = TransportLayerState.Closed;
-
-            StateChanged?.Invoke(this,
-                new TransportLayerStateChangedEventArgs(TransportLayer, TransportLayerState.Closed, this)
-                {
-                    Reason = reason
-                });
         }
 
         public override string ToString()

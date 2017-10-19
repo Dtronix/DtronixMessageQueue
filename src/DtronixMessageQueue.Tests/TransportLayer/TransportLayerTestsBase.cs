@@ -61,7 +61,7 @@ namespace DtronixMessageQueue.Tests.TransportLayer
             }
             try
             {
-                Client.Close(SessionCloseReason.Closing);
+                Client.ClientSession.Close(SessionCloseReason.Closing);
             }
             catch
             {

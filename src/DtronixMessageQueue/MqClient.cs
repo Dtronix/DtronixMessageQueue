@@ -98,7 +98,7 @@ namespace DtronixMessageQueue
 
         protected void Close(SessionCloseReason reason)
         {
-            TransportLayer.Close(reason);
+            Session.Close(reason);
         }
     }
 }

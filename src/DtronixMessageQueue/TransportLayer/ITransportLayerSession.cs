@@ -28,8 +28,6 @@ namespace DtronixMessageQueue.TransportLayer
         /// </summary>
         object ImplementedSession { get; set; }
 
-        event EventHandler<TransportLayerStateChangedEventArgs> StateChanged;
-
         event EventHandler<TransportLayerReceiveAsyncEventArgs> Received;
 
         void Send(byte[] buffer, int start, int count);

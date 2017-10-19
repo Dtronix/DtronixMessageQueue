@@ -35,11 +35,6 @@ namespace DtronixMessageQueue.TransportLayer
         Connected,
 
         /// <summary>
-        /// Session is in the process of closing its connection.
-        /// </summary>
-        Closing,
-
-        /// <summary>
         /// Session has been closed and no longer can be used.
         /// </summary>
         Closed,
