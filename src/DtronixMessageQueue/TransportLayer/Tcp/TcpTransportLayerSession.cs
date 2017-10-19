@@ -106,7 +106,7 @@ namespace DtronixMessageQueue.TransportLayer.Tcp
                     _writeSemaphore.Release();
                     if (State == TransportLayerState.Connected 
                         && e.SocketError != SocketError.Success)
-                        Close(SessionCloseReason.SocketError);
+                        Close();
                     break;
 
                 default:
@@ -149,7 +149,7 @@ namespace DtronixMessageQueue.TransportLayer.Tcp
             }
             catch (ObjectDisposedException)
             {
-                Close(SessionCloseReason.SocketError);
+                Close();
             }
         }
 
@@ -172,7 +172,7 @@ namespace DtronixMessageQueue.TransportLayer.Tcp
             }
             catch (ObjectDisposedException)
             {
-                Close(SessionCloseReason.SocketError);
+                Close();
             }
         }
 
@@ -207,15 +207,14 @@ namespace DtronixMessageQueue.TransportLayer.Tcp
             }
             else
             {
-                Close(SessionCloseReason.SocketError);
+                Close();
             }
         }
 
         /// <summary>
         /// Closes the current session.
         /// </summary>
-        /// <param name="reason">Reason this session is being closed.</param>
-        public void Close(SessionCloseReason reason)
+        public void Close()
         {
             // If this session has already been closed, nothing more to do.
             if (State == TransportLayerState.Closed)
@@ -223,10 +222,8 @@ namespace DtronixMessageQueue.TransportLayer.Tcp
 
             State = TransportLayerState.Closed;
 
-            Received?.Invoke(this, new TransportLayerReceiveAsyncEventArgs(this)
-            {
-                Buffer = null
-            });
+            // Alert that the session has closed with a null receive.
+            Received?.Invoke(this, new TransportLayerReceiveAsyncEventArgs(this, null));
 
             // Prevent any more bytes from being received.
             Received = null;

@@ -121,7 +121,7 @@ namespace DtronixMessageQueue.TransportLayer.Tcp
             foreach (var session in sessions)
             {
                 if(session.State == TransportLayerState.Connected)
-                    session.Close(closeReason);
+                    session.Close();
             }
 
             try
@@ -235,11 +235,12 @@ namespace DtronixMessageQueue.TransportLayer.Tcp
 
             eventArg.Completed += (sender, args) =>
             {
-                if (timedOut)
+                if (timedOut || MainSocket.Connected == false)
                 {
-                    return;
+                    // Alert that the session has timed out with a null receive.
+                    Received?.Invoke(this, new TransportLayerReceiveAsyncEventArgs(null, null));
                 }
-                if (args.LastOperation == SocketAsyncOperation.Connect)
+                else if (args.LastOperation == SocketAsyncOperation.Connect)
                 {
                     _connectionTimeoutCancellation?.Cancel();
 
@@ -269,7 +270,7 @@ namespace DtronixMessageQueue.TransportLayer.Tcp
 
                 timedOut = true;
                 MainSocket.Close();
-                ClientSession?.Close(SessionCloseReason.TimeOut);
+                ClientSession?.Close();
 
             }, _connectionTimeoutCancellation.Token);
         }
@@ -292,7 +293,7 @@ namespace DtronixMessageQueue.TransportLayer.Tcp
 
         private void SessionReceived(object sender, TransportLayerReceiveAsyncEventArgs e)
         {
-            if (e.Buffer == null)
+            if (e.Buffer == null && e.Session != null)
             {
                 e.Session.Received -= SessionReceived;
 

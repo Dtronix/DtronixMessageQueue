@@ -110,7 +110,7 @@ namespace DtronixMessageQueue
                             $"FrameBuilder was sent a frame with an invalid size of {currentFrameLength}");
                     }
 
-                    if (currentFrameLength > _bufferStream.Length)
+                    if (currentFrameLength > _config.FrameBufferSize)
                     {
                         throw new InvalidDataException(
                             $"Frame size is {currentFrameLength} while the maximum size for frames is 16KB.");

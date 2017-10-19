@@ -184,7 +184,7 @@ namespace DtronixMessageQueue
 
             OnClosing(reason);
 
-            TransportSession.Close(reason);
+            TransportSession.Close();
 
             OnClosed(reason);
         }

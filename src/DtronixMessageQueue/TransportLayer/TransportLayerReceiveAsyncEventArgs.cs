@@ -15,6 +15,12 @@ namespace DtronixMessageQueue.TransportLayer
         {
             Session = session;
         }
+
+        public TransportLayerReceiveAsyncEventArgs(ITransportLayerSession session, byte[] buffer)
+        {
+            Session = session;
+            Buffer = buffer;
+        }
         public void Dispose()
         {
         }
