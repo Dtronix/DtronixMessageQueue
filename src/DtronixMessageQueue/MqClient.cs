@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Threading;
+using System.Threading.Tasks;
 using DtronixMessageQueue.TransportLayer;
 
 
@@ -80,25 +81,50 @@ namespace DtronixMessageQueue
         /// <summary>
         /// Disposes of all resources associated with this client.
         /// </summary>
-        public void Dispose()
+        public new void Dispose()
         {
             Session.Close(SessionCloseReason.Closing);
+
+            base.Dispose();
         }
 
-
+        public void Connect()
+        {
+            Connect(CancellationToken.None);
+        }
 
         /// <summary>
         /// Connects to the configured endpoint.
         /// </summary>
-        public void Connect()
+        public void Connect(CancellationToken token)
         {
             TransportLayer.Connect();
+
+            Task.Run(async () =>
+            {
+                try
+                {
+                    await Task.Delay(Config.ConnectionTimeout, token);
+                }
+                catch (OperationCanceledException)
+                {
+                    
+                }
+                catch (Exception)
+                {
+                    return;
+                }
+
+                TransportLayer.Close();
+                OnClose(new SessionCloseEventArgs<TSession, TConfig>(null, SessionCloseReason.TimeOut));
+
+            }, token);
         }
 
 
         protected void Close(SessionCloseReason reason)
         {
-            TransportLayer.Close(reason);
+            Session.Close(reason);
         }
     }
 }

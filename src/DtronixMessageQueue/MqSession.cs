@@ -143,12 +143,9 @@ namespace DtronixMessageQueue
             {
                 switch (args.State)
                 {
-                    case TransportLayerState.Closing:
-                        OnClosing(args.Reason);
-                        break;
-
                     case TransportLayerState.Closed:
-                        OnClosed(args.Reason);
+                        _inboxBytes.Enqueue(null);
+                        _inboxProcessor.QueueOnce(Id);
                         break;
 
                     default:
@@ -198,11 +195,14 @@ namespace DtronixMessageQueue
         /// <param name="reason">Reason for closing this session.</param>
         public void Close(SessionCloseReason reason)
         {
-            if (TransportSession.State == TransportLayerState.Closed
-                || TransportSession.State == TransportLayerState.Closing)
+            if (TransportSession.State == TransportLayerState.Closed)
                 return;
 
-            TransportSession.Close(reason);
+            OnClosing(reason);
+
+            TransportSession.Close();
+
+            OnClosed(reason);
         }
 
 
@@ -294,14 +294,14 @@ namespace DtronixMessageQueue
                 if (TransportSession.State != TransportLayerState.Connected)
                     return;
 
-                if (TransportSession.State == TransportLayerState.Connected)
-                    _receivingSemaphore.Release();
-
                 if (buffer == null)
                 {
-                    Close(SessionCloseReason.Closing);
+                    OnClosed(SessionCloseReason.Closing);
                     return;
                 }
+
+                if (TransportSession.State == TransportLayerState.Connected)
+                    _receivingSemaphore.Release();
 
                 try
                 {

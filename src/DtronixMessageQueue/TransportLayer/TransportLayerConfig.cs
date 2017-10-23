@@ -29,11 +29,6 @@ namespace DtronixMessageQueue.TransportLayer
         public int SendTimeout { get; set; } = 5000;
 
         /// <summary>
-        /// (Client) Time in milliseconds it takes to timeout a connection attempt.
-        /// </summary>
-        public int ConnectionTimeout { get; set; } = 60000;
-
-        /// <summary>
         /// (Client) Connection address.
         /// Parses standard IP:Port notation.
         /// </summary>

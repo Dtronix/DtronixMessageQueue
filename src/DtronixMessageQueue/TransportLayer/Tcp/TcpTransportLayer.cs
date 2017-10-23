@@ -21,6 +21,8 @@ namespace DtronixMessageQueue.TransportLayer.Tcp
         public ConcurrentDictionary<Guid, ITransportLayerSession> ConnectedSessions { get; }
 
         public ITransportLayerSession ClientSession { get; private set; }
+
+        private bool _cancelConnection = false;
         /// <summary>
         /// Main socket used by the child class for connection or for the listening of incoming connections.
         /// </summary>
@@ -106,12 +108,8 @@ namespace DtronixMessageQueue.TransportLayer.Tcp
                 return;
 
             State = TransportLayerState.Stopping;
-            var closeReason = SessionCloseReason.Closing;
 
-            StateChanged?.Invoke(this, new TransportLayerStateChangedEventArgs(this, TransportLayerState.Stopping)
-            {
-                Reason = closeReason
-            });
+            StateChanged?.Invoke(this, new TransportLayerStateChangedEventArgs(this, TransportLayerState.Stopping));
 
             ITransportLayerSession[] sessions = new ITransportLayerSession[ConnectedSessions.Values.Count];
             ConnectedSessions.Values.CopyTo(sessions, 0);
@@ -120,7 +118,7 @@ namespace DtronixMessageQueue.TransportLayer.Tcp
             foreach (var session in sessions)
             {
                 if(session.State == TransportLayerState.Connected)
-                    session.Close(closeReason);
+                    session.Close();
             }
 
             try
@@ -143,10 +141,7 @@ namespace DtronixMessageQueue.TransportLayer.Tcp
             State = TransportLayerState.Stopped;
 
             // Invoke the stopped event.
-            StateChanged?.Invoke(this, new TransportLayerStateChangedEventArgs(this, TransportLayerState.Stopped)
-            {
-                Reason = closeReason
-            });
+            StateChanged?.Invoke(this, new TransportLayerStateChangedEventArgs(this, TransportLayerState.Stopped));
         }
 
         /// <summary>
@@ -211,6 +206,8 @@ namespace DtronixMessageQueue.TransportLayer.Tcp
             if (State != TransportLayerState.Closed)
                 throw new InvalidOperationException("Client is in the process of connecting.");
 
+            _cancelConnection = false;
+
             SetConfigs();
 
             var endPoint = Utilities.CreateIPEndPoint(Config.ConnectAddress);
@@ -219,9 +216,6 @@ namespace DtronixMessageQueue.TransportLayer.Tcp
             {
                 NoDelay = true
             };
-
-            // Set to true if the client connection either timed out or was canceled.
-            bool timedOut = false;
 
             _connectionTimeoutCancellation?.Cancel();
 
@@ -234,11 +228,13 @@ namespace DtronixMessageQueue.TransportLayer.Tcp
 
             eventArg.Completed += (sender, args) =>
             {
-                if (timedOut)
+                if (MainSocket.Connected == false || _cancelConnection)
                 {
-                    return;
+                    ClientSession = null;
+                    StateChanged?.Invoke(this,
+                        new TransportLayerStateChangedEventArgs(this, TransportLayerState.Closed));
                 }
-                if (args.LastOperation == SocketAsyncOperation.Connect)
+                else if (args.LastOperation == SocketAsyncOperation.Connect)
                 {
                     _connectionTimeoutCancellation?.Cancel();
 
@@ -252,43 +248,20 @@ namespace DtronixMessageQueue.TransportLayer.Tcp
             };
 
             MainSocket.ConnectAsync(eventArg);
-
-            Task.Run(async () =>
-            {
-                try
-                {
-                    await Task.Delay(Config.ConnectionTimeout, _connectionTimeoutCancellation.Token);
-                }
-                catch
-                {
-                    return;
-                }
-
-                timedOut = true;
-                MainSocket.Close();
-                Close(SessionCloseReason.TimeOut);
-
-            }, _connectionTimeoutCancellation.Token);
         }
 
-        public void Close(SessionCloseReason reason)
+        public void Close()
         {
             if (Mode != TransportLayerMode.Client)
                 throw new InvalidOperationException("Transport layer is running in server mode.");
 
-            if (State != TransportLayerState.Connected && reason != SessionCloseReason.TimeOut)
-                return;
-
-            State = TransportLayerState.Closing;
+            _cancelConnection = true;
 
             MainSocket.Close();
 
             State = TransportLayerState.Closed;
 
-            if (ClientSession == null)
-                SessionStateChanged(this, new TransportLayerStateChangedEventArgs(this, State, null, SessionCloseReason.TimeOut));
-            else
-                ClientSession.Close(reason);
+            ClientSession?.Close();
         }
 
 
@@ -317,9 +290,6 @@ namespace DtronixMessageQueue.TransportLayer.Tcp
         {
             switch (e.State)
             {
-                case TransportLayerState.Closing:
-                    break;
-
                 case TransportLayerState.Closed:
                     // If the session is null, that means the connection never was made.
                     if (e.Session != null)

@@ -106,7 +106,7 @@ namespace DtronixMessageQueue.TransportLayer.Tcp
                     _writeSemaphore.Release();
                     if (State == TransportLayerState.Connected 
                         && e.SocketError != SocketError.Success)
-                        Close(SessionCloseReason.SocketError);
+                        Close();
                     break;
 
                 default:
@@ -149,7 +149,7 @@ namespace DtronixMessageQueue.TransportLayer.Tcp
             }
             catch (ObjectDisposedException)
             {
-                Close(SessionCloseReason.SocketError);
+                Close();
             }
         }
 
@@ -172,7 +172,7 @@ namespace DtronixMessageQueue.TransportLayer.Tcp
             }
             catch (ObjectDisposedException)
             {
-                Close(SessionCloseReason.SocketError);
+                Close();
             }
         }
 
@@ -207,7 +207,7 @@ namespace DtronixMessageQueue.TransportLayer.Tcp
             }
             else
             {
-                Close(SessionCloseReason.SocketError);
+                Close();
             }
         }
 
@@ -215,17 +215,11 @@ namespace DtronixMessageQueue.TransportLayer.Tcp
         /// Closes the current session.
         /// </summary>
         /// <param name="reason">Reason this session is being closed.</param>
-        public void Close(SessionCloseReason reason)
+        public void Close()
         {
             // If this session has already been closed, nothing more to do.
-            if (State == TransportLayerState.Closed || State == TransportLayerState.Closing)
+            if (State == TransportLayerState.Closed)
                 throw new InvalidOperationException("Can not close because the connection is already closed.");
-
-            // Set the state to closing to restrict what can be done.
-            State = TransportLayerState.Closing;
-
-            StateChanged?.Invoke(this,
-                new TransportLayerStateChangedEventArgs(TransportLayer, TransportLayerState.Closing, this, reason));
 
             // Prevent any more bytes from being received.
             Received = null;
@@ -254,10 +248,7 @@ namespace DtronixMessageQueue.TransportLayer.Tcp
             State = TransportLayerState.Closed;
 
             StateChanged?.Invoke(this,
-                new TransportLayerStateChangedEventArgs(TransportLayer, TransportLayerState.Closed, this)
-                {
-                    Reason = reason
-                });
+                new TransportLayerStateChangedEventArgs(TransportLayer, TransportLayerState.Closed, this));
         }
 
         public override string ToString()

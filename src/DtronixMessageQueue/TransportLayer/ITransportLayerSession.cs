@@ -36,6 +36,6 @@ namespace DtronixMessageQueue.TransportLayer
 
         void ReceiveAsync();
 
-        void Close(SessionCloseReason reason);
+        void Close();
     }
 }

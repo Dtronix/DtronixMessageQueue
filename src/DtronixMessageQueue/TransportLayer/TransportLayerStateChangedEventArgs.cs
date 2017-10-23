@@ -11,7 +11,6 @@ namespace DtronixMessageQueue.TransportLayer
         public TransportLayerState State { get; }
         public ITransportLayerSession Session { get; }
         public ITransportLayer TransportLayer { get; }
-        public SessionCloseReason Reason { get; set; }
 
 
         public TransportLayerStateChangedEventArgs(ITransportLayer transportLayer, TransportLayerState state)
@@ -26,14 +25,5 @@ namespace DtronixMessageQueue.TransportLayer
             Session = session;
             State = state;
         }
-
-        public TransportLayerStateChangedEventArgs(ITransportLayer transportLayer, TransportLayerState state, ITransportLayerSession session, SessionCloseReason reason)
-        {
-            TransportLayer = transportLayer;
-            Session = session;
-            State = state;
-            Reason = reason;
-        }
-
     }
 }

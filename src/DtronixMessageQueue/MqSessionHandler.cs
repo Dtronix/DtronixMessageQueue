@@ -157,6 +157,7 @@ namespace DtronixMessageQueue
                     ConnectedSessions.TryAdd(session.Id, session);
 
                     session.IncomingMessage += (s, a) => IncomingMessage?.Invoke(this, a);
+                    session.Closed += (s, a) => Closed?.Invoke(this, a);
 
                     // Invoke the outer connecting event.
                     OnConnected(session);
@@ -173,8 +174,7 @@ namespace DtronixMessageQueue
                             _remainingConnections++;
                     }
 
-                    OnClose(new SessionCloseEventArgs<TSession, TConfig>(e.Session?.ImplementedSession as TSession,
-                        e.Reason));
+
                     break;
             }
         }
@@ -197,14 +197,14 @@ namespace DtronixMessageQueue
 
         protected virtual void OnClose(SessionCloseEventArgs<TSession, TConfig> closeEventArgs)
         {
+
+            if (ConnectedSessions.Count == 0 && _isTimeoutTimerRunning)
+            {
+                _isTimeoutTimerRunning = false;
+                _timeoutTimer.Change(Timeout.Infinite, Timeout.Infinite);
+            }
+
             Closed?.Invoke(this, closeEventArgs);
-
-            if (ConnectedSessions.Count > 0 
-                || !_isTimeoutTimerRunning)
-                return;
-
-            _isTimeoutTimerRunning = false;
-            _timeoutTimer.Change(Timeout.Infinite, Timeout.Infinite);
         }
 
 

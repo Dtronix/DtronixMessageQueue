@@ -42,5 +42,10 @@ namespace DtronixMessageQueue
         /// 0 disables pings.
         /// </summary>
         public int PingFrequency { get; set; } = 3000;
+
+        /// <summary>
+        /// (Client) Time in milliseconds it takes to timeout a connection attempt.
+        /// </summary>
+        public int ConnectionTimeout { get; set; } = 60000;
     }
 }

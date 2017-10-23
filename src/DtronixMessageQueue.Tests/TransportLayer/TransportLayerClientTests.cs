@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Threading;
+using System.Threading.Tasks;
 using DtronixMessageQueue.Tests.Mq;
 using DtronixMessageQueue.TransportLayer;
 using DtronixMessageQueue.TransportLayer.Tcp;
@@ -28,7 +29,7 @@ namespace DtronixMessageQueue.Tests.TransportLayer
             Client.StateChanged += (sender, args) =>
             {
                 if (args.State == TransportLayerState.Connected)
-                    args.Session.Close(SessionCloseReason.Closing);
+                    args.Session.Close();
 
                 if (args.State == TransportLayerState.Closed)
                     TestComplete.Set();
@@ -43,7 +44,7 @@ namespace DtronixMessageQueue.Tests.TransportLayer
             Client.StateChanged += (sender, args) =>
             {
                 if (args.State == TransportLayerState.Connected)
-                    args.Session.Close(SessionCloseReason.Closing);
+                    args.Session.Close();
             };
 
 
@@ -97,25 +98,21 @@ namespace DtronixMessageQueue.Tests.TransportLayer
         [Test]
         public void Client_times_out_on_long_connection()
         {
-            ClientConfig.ConnectionTimeout = 200;
-
             Client.StateChanged += (sender, args) =>
             {
                 if (args.State == TransportLayerState.Closed)
                 {
-                    if (args.Reason == SessionCloseReason.TimeOut)
-                    {
-                        TestComplete.Set();
-                    }
-                    else
-                    {
-                        LastException = new Exception("Client closed for the wrong reason.");
-                    }
+                    TestComplete.Set();
                 }
                     
             };
 
-            StartAndWait(false, 10000, false);
+            Client.Connect();
+
+            Thread.Sleep(200);
+            Client.Close();
+
+            StartAndWait(false, 10000, false, false);
 
             if (TestComplete.IsSet == false)
             {

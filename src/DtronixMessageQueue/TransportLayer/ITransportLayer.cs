@@ -26,6 +26,6 @@ namespace DtronixMessageQueue.TransportLayer
 
         void Connect();
 
-        void Close(SessionCloseReason reason);
+        void Close();
     }
 }
