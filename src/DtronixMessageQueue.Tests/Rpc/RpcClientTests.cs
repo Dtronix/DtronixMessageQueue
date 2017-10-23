@@ -45,33 +45,6 @@ namespace DtronixMessageQueue.Tests.Rpc
         }
 
         [Test]
-        public void Client_calls_proxy_method_sequential()
-        {
-            Server.Connected += (sender, args) => { args.Session.AddService(new CalculatorService()); };
-
-
-            Client.Ready += (sender, args) =>
-            {
-                args.Session.AddProxy<ICalculatorService>("CalculatorService");
-                var service = Client.Session.GetProxy<ICalculatorService>();
-
-                int addedInt = 0;
-                for (int i = 0; i < 10; i++)
-                {
-                    addedInt = service.Add(addedInt, 1);
-                }
-                TestComplete.Set();
-            };
-
-            Server.IncomingMessage += (sender, args) =>
-            {
-
-            };
-
-            StartAndWait();
-        }
-
-        [Test]
         public void Client_calls_proxy_method_and_canceles()
         {
             Server.Connected += (sender, args) =>
@@ -128,22 +101,13 @@ namespace DtronixMessageQueue.Tests.Rpc
             ServerConfig.RequireAuthentication = false;
 
             Server.Connected +=
-                (sender, args) => { args.Session.AddService<ICalculatorService>(new CalculatorService()); };
+                (sender, args) => { };
 
             Client.Authenticate += (sender, e) => { };
 
 
             Client.Ready += (sender, e) =>
             {
-                e.Session.AddProxy<ICalculatorService>("CalculatorService");
-                var service = Client.Session.GetProxy<ICalculatorService>();
-
-                var result = service.Add(100, 200);
-
-                if (result != 300)
-                {
-                    LastException = new Exception("Client authenticated.");
-                }
                 TestComplete.Set();
             };
 
@@ -262,9 +226,9 @@ namespace DtronixMessageQueue.Tests.Rpc
         {
             ClientConfig.RequireAuthentication = ServerConfig.RequireAuthentication = true;
             
-            ClientConfig.ConnectionTimeout = 200;
-
-            Client.Closed += (sender, e) =>
+            ClientConfig.ConnectionTimeout = 100;
+            
+            Server.Closed += (sender, e) =>
             {
                 if (e.CloseReason != SessionCloseReason.TimeOut)
                 {
@@ -275,7 +239,9 @@ namespace DtronixMessageQueue.Tests.Rpc
 
             Server.Authenticate += (sender, e) => { Thread.Sleep(500); };
 
-            StartAndWait();
+            Server.Started += (sender, args) => Client.Connect();
+
+            StartAndWait(true, 3000, true, false);
         }
 
         [Test]

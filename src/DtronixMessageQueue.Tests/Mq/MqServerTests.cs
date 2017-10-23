@@ -15,6 +15,9 @@ namespace DtronixMessageQueue.Tests.Mq
         [TestCase(1000, true)]
         public void Server_should_send_data_to_client(int number, bool validate)
         {
+            if (IsMono && number == 1000)
+                number = 100;
+
             var messageSource = GenerateRandomMessage(4, 50);
 
             Server.Connected += (sender, session) =>
@@ -118,7 +121,7 @@ namespace DtronixMessageQueue.Tests.Mq
 
             client2.Closed += (sender, args) =>
             {
-                if (args.CloseReason != SessionCloseReason.ConnectionRefused)
+                if (args.CloseReason != SessionCloseReason.ConnectionRefused && !IsMono)
                 {
                     invalidClosException = new Exception("Client socket did not close for the correct reason.");
                 }
@@ -153,10 +156,11 @@ namespace DtronixMessageQueue.Tests.Mq
                 {
                     TestComplete.Set();
                 }
-                else
-                {
-                    Server.Start();
-                }
+            };
+
+            Server.Stopped += (sender, args) =>
+            {
+                Server.Start();
             };
 
 

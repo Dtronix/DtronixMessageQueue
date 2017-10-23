@@ -18,6 +18,8 @@ namespace DtronixMessageQueue.Tests
 
         public static int Port { get; private set; }
 
+        public static bool IsMono => Type.GetType("Mono.Runtime") != null;
+
         public Exception LastException
         {
             get => _lastException;

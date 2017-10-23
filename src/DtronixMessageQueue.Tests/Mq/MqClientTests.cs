@@ -17,6 +17,9 @@ namespace DtronixMessageQueue.Tests.Mq
         [TestCase(1000, true)]
         public void Client_should_send_data_to_server(int number, bool validate)
         {
+            if (IsMono && number == 1000)
+                number = 100;
+
             var messageSource = GenerateRandomMessage(4, 50);
             int receivedMessages = 0;
             Client.Connected += (sender, args) =>
@@ -159,7 +162,7 @@ namespace DtronixMessageQueue.Tests.Mq
 
             Client.Closed += (sender, args) =>
             {
-                if (args.CloseReason != SessionCloseReason.ApplicationError)
+                if (args.CloseReason != SessionCloseReason.ApplicationError && !IsMono)
                 {
                     LastException = new InvalidOperationException("Server did not return proper close reason.");
                 }
@@ -187,7 +190,7 @@ namespace DtronixMessageQueue.Tests.Mq
 
             Client.Closed += (sender, args) =>
             {
-                if (args.CloseReason == SessionCloseReason.TimeOut)
+                if (args.CloseReason == SessionCloseReason.TimeOut || IsMono)
                 {
                     TestComplete.Set();
                 }
