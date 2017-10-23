@@ -177,6 +177,8 @@ namespace DtronixMessageQueue
             msg = new MqMessage(closeFrame);
             _outbox.Enqueue(msg);
 
+            _sendingSemaphore.Wait();
+
             // QueueOnce the last bit of data.
             ProcessOutbox();
         }
@@ -296,6 +298,7 @@ namespace DtronixMessageQueue
 
                 if (buffer == null)
                 {
+                    TransportSession.Close();
                     OnClosed(SessionCloseReason.Closing);
                     return;
                 }

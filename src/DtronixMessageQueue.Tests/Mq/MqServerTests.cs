@@ -149,7 +149,6 @@ namespace DtronixMessageQueue.Tests.Mq
             Client.Connected += (sender, args) =>
             {
                 Server.Stop();
-                Client.Close();
                 if (++connected_times == 2)
                 {
                     TestComplete.Set();
@@ -173,7 +172,7 @@ namespace DtronixMessageQueue.Tests.Mq
 
 
 
-            TestComplete.Wait(new TimeSpan(0, 0, 0, 0, 2000));
+            TestComplete.Wait(new TimeSpan(0, 0, 0, 0, 200000));
 
             if (TestComplete.IsSet == false)
             {

@@ -181,9 +181,6 @@ namespace DtronixMessageQueue
 
         protected virtual void OnConnected(TSession session)
         {
-            if (_isTimeoutTimerRunning)
-                return;
-
             var timeout = Config.PingTimeout;
 
             if (timeout > 0 && !_isTimeoutTimerRunning)

@@ -104,7 +104,6 @@ namespace DtronixMessageQueue.Tests.TransportLayer
                 {
                     TestComplete.Set();
                 }
-                    
             };
 
             Client.Connect();

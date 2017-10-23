@@ -226,8 +226,11 @@ namespace DtronixMessageQueue.TransportLayer.Tcp
 
             try
             {
-                Socket.Shutdown(SocketShutdown.Receive);
-                Socket.Disconnect(false);
+                if (Socket.Connected)
+                {
+                    Socket.Shutdown(SocketShutdown.Receive);
+                    Socket.Disconnect(false);
+                }
             }
             catch (Exception)
             {
