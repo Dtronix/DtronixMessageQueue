@@ -196,17 +196,27 @@ namespace DtronixMessageQueue.Rpc
 
                         _authTimeout = new Task(async () =>
                         {
+                            Console.WriteLine($"Rpc auth timeout started.");
                             try
                             {
                                 await Task.Delay(Config.ConnectionTimeout, _authTimeoutCancel.Token);
+                                Console.WriteLine($"Rpc auth timeout passed.");
                             }
                             catch
                             {
+                                Console.WriteLine($"Rpc auth timeout canceled.");
                                 return;
                             }
 
+
                             if (!_authTimeoutCancel.IsCancellationRequested)
+                            {
+                                Console.WriteLine($"{this} Rpc auth session closed.");
                                 Close(SessionCloseReason.TimeOut);
+                                
+                            }
+
+                            Console.WriteLine($"{this} Auth timeout action complete.");
                         });
 
                         // RpcCommand:byte; RpcCommandType:byte; AuthData:byte[];

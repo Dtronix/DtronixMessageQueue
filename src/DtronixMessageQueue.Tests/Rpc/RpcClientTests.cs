@@ -228,8 +228,9 @@ namespace DtronixMessageQueue.Tests.Rpc
             
             ClientConfig.ConnectionTimeout = 100;
             
-            Server.Closed += (sender, e) =>
+            Client.Closed += (sender, e) =>
             {
+                Console.WriteLine($"Client closed Reason: {e.CloseReason}");
                 if (e.CloseReason != SessionCloseReason.TimeOut)
                 {
                     LastException = new Exception("Client was not notified that the authentication failed.");
@@ -237,9 +238,17 @@ namespace DtronixMessageQueue.Tests.Rpc
                 TestComplete.Set();
             };
 
-            Server.Authenticate += (sender, e) => { Thread.Sleep(500); };
+            Server.Authenticate += (sender, e) =>
+            {
+                Console.WriteLine("Server authentication called.");
+                Thread.Sleep(500);
+            };
 
-            Server.Started += (sender, args) => Client.Connect();
+            Server.Started += (sender, args) =>
+            {
+                Console.WriteLine("Client started.");
+                Client.Connect();
+            };
 
             StartAndWait(true, 3000, true, false);
         }
