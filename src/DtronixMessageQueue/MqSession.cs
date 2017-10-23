@@ -181,7 +181,7 @@ namespace DtronixMessageQueue
         /// <param name="reason">Reason for closing this session.</param>
         public void Close(SessionCloseReason reason)
         {
-            if (TransportSession.State == TransportLayerState.Closed)
+            if (TransportSession.State != TransportLayerState.Connected)
                 return;
 
             OnClosing(reason);
@@ -278,14 +278,14 @@ namespace DtronixMessageQueue
             byte[] buffer;
             while (_inboxBytes.TryDequeue(out buffer))
             {
-                if (TransportSession.State == TransportLayerState.Connected)
-                    _receivingSemaphore.Release();
-
                 if (buffer == null)
                 {
-                    Close(SessionCloseReason.Closing);
+                    OnClosed(SessionCloseReason.Closing);
                     return;
                 }
+
+                if (TransportSession.State == TransportLayerState.Connected)
+                    _receivingSemaphore.Release();
 
                 try
                 {
@@ -293,9 +293,7 @@ namespace DtronixMessageQueue
                 }
                 catch (InvalidDataException)
                 {
-                    if(TransportSession.State == TransportLayerState.Connected)
-                        Close(SessionCloseReason.ProtocolError);
-
+                    Close(SessionCloseReason.ProtocolError);
                     return;
                 }
 
