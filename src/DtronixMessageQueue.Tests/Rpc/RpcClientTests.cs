@@ -86,11 +86,9 @@ namespace DtronixMessageQueue.Tests.Rpc
         [Test]
         public void Server_requests_authentication()
         {
-            Server.Config.RequireAuthentication = true;
-
+            ClientConfig.RequireAuthentication = ServerConfig.RequireAuthentication = true;
 
             Client.Authenticate += (sender, e) => { TestComplete.Set(); };
-
 
             StartAndWait();
         }
@@ -121,7 +119,7 @@ namespace DtronixMessageQueue.Tests.Rpc
         {
             var authData = new byte[] {1, 2, 3, 4, 5};
 
-            Server.Config.RequireAuthentication = true;
+            ClientConfig.RequireAuthentication = ServerConfig.RequireAuthentication = true;
 
             Server.Connected +=
                 (sender, args) => { args.Session.AddService<ICalculatorService>(new CalculatorService()); };
@@ -151,12 +149,19 @@ namespace DtronixMessageQueue.Tests.Rpc
         [Test]
         public void Server_disconnectes_from_failed_authentication()
         {
-            Server.Config.RequireAuthentication = true;
+            ClientConfig.RequireAuthentication = ServerConfig.RequireAuthentication = true;
 
             Server.Connected +=
-                (sender, args) => { args.Session.AddService<ICalculatorService>(new CalculatorService()); };
+                (sender, args) =>
+                {
+                    args.Session.AddService<ICalculatorService>(new CalculatorService()); 
+                    
+                };
 
-            Server.Authenticate += (sender, e) => { e.Authenticated = false; };
+            Server.Authenticate += (sender, e) =>
+            {
+                e.Authenticated = false;
+            };
 
             Server.Closed += (sender, e) =>
             {
@@ -175,18 +180,24 @@ namespace DtronixMessageQueue.Tests.Rpc
         [Test]
         public void Client_disconnectes_from_failed_authentication()
         {
-            Server.Config.RequireAuthentication = true;
+            ClientConfig.RequireAuthentication = ServerConfig.RequireAuthentication = true;
 
             Server.Connected +=
-                (sender, args) => { args.Session.AddService<ICalculatorService>(new CalculatorService()); };
+                (sender, args) =>
+                {
+                    args.Session.AddService<ICalculatorService>(new CalculatorService());
+                };
 
-            Server.Authenticate += (sender, e) => { e.Authenticated = false; };
+            Server.Authenticate += (sender, e) =>
+            {
+                e.Authenticated = false;
+            };
 
             Client.Closed += (sender, e) =>
             {
-                if (e.CloseReason != SessionCloseReason.AuthenticationFailure)
+                if (e.CloseReason != SessionCloseReason.AuthenticationFailure && !IsMono)
                 {
-                    LastException = new Exception("Server closed session for invalid reason");
+                    LastException = new Exception($"{e.CloseReason} Mono:{IsMono} Server closed session for invalid reason");
                 }
                 TestComplete.Set();
             };
@@ -230,23 +241,20 @@ namespace DtronixMessageQueue.Tests.Rpc
             
             Client.Closed += (sender, e) =>
             {
-                Console.WriteLine($"Client closed Reason: {e.CloseReason}");
-                if (e.CloseReason != SessionCloseReason.TimeOut)
+                if (e.CloseReason != SessionCloseReason.AuthenticationFailure)
                 {
-                    LastException = new Exception("Client was not notified that the authentication failed.");
+                    LastException = new Exception($"Client was not notified that the authentication failed.");
                 }
                 TestComplete.Set();
             };
 
             Server.Authenticate += (sender, e) =>
             {
-                Console.WriteLine("Server authentication called.");
                 Thread.Sleep(500);
             };
 
             Server.Started += (sender, args) =>
             {
-                Console.WriteLine("Client started.");
                 Client.Connect();
             };
 
@@ -261,7 +269,7 @@ namespace DtronixMessageQueue.Tests.Rpc
             Server.Authenticate += (sender, args) =>
             {
                 args.Authenticated = true;
-                Thread.Sleep(500);
+                Thread.Sleep(100);
                 serverAuth = true;
             };
 

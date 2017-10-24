@@ -45,14 +45,9 @@ namespace DtronixMessageQueue.Rpc
         public RpcClient<TSession, TConfig> Client { get; private set; }
 
         /// <summary>
-        /// Verify the authenticity of the newly connected client.
+        /// Called to send authentication data to the server.
         /// </summary>
         public event EventHandler<RpcAuthenticateEventArgs<TSession, TConfig>> Authenticate;
-
-        /// <summary>
-        /// Called when the authentication process succeeds.
-        /// </summary>
-        public event EventHandler<RpcAuthenticateEventArgs<TSession, TConfig>> AuthenticationSuccess;
 
         /// <summary>
         /// Event invoked once when the RpcSession has been authenticated and is ready for usage.
@@ -64,15 +59,12 @@ namespace DtronixMessageQueue.Rpc
         /// </summary>
         public bool Authenticated { get; private set; }
 
-        private Task _authTimeout;
-
         private readonly CancellationTokenSource _authTimeoutCancel = new CancellationTokenSource();
 
         protected RpcSession()
         {
             MessageHandlers = new Dictionary<byte, MessageHandler<TSession, TConfig>>();
         }
-
 
 
         /// <summary>
@@ -120,6 +112,22 @@ namespace DtronixMessageQueue.Rpc
                 Authenticated = true;
                 Ready?.Invoke(this, new SessionEventArgs<TSession, TConfig>((TSession)this));
             }
+
+            Task.Run(async () =>
+            {
+                try
+                {
+                    await Task.Delay(Config.ConnectionTimeout, _authTimeoutCancel.Token);
+                }
+                catch
+                {
+                    return;
+                }
+
+                if (!_authTimeoutCancel.IsCancellationRequested)
+                    Close(SessionCloseReason.AuthenticationFailure);
+            });
+
         }
 
 
@@ -177,52 +185,14 @@ namespace DtronixMessageQueue.Rpc
                     // Check to see if the server requires authentication.  If so, send a auth check.
                     if (Client.ServerInfo.RequireAuthentication)
                     {
-                        var authArgs = new RpcAuthenticateEventArgs<TSession, TConfig>((TSession) this);
+
+                        var authArgs = new RpcAuthenticateEventArgs<TSession, TConfig>((TSession)this);
 
                         // Start the authentication event to get the auth data.
                         Authenticate?.Invoke(this, authArgs);
 
-                        serializer.MessageWriter.Write((byte) MqCommandType.RpcCommand);
-                        serializer.MessageWriter.Write((byte) RpcCommandType.AuthenticationRequest);
-
-                        if (authArgs.AuthData == null)
-                            authArgs.AuthData = new byte[] {0};
-
-
-                        serializer.MessageWriter.Write(authArgs.AuthData, 0, authArgs.AuthData.Length);
-
-                        var authMessage = serializer.MessageWriter.ToMessage(true);
-                        authMessage[0].FrameType = MqFrameType.Command;
-
-                        _authTimeout = new Task(async () =>
-                        {
-                            Console.WriteLine($"Rpc auth timeout started.");
-                            try
-                            {
-                                await Task.Delay(Config.ConnectionTimeout, _authTimeoutCancel.Token);
-                                Console.WriteLine($"Rpc auth timeout passed.");
-                            }
-                            catch
-                            {
-                                Console.WriteLine($"Rpc auth timeout canceled.");
-                                return;
-                            }
-
-
-                            if (!_authTimeoutCancel.IsCancellationRequested)
-                            {
-                                Console.WriteLine($"{this} Rpc auth session closed.");
-                                Close(SessionCloseReason.TimeOut);
-                                
-                            }
-
-                            Console.WriteLine($"{this} Auth timeout action complete.");
-                        });
-
-                        // RpcCommand:byte; RpcCommandType:byte; AuthData:byte[];
-                        Send(authMessage);
-
-                        _authTimeout.Start();
+                        // Send the auth frame
+                        Send(new MqFrame(authArgs.AuthData, MqFrameType.Last, Config));
                     }
                     else
                     {
@@ -236,60 +206,7 @@ namespace DtronixMessageQueue.Rpc
 
                     SerializationCache.Put(serializer);
                 }
-                else if (rpcCommandType == RpcCommandType.AuthenticationRequest)
-                {
-                    Utilities.TraceHelper($"{SessionHandler.LayerMode} {rpcCommandType} Command Processing");
-                    // RpcCommand:byte; RpcCommandType:byte; AuthData:byte[];
-
-                    // If this is not run on the server, quit.
-                    if (SessionHandler.LayerMode != TransportLayerMode.Server)
-                    {
-                        Close(SessionCloseReason.ProtocolError);
-                        return;
-                    }
-
-                    // Ensure that the server requires authentication.
-                    if (Server.Config.RequireAuthentication == false)
-                    {
-                        Close(SessionCloseReason.ProtocolError);
-                        return;
-                    }
-
-                    byte[] authBytes = new byte[frame.DataLength - 2];
-                    frame.Read(2, authBytes, 0, authBytes.Length);
-
-                    var authArgs = new RpcAuthenticateEventArgs<TSession, TConfig>((TSession) this)
-                    {
-                        AuthData = authBytes
-                    };
-
-
-                    Authenticate?.Invoke(this, authArgs);
-
-                    Authenticated = authArgs.Authenticated;
-
-                    if (Authenticated == false)
-                    {
-                        Close(SessionCloseReason.AuthenticationFailure);
-                    }
-                    else
-                    {
-                        var authFrame = CreateFrame(new byte[authArgs.AuthData.Length + 2], MqFrameType.Command);
-                        authFrame.Write(0, (byte) MqCommandType.RpcCommand);
-                        authFrame.Write(1, (byte) RpcCommandType.AuthenticationResult);
-
-                        // State of the authentication
-                        authFrame.Write(2, Authenticated);
-
-                        // RpcCommand:byte; RpcCommandType:byte; AuthResult:bool;
-                        Send(authFrame);
-
-                        // Alert the server that this session is ready for usage.
-                        Task.Run(
-                            () => { Ready?.Invoke(this, new SessionEventArgs<TSession, TConfig>((TSession) this)); });
-                    }
-                }
-                else if (rpcCommandType == RpcCommandType.AuthenticationResult)
+                else if (rpcCommandType == RpcCommandType.AuthenticationSuccess)
                 {
                     Utilities.TraceHelper($"{SessionHandler.LayerMode} {rpcCommandType} Command Processing");
                     // RpcCommand:byte; RpcCommandType:byte; AuthResult:bool;
@@ -312,14 +229,6 @@ namespace DtronixMessageQueue.Rpc
 
                     Authenticated = true;
 
-                    var authArgs = new RpcAuthenticateEventArgs<TSession, TConfig>((TSession) this)
-                    {
-                        Authenticated = frame.ReadBoolean(2)
-                    };
-
-                    // Alert the client that the sesion has been authenticated.
-                    AuthenticationSuccess?.Invoke(this, authArgs);
-
                     // Alert the client that this session is ready for usage.
                     Task.Run(() => { Ready?.Invoke(this, new SessionEventArgs<TSession, TConfig>((TSession) this)); });
                 }
@@ -332,6 +241,48 @@ namespace DtronixMessageQueue.Rpc
             {
                 Close(SessionCloseReason.ProtocolError);
             }
+        }
+
+        private bool AuthenticateSession(MqMessage message)
+        {
+            if (Server == null)
+            {
+                Close(SessionCloseReason.ProtocolError);
+                return false;
+            }
+
+            var authArgs = new RpcAuthenticateEventArgs<TSession, TConfig>((TSession) this)
+            {
+                AuthData = message[0].Buffer
+            };
+            Authenticate?.Invoke(this, authArgs);
+
+            if (!authArgs.Authenticated)
+            {
+                Close(SessionCloseReason.AuthenticationFailure);
+                return false;
+            }
+
+            var authFrame = CreateFrame(new byte[authArgs.AuthData.Length + 2], MqFrameType.Command);
+            authFrame.Write(0, (byte) MqCommandType.RpcCommand);
+            authFrame.Write(1, (byte) RpcCommandType.AuthenticationSuccess);
+
+            // State of the authentication
+            authFrame.Write(2, Authenticated);
+
+            // RpcCommand:byte; RpcCommandType:byte; AuthResult:bool;
+            Send(authFrame);
+
+            // Alert the server that this session is ready for usage.
+            Task.Run(
+                () => { Ready?.Invoke(this, new SessionEventArgs<TSession, TConfig>((TSession) this)); });
+
+            Authenticated = true;
+
+            _authTimeoutCancel.Cancel();
+
+            return true;
+
         }
 
         /// <summary>
@@ -347,6 +298,12 @@ namespace DtronixMessageQueue.Rpc
             while (e.Messages.Count > 0)
             {
                 message = e.Messages.Dequeue();
+
+                if (!Authenticated && Server != null)
+                {
+                    if (!AuthenticateSession(message))
+                        return;
+                }
 
                 // Read the first byte for the ID.
                 var handlerId = message[0].ReadByte(0);

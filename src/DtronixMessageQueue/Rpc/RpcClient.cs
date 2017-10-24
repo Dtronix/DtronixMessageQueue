@@ -1,4 +1,6 @@
 ﻿using System;
+using System.Threading;
+using System.Threading.Tasks;
 using DtronixMessageQueue.Rpc.DataContract;
 
 namespace DtronixMessageQueue.Rpc
@@ -27,7 +29,6 @@ namespace DtronixMessageQueue.Rpc
         /// </summary>
         public event EventHandler<SessionEventArgs<TSession, TConfig>> Ready;
 
-
         public ServiceMethodCache ServiceMethodCache { get; set; }
 
         /// <summary>
@@ -41,9 +42,8 @@ namespace DtronixMessageQueue.Rpc
 
         protected override void OnConnected(TSession session)
         {
-
             session.Ready += (sender, e) => { Ready?.Invoke(sender, e); };
-            session.Authenticate += (sender, e) => { Authenticate?.Invoke(sender, e); };
+            session.Authenticate += (sender, e) => Authenticate?.Invoke(sender, e);
 
             base.OnConnected(session);
         }

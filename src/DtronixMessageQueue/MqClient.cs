@@ -18,6 +18,8 @@ namespace DtronixMessageQueue
         private bool _isPingTimerRunning;
         private readonly Timer _pingTimer;
 
+        private CancellationTokenSource _cancellationTokenSource;
+
         /// <summary>
         /// Session for this client.
         /// </summary>
@@ -106,19 +108,18 @@ namespace DtronixMessageQueue
                 {
                     await Task.Delay(Config.ConnectionTimeout, token);
                 }
-                catch (OperationCanceledException)
-                {
-                    
-                }
-                catch (Exception)
+                catch
                 {
                     return;
                 }
 
-                TransportLayer.Close();
-                OnClose(new SessionCloseEventArgs<TSession, TConfig>(null, SessionCloseReason.TimeOut));
+                if (TransportLayer.State != TransportLayerState.Connected)
+                {
+                    TransportLayer.Close();
+                    OnClose(new SessionCloseEventArgs<TSession, TConfig>(null, SessionCloseReason.TimeOut));
+                }
 
-            }, token);
+            });
         }
 
 
