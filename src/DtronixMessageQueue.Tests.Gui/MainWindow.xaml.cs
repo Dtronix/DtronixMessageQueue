@@ -160,9 +160,8 @@ namespace DtronixMessageQueue.Tests.Gui
             _totalTransferStopwatch = Stopwatch.StartNew();
 
             IpAddress = Dns.GetHostEntry(Dns.GetHostName())
-                .AddressList.First(
-                    f => f.AddressFamily == System.Net.Sockets.AddressFamily.InterNetwork)
-                .ToString();
+                            .AddressList.First(
+                                f => f.AddressFamily == System.Net.Sockets.AddressFamily.InterNetwork) + ":2121";
 
 
 

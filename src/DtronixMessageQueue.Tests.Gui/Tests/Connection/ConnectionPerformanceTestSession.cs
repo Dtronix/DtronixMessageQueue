@@ -1,7 +1,5 @@
 ﻿using System;
 using System.Threading;
-using DtronixMessageQueue.Socket;
-using DtronixMessageQueue.TransportLayer;
 
 namespace DtronixMessageQueue.Tests.Gui.Tests.Connection
 {

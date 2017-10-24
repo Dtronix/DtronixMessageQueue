@@ -1,9 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Threading;
-using System.Threading.Tasks;
-using DtronixMessageQueue.Socket;
-using DtronixMessageQueue.TransportLayer;
 
 namespace DtronixMessageQueue.Tests.Gui.Tests.Echo
 {

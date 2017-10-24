@@ -24,12 +24,12 @@ namespace DtronixMessageQueue.Tests.Rpc
 
             ClientConfig = new RpcConfig
             {
-                ConnectAddress = $"127.0.0.1:{Port}",
+                Address = $"127.0.0.1:{Port}",
             };
 
             ServerConfig = new RpcConfig
             {
-                BindAddress = $"127.0.0.1:{Port}",
+                Address = $"127.0.0.1:{Port}",
             };
 
             Server = new RpcServer<SimpleRpcSession, RpcConfig>(ServerConfig);

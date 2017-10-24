@@ -32,7 +32,7 @@ namespace DtronixMessageQueue.Tests.Performance
 
             _config = new MqConfig
             {
-                ConnectAddress = "127.0.0.1:2828"
+                Address = "127.0.0.1:2828"
             };
 
             _smallMessage = new MqMessage

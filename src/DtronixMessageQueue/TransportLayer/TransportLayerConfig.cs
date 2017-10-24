@@ -29,16 +29,10 @@ namespace DtronixMessageQueue.TransportLayer
         public int SendTimeout { get; set; } = 5000;
 
         /// <summary>
-        /// (Client) Connection address.
+        /// (Client/Client) Connection address.
         /// Parses standard IP:Port notation.
         /// </summary>
-        public string ConnectAddress { get; set; }
-
-        /// <summary>
-        /// (Server) Connection binding address
-        /// Parses standard IP:Port notation.
-        /// </summary>
-        public string BindAddress { get; set; }
+        public string Address { get; set; }
 
         /// <summary>
         /// The default transport layer to use.  If left null, Tcp will the be default layer.

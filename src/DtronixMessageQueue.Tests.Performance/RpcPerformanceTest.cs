@@ -16,8 +16,7 @@ namespace DtronixMessageQueue.Tests.Performance
         {
             var config = new RpcConfig
             {
-                ConnectAddress = "127.0.0.1",
-                Port = 2828
+                Address = "127.0.0.1:2828"
             };
 
             //RpcSingleProcessTest(20, 4, config, RpcTestType.LngBlock);
@@ -26,7 +25,7 @@ namespace DtronixMessageQueue.Tests.Performance
 
             RpcSingleProcessTest(200000, 4, config, RpcTestType.Await);
 
-			//RpcSingleProcessTest(100, 4, config, RpcTestType.Block);
+            //RpcSingleProcessTest(100, 4, config, RpcTestType.Block);
 
             RpcSingleProcessTest(10000, 4, config, RpcTestType.Return);
 
@@ -44,9 +43,10 @@ namespace DtronixMessageQueue.Tests.Performance
             var sw = new Stopwatch();
             var wait = new AutoResetEvent(false);
             var complete_test = new AutoResetEvent(false);
+
             var client = new RpcClient<SimpleRpcSession, RpcConfig>(config);
 
-            server.SessionSetup += (sender, args) =>
+            server.Connected += (sender, args) =>
             {
                 test_service = new TestService();
                 args.Session.AddService(test_service);

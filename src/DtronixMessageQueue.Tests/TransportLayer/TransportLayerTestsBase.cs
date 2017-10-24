@@ -25,12 +25,12 @@ namespace DtronixMessageQueue.Tests.TransportLayer
 
             ClientConfig = new TransportLayerConfig
             {
-                ConnectAddress = $"127.0.0.1:{Port}",
+                Address = $"127.0.0.1:{Port}",
             };
 
             ServerConfig = new TransportLayerConfig
             {
-                BindAddress = $"127.0.0.1:{Port}"
+                Address = $"127.0.0.1:{Port}"
             };
 
             Server = new TcpTransportLayer(ServerConfig, TransportLayerMode.Server);

@@ -2,7 +2,6 @@
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.Threading;
-using DtronixMessageQueue.Socket;
 using DtronixMessageQueue.TransportLayer;
 
 namespace DtronixMessageQueue.Tests.Gui.Tests
@@ -73,10 +72,10 @@ namespace DtronixMessageQueue.Tests.Gui.Tests
             return val;
         }
 
-        protected override void Send(byte[] buffer, int offset, int length)
+        protected override void SendBufferQueue(Queue<byte[]> bufferQueue, int length)
         {
-            base.Send(buffer, offset, length);
             Interlocked.Add(ref TotalSent, length);
+            base.SendBufferQueue(bufferQueue, length);
         }
 
 

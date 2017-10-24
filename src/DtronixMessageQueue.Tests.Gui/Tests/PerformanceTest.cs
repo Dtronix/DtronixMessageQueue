@@ -1,10 +1,6 @@
-﻿using System;
-using System.Threading;
+﻿using System.Threading;
 using System.Windows.Controls;
-using DtronixMessageQueue.Rpc;
-using DtronixMessageQueue.Socket;
 using DtronixMessageQueue.Tests.Gui.Services;
-using DtronixMessageQueue.TransportLayer;
 
 namespace DtronixMessageQueue.Tests.Gui.Tests
 {

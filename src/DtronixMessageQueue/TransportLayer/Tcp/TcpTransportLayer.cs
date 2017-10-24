@@ -76,7 +76,7 @@ namespace DtronixMessageQueue.TransportLayer.Tcp
             State = TransportLayerState.Starting;
             StateChanged?.Invoke(this, new TransportLayerStateChangedEventArgs(this, TransportLayerState.Starting));
 
-            var localEndPoint = Utilities.CreateIPEndPoint(Config.BindAddress);
+            var localEndPoint = Utilities.CreateIPEndPoint(Config.Address);
 
             // create the socket which listens for incoming connections
             MainSocket = new Socket(localEndPoint.AddressFamily, SocketType.Stream, ProtocolType.Tcp);
@@ -210,7 +210,7 @@ namespace DtronixMessageQueue.TransportLayer.Tcp
 
             SetConfigs();
 
-            var endPoint = Utilities.CreateIPEndPoint(Config.ConnectAddress);
+            var endPoint = Utilities.CreateIPEndPoint(Config.Address);
 
             MainSocket = new Socket(endPoint.AddressFamily, SocketType.Stream, ProtocolType.Tcp)
             {

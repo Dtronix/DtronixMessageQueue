@@ -1,6 +1,5 @@
 ﻿using System;
 using System.Threading.Tasks;
-using DtronixMessageQueue.Socket;
 using DtronixMessageQueue.TransportLayer;
 
 namespace DtronixMessageQueue.Tests.Gui.Tests.MaxThroughput
@@ -32,7 +31,7 @@ namespace DtronixMessageQueue.Tests.Gui.Tests.MaxThroughput
             {
                 StartedTime = DateTime.Now;
 
-                while (RunTest && CurrentState == State.Connected)
+                while (RunTest && TransportSession.State == TransportLayerState.Connected)
                 {
                     Send(_testMessage);
                 }

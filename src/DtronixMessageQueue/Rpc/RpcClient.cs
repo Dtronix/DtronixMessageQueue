@@ -41,7 +41,10 @@ namespace DtronixMessageQueue.Rpc
         }
 
         protected override void OnConnected(TSession session)
-        {
+        {   
+            // Add the service method cache.
+            session.ServiceMethodCache = ServiceMethodCache;
+
             session.Ready += (sender, e) => { Ready?.Invoke(sender, e); };
             session.Authenticate += (sender, e) => Authenticate?.Invoke(sender, e);
 

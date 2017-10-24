@@ -195,7 +195,7 @@ namespace DtronixMessageQueue
         /// Notifies the recipient connection the reason for the session's closure.
         /// </summary>
         /// <param name="reason">Reason for closing this session.</param>
-        public void Close(SessionCloseReason reason)
+        public virtual void Close(SessionCloseReason reason)
         {
             if (TransportSession.State == TransportLayerState.Closed)
                 return;
@@ -213,7 +213,7 @@ namespace DtronixMessageQueue
         /// </summary>
         /// <param name="bufferQueue">QueueOnce of bytes to send to the wire.</param>
         /// <param name="length">Total length of the bytes in the queue to send.</param>
-        private void SendBufferQueue(Queue<byte[]> bufferQueue, int length)
+        protected virtual void SendBufferQueue(Queue<byte[]> bufferQueue, int length)
         {
             var buffer = new byte[length];
             var offset = 0;

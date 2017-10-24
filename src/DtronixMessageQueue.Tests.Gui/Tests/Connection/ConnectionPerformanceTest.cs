@@ -1,8 +1,5 @@
 ﻿using System.Collections.Generic;
 using System.Threading.Tasks;
-using System.Windows.Controls;
-using DtronixMessageQueue.Rpc;
-using DtronixMessageQueue.Socket;
 using DtronixMessageQueue.Tests.Gui.Services;
 
 namespace DtronixMessageQueue.Tests.Gui.Tests.Connection
@@ -33,8 +30,7 @@ namespace DtronixMessageQueue.Tests.Gui.Tests.Connection
             {
                 _testServer = new MqServer<ConnectionPerformanceTestSession, MqConfig>(new MqConfig
                 {
-                    ConnectAddress = "0.0.0.0",
-                    Port = 2121,
+                    Address = "0.0.0.0:2121",
                     PingTimeout = 1000,
                     MaxConnections = 2000
 
@@ -66,8 +62,7 @@ namespace DtronixMessageQueue.Tests.Gui.Tests.Connection
                 {
                     var client = new MqClient<ConnectionPerformanceTestSession, MqConfig>(new MqConfig
                     {
-                        ConnectAddress = TestController.ControllClient.Config.ConnectAddress,
-                        Port = 2121,
+                        Address = TestController.ControllClient.Config.Address,
                         PingFrequency = 500
                     });
 
