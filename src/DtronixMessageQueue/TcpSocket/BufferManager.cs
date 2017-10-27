@@ -1,7 +1,7 @@
 ﻿using System.Collections.Generic;
 using System.Net.Sockets;
 
-namespace DtronixMessageQueue.Socket
+namespace DtronixMessageQueue.TcpSocket
 {
     /// <summary>
     /// Large memory buffer manager

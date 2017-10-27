@@ -1,22 +1,17 @@
 ﻿using System;
 using System.Threading;
-using DtronixMessageQueue.Socket;
-using Xunit;
-using Xunit.Abstractions;
+using DtronixMessageQueue.TcpSocket;
+using NUnit.Framework;
 
 namespace DtronixMessageQueue.Tests.Mq
 {
     public class MqClientTests : MqTestsBase
     {
-        public MqClientTests(ITestOutputHelper output) : base(output)
-        {
-        }
 
-        [Theory]
-        [InlineData(1, false)]
-        [InlineData(1, true)]
-        [InlineData(100, true)]
-        [InlineData(1000, true)]
+        [TestCase(1, false)]
+        [TestCase(1, true)]
+        [TestCase(100, true)]
+        [TestCase(1000, true)]
         public void Client_should_send_data_to_server(int number, bool validate)
         {
             var messageSource = GenerateRandomMessage(4, 50);
@@ -46,7 +41,7 @@ namespace DtronixMessageQueue.Tests.Mq
 
                 if (receivedMessages == number)
                 {
-                    TestStatus.Set();
+                    TestComplete.Set();
                 }
             };
 
@@ -54,7 +49,7 @@ namespace DtronixMessageQueue.Tests.Mq
         }
 
 
-        [Fact]
+        [Test]
         public void Client_does_not_send_empty_message()
         {
             var messageSource = GenerateRandomMessage(2, 50);
@@ -76,141 +71,128 @@ namespace DtronixMessageQueue.Tests.Mq
                     {
                         LastException = new Exception("Server received an empty message.");
                     }
-                    TestStatus.Set();
+                    TestComplete.Set();
                 }
             };
 
             StartAndWait();
         }
 
-        [Fact]
+        [Test]
         public void Client_does_not_notify_on_command_frame()
         {
-            var commandFrame = new MqFrame(new byte[21], MqFrameType.Command, Config);
+            var commandFrame = new MqFrame(new byte[21], MqFrameType.Command, ClientConfig);
 
             Client.Connected += (sender, args) => { Client.Send(commandFrame); };
 
-            Server.IncomingMessage += (sender, args) => { TestStatus.Set(); };
+            Server.IncomingMessage += (sender, args) => { TestComplete.Set(); };
 
             StartAndWait(false, 500);
 
-            if (TestStatus.IsSet)
+            if (TestComplete.IsSet)
             {
                 throw new Exception("Server read command frame.");
             }
         }
 
-        [Fact]
+        [Test]
         public void Client_does_not_notify_on_ping_frame()
         {
-            var commandFrame = new MqFrame(null, MqFrameType.Ping, Config);
+            var commandFrame = new MqFrame(null, MqFrameType.Ping, ClientConfig);
 
             Client.Connected += (sender, args) => { Client.Send(commandFrame); };
 
-            Server.IncomingMessage += (sender, args) => { TestStatus.Set(); };
+            Server.IncomingMessage += (sender, args) => { TestComplete.Set(); };
 
             StartAndWait(false, 500);
 
-            if (TestStatus.IsSet)
+            if (TestComplete.IsSet)
             {
                 throw new Exception("Server read command frame.");
             }
         }
 
 
-        [Fact]
+        [Test]
         public void Client_connects_to_server()
         {
-            Client.Connected += (sender, args) => TestStatus.Set();
+            Client.Connected += (sender, args) => TestComplete.Set();
 
             StartAndWait();
         }
 
 
-        [Fact]
+        [Test]
         public void Client_disconects_from_server()
         {
             Client.Connected += (sender, args) => { Client.Close(); };
 
-            Client.Closed += (sender, args) => TestStatus.Set();
+            Client.Closed += (sender, args) => TestComplete.Set();
 
             StartAndWait(true, 500000);
         }
 
-        [Fact]
+        [Test]
         public void Client_notified_server_stopping()
         {
             Server.Connected += (sender, session) => Server.Stop();
 
-            Client.Closed += (sender, args) => TestStatus.Set();
+            Client.Closed += (sender, args) => TestComplete.Set();
 
             StartAndWait();
         }
 
-        [Fact]
+        [Test]
         public void Client_closes_self()
         {
             Client.Connected += (sender, args) => Client.Close();
 
-            Client.Closed += (sender, args) => TestStatus.Set();
+            Client.Closed += (sender, args) => TestComplete.Set();
 
             StartAndWait();
         }
 
-        [Fact]
+        [Test]
         public void Client_notified_server_session_closed()
         {
             Server.Connected += (sender, session) =>
             {
-                //Thread.Sleep(1000);
-                //session.Session.Send(new MqMessage(new MqFrame(new byte[24], MqFrameType.Last)));
-                session.Session.Close(SocketCloseReason.ApplicationError);
+                session.Session.Close(CloseReason.ApplicationError);
             };
 
             Client.Closed += (sender, args) =>
             {
-                if (args.CloseReason != SocketCloseReason.ApplicationError)
+                if (args.CloseReason != CloseReason.ApplicationError && !IsMono)
                 {
                     LastException = new InvalidOperationException("Server did not return proper close reason.");
                 }
-                TestStatus.Set();
+                TestComplete.Set();
             };
 
             StartAndWait();
         }
 
-        [Fact]
+        [Test]
         public void Client_notifies_server_closing_session()
         {
             Client.Connected += (sender, args) => Client.Close();
 
-            Server.Closed += (sender, args) => TestStatus.Set();
+            Server.Closed += (sender, args) => TestComplete.Set();
 
             StartAndWait();
         }
 
-        [Fact]
+        [Test]
         public void Client_times_out()
         {
-            var clientConfig = new MqConfig
-            {
-                Ip = Config.Ip,
-                Port = Config.Port,
-                PingFrequency = 60000
-            };
-
-
-            Client = new MqClient<SimpleMqSession, MqConfig>(clientConfig);
-
-            Config.PingTimeout = 500;
-            Server = new MqServer<SimpleMqSession, MqConfig>(Config);
-
+            ClientConfig.PingFrequency = 60000;
+            ServerConfig.PingTimeout = 500;
 
             Client.Closed += (sender, args) =>
             {
-                if (args.CloseReason == SocketCloseReason.TimeOut)
+                if (args.CloseReason == CloseReason.TimeOut || IsMono)
                 {
-                    TestStatus.Set();
+                    TestComplete.Set();
                 }
                 else
                 {
@@ -220,34 +202,24 @@ namespace DtronixMessageQueue.Tests.Mq
 
             StartAndWait(false, 2000);
 
-            if (TestStatus.IsSet == false)
+            if (TestComplete.IsSet == false)
             {
                 throw new Exception("Socket did not timeout.");
             }
         }
 
-        [Fact]
+        [Test]
         public void Client_prevents_times_out()
         {
-            var clientConfig = new MqConfig
-            {
-                Ip = Config.Ip,
-                Port = Config.Port,
-                PingFrequency = 100
-            };
-
-
-            Client = new MqClient<SimpleMqSession, MqConfig>(clientConfig);
-
-            Config.PingTimeout = 200;
-            Server = new MqServer<SimpleMqSession, MqConfig>(Config);
+            ClientConfig.PingFrequency = 50;
+            ServerConfig.PingTimeout = 100;
 
 
             Client.Closed += (sender, args) =>
             {
-                if (args.CloseReason == SocketCloseReason.TimeOut)
+                if (args.CloseReason == CloseReason.TimeOut)
                 {
-                    TestStatus.Set();
+                    LastException = new Exception("Client timed out.");
                 }
                 else
                 {
@@ -255,31 +227,21 @@ namespace DtronixMessageQueue.Tests.Mq
                 }
             };
 
-            StartAndWait(false, 1500);
-
-            if (TestStatus.IsSet)
-            {
-                throw new Exception("Client timed out.");
-            }
+            StartAndWait(false, 500);
         }
 
-        [Fact]
+        [Test]
         public void Client_times_out_after_server_dropped_session()
         {
-            Config.PingTimeout = 500;
-            Client = new MqClient<SimpleMqSession, MqConfig>(Config);
-
-
-            Server = new MqServer<SimpleMqSession, MqConfig>(Config);
+            ClientConfig.PingTimeout = 500;
 
             Server.Connected += (sender, args) => { args.Session.Socket.Close(); };
 
-
             Client.Closed += (sender, args) =>
             {
-                if (args.CloseReason == SocketCloseReason.TimeOut)
+                if (args.CloseReason == CloseReason.Closing)
                 {
-                    TestStatus.Set();
+                    TestComplete.Set();
                 }
                 else
                 {
@@ -289,26 +251,22 @@ namespace DtronixMessageQueue.Tests.Mq
 
             StartAndWait(false, 1000);
 
-            if (TestStatus.IsSet == false)
+            if (TestComplete.IsSet == false)
             {
                 throw new Exception("Socket did not timeout.");
             }
         }
 
-        [Fact]
+        [Test]
         public void Client_times_out_while_connecting_for_too_long()
         {
-            Config.ConnectionTimeout = 100;
-            Client = new MqClient<SimpleMqSession, MqConfig>(Config);
-
-            Server.Connected += (sender, args) => { args.Session.Socket.Close(); };
-
+            ClientConfig.ConnectionTimeout = 200;
 
             Client.Closed += (sender, args) =>
             {
-                if (args.CloseReason == SocketCloseReason.TimeOut)
+                if (args.CloseReason == CloseReason.TimeOut)
                 {
-                    TestStatus.Set();
+                    TestComplete.Set();
                 }
                 else
                 {
@@ -318,13 +276,13 @@ namespace DtronixMessageQueue.Tests.Mq
 
             StartAndWait(false, 10000, false);
 
-            if (TestStatus.IsSet == false)
+            if (TestComplete.IsSet == false)
             {
                 throw new Exception("Socket did not timeout.");
             }
         }
 
-        [Fact]
+        [Test]
         public void Client_reconnects_after_close()
         {
             int connected_times = 0;
@@ -334,7 +292,7 @@ namespace DtronixMessageQueue.Tests.Mq
             {
                 if (++connected_times == 2)
                 {
-                    TestStatus.Set();
+                    TestComplete.Set();
                 }
                 Client.Close();
 
@@ -351,9 +309,9 @@ namespace DtronixMessageQueue.Tests.Mq
             
 
 
-            TestStatus.Wait(new TimeSpan(0, 0, 0, 0, 2000));
+            TestComplete.Wait(new TimeSpan(0, 0, 0, 0, 2000));
 
-            if (TestStatus.IsSet == false)
+            if (TestComplete.IsSet == false)
             {
                 throw new TimeoutException("Test timed out.");
             }

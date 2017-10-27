@@ -32,8 +32,8 @@
     <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
   </PropertyGroup>
   <ItemGroup>
-    <Reference Include="protobuf-net, Version=2.3.0.0, Culture=neutral, PublicKeyToken=257b51d87d2e4d67, processorArchitecture=MSIL">
-      <HintPath>..\packages\protobuf-net.2.3.0\lib\net40\protobuf-net.dll</HintPath>
+    <Reference Include="protobuf-net, Version=2.3.2.0, Culture=neutral, PublicKeyToken=257b51d87d2e4d67, processorArchitecture=MSIL">
+      <HintPath>..\packages\protobuf-net.2.3.2\lib\net40\protobuf-net.dll</HintPath>
     </Reference>
     <Reference Include="System" />
     <Reference Include="System.Configuration" />
@@ -46,6 +46,7 @@
     <Reference Include="System.Xml" />
   </ItemGroup>
   <ItemGroup>
+    <Compile Include="MemoryQueueBufferStream.cs" />
     <Compile Include="MqCommandType.cs" />
     <Compile Include="MqMessageReader.cs" />
     <Compile Include="MqMessageWriter.cs" />
@@ -69,19 +70,19 @@
     <Compile Include="Rpc\RpcServer.cs" />
     <Compile Include="Rpc\RpcSession.cs" />
     <Compile Include="Rpc\SerializationCache.cs" />
-    <Compile Include="ServiceMethodCache.cs" />
-    <Compile Include="Socket\BufferManager.cs" />
-    <Compile Include="Socket\ISetupSocketSession.cs" />
-    <Compile Include="Socket\SessionEventArgs.cs" />
-    <Compile Include="Socket\SessionClosedEventArgs.cs" />
-    <Compile Include="Socket\SocketAsyncEventArgsManager.cs" />
-    <Compile Include="Socket\SessionHandler.cs" />
-    <Compile Include="Socket\SocketClient.cs" />
-    <Compile Include="Socket\SocketCloseReason.cs" />
-    <Compile Include="Socket\SocketConfig.cs" />
-    <Compile Include="Socket\SocketMode.cs" />
-    <Compile Include="Socket\SocketServer.cs" />
-    <Compile Include="Socket\SocketSession.cs" />
+    <Compile Include="Rpc\ServiceMethodCache.cs" />
+    <Compile Include="TcpSocket\BufferManager.cs" />
+    <Compile Include="TcpSocket\ISetupSocketSession.cs" />
+    <Compile Include="SessionEventArgs.cs" />
+    <Compile Include="SessionClosedEventArgs.cs" />
+    <Compile Include="TcpSocket\SocketAsyncEventArgsManager.cs" />
+    <Compile Include="TcpSocket\TcpSocketHandler.cs" />
+    <Compile Include="TcpSocket\TcpSocketClient.cs" />
+    <Compile Include="CloseReason.cs" />
+    <Compile Include="TcpSocket\TcpSocketConfig.cs" />
+    <Compile Include="TcpSocket\TcpSocketMode.cs" />
+    <Compile Include="TcpSocket\TcpSocketServer.cs" />
+    <Compile Include="TcpSocket\TcpSocketSession.cs" />
     <Compile Include="Utilities.cs" />
     <Content Include="DtronixMessageQueue.nuspec">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>

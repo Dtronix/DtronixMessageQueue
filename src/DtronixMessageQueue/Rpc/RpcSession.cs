@@ -4,7 +4,7 @@ using System.Threading;
 using System.Threading.Tasks;
 using DtronixMessageQueue.Rpc.DataContract;
 using DtronixMessageQueue.Rpc.MessageHandlers;
-using DtronixMessageQueue.Socket;
+using DtronixMessageQueue.TcpSocket;
 
 namespace DtronixMessageQueue.Rpc
 {
@@ -75,10 +75,10 @@ namespace DtronixMessageQueue.Rpc
             base.OnSetup();
 
             // Determine if this session is running on the server or client to retrieve the worker thread pool.
-            if (BaseSocket.Mode == SocketMode.Server)
-                Server = (RpcServer<TSession, TConfig>) BaseSocket;
+            if (SocketHandler.Mode == TcpSocketMode.Server)
+                Server = (RpcServer<TSession, TConfig>) SocketHandler;
             else
-                Client = (RpcClient<TSession, TConfig>) BaseSocket;
+                Client = (RpcClient<TSession, TConfig>) SocketHandler;
 
             SerializationCache = new SerializationCache(Config);
 
@@ -112,9 +112,9 @@ namespace DtronixMessageQueue.Rpc
                     // RpcCommand:byte; RpcCommandType:byte; RpcServerInfoDataContract:byte[];
 
                     // Ensure that this command is running on the client.
-                    if (BaseSocket.Mode != SocketMode.Client)
+                    if (SocketHandler.Mode != TcpSocketMode.Client)
                     {
-                        Close(SocketCloseReason.ProtocolError);
+                        Close(CloseReason.ProtocolError);
                         return;
                     }
 
@@ -131,7 +131,7 @@ namespace DtronixMessageQueue.Rpc
 
                     if (Client.ServerInfo == null)
                     {
-                        Close(SocketCloseReason.ProtocolError);
+                        Close(CloseReason.ProtocolError);
                         return;
                     }
 
@@ -169,7 +169,7 @@ namespace DtronixMessageQueue.Rpc
                             }
 
                             if (!_authTimeoutCancel.IsCancellationRequested)
-                                Close(SocketCloseReason.TimeOut);
+                                Close(CloseReason.TimeOut);
                         });
 
                         // RpcCommand:byte; RpcCommandType:byte; AuthData:byte[];
@@ -194,16 +194,16 @@ namespace DtronixMessageQueue.Rpc
                     // RpcCommand:byte; RpcCommandType:byte; AuthData:byte[];
 
                     // If this is not run on the server, quit.
-                    if (BaseSocket.Mode != SocketMode.Server)
+                    if (SocketHandler.Mode != TcpSocketMode.Server)
                     {
-                        Close(SocketCloseReason.ProtocolError);
+                        Close(CloseReason.ProtocolError);
                         return;
                     }
 
                     // Ensure that the server requires authentication.
                     if (Server.Config.RequireAuthentication == false)
                     {
-                        Close(SocketCloseReason.ProtocolError);
+                        Close(CloseReason.ProtocolError);
                         return;
                     }
 
@@ -222,18 +222,15 @@ namespace DtronixMessageQueue.Rpc
 
                     if (Authenticated == false)
                     {
-                        Close(SocketCloseReason.AuthenticationFailure);
+                        Close(CloseReason.AuthenticationFailure);
                     }
                     else
                     {
                         var authFrame = CreateFrame(new byte[authArgs.AuthData.Length + 2], MqFrameType.Command);
                         authFrame.Write(0, (byte) MqCommandType.RpcCommand);
-                        authFrame.Write(1, (byte) RpcCommandType.AuthenticationResult);
+                        authFrame.Write(1, (byte) RpcCommandType.AuthenticationSuccess);
 
-                        // State of the authentication
-                        authFrame.Write(2, Authenticated);
-
-                        // RpcCommand:byte; RpcCommandType:byte; AuthResult:bool;
+                        // RpcCommand:byte; RpcCommandType:byte;
                         Send(authFrame);
 
                         // Alert the server that this session is ready for usage.
@@ -241,32 +238,29 @@ namespace DtronixMessageQueue.Rpc
                             () => { Ready?.Invoke(this, new SessionEventArgs<TSession, TConfig>((TSession) this)); });
                     }
                 }
-                else if (rpcCommandType == RpcCommandType.AuthenticationResult)
+                else if (rpcCommandType == RpcCommandType.AuthenticationSuccess)
                 {
-                    // RpcCommand:byte; RpcCommandType:byte; AuthResult:bool;
+                    // RpcCommand:byte; RpcCommandType:byte;
 
                     // Cancel the timeout request.
                     _authTimeoutCancel.Cancel();
 
                     // Ensure that this command is running on the client.
-                    if (BaseSocket.Mode != SocketMode.Client)
+                    if (SocketHandler.Mode != TcpSocketMode.Client)
                     {
-                        Close(SocketCloseReason.ProtocolError);
+                        Close(CloseReason.ProtocolError);
                         return;
                     }
 
-                    if (Client.Config.RequireAuthentication == false)
+                    if (Client.ServerInfo.RequireAuthentication == false)
                     {
-                        Close(SocketCloseReason.ProtocolError);
+                        Close(CloseReason.ProtocolError);
                         return;
                     }
 
                     Authenticated = true;
 
-                    var authArgs = new RpcAuthenticateEventArgs<TSession, TConfig>((TSession) this)
-                    {
-                        Authenticated = frame.ReadBoolean(2)
-                    };
+                    var authArgs = new RpcAuthenticateEventArgs<TSession, TConfig>((TSession) this);
 
                     // Alert the client that the sesion has been authenticated.
                     AuthenticationSuccess?.Invoke(this, authArgs);
@@ -276,12 +270,12 @@ namespace DtronixMessageQueue.Rpc
                 }
                 else
                 {
-                    Close(SocketCloseReason.ProtocolError);
+                    Close(CloseReason.ProtocolError);
                 }
             }
             catch (Exception)
             {
-                Close(SocketCloseReason.ProtocolError);
+                Close(CloseReason.ProtocolError);
             }
         }
 
@@ -291,7 +285,7 @@ namespace DtronixMessageQueue.Rpc
         protected override void OnConnected()
         {
             // If this is a new session on the server, send the welcome message.
-            if (BaseSocket.Mode == SocketMode.Server)
+            if (SocketHandler.Mode == TcpSocketMode.Server)
             {
                 Server.ServerInfo.RequireAuthentication = Config.RequireAuthentication;
 
@@ -312,7 +306,7 @@ namespace DtronixMessageQueue.Rpc
             base.OnConnected();
 
             // If the server does not require authentication, alert the server session that it is ready.
-            if (BaseSocket.Mode == SocketMode.Server && Config.RequireAuthentication == false)
+            if (SocketHandler.Mode == TcpSocketMode.Server && Config.RequireAuthentication == false)
             {
                 Authenticated = true;
                 Ready?.Invoke(this, new SessionEventArgs<TSession, TConfig>((TSession) this));
@@ -348,7 +342,7 @@ namespace DtronixMessageQueue.Rpc
                     }
                     catch
                     {
-                        Close(SocketCloseReason.ApplicationError);
+                        Close(CloseReason.ApplicationError);
                         return;
                     }
                     
@@ -357,7 +351,7 @@ namespace DtronixMessageQueue.Rpc
                 // If the we can not handle this message, disconnect the session.
                 if (handledMessage == false)
                 {
-                    Close(SocketCloseReason.ProtocolError);
+                    Close(CloseReason.ProtocolError);
                     return;
                 }
             }

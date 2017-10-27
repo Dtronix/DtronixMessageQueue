@@ -2,22 +2,23 @@
 using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Threading;
+using DtronixMessageQueue.Rpc;
 
-namespace DtronixMessageQueue.Socket
+namespace DtronixMessageQueue.TcpSocket
 {
     /// <summary>
     /// Base socket for all server and client sockets.
     /// </summary>
     /// <typeparam name="TSession">Session type for this connection.</typeparam>
     /// <typeparam name="TConfig">Configuration for this connection.</typeparam>
-    public abstract class SessionHandler<TSession, TConfig>
-        where TSession : SocketSession<TSession, TConfig>, new()
-        where TConfig : SocketConfig
+    public abstract class TcpSocketHandler<TSession, TConfig>
+        where TSession : TcpSocketSession<TSession, TConfig>, new()
+        where TConfig : TcpSocketConfig
     {
         /// <summary>
         /// Mode that this socket is running as.
         /// </summary>
-        public SocketMode Mode { get; }
+        public TcpSocketMode Mode { get; }
 
         /// <summary>
         /// True if the socket is connected/listening.
@@ -90,7 +91,7 @@ namespace DtronixMessageQueue.Socket
         /// </summary>
         /// <param name="config">Configurations for this socket.</param>
         /// <param name="mode">Mode of that this socket is running in.</param>
-        protected SessionHandler(TConfig config, SocketMode mode)
+        protected TcpSocketHandler(TConfig config, TcpSocketMode mode)
         {
             TimeoutTimer = new Timer(TimeoutCallback);
             ServiceMethodCache = new ServiceMethodCache();
@@ -98,7 +99,7 @@ namespace DtronixMessageQueue.Socket
             Config = config;
             var modeLower = mode.ToString().ToLower();
 
-            if (mode == SocketMode.Client)
+            if (mode == TcpSocketMode.Client)
             {
                 OutboxProcessor = new ActionProcessor<Guid>(new ActionProcessor<Guid>.Config
                 {
@@ -149,7 +150,7 @@ namespace DtronixMessageQueue.Socket
             {
                 if (session.LastReceived < timeoutTime)
                 {
-                    session.Close(SocketCloseReason.TimeOut);
+                    session.Close(CloseReason.TimeOut);
                 }
             }
         }
@@ -177,7 +178,7 @@ namespace DtronixMessageQueue.Socket
         /// </summary>
         /// <param name="session">Session that closed.</param>
         /// <param name="reason">Reason for the closing of the session.</param>
-        protected virtual void OnClose(TSession session, SocketCloseReason reason)
+        protected virtual void OnClose(TSession session, CloseReason reason)
         {
             // If there are no clients connected, stop the timer.
             if (ConnectedSessions.IsEmpty)
@@ -209,7 +210,7 @@ namespace DtronixMessageQueue.Socket
         /// <returns>New session instance.</returns>
         protected virtual TSession CreateSession(System.Net.Sockets.Socket socket)
         {
-            var session = SocketSession<TSession, TConfig>.Create(socket, 
+            var session = TcpSocketSession<TSession, TConfig>.Create(socket, 
                 AsyncManager, 
                 Config, 
                 this, 

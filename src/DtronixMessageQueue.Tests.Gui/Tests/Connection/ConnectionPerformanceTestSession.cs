@@ -1,6 +1,6 @@
 ﻿using System;
 using System.Threading;
-using DtronixMessageQueue.Socket;
+using DtronixMessageQueue.TcpSocket;
 
 namespace DtronixMessageQueue.Tests.Gui.Tests.Connection
 {
@@ -42,7 +42,7 @@ namespace DtronixMessageQueue.Tests.Gui.Tests.Connection
         }
 
 
-        public override void Close(SocketCloseReason reason)
+        public override void Close(CloseReason reason)
         {
             if (ResponseTimer != null)
             {

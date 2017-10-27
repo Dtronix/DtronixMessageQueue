@@ -1,9 +1,9 @@
-﻿namespace DtronixMessageQueue.Socket
+﻿namespace DtronixMessageQueue.TcpSocket
 {
     /// <summary>
     /// Configurations for the server/client.
     /// </summary>
-    public class SocketConfig
+    public class TcpSocketConfig
     {
         /// <summary>
         /// Maximum number of connections allowed.  Only used by the server.
@@ -34,12 +34,7 @@
         /// <summary>
         /// IP address to bind or connect to.
         /// </summary>
-        public string Ip { get; set; }
-
-        /// <summary>
-        /// Port to bind or connect to.
-        /// </summary>
-        public int Port { get; set; }
+        public string Address { get; set; }
 
         /// <summary>
         /// (Server)

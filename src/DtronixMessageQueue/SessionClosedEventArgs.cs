@@ -1,6 +1,7 @@
 ﻿using System;
+using DtronixMessageQueue.TcpSocket;
 
-namespace DtronixMessageQueue.Socket
+namespace DtronixMessageQueue
 {
     /// <summary>
     /// Event args used when a session is closed.
@@ -8,8 +9,8 @@ namespace DtronixMessageQueue.Socket
     /// <typeparam name="TSession">Session type for this connection.</typeparam>
     /// <typeparam name="TConfig">Configuration for this connection.</typeparam>
     public class SessionClosedEventArgs<TSession, TConfig> : EventArgs
-        where TSession : SocketSession<TSession, TConfig>, new()
-        where TConfig : SocketConfig
+        where TSession : TcpSocketSession<TSession, TConfig>, new()
+        where TConfig : TcpSocketConfig
     {
         /// <summary>
         /// Closed session.
@@ -19,14 +20,14 @@ namespace DtronixMessageQueue.Socket
         /// <summary>
         /// Reason the session was closed.
         /// </summary>
-        public SocketCloseReason CloseReason { get; }
+        public CloseReason CloseReason { get; }
 
         /// <summary>
         /// Creates a new instance of the session closed event args.
         /// </summary>
         /// <param name="session">Closed session.</param>
         /// <param name="closeReason">Reason the session was closed.</param>
-        public SessionClosedEventArgs(TSession session, SocketCloseReason closeReason)
+        public SessionClosedEventArgs(TSession session, CloseReason closeReason)
         {
             Session = session;
             CloseReason = closeReason;

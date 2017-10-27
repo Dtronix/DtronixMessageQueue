@@ -1,17 +1,18 @@
 ﻿using System;
 using System.Net.Sockets;
 using System.Threading;
+using DtronixMessageQueue.Rpc;
 
-namespace DtronixMessageQueue.Socket
+namespace DtronixMessageQueue.TcpSocket
 {
     /// <summary>
     /// Base socket session to be sub-classes by the implementer.
     /// </summary>
     /// <typeparam name="TConfig">Configuration for this connection.</typeparam>
     /// <typeparam name="TSession">Session for this connection.</typeparam>
-    public abstract class SocketSession<TSession, TConfig> : IDisposable, ISetupSocketSession
-        where TSession : SocketSession<TSession, TConfig>, new()
-        where TConfig : SocketConfig
+    public abstract class TcpSocketSession<TSession, TConfig> : IDisposable, ISetupSocketSession
+        where TSession : TcpSocketSession<TSession, TConfig>, new()
+        where TConfig : TcpSocketConfig
     {
         /// <summary>
         /// Current state of the socket.
@@ -24,19 +25,9 @@ namespace DtronixMessageQueue.Socket
             Unknown,
 
             /// <summary>
-            /// Session is attempting to connect to remote connection.
-            /// </summary>
-            Connecting,
-
-            /// <summary>
             /// Session has connected to remote session.
             /// </summary>
             Connected,
-
-            /// <summary>
-            /// Session is in the process of closing its connection.
-            /// </summary>
-            Closing,
 
             /// <summary>
             /// Session has been closed and no longer can be used.
@@ -84,7 +75,7 @@ namespace DtronixMessageQueue.Socket
         /// <summary>
         /// Base socket for this session.
         /// </summary>
-        public SessionHandler<TSession, TConfig> BaseSocket { get; private set; }
+        public TcpSocketHandler<TSession, TConfig> SocketHandler { get; private set; }
 
         /// <summary>
         /// Processor to handle all inbound messages.
@@ -143,10 +134,10 @@ namespace DtronixMessageQueue.Socket
         /// <summary>
         /// Creates a new socket session with a new Id.
         /// </summary>
-        protected SocketSession()
+        protected TcpSocketSession()
         {
             Id = Guid.NewGuid();
-            CurrentState = State.Connecting;
+            CurrentState = State.Closed;
         }
 
         /// <summary>
@@ -155,14 +146,14 @@ namespace DtronixMessageQueue.Socket
         /// <param name="sessionSocket">Socket this session is to use.</param>
         /// <param name="socketArgsManager">Argument pool for this session to use.  Pulls two asyncevents for reading and writing and returns them at the end of this socket's life.</param>
         /// <param name="sessionConfig">Socket configurations this session is to use.</param>
-        /// <param name="sessionHandler">Handler base which is handling this session.</param>
+        /// <param name="tcpSocketHandler">Handler base which is handling this session.</param>
         /// <param name="inboxProcessor">Processor which handles all inbox data.</param>
         /// /// <param name="outboxProcessor">Processor which handles all outbox data.</param>
         /// <param name="serviceMethodCache">Cache for commonly called methods used throughout the session.</param>
         public static TSession Create(System.Net.Sockets.Socket sessionSocket, 
             SocketAsyncEventArgsManager socketArgsManager,
             TConfig sessionConfig, 
-            SessionHandler<TSession, TConfig> sessionHandler, 
+            TcpSocketHandler<TSession, TConfig> tcpSocketHandler, 
             ActionProcessor<Guid> inboxProcessor,
             ActionProcessor<Guid> outboxProcessor,
             ServiceMethodCache serviceMethodCache)
@@ -173,7 +164,7 @@ namespace DtronixMessageQueue.Socket
                 _argsPool = socketArgsManager,
                 _socket = sessionSocket,
                 _writeSemaphore = new SemaphoreSlim(1, 1),
-                BaseSocket = sessionHandler,
+                SocketHandler = tcpSocketHandler,
                 _sendArgs = socketArgsManager.Create(),
                 _receiveArgs = socketArgsManager.Create(),
                 InboxProcessor = inboxProcessor,
@@ -206,7 +197,7 @@ namespace DtronixMessageQueue.Socket
         /// </summary>
         void ISetupSocketSession.Start()
         {
-            if (CurrentState != State.Connecting)
+            if (CurrentState != State.Closed)
                 return;
 
             CurrentState = State.Connected;
@@ -235,7 +226,7 @@ namespace DtronixMessageQueue.Socket
         /// Called when this session is disconnected from the socket.
         /// </summary>
         /// <param name="reason">Reason this socket is disconnecting</param>
-        protected virtual void OnDisconnected(SocketCloseReason reason)
+        protected virtual void OnDisconnected(CloseReason reason)
         {
             Closed?.Invoke(this, new SessionClosedEventArgs<TSession, TConfig>((TSession)this, reason));
         }
@@ -257,7 +248,7 @@ namespace DtronixMessageQueue.Socket
             switch (e.LastOperation)
             {
                 case SocketAsyncOperation.Disconnect:
-                    Close(SocketCloseReason.ClientClosing);
+                    Close(CloseReason.Closing);
                     break;
 
                 case SocketAsyncOperation.Receive:
@@ -303,7 +294,7 @@ namespace DtronixMessageQueue.Socket
             }
             catch (ObjectDisposedException)
             {
-                Close(SocketCloseReason.SocketError);
+                Close(CloseReason.SocketError);
             }
         }
 
@@ -317,7 +308,7 @@ namespace DtronixMessageQueue.Socket
         {
             if (e.SocketError != SocketError.Success)
             {
-                Close(SocketCloseReason.SocketError);
+                Close(CloseReason.SocketError);
             }
             _writeSemaphore.Release(1);
         }
@@ -329,12 +320,12 @@ namespace DtronixMessageQueue.Socket
         /// <param name="e">Event args of this action.</param>
         protected void RecieveComplete(SocketAsyncEventArgs e)
         {
-            if (CurrentState == State.Closing)
+            if (CurrentState == State.Closed)
                 return;
             
-            if (e.BytesTransferred == 0 && CurrentState == State.Connected)
+            if (e.BytesTransferred == 0)
             {
-                CurrentState = State.Closing;
+                HandleIncomingBytes(null);
                 return;
             }
             if (e.BytesTransferred > 0 && e.SocketError == SocketError.Success)
@@ -359,12 +350,12 @@ namespace DtronixMessageQueue.Socket
                 }
                 catch (ObjectDisposedException)
                 {
-                    Close(SocketCloseReason.SocketError);
+                    Close(CloseReason.SocketError);
                 }
             }
             else
             {
-                Close(SocketCloseReason.SocketError);
+                Close(CloseReason.SocketError);
             }
         }
 
@@ -372,17 +363,22 @@ namespace DtronixMessageQueue.Socket
         /// Called when this session is desired or requested to be closed.
         /// </summary>
         /// <param name="reason">Reason this socket is closing.</param>
-        public virtual void Close(SocketCloseReason reason)
+        public virtual void Close(CloseReason reason)
         {
             // If this session has already been closed, nothing more to do.
-            if (CurrentState == State.Closed)
+            if (CurrentState == State.Closed && reason != CloseReason.ConnectionRefused)
                 return;
+
+            CurrentState = State.Closed;
 
             // close the socket associated with the client
             try
             {
-                Socket.Shutdown(SocketShutdown.Receive);
-                Socket.Disconnect(false);
+                if (Socket.Connected)
+                {
+                    Socket.Shutdown(SocketShutdown.Receive);
+                    Socket.Disconnect(false);
+                }
             }
             catch (Exception)
             {
@@ -410,13 +406,24 @@ namespace DtronixMessageQueue.Socket
         }
 
         /// <summary>
+        /// String representation of the active session.
+        /// </summary>
+        /// <returns>String representation.</returns>
+        public override string ToString()
+        {
+            return $"{SocketHandler.Mode} RcpSocketSession;";
+        }
+
+        /// <summary>
         /// Disconnects client and releases resources.
         /// </summary>
         public void Dispose()
         {
             if (CurrentState == State.Connected)
-                Close(SocketCloseReason.ClientClosing);
+                Close(CloseReason.Closing);
 
         }
+
+
     }
 }

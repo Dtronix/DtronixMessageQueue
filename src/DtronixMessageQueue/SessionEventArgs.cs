@@ -1,6 +1,7 @@
 ﻿using System;
+using DtronixMessageQueue.TcpSocket;
 
-namespace DtronixMessageQueue.Socket
+namespace DtronixMessageQueue
 {
     /// <summary>
     /// Event args used when the session has connected to a remote endpoint.
@@ -8,8 +9,8 @@ namespace DtronixMessageQueue.Socket
     /// <typeparam name="TSession">Session type for this connection.</typeparam>
     /// <typeparam name="TConfig">Configuration for this connection.</typeparam>
     public class SessionEventArgs<TSession, TConfig> : EventArgs
-        where TSession : SocketSession<TSession, TConfig>, new()
-        where TConfig : SocketConfig
+        where TSession : TcpSocketSession<TSession, TConfig>, new()
+        where TConfig : TcpSocketConfig
     {
         /// <summary>
         /// Connected session.

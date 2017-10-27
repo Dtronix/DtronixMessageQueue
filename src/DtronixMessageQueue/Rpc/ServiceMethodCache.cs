@@ -5,7 +5,7 @@ using System.Reflection;
 using System.Reflection.Emit;
 using System.Threading;
 
-namespace DtronixMessageQueue
+namespace DtronixMessageQueue.Rpc
 {
     public class ServiceMethodCache
     {

@@ -4,16 +4,16 @@ using System.Net.Sockets;
 using System.Threading;
 using System.Threading.Tasks;
 
-namespace DtronixMessageQueue.Socket
+namespace DtronixMessageQueue.TcpSocket
 {
     /// <summary>
     /// Base functionality for all client connections to a remote server.
     /// </summary>
     /// <typeparam name="TSession">Session type for this connection.</typeparam>
     /// <typeparam name="TConfig">Configuration for this connection.</typeparam>
-    public class SocketClient<TSession, TConfig> : SessionHandler<TSession, TConfig>
-        where TSession : SocketSession<TSession, TConfig>, new()
-        where TConfig : SocketConfig
+    public class TcpSocketClient<TSession, TConfig> : TcpSocketHandler<TSession, TConfig>
+        where TSession : TcpSocketSession<TSession, TConfig>, new()
+        where TConfig : TcpSocketConfig
     {
         /// <summary>
         /// True if the client is connected to a server.
@@ -27,10 +27,15 @@ namespace DtronixMessageQueue.Socket
         public TSession Session { get; private set; }
 
         /// <summary>
+        /// Cancellation token to cancel the timeout event for connections.
+        /// </summary>
+        private CancellationTokenSource _connectionTimeoutCancellation;
+
+        /// <summary>
         /// Creates a socket client with the specified configurations.
         /// </summary>
         /// <param name="config">Configurations to use.</param>
-        public SocketClient(TConfig config) : base(config, SocketMode.Client)
+        public TcpSocketClient(TConfig config) : base(config, TcpSocketMode.Client)
         {
             // Override the number of processors to one for each sending queue and receiving queue.
             config.ProcessorThreads = 1;
@@ -41,13 +46,9 @@ namespace DtronixMessageQueue.Socket
         /// </summary>
         public void Connect()
         {
-            Connect(new IPEndPoint(IPAddress.Parse(Config.Ip), Config.Port));
+            Connect(Utilities.CreateIPEndPoint(Config.Address));
         }
 
-        /// <summary>
-        /// Cancellation token to cancel the timeout event for connections.
-        /// </summary>
-        private CancellationTokenSource _connectionTimeoutCancellation;
 
         /// <summary>
         /// Connects to the specified endpoint.
@@ -55,7 +56,7 @@ namespace DtronixMessageQueue.Socket
         /// <param name="endPoint">Endpoint to connect to.</param>
         public void Connect(IPEndPoint endPoint)
         {
-            if (MainSocket != null && Session?.CurrentState != SocketSession<TSession, TConfig>.State.Closed)
+            if (MainSocket != null && Session?.CurrentState != TcpSocketSession<TSession, TConfig>.State.Closed)
             {
                 throw new InvalidOperationException("Client is in the process of connecting.");
             }
@@ -114,12 +115,12 @@ namespace DtronixMessageQueue.Socket
                 }
 
                 timedOut = true;
-                OnClose(null, SocketCloseReason.TimeOut);
+                OnClose(null, CloseReason.TimeOut);
                 MainSocket.Close();
             }, _connectionTimeoutCancellation.Token);
         }
 
-        protected override void OnClose(TSession session, SocketCloseReason reason)
+        protected override void OnClose(TSession session, CloseReason reason)
         {
             MainSocket.Close();
 

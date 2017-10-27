@@ -32,8 +32,7 @@ namespace DtronixMessageQueue.Tests.Performance
 
             _config = new MqConfig
             {
-                Ip = "127.0.0.1",
-                Port = 2828
+                Address = "127.0.0.1:2828",
             };
 
             _smallMessage = new MqMessage
@@ -126,14 +125,15 @@ namespace DtronixMessageQueue.Tests.Performance
 
                 _server.Stop();
                 _client.Close();
-
-                _testCompleteSemaphore.Release();
-
             };
 
             _client.Connect();
 
+            _server.Stopped += (sender, args) => _testCompleteSemaphore.Release();
+
             _testCompleteSemaphore.WaitOne(30000);
+
+
 
 
         }

@@ -1,5 +1,5 @@
 ﻿using System;
-using DtronixMessageQueue.Socket;
+using DtronixMessageQueue.TcpSocket;
 
 namespace DtronixMessageQueue
 {
@@ -8,7 +8,7 @@ namespace DtronixMessageQueue
     /// </summary>
     /// <typeparam name="TSession">Session type for this connection.</typeparam>
     /// <typeparam name="TConfig">Configuration for this connection.</typeparam>
-    public class MqServer<TSession, TConfig> : SocketServer<TSession, TConfig>
+    public class MqServer<TSession, TConfig> : TcpSocketServer<TSession, TConfig>
         where TSession : MqSession<TSession, TConfig>, new()
         where TConfig : MqConfig
     {
@@ -52,7 +52,7 @@ namespace DtronixMessageQueue
         /// </summary>
         /// <param name="session">Session which closed.</param>
         /// <param name="reason">Reason the session closed.</param>
-        protected override void OnClose(TSession session, SocketCloseReason reason)
+        protected override void OnClose(TSession session, CloseReason reason)
         {
             session.IncomingMessage -= OnIncomingMessage;
             session.Dispose();

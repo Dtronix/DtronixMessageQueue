@@ -4,7 +4,7 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 using DtronixMessageQueue.Rpc;
-using DtronixMessageQueue.Socket;
+using DtronixMessageQueue.TcpSocket;
 using DtronixMessageQueue.Tests.Gui.Tests;
 using DtronixMessageQueue.Tests.Gui.Tests.Connection;
 using DtronixMessageQueue.Tests.Gui.Tests.Echo;
@@ -32,9 +32,9 @@ namespace DtronixMessageQueue.Tests.Gui.Services
 
         public void ClientReady()
         {
-            if (Session.BaseSocket.Mode == SocketMode.Server && _server == null)
+            if (Session.SocketHandler.Mode == TcpSocketMode.Server && _server == null)
             {
-                _server = (RpcServer<ControllerSession, RpcConfig>) this.Session.BaseSocket;
+                _server = (RpcServer<ControllerSession, RpcConfig>) this.Session.SocketHandler;
             }
         }
 

@@ -1,9 +1,9 @@
-﻿namespace DtronixMessageQueue.Socket
+﻿namespace DtronixMessageQueue
 {
     /// <summary>
     /// CloseReason enum
     /// </summary>
-    public enum SocketCloseReason : byte
+    public enum CloseReason : byte
     {
         /// <summary>
         /// The socket is closed for unknown reason
@@ -18,12 +18,7 @@
         /// <summary>
         /// The client close the socket
         /// </summary>
-        ClientClosing = 2,
-
-        /// <summary>
-        /// The server side close the socket
-        /// </summary>
-        ServerClosing = 3,
+        Closing = 2,
 
         /// <summary>
         /// Application error

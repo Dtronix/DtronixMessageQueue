@@ -4,7 +4,7 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 using DtronixMessageQueue.Rpc;
-using DtronixMessageQueue.Socket;
+using DtronixMessageQueue.TcpSocket;
 using DtronixMessageQueue.Tests.Gui.Services;
 
 namespace DtronixMessageQueue.Tests.Gui.Tests
@@ -43,8 +43,7 @@ namespace DtronixMessageQueue.Tests.Gui.Tests
             Log("Starting Test Control Client");
             ControllClient = new RpcClient<ControllerSession, RpcConfig>(new RpcConfig
             {
-                Ip = ip,
-                Port = 2120,
+                Address = ip + ":2120",
                 RequireAuthentication = false,
                 PingFrequency = 800
             });
@@ -68,8 +67,7 @@ namespace DtronixMessageQueue.Tests.Gui.Tests
             Log("Starting Controlling Control Server");
             ControlServer = new RpcServer<ControllerSession, RpcConfig>(new RpcConfig
             {
-                Ip = "0.0.0.0",
-                Port = 2120,
+                Address = "0.0.0.0:2120",
                 RequireAuthentication = false,
                 PingTimeout = 1000
             });

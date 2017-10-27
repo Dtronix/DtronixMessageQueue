@@ -1,23 +1,17 @@
 ﻿using System;
 using System.Threading;
-using DtronixMessageQueue.Socket;
-using Xunit;
-using Xunit.Abstractions;
+using DtronixMessageQueue.TcpSocket;
+using NUnit.Framework;
 
 namespace DtronixMessageQueue.Tests.Mq
 {
     public class MqServerTests : MqTestsBase
     {
-        public MqServerTests(ITestOutputHelper output) : base(output)
-        {
-        }
 
-
-        [Theory]
-        [InlineData(1, false)]
-        [InlineData(1, true)]
-        [InlineData(100, true)]
-        [InlineData(1000, true)]
+        [TestCase(1, false)]
+        [TestCase(1, true)]
+        [TestCase(100, true)]
+        [TestCase(1000, true)]
         public void Server_should_send_data_to_client(int number, bool validate)
         {
             var messageSource = GenerateRandomMessage(4, 50);
@@ -49,100 +43,84 @@ namespace DtronixMessageQueue.Tests.Mq
 
                 if (clientMessageCount == number)
                 {
-                    TestStatus.Set();
+                    TestComplete.Set();
                 }
             };
 
             StartAndWait();
         }
 
-        [Fact]
+        [Test]
         public void Server_accepts_new_connection()
         {
-            Server.Connected += (sender, session) => { TestStatus.Set(); };
+            Server.Connected += (sender, session) => { TestComplete.Set(); };
 
             StartAndWait();
         }
 
-        [Fact]
+        [Test]
         public void Server_detects_client_disconnect()
         {
             Client.Connected += (sender, args) => { Client.Close(); };
 
-            Server.Closed += (session, value) => { TestStatus.Set(); };
+            Server.Closed += (session, value) => { TestComplete.Set(); };
 
             StartAndWait();
         }
 
 
-        [Fact]
+        [Test]
         public void Server_stops()
         {
             Server.Start();
-            Assert.Equal(true, Server.IsRunning);
+            Assert.AreEqual(true, Server.IsRunning);
             Server.Stop();
-            Assert.Equal(false, Server.IsRunning);
+            Assert.AreEqual(false, Server.IsRunning);
         }
 
-        [Fact]
+        [Test]
         public void Server_accepts_new_connection_after_max()
         {
             Server.Config.MaxConnections = 1;
 
-            var client = CreateClient(Config);
-            var client2 = CreateClient(Config);
+            var client = CreateClient(ClientConfig);
+            var client2 = CreateClient(ClientConfig);
 
             Server.Start();
 
             client.Connected += (sender, args) => client.Close();
             client.Closed += (sender, args) => client2.Connect();
-            client2.Connected += (sender, args) => TestStatus.Set();
+            client2.Connected += (sender, args) => TestComplete.Set();
             client.Connect();
 
-            TestStatus.Wait(new TimeSpan(0, 0, 0, 0, 1000));
+            TestComplete.Wait(new TimeSpan(0, 0, 0, 0, 1000));
 
-            if (TestStatus.IsSet == false)
+            if (TestComplete.IsSet == false)
             {
                 throw new TimeoutException("Test timed out.");
             }
         }
 
-        [Fact]
+        [Test]
         public void Server_refuses_new_connection_after_max()
         {
             Server.Config.MaxConnections = 1;
-            Exception invalidClosException = null;
-            var client = CreateClient(Config);
-            var client2 = CreateClient(Config);
+            var client2 = CreateClient(ClientConfig);
 
-            Server.Start();
-
-            client.Connected += (sender, args) => client2.Connect();
+            Client.Connected += (sender, args) => client2.Connect();
             client2.Closed += (sender, args) =>
             {
-                if (args.CloseReason != SocketCloseReason.ConnectionRefused)
+                if (args.CloseReason != CloseReason.ConnectionRefused)
                 {
-                    invalidClosException = new Exception("Client socket did not close for the correct reason.");
+                    LastException = new Exception("Client socket did not close for the correct reason.");
                 }
-                TestStatus.Set();
+                TestComplete.Set();
             };
-            client.Connect();
             
-
-            TestStatus.Wait(new TimeSpan(0, 0, 0, 0, 1000));
-
-            if (TestStatus.IsSet == false)
-            {
-                throw new TimeoutException("Test timed out.");
-            }
-
-            if (invalidClosException != null)
-            {
-                throw invalidClosException;
-            }
+            StartAndWait();
         }
 
-        [Fact]
+        [Test]
         public void Server_restarts_after_stop()
         {
             int connected_times = 0;
@@ -154,7 +132,7 @@ namespace DtronixMessageQueue.Tests.Mq
                 Client.Close();
                 if (++connected_times == 2)
                 {
-                    TestStatus.Set();
+                    TestComplete.Set();
                 }
                 else
                 {
@@ -175,42 +153,42 @@ namespace DtronixMessageQueue.Tests.Mq
 
 
 
-            TestStatus.Wait(new TimeSpan(0, 0, 0, 0, 2000));
+            TestComplete.Wait(new TimeSpan(0, 0, 0, 0, 2000));
 
-            if (TestStatus.IsSet == false)
+            if (TestComplete.IsSet == false)
             {
                 throw new TimeoutException("Test timed out.");
             }
         }
 
-        [Fact]
+        [Test]
         public void Server_invokes_stopped_event()
         {
 
             Server.Started += (sender, args) => Server.Stop();
-            Server.Started += (sender, args) => TestStatus.Set();
+            Server.Started += (sender, args) => TestComplete.Set();
 
             Server.Start();
 
-            TestStatus.Wait(new TimeSpan(0, 0, 0, 0, 2000));
+            TestComplete.Wait(new TimeSpan(0, 0, 0, 0, 2000));
 
-            if (TestStatus.IsSet == false)
+            if (TestComplete.IsSet == false)
             {
                 throw new TimeoutException("Test timed out.");
             }
         }
 
-        [Fact]
+        [Test]
         public void Server_invokes_started_event()
         {
 
-            Server.Started += (sender, args) => TestStatus.Set();
+            Server.Started += (sender, args) => TestComplete.Set();
 
             Server.Start();
 
-            TestStatus.Wait(new TimeSpan(0, 0, 0, 0, 2000));
+            TestComplete.Wait(new TimeSpan(0, 0, 0, 0, 2000));
 
-            if (TestStatus.IsSet == false)
+            if (TestComplete.IsSet == false)
             {
                 throw new TimeoutException("Test timed out.");
             }

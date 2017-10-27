@@ -19,6 +19,6 @@
         /// <summary>
         /// Server is sending the result of the authentication request.
         /// </summary>
-        AuthenticationResult = 2,
+        AuthenticationSuccess = 2,
     }
 }

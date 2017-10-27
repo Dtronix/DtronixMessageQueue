@@ -1,6 +1,6 @@
 ﻿using System;
 using System.Threading;
-using DtronixMessageQueue.Socket;
+using DtronixMessageQueue.TcpSocket;
 
 
 namespace DtronixMessageQueue
@@ -10,7 +10,7 @@ namespace DtronixMessageQueue
     /// </summary>
     /// <typeparam name="TSession">Session type for this connection.</typeparam>
     /// <typeparam name="TConfig">Configuration for this connection.</typeparam>
-    public class MqClient<TSession, TConfig> : SocketClient<TSession, TConfig>
+    public class MqClient<TSession, TConfig> : TcpSocketClient<TSession, TConfig>
         where TSession : MqSession<TSession, TConfig>, new()
         where TConfig : MqConfig
     {
@@ -54,7 +54,7 @@ namespace DtronixMessageQueue
             base.OnConnect(session);
         }
 
-        protected override void OnClose(TSession session, SocketCloseReason reason)
+        protected override void OnClose(TSession session, CloseReason reason)
         {
             // Stop the timeout timer.
             _pingTimer.Change(Timeout.Infinite, Timeout.Infinite);
@@ -117,7 +117,7 @@ namespace DtronixMessageQueue
                 return;
             }
             Session.IncomingMessage -= OnIncomingMessage;
-            Session.Close(SocketCloseReason.ClientClosing);
+            Session.Close(CloseReason.Closing);
             Session.Dispose();
         }
 

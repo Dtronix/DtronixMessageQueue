@@ -3,7 +3,7 @@ using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.IO;
 using System.Threading;
-using DtronixMessageQueue.Socket;
+using DtronixMessageQueue.TcpSocket;
 
 namespace DtronixMessageQueue
 {
@@ -12,7 +12,7 @@ namespace DtronixMessageQueue
     /// </summary>
     /// <typeparam name="TSession">Session type for this connection.</typeparam>
     /// <typeparam name="TConfig">Configuration for this connection.</typeparam>
-    public abstract class MqSession<TSession, TConfig> : SocketSession<TSession, TConfig>
+    public abstract class MqSession<TSession, TConfig> : TcpSocketSession<TSession, TConfig>
         where TSession : MqSession<TSession, TConfig>, new()
         where TConfig : MqConfig
     {
@@ -111,7 +111,7 @@ namespace DtronixMessageQueue
             while (_outbox.TryDequeue(out message))
             {
 
-                if(CurrentState != State.Closing)
+                if(CurrentState != State.Closed)
                     _sendingSemaphore.Release();
 
                 message.PrepareSend();
@@ -162,15 +162,18 @@ namespace DtronixMessageQueue
                 if (CurrentState == State.Connected)
                     _receivingSemaphore.Release();
 
+                if (buffer == null)
+                    Close(CloseReason.Closing);
+
                 try
                 {
-                    _frameBuilder.Write(buffer, 0, buffer.Length);
+                    _frameBuilder.Write(buffer);
                 }
                 catch (InvalidDataException)
                 {
                     //logger.Error(ex, "Connector {0}: Client send invalid data.", Connection.Id);
 
-                    Close(SocketCloseReason.ProtocolError);
+                    Close(CloseReason.ProtocolError);
                     break;
                 }
 
@@ -184,7 +187,7 @@ namespace DtronixMessageQueue
                     // Do nothing if this is a ping frame.
                     if (frame.FrameType == MqFrameType.Ping)
                     {
-                        if (BaseSocket.Mode == SocketMode.Server)
+                        if (SocketHandler.Mode == TcpSocketMode.Server)
                         {
                             // Re-send ping frame back to the client to refresh client connection timeout timer.
                             Send(CreateFrame(null, MqFrameType.Ping));
@@ -242,18 +245,14 @@ namespace DtronixMessageQueue
         /// Notifies the recipient connection the reason for the session's closure.
         /// </summary>
         /// <param name="reason">Reason for closing this session.</param>
-        public override void Close(SocketCloseReason reason)
+        public override void Close(CloseReason reason)
         {
-            if (CurrentState == State.Closed)
-            {
+            if (CurrentState == State.Closed && reason != CloseReason.ConnectionRefused)
                 return;
-            }
 
             MqFrame closeFrame = null;
-            if (CurrentState == State.Connected || CurrentState == State.Connecting)
+            if (CurrentState == State.Connected || reason == CloseReason.ConnectionRefused)
             {
-                CurrentState = State.Closing;
-
                 closeFrame = CreateFrame(new byte[2], MqFrameType.Command);
 
                 closeFrame.Write(0, (byte)0);
@@ -277,6 +276,9 @@ namespace DtronixMessageQueue
 
                 msg = new MqMessage(closeFrame);
                 _outbox.Enqueue(msg);
+
+                // Take one wait to send the close packet.
+                _sendingSemaphore.Wait();
 
                 // QueueOnce the last bit of data.
                 ProcessOutbox();
@@ -352,12 +354,11 @@ namespace DtronixMessageQueue
             switch (commandType)
             {
                 case MqCommandType.Disconnect:
-                    CurrentState = State.Closing;
-                    Close((SocketCloseReason)frame.ReadByte(1));
+                    Close((CloseReason)frame.ReadByte(1));
                     break;
 
                 default:
-                    Close(SocketCloseReason.ProtocolError);
+                    Close(CloseReason.ProtocolError);
                     break;
             }
         }
@@ -368,9 +369,9 @@ namespace DtronixMessageQueue
         /// <returns>String representation.</returns>
         public override string ToString()
         {
-            return $"MqSession; Reading {_inboxBytes.Count} byte packets; Sending {_outbox.Count} messages.";
+            return $"{SocketHandler.Mode} RcpSocketSession; Reading {_inboxBytes.Count} byte packets; Sending {_outbox.Count} messages.";
         }
 
-        
+
     }
 }

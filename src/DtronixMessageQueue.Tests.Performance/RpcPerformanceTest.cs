@@ -16,8 +16,7 @@ namespace DtronixMessageQueue.Tests.Performance
         {
             var config = new RpcConfig
             {
-                Ip = "127.0.0.1",
-                Port = 2828
+                Address = "127.0.0.1:2828",
             };
 
             //RpcSingleProcessTest(20, 4, config, RpcTestType.LngBlock);
@@ -26,7 +25,7 @@ namespace DtronixMessageQueue.Tests.Performance
 
             RpcSingleProcessTest(200000, 4, config, RpcTestType.Await);
 
-			//RpcSingleProcessTest(100, 4, config, RpcTestType.Block);
+            //RpcSingleProcessTest(100, 4, config, RpcTestType.Block);
 
             RpcSingleProcessTest(10000, 4, config, RpcTestType.Return);
 

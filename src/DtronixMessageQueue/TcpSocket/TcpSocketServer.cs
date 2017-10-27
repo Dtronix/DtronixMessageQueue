@@ -2,16 +2,16 @@
 using System.Net;
 using System.Net.Sockets;
 
-namespace DtronixMessageQueue.Socket
+namespace DtronixMessageQueue.TcpSocket
 {
     /// <summary>
     /// Base functionality for handling connection requests.
     /// </summary>
     /// <typeparam name="TSession">Session type for this connection.</typeparam>
     /// <typeparam name="TConfig">Configuration for this connection.</typeparam>
-    public class SocketServer<TSession, TConfig> : SessionHandler<TSession, TConfig>
-        where TSession : SocketSession<TSession, TConfig>, new()
-        where TConfig : SocketConfig
+    public class TcpSocketServer<TSession, TConfig> : TcpSocketHandler<TSession, TConfig>
+        where TSession : TcpSocketSession<TSession, TConfig>, new()
+        where TConfig : TcpSocketConfig
     {
         /// <summary>
         /// Set to the max number of connections allowed for the server.
@@ -48,7 +48,7 @@ namespace DtronixMessageQueue.Socket
         /// Creates a socket server with the specified configurations.
         /// </summary>
         /// <param name="config">Configurations for this socket.</param>
-        public SocketServer(TConfig config) : base(config, SocketMode.Server)
+        public TcpSocketServer(TConfig config) : base(config, TcpSocketMode.Server)
         {
         }
 
@@ -61,8 +61,7 @@ namespace DtronixMessageQueue.Socket
             // Reset the remaining connections.
             _remainingConnections = Config.MaxConnections;
 
-            var ip = IPAddress.Parse(Config.Ip);
-            var localEndPoint = new IPEndPoint(ip, Config.Port);
+            var localEndPoint = Utilities.CreateIPEndPoint(Config.Address);
             if (_isStopped == false)
             {
                 throw new InvalidOperationException("Server is already running.");
@@ -151,7 +150,7 @@ namespace DtronixMessageQueue.Socket
             // If we are at max sessions, close the new connection with a connection refused reason.
             if (maxSessions)
             {
-                session.Close(SocketCloseReason.ConnectionRefused);
+                session.Close(CloseReason.ConnectionRefused);
             }
             else
             {
@@ -208,7 +207,7 @@ namespace DtronixMessageQueue.Socket
 
             foreach (var session in sessions)
             {
-                session.Close(SocketCloseReason.ServerClosing);
+                session.Close(CloseReason.Closing);
             }
 
             try

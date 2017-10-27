@@ -1,8 +1,7 @@
 language: csharp
-install:
-  - nuget install xunit.runners -Version 1.9.2 -OutputDirectory testrunner
 before_script:
   - nuget restore ./src/DtronixMessageQueue.sln
 script:
   - xbuild /p:Configuration=Release ./src/DtronixMessageQueue/DtronixMessageQueue.csproj
   - xbuild /p:Configuration=Release ./src/DtronixMessageQueue.Tests/DtronixMessageQueue.Tests.csproj
+  - mono ./src/packages/NUnit.ConsoleRunner.3.7.0/tools/nunit3-console.exe ./src/DtronixMessageQueue.Tests/bin/Release/DtronixMessageQueue.Tests.dll

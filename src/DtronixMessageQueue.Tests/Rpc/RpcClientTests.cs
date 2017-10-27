@@ -1,18 +1,14 @@
 ﻿using System;
 using System.Diagnostics;
 using System.Threading;
-using DtronixMessageQueue.Socket;
+using DtronixMessageQueue.TcpSocket;
 using DtronixMessageQueue.Tests.Rpc.Services.Server;
-using Xunit;
-using Xunit.Abstractions;
+using NUnit.Framework;
 
 namespace DtronixMessageQueue.Tests.Rpc
 {
     public class RpcClientTests : RpcTestsBase
     {
-        public RpcClientTests(ITestOutputHelper output) : base(output)
-        {
-        }
 
         public class Test
         {
@@ -20,7 +16,7 @@ namespace DtronixMessageQueue.Tests.Rpc
             public int Length { get; set; }
         }
 
-        [Fact]
+        [Test]
         public void Client_calls_proxy_method()
         {
             Server.SessionSetup += (sender, args) => { args.Session.AddService(new CalculatorService()); };
@@ -41,13 +37,13 @@ namespace DtronixMessageQueue.Tests.Rpc
                     LastException = new Exception("Service returned wrong result.");
                 }
 
-                TestStatus.Set();
+                TestComplete.Set();
             };
 
             StartAndWait();
         }
 
-        [Fact]
+        [Test]
         public void Client_calls_proxy_method_sequential()
         {
             Server.SessionSetup += (sender, args) => { args.Session.AddService(new CalculatorService()); };
@@ -60,19 +56,30 @@ namespace DtronixMessageQueue.Tests.Rpc
                 Stopwatch stopwatch = Stopwatch.StartNew();
 
                 int addedInt = 0;
-                for (int i = 0; i < 10; i++)
+                int totalAdds = 50;
+                for (int i = 0; i < totalAdds; i++)
                 {
                     addedInt = service.Add(addedInt, 1);
                 }
 
-                Output.WriteLine($"{stopwatch.ElapsedMilliseconds}");
-                TestStatus.Set();
+
+                try
+                {
+                    Assert.AreEqual(totalAdds, addedInt);
+                    TestComplete.Set();
+                }
+                catch (Exception e)
+                {
+                    LastException = e;
+                }
+
+                
             };
 
             StartAndWait();
         }
 
-        [Fact]
+        [Test]
         public void Client_calls_proxy_method_and_canceles()
         {
             Server.SessionSetup += (sender, args) =>
@@ -80,7 +87,7 @@ namespace DtronixMessageQueue.Tests.Rpc
                 var service = new CalculatorService();
                 args.Session.AddService<ICalculatorService>(service);
 
-                service.LongRunningTaskCanceled += (o, eventArgs) => { TestStatus.Set(); };
+                service.LongRunningTaskCanceled += (o, eventArgs) => { TestComplete.Set(); };
             };
 
 
@@ -111,19 +118,19 @@ namespace DtronixMessageQueue.Tests.Rpc
             StartAndWait();
         }
 
-        [Fact]
+        [Test]
         public void Server_requests_authentication()
         {
             Server.Config.RequireAuthentication = true;
 
 
-            Client.Authenticate += (sender, e) => { TestStatus.Set(); };
+            Client.Authenticate += (sender, e) => { TestComplete.Set(); };
 
 
             StartAndWait();
         }
 
-        [Fact]
+        [Test]
         public void Server_does_not_request_authentication()
         {
             Server.Config.RequireAuthentication = false;
@@ -145,7 +152,7 @@ namespace DtronixMessageQueue.Tests.Rpc
                 {
                     LastException = new Exception("Client authenticated.");
                 }
-                TestStatus.Set();
+                TestComplete.Set();
             };
 
 
@@ -153,7 +160,7 @@ namespace DtronixMessageQueue.Tests.Rpc
         }
 
 
-        [Fact]
+        [Test]
         public void Server_verifies_authentication()
         {
             var authData = new byte[] {1, 2, 3, 4, 5};
@@ -167,7 +174,7 @@ namespace DtronixMessageQueue.Tests.Rpc
             {
                 try
                 {
-                    Assert.Equal(authData, e.AuthData);
+                    Assert.AreEqual(authData, e.AuthData);
                 }
                 catch (Exception ex)
                 {
@@ -175,7 +182,7 @@ namespace DtronixMessageQueue.Tests.Rpc
                 }
                 finally
                 {
-                    TestStatus.Set();
+                    TestComplete.Set();
                 }
             };
 
@@ -185,7 +192,7 @@ namespace DtronixMessageQueue.Tests.Rpc
             StartAndWait();
         }
 
-        [Fact]
+        [Test]
         public void Server_disconnectes_from_failed_authentication()
         {
             Server.Config.RequireAuthentication = true;
@@ -197,11 +204,11 @@ namespace DtronixMessageQueue.Tests.Rpc
 
             Server.Closed += (sender, e) =>
             {
-                if (e.CloseReason != SocketCloseReason.AuthenticationFailure)
+                if (e.CloseReason != CloseReason.AuthenticationFailure)
                 {
                     LastException = new Exception("Server closed session for invalid reason");
                 }
-                TestStatus.Set();
+                TestComplete.Set();
             };
 
             Client.Authenticate += (sender, e) => { e.AuthData = new byte[] {5, 4, 3, 2, 1}; };
@@ -209,7 +216,7 @@ namespace DtronixMessageQueue.Tests.Rpc
             StartAndWait();
         }
 
-        [Fact]
+        [Test]
         public void Client_disconnectes_from_failed_authentication()
         {
             Server.Config.RequireAuthentication = true;
@@ -221,11 +228,11 @@ namespace DtronixMessageQueue.Tests.Rpc
 
             Client.Closed += (sender, e) =>
             {
-                if (e.CloseReason != SocketCloseReason.AuthenticationFailure)
+                if (e.CloseReason != CloseReason.AuthenticationFailure)
                 {
                     LastException = new Exception("Server closed session for invalid reason");
                 }
-                TestStatus.Set();
+                TestComplete.Set();
             };
 
             Client.Authenticate += (sender, e) => { e.AuthData = new byte[] {5, 4, 3, 2, 1}; };
@@ -234,10 +241,10 @@ namespace DtronixMessageQueue.Tests.Rpc
         }
 
 
-        [Fact]
+        [Test]
         public void Client_notified_of_authentication_success()
         {
-            Server.Config.RequireAuthentication = true;
+            ServerConfig.RequireAuthentication = true;
 
             Server.SessionSetup +=
                 (sender, args) => { args.Session.AddService<ICalculatorService>(new CalculatorService()); };
@@ -250,7 +257,7 @@ namespace DtronixMessageQueue.Tests.Rpc
                 {
                     LastException = new Exception("Client notified of authentication wrongly.");
                 }
-                TestStatus.Set();
+                TestComplete.Set();
             };
 
             Client.Authenticate += (sender, e) => { e.AuthData = new byte[] {5, 4, 3, 2, 1}; };
@@ -258,7 +265,7 @@ namespace DtronixMessageQueue.Tests.Rpc
             StartAndWait();
         }
 
-        [Fact]
+        [Test]
         public void Client_times_out_on_long_auth()
         {
             Server.Config.RequireAuthentication = true;
@@ -266,44 +273,20 @@ namespace DtronixMessageQueue.Tests.Rpc
 
             Client.Closed += (sender, e) =>
             {
-                if (e.CloseReason != SocketCloseReason.TimeOut)
+                if (e.CloseReason != CloseReason.TimeOut)
                 {
                     LastException = new Exception("Client was not notified that the authentication failed.");
                 }
-                TestStatus.Set();
+                TestComplete.Set();
             };
 
             Server.Authenticate += (sender, e) => { Thread.Sleep(500); };
 
-            StartAndWait(true, 5000, true);
+            StartAndWait(true, 5000);
         }
 
-        [Fact]
-        public void Client_does_not_ready_before_server_authenticates()
-        {
-            Server.Config.RequireAuthentication = true;
 
-            Server.Authenticate += (sender, args) =>
-            {
-                args.Authenticated = true;
-                Thread.Sleep(200);
-            };
-
-            Client.Ready += (sender, args) =>
-            {
-                if (!args.Session.Authenticated)
-                {
-                    LastException = new Exception("Client ready event called while authentication failed.");
-                }
-                TestStatus.Set();
-            };
-
-            Client.Authenticate += (sender, e) => { e.AuthData = new byte[] {5, 4, 3, 2, 1}; };
-
-            StartAndWait();
-        }
-
-        [Fact]
+        [Test]
         public void Client_connects_disconnects_and_reconnects()
         {
             Server.Config.RequireAuthentication = false;
@@ -314,7 +297,7 @@ namespace DtronixMessageQueue.Tests.Rpc
             {
                 if (++connectedTimes == 5)
                 {
-                    TestStatus.Set();
+                    TestComplete.Set();
                 }
                 else
                 {
@@ -324,7 +307,7 @@ namespace DtronixMessageQueue.Tests.Rpc
 
             Client.Closed += (sender, args) =>
             {
-                if (!TestStatus.IsSet)
+                if (!TestComplete.IsSet)
                 {
                     Client.Connect();
                 }
