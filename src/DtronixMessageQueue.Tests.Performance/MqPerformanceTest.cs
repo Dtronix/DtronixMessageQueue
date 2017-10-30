@@ -100,12 +100,15 @@ namespace DtronixMessageQueue.Tests.Performance
             {
                 count += args2.Messages.Count;
 
-
                 if (count == totalMessages)
                 {
                     ReportResults(totalMessages, _sw.ElapsedMilliseconds, message.Size);
                     _loopSemaphore.Release();
+                }
 
+                for (int i = 0; i < args2.Messages.Count; i++)
+                {
+                    args2.Messages.Dequeue();
                 }
             };
 

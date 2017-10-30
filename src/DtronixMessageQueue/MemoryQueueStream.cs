@@ -10,7 +10,7 @@ namespace DtronixMessageQueue
     /// <summary>
     /// This stream maintains data only until the data is read, then it is purged from the stream.
     /// </summary>
-    public class MemoryQueueBufferStream : Stream
+    public class MemoryQueueStream : Stream
     {
 
         public override bool CanSeek => false;
@@ -20,7 +20,7 @@ namespace DtronixMessageQueue
         /// </summary>
         public override long Position {
             get => 0;
-            set => throw new NotSupportedException(GetType().Name + " is not seekable");
+            set => throw new NotSupportedException(nameof(MemoryQueueStream) + " is not seekable");
         }
 
         public override bool CanWrite => true;
@@ -28,49 +28,22 @@ namespace DtronixMessageQueue
 
         public override bool CanRead => true;
 
+        private long _length;
 
+        public override long Length => _length;
 
-        public override long Length {
-            get {
-
-                if (_buffer == null)
-                {
-                    return 0;
-                }
-
-                if (_buffer.Count == 0)
-                {
-                    return 0;
-                }
-
-                return _buffer.Sum(b => b.Data.Length - b.ChunkReadStartIndex);
-            }
-        }
-
-        /// <summary>
-        /// Represents a single write into the MemoryQueueBufferStream.  Each write is a separate chunk
-        /// </summary>
-        private class Chunk
-        {
-            /// <summary>
-            /// As we read through the chunk, the start index will increment.  When we get to the end of the chunk,
-            /// we will remove the chunk
-            /// </summary>
-            public int ChunkReadStartIndex { get; set; }
-
-            /// <summary>
-            /// Actual Data
-            /// </summary>
-            public byte[] Data { get; set; }
-        }
+        private int _chunkReadIndex;
 
         //Maintains the streams data.  The Queue object provides an easy and efficient way to add and remove data
         //Each item in the queue represents each write to the stream.  Every call to write translates to an item in the queue
-        private readonly Queue<Chunk> _buffer;
+        internal readonly Queue<byte[]> Buffer;
 
-        public MemoryQueueBufferStream()
+        public MemoryQueueStream()
         {
-            _buffer = new Queue<Chunk>();
+            Buffer = new Queue<byte[]>();
+
+            _length = 0;
+            _chunkReadIndex = 0;
         }
 
         /// <summary>
@@ -86,13 +59,13 @@ namespace DtronixMessageQueue
             var totalBytesRead = 0;
 
             //Read until we hit the requested count, or until we hav nothing left to read
-            while (totalBytesRead <= count && _buffer.Count > 0)
+            while (totalBytesRead <= count && Buffer.Count > 0)
             {
                 //Get first chunk from the queue
-                var chunk = _buffer.Peek();
+                var chunk = Buffer.Peek();
 
                 //Determine how much of the chunk there is left to read
-                var unreadChunkLength = chunk.Data.Length - chunk.ChunkReadStartIndex;
+                var unreadChunkLength = chunk.Length - _chunkReadIndex;
 
                 //Determine how much of the unread part of the chunk we can actually read
                 var bytesToRead = Math.Min(unreadChunkLength, remainingBytesToRead);
@@ -100,20 +73,21 @@ namespace DtronixMessageQueue
                 if (bytesToRead > 0)
                 {
                     //Read from the chunk into the buffer
-                    Buffer.BlockCopy(chunk.Data, chunk.ChunkReadStartIndex, buffer, offset + totalBytesRead, bytesToRead);
+                    System.Buffer.BlockCopy(chunk, _chunkReadIndex, buffer, offset + totalBytesRead, bytesToRead);
 
                     totalBytesRead += bytesToRead;
                     remainingBytesToRead -= bytesToRead;
 
                     //If the entire chunk has been read,  remove it
-                    if (chunk.ChunkReadStartIndex + bytesToRead >= chunk.Data.Length)
+                    if (_chunkReadIndex + bytesToRead >= chunk.Length)
                     {
-                        _buffer.Dequeue();
+                        Buffer.Dequeue();
+                        _chunkReadIndex = 0;
                     }
                     else
                     {
                         //Otherwise just update the chunk read start index, so we know where to start reading on the next call
-                        chunk.ChunkReadStartIndex = chunk.ChunkReadStartIndex + bytesToRead;
+                        _chunkReadIndex += bytesToRead;
                     }
                 }
                 else
@@ -122,6 +96,7 @@ namespace DtronixMessageQueue
                 }
             }
 
+            _length -= totalBytesRead;
             return totalBytesRead;
         }
 
@@ -134,11 +109,13 @@ namespace DtronixMessageQueue
         public override void Write(byte[] buffer, int offset, int count)
         {
             //We don't want to use the buffer passed in, as it could be altered by the caller
-            var bufSave = new byte[count];
-            Buffer.BlockCopy(buffer, offset, bufSave, 0, count);
+            var copyBuff = new byte[count];
+            System.Buffer.BlockCopy(buffer, offset, copyBuff, 0, count);
+
+            _length += count;
 
             //Add the data to the queue
-            _buffer.Enqueue(new Chunk { ChunkReadStartIndex = 0, Data = bufSave });
+            Buffer.Enqueue(copyBuff);
         }
 
         /// <summary>
@@ -148,7 +125,9 @@ namespace DtronixMessageQueue
         public void Write(byte[] buffer)
         {
             //Add the data to the queue
-            _buffer.Enqueue(new Chunk { ChunkReadStartIndex = 0, Data = buffer });
+            Buffer.Enqueue(buffer);
+
+            _length += buffer.Length;
         }
 
        

@@ -23,7 +23,7 @@ namespace DtronixMessageQueue
         /// <summary>
         /// Memory stream used to read and write to the internal buffer.
         /// </summary>
-        private readonly MemoryQueueBufferStream _bufferStream;
+        private readonly MemoryQueueStream _bufferStream;
 
         /// <summary>
         /// Used to cache the maximum size of the MqFrameType.
@@ -52,7 +52,7 @@ namespace DtronixMessageQueue
         {
             _config = config;
             Frames = new Queue<MqFrame>();
-            _bufferStream = new MemoryQueueBufferStream();
+            _bufferStream = new MemoryQueueStream();
 
             // Determine what our max enum value is for the FrameType
             if (_maxTypeEnum == -1)
