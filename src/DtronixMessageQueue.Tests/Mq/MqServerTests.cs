@@ -104,6 +104,9 @@ namespace DtronixMessageQueue.Tests.Mq
         [Test]
         public void Server_refuses_new_connection_after_max()
         {
+            if(IsMono)
+                Assert.Ignore("Skipped non-functional test on mono.");
+
             Server.Config.MaxConnections = 1;
             var client2 = CreateClient(ClientConfig);
 

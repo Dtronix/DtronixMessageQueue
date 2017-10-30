@@ -219,6 +219,9 @@ namespace DtronixMessageQueue.Tests.Rpc
         [Test]
         public void Client_disconnectes_from_failed_authentication()
         {
+            if (IsMono)
+                Assert.Ignore("Skipped non-functional test on mono.");
+
             Server.Config.RequireAuthentication = true;
 
             Server.SessionSetup +=
