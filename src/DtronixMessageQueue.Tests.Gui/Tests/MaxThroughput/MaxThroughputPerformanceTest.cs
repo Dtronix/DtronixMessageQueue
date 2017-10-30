@@ -58,12 +58,13 @@ namespace DtronixMessageQueue.Tests.Gui.Tests.MaxThroughput
             var configClientConnections = ActualControl.ConfigClients;
             var configFrames = ActualControl.ConfigFrames;
             var configFrameSize = ActualControl.ConfigFrameSize;
+            var addressParts = TestController.ControllClient.Config.Address.Split(':');
 
             for (int i = 0; i < configClientConnections; i++)
             {
                 var client = new MqClient<MaxThroughputPerformanceTestSession, MqConfig>(new MqConfig
                 {
-                    Address = TestController.ControllClient.Config.Address + ":2121",
+                    Address = addressParts[0] + ":2121",
                     PingFrequency = 500
                 });
 

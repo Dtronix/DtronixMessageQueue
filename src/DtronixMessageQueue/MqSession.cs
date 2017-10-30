@@ -159,11 +159,16 @@ namespace DtronixMessageQueue
             while (_inboxBytes.TryDequeue(out buffer))
             {
 
-                if (CurrentState == State.Connected)
-                    _receivingSemaphore.Release();
+                if (CurrentState != State.Connected)
+                    return;
+
+                _receivingSemaphore.Release();
 
                 if (buffer == null)
+                {
                     Close(CloseReason.Closing);
+                    return;
+                }
 
                 try
                 {
@@ -182,6 +187,9 @@ namespace DtronixMessageQueue
 
                 for (var i = 0; i < frameCount; i++)
                 {
+                    if (CurrentState != State.Connected)
+                        return;
+
                     var frame = _frameBuilder.Frames.Dequeue();
 
                     // Do nothing if this is a ping frame.
@@ -249,6 +257,11 @@ namespace DtronixMessageQueue
         {
             if (CurrentState == State.Closed && reason != CloseReason.ConnectionRefused)
                 return;
+
+            if (reason == CloseReason.ProtocolError)
+            {
+                
+            }
 
             MqFrame closeFrame = null;
             if (CurrentState == State.Connected || reason == CloseReason.ConnectionRefused)

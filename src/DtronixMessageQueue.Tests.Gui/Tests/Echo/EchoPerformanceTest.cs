@@ -56,12 +56,13 @@ namespace DtronixMessageQueue.Tests.Gui.Tests.Echo
         {
             var configClientConnections = ActualControl.ConfigClients;
             var configFrameSize = ActualControl.ConfigFrameSize;
+            var addressParts = TestController.ControllClient.Config.Address.Split(':');
 
             for (int i = 0; i < configClientConnections; i++)
             {
                 var client = new MqClient<EchoPerformanceTestSession, MqConfig>(new MqConfig
                 {
-                    Address = TestController.ControllClient.Config.Address + ":2121",
+                    Address = addressParts[0] + ":2121",
                     PingFrequency = 500
                 });
 

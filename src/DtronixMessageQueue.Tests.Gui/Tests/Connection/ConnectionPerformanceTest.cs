@@ -57,6 +57,7 @@ namespace DtronixMessageQueue.Tests.Gui.Tests.Connection
             var configClients = ActualControl.ConfigClients;
             var configPackageLength = ActualControl.ConfigBytesPerMessage;
             var configPeriod = ActualControl.ConfigMessagePeriod;
+            var addressParts = TestController.ControllClient.Config.Address.Split(':');
 
             Task.Run(() =>
             {
@@ -64,7 +65,7 @@ namespace DtronixMessageQueue.Tests.Gui.Tests.Connection
                 {
                     var client = new MqClient<ConnectionPerformanceTestSession, MqConfig>(new MqConfig
                     {
-                        Address = TestController.ControllClient.Config.Address + ":2121",
+                        Address = addressParts[0] + ":2121",
                         PingFrequency = 500
                     });
 
