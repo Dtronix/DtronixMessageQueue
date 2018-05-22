@@ -2,7 +2,6 @@
 using System.Collections.Generic;
 using System.Threading;
 using System.Threading.Tasks;
-using DtronixMessageQueue.TcpSocket;
 
 namespace DtronixMessageQueue.Tests.Gui.Tests.Echo
 {

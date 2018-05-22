@@ -1,5 +1,5 @@
 ﻿using System;
-using DtronixMessageQueue.TcpSocket;
+using DtronixMessageQueue.TlsSocket;
 
 namespace DtronixMessageQueue
 {
@@ -9,8 +9,8 @@ namespace DtronixMessageQueue
     /// <typeparam name="TSession">Session type for this connection.</typeparam>
     /// <typeparam name="TConfig">Configuration for this connection.</typeparam>
     public class SessionEventArgs<TSession, TConfig> : EventArgs
-        where TSession : TcpSocketSession<TSession, TConfig>, new()
-        where TConfig : TcpSocketConfig
+        where TSession : TlsSocketSession<TSession, TConfig>, new()
+        where TConfig : TlsSocketConfig
     {
         /// <summary>
         /// Connected session.

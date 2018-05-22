@@ -1,7 +1,6 @@
 ﻿using System;
 using System.Diagnostics;
 using System.Threading;
-using DtronixMessageQueue.TcpSocket;
 using DtronixMessageQueue.Tests.Rpc.Services.Server;
 using NUnit.Framework;
 

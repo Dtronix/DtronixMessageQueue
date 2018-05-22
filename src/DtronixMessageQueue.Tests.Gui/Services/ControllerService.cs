@@ -4,11 +4,11 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 using DtronixMessageQueue.Rpc;
-using DtronixMessageQueue.TcpSocket;
 using DtronixMessageQueue.Tests.Gui.Tests;
 using DtronixMessageQueue.Tests.Gui.Tests.Connection;
 using DtronixMessageQueue.Tests.Gui.Tests.Echo;
 using DtronixMessageQueue.Tests.Gui.Tests.MaxThroughput;
+using DtronixMessageQueue.TlsSocket;
 
 namespace DtronixMessageQueue.Tests.Gui.Services
 {
@@ -32,7 +32,7 @@ namespace DtronixMessageQueue.Tests.Gui.Services
 
         public void ClientReady()
         {
-            if (Session.SocketHandler.Mode == TcpSocketMode.Server && _server == null)
+            if (Session.SocketHandler.Mode == TlsSocketMode.Server && _server == null)
             {
                 _server = (RpcServer<ControllerSession, RpcConfig>) this.Session.SocketHandler;
             }

@@ -71,18 +71,18 @@
     <Compile Include="Rpc\RpcSession.cs" />
     <Compile Include="Rpc\SerializationCache.cs" />
     <Compile Include="Rpc\ServiceMethodCache.cs" />
-    <Compile Include="TcpSocket\BufferManager.cs" />
-    <Compile Include="TcpSocket\ISetupSocketSession.cs" />
+    <Compile Include="TlsSocket\BufferManager.cs" />
+    <Compile Include="TlsSocket\ISetupSocketSession.cs" />
     <Compile Include="SessionEventArgs.cs" />
     <Compile Include="SessionClosedEventArgs.cs" />
-    <Compile Include="TcpSocket\SocketAsyncEventArgsManager.cs" />
-    <Compile Include="TcpSocket\TcpSocketHandler.cs" />
-    <Compile Include="TcpSocket\TcpSocketClient.cs" />
+    <Compile Include="TlsSocket\SocketAsyncEventArgsManager.cs" />
+    <Compile Include="TlsSocket\TlsSocketHandler.cs" />
+    <Compile Include="TlsSocket\TlsSocketClient.cs" />
     <Compile Include="CloseReason.cs" />
-    <Compile Include="TcpSocket\TcpSocketConfig.cs" />
-    <Compile Include="TcpSocket\TcpSocketMode.cs" />
-    <Compile Include="TcpSocket\TcpSocketServer.cs" />
-    <Compile Include="TcpSocket\TcpSocketSession.cs" />
+    <Compile Include="TlsSocket\TlsSocketConfig.cs" />
+    <Compile Include="TlsSocket\TlsSocketMode.cs" />
+    <Compile Include="TlsSocket\TlsSocketServer.cs" />
+    <Compile Include="TlsSocket\TlsSocketSession.cs" />
     <Compile Include="Utilities.cs" />
     <Content Include="DtronixMessageQueue.nuspec">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>

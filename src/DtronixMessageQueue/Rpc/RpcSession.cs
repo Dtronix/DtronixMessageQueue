@@ -4,7 +4,7 @@ using System.Threading;
 using System.Threading.Tasks;
 using DtronixMessageQueue.Rpc.DataContract;
 using DtronixMessageQueue.Rpc.MessageHandlers;
-using DtronixMessageQueue.TcpSocket;
+using DtronixMessageQueue.TlsSocket;
 
 namespace DtronixMessageQueue.Rpc
 {
@@ -75,7 +75,7 @@ namespace DtronixMessageQueue.Rpc
             base.OnSetup();
 
             // Determine if this session is running on the server or client to retrieve the worker thread pool.
-            if (SocketHandler.Mode == TcpSocketMode.Server)
+            if (SocketHandler.Mode == TlsSocketMode.Server)
                 Server = (RpcServer<TSession, TConfig>) SocketHandler;
             else
                 Client = (RpcClient<TSession, TConfig>) SocketHandler;
@@ -112,7 +112,7 @@ namespace DtronixMessageQueue.Rpc
                     // RpcCommand:byte; RpcCommandType:byte; RpcServerInfoDataContract:byte[];
 
                     // Ensure that this command is running on the client.
-                    if (SocketHandler.Mode != TcpSocketMode.Client)
+                    if (SocketHandler.Mode != TlsSocketMode.Client)
                     {
                         Close(CloseReason.ProtocolError);
                         return;
@@ -194,7 +194,7 @@ namespace DtronixMessageQueue.Rpc
                     // RpcCommand:byte; RpcCommandType:byte; AuthData:byte[];
 
                     // If this is not run on the server, quit.
-                    if (SocketHandler.Mode != TcpSocketMode.Server)
+                    if (SocketHandler.Mode != TlsSocketMode.Server)
                     {
                         Close(CloseReason.ProtocolError);
                         return;
@@ -246,7 +246,7 @@ namespace DtronixMessageQueue.Rpc
                     _authTimeoutCancel.Cancel();
 
                     // Ensure that this command is running on the client.
-                    if (SocketHandler.Mode != TcpSocketMode.Client)
+                    if (SocketHandler.Mode != TlsSocketMode.Client)
                     {
                         Close(CloseReason.ProtocolError);
                         return;
@@ -285,7 +285,7 @@ namespace DtronixMessageQueue.Rpc
         protected override void OnConnected()
         {
             // If this is a new session on the server, send the welcome message.
-            if (SocketHandler.Mode == TcpSocketMode.Server)
+            if (SocketHandler.Mode == TlsSocketMode.Server)
             {
                 Server.ServerInfo.RequireAuthentication = Config.RequireAuthentication;
 
@@ -306,7 +306,7 @@ namespace DtronixMessageQueue.Rpc
             base.OnConnected();
 
             // If the server does not require authentication, alert the server session that it is ready.
-            if (SocketHandler.Mode == TcpSocketMode.Server && Config.RequireAuthentication == false)
+            if (SocketHandler.Mode == TlsSocketMode.Server && Config.RequireAuthentication == false)
             {
                 Authenticated = true;
                 Ready?.Invoke(this, new SessionEventArgs<TSession, TConfig>((TSession) this));

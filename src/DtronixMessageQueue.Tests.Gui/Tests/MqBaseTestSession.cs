@@ -2,7 +2,7 @@
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.Threading;
-using DtronixMessageQueue.TcpSocket;
+using DtronixMessageQueue.TlsSocket;
 
 namespace DtronixMessageQueue.Tests.Gui.Tests
 {
@@ -45,7 +45,7 @@ namespace DtronixMessageQueue.Tests.Gui.Tests
             Reader = new MqMessageReader();
             Writer = new MqMessageWriter(Config);
 
-            IsServer = SocketHandler.Mode == TcpSocketMode.Server;
+            IsServer = SocketHandler.Mode == TlsSocketMode.Server;
         }
 
 

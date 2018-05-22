@@ -1,7 +1,7 @@
 ﻿using System.Net.Sockets;
 using System.Threading;
 
-namespace DtronixMessageQueue.TcpSocket
+namespace DtronixMessageQueue.TlsSocket
 {
     /// <summary>
     /// Represents a collection of reusable SocketAsyncEventArgs objects.  

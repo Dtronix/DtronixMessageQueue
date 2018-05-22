@@ -1,9 +1,9 @@
-﻿namespace DtronixMessageQueue.TcpSocket
+﻿namespace DtronixMessageQueue.TlsSocket
 {
     /// <summary>
     /// Configurations for the server/client.
     /// </summary>
-    public class TcpSocketConfig
+    public class TlsSocketConfig
     {
         /// <summary>
         /// Maximum number of connections allowed.  Only used by the server.

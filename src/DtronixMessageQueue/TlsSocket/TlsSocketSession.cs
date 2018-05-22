@@ -3,16 +3,16 @@ using System.Net.Sockets;
 using System.Threading;
 using DtronixMessageQueue.Rpc;
 
-namespace DtronixMessageQueue.TcpSocket
+namespace DtronixMessageQueue.TlsSocket
 {
     /// <summary>
     /// Base socket session to be sub-classes by the implementer.
     /// </summary>
     /// <typeparam name="TConfig">Configuration for this connection.</typeparam>
     /// <typeparam name="TSession">Session for this connection.</typeparam>
-    public abstract class TcpSocketSession<TSession, TConfig> : IDisposable, ISetupSocketSession
-        where TSession : TcpSocketSession<TSession, TConfig>, new()
-        where TConfig : TcpSocketConfig
+    public abstract class TlsSocketSession<TSession, TConfig> : IDisposable, ISetupSocketSession
+        where TSession : TlsSocketSession<TSession, TConfig>, new()
+        where TConfig : TlsSocketConfig
     {
         /// <summary>
         /// Current state of the socket.
@@ -23,6 +23,12 @@ namespace DtronixMessageQueue.TcpSocket
             /// State has not been set.
             /// </summary>
             Unknown,
+
+            ClientHello,
+
+            ServerHello,
+
+            ServerHelloDone,
 
             /// <summary>
             /// Session has connected to remote session.
@@ -75,7 +81,7 @@ namespace DtronixMessageQueue.TcpSocket
         /// <summary>
         /// Base socket for this session.
         /// </summary>
-        public TcpSocketHandler<TSession, TConfig> SocketHandler { get; private set; }
+        public TlsSocketHandler<TSession, TConfig> SocketHandler { get; private set; }
 
         /// <summary>
         /// Processor to handle all inbound messages.
@@ -134,7 +140,7 @@ namespace DtronixMessageQueue.TcpSocket
         /// <summary>
         /// Creates a new socket session with a new Id.
         /// </summary>
-        protected TcpSocketSession()
+        protected TlsSocketSession()
         {
             Id = Guid.NewGuid();
             CurrentState = State.Closed;
@@ -146,14 +152,14 @@ namespace DtronixMessageQueue.TcpSocket
         /// <param name="sessionSocket">Socket this session is to use.</param>
         /// <param name="socketArgsManager">Argument pool for this session to use.  Pulls two asyncevents for reading and writing and returns them at the end of this socket's life.</param>
         /// <param name="sessionConfig">Socket configurations this session is to use.</param>
-        /// <param name="tcpSocketHandler">Handler base which is handling this session.</param>
+        /// <param name="tlsSocketHandler">Handler base which is handling this session.</param>
         /// <param name="inboxProcessor">Processor which handles all inbox data.</param>
         /// /// <param name="outboxProcessor">Processor which handles all outbox data.</param>
         /// <param name="serviceMethodCache">Cache for commonly called methods used throughout the session.</param>
         public static TSession Create(System.Net.Sockets.Socket sessionSocket, 
             SocketAsyncEventArgsManager socketArgsManager,
             TConfig sessionConfig, 
-            TcpSocketHandler<TSession, TConfig> tcpSocketHandler, 
+            TlsSocketHandler<TSession, TConfig> tlsSocketHandler, 
             ActionProcessor<Guid> inboxProcessor,
             ActionProcessor<Guid> outboxProcessor,
             ServiceMethodCache serviceMethodCache)
@@ -164,7 +170,7 @@ namespace DtronixMessageQueue.TcpSocket
                 _argsPool = socketArgsManager,
                 _socket = sessionSocket,
                 _writeSemaphore = new SemaphoreSlim(1, 1),
-                SocketHandler = tcpSocketHandler,
+                SocketHandler = tlsSocketHandler,
                 _sendArgs = socketArgsManager.Create(),
                 _receiveArgs = socketArgsManager.Create(),
                 InboxProcessor = inboxProcessor,
@@ -205,6 +211,8 @@ namespace DtronixMessageQueue.TcpSocket
 
             // Start receiving data.
             _socket.ReceiveAsync(_receiveArgs);
+
+            //
             OnConnected();
         }
 

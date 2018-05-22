@@ -1,6 +1,5 @@
 ﻿using System;
 using System.Threading.Tasks;
-using DtronixMessageQueue.TcpSocket;
 
 namespace DtronixMessageQueue.Tests.Gui.Tests.MaxThroughput
 {

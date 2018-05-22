@@ -1,6 +1,5 @@
 ﻿using System;
 using System.Threading;
-using DtronixMessageQueue.TcpSocket;
 using NUnit.Framework;
 
 namespace DtronixMessageQueue.Tests.Mq

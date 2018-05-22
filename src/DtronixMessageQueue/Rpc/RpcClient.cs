@@ -1,6 +1,5 @@
 ﻿using System;
 using DtronixMessageQueue.Rpc.DataContract;
-using DtronixMessageQueue.TcpSocket;
 
 namespace DtronixMessageQueue.Rpc
 {

@@ -1,4 +1,4 @@
-﻿namespace DtronixMessageQueue.TcpSocket
+﻿namespace DtronixMessageQueue.TlsSocket
 {
     /// <summary>
     /// Class to implement on classes which have setup events.

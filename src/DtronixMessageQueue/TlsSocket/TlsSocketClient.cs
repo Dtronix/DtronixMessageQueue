@@ -4,16 +4,16 @@ using System.Net.Sockets;
 using System.Threading;
 using System.Threading.Tasks;
 
-namespace DtronixMessageQueue.TcpSocket
+namespace DtronixMessageQueue.TlsSocket
 {
     /// <summary>
     /// Base functionality for all client connections to a remote server.
     /// </summary>
     /// <typeparam name="TSession">Session type for this connection.</typeparam>
     /// <typeparam name="TConfig">Configuration for this connection.</typeparam>
-    public class TcpSocketClient<TSession, TConfig> : TcpSocketHandler<TSession, TConfig>
-        where TSession : TcpSocketSession<TSession, TConfig>, new()
-        where TConfig : TcpSocketConfig
+    public class TlsSocketClient<TSession, TConfig> : TlsSocketHandler<TSession, TConfig>
+        where TSession : TlsSocketSession<TSession, TConfig>, new()
+        where TConfig : TlsSocketConfig
     {
         /// <summary>
         /// True if the client is connected to a server.
@@ -35,7 +35,7 @@ namespace DtronixMessageQueue.TcpSocket
         /// Creates a socket client with the specified configurations.
         /// </summary>
         /// <param name="config">Configurations to use.</param>
-        public TcpSocketClient(TConfig config) : base(config, TcpSocketMode.Client)
+        public TlsSocketClient(TConfig config) : base(config, TlsSocketMode.Client)
         {
             // Override the number of processors to one for each sending queue and receiving queue.
             config.ProcessorThreads = 1;
@@ -56,7 +56,7 @@ namespace DtronixMessageQueue.TcpSocket
         /// <param name="endPoint">Endpoint to connect to.</param>
         public void Connect(IPEndPoint endPoint)
         {
-            if (MainSocket != null && Session?.CurrentState != TcpSocketSession<TSession, TConfig>.State.Closed)
+            if (MainSocket != null && Session?.CurrentState != TlsSocketSession<TSession, TConfig>.State.Closed)
             {
                 throw new InvalidOperationException("Client is in the process of connecting.");
             }

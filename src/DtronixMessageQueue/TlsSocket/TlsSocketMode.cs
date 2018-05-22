@@ -1,9 +1,9 @@
-﻿namespace DtronixMessageQueue.TcpSocket
+﻿namespace DtronixMessageQueue.TlsSocket
 {
     /// <summary>
     /// Mode that the current Socket base is in.
     /// </summary>
-    public enum TcpSocketMode
+    public enum TlsSocketMode
     {
         /// <summary>
         /// Socket base is running in server mode.

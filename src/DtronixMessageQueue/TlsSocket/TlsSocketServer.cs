@@ -1,17 +1,16 @@
 ﻿using System;
-using System.Net;
 using System.Net.Sockets;
 
-namespace DtronixMessageQueue.TcpSocket
+namespace DtronixMessageQueue.TlsSocket
 {
     /// <summary>
     /// Base functionality for handling connection requests.
     /// </summary>
     /// <typeparam name="TSession">Session type for this connection.</typeparam>
     /// <typeparam name="TConfig">Configuration for this connection.</typeparam>
-    public class TcpSocketServer<TSession, TConfig> : TcpSocketHandler<TSession, TConfig>
-        where TSession : TcpSocketSession<TSession, TConfig>, new()
-        where TConfig : TcpSocketConfig
+    public class TlsSocketServer<TSession, TConfig> : TlsSocketHandler<TSession, TConfig>
+        where TSession : TlsSocketSession<TSession, TConfig>, new()
+        where TConfig : TlsSocketConfig
     {
         /// <summary>
         /// Set to the max number of connections allowed for the server.
@@ -48,7 +47,7 @@ namespace DtronixMessageQueue.TcpSocket
         /// Creates a socket server with the specified configurations.
         /// </summary>
         /// <param name="config">Configurations for this socket.</param>
-        public TcpSocketServer(TConfig config) : base(config, TcpSocketMode.Server)
+        public TlsSocketServer(TConfig config) : base(config, TlsSocketMode.Server)
         {
         }
 
