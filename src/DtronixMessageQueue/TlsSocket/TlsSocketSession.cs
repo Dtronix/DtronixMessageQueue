@@ -24,12 +24,6 @@ namespace DtronixMessageQueue.TlsSocket
             /// </summary>
             Unknown,
 
-            ClientHello,
-
-            ServerHello,
-
-            ServerHelloDone,
-
             /// <summary>
             /// Session has connected to remote session.
             /// </summary>
@@ -149,33 +143,21 @@ namespace DtronixMessageQueue.TlsSocket
         /// <summary>
         /// Sets up this socket with the specified configurations.
         /// </summary>
-        /// <param name="sessionSocket">Socket this session is to use.</param>
-        /// <param name="socketArgsManager">Argument pool for this session to use.  Pulls two asyncevents for reading and writing and returns them at the end of this socket's life.</param>
-        /// <param name="sessionConfig">Socket configurations this session is to use.</param>
-        /// <param name="tlsSocketHandler">Handler base which is handling this session.</param>
-        /// <param name="inboxProcessor">Processor which handles all inbox data.</param>
-        /// /// <param name="outboxProcessor">Processor which handles all outbox data.</param>
-        /// <param name="serviceMethodCache">Cache for commonly called methods used throughout the session.</param>
-        public static TSession Create(System.Net.Sockets.Socket sessionSocket, 
-            SocketAsyncEventArgsManager socketArgsManager,
-            TConfig sessionConfig, 
-            TlsSocketHandler<TSession, TConfig> tlsSocketHandler, 
-            ActionProcessor<Guid> inboxProcessor,
-            ActionProcessor<Guid> outboxProcessor,
-            ServiceMethodCache serviceMethodCache)
+        /// <param name="args">Args to initialize the socket with.</param>
+        public static TSession Create(TlsSocketSessionCreateArguments<TSession, TConfig> args)
         {
             var session = new TSession
             {
-                _config = sessionConfig,
-                _argsPool = socketArgsManager,
-                _socket = sessionSocket,
+                _config = args.SessionConfig,
+                _argsPool = args.SocketArgsManager,
+                _socket = args.SessionSocket,
                 _writeSemaphore = new SemaphoreSlim(1, 1),
-                SocketHandler = tlsSocketHandler,
-                _sendArgs = socketArgsManager.Create(),
-                _receiveArgs = socketArgsManager.Create(),
-                InboxProcessor = inboxProcessor,
-                OutboxProcessor = outboxProcessor,
-                ServiceMethodCache = serviceMethodCache
+                SocketHandler = args.TlsSocketHandler,
+                _sendArgs = args.SocketArgsManager.Create(),
+                _receiveArgs = args.SocketArgsManager.Create(),
+                InboxProcessor = args.InboxProcessor,
+                OutboxProcessor = args.OutboxProcessor,
+                ServiceMethodCache = args.ServiceMethodCache
             };
 
             session._sendArgs.Completed += session.IoCompleted;
@@ -212,9 +194,13 @@ namespace DtronixMessageQueue.TlsSocket
             // Start receiving data.
             _socket.ReceiveAsync(_receiveArgs);
 
-            //
+            
+
+            // Session is ready for use by the overloaded classes.
             OnConnected();
         }
+
+
 
         /// <summary>
         /// Called after the initial setup has occurred on the session.

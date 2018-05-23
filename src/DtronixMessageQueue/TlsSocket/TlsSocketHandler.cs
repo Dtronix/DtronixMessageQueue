@@ -210,13 +210,17 @@ namespace DtronixMessageQueue.TlsSocket
         /// <returns>New session instance.</returns>
         protected virtual TSession CreateSession(System.Net.Sockets.Socket socket)
         {
-            var session = TlsSocketSession<TSession, TConfig>.Create(socket, 
-                AsyncManager, 
-                Config, 
-                this, 
-                InboxProcessor,
-                OutboxProcessor,
-                ServiceMethodCache);
+            var session = TlsSocketSession<TSession, TConfig>.Create(
+                new TlsSocketSessionCreateArguments<TSession, TConfig>
+                {
+                    SessionSocket = socket,
+                    SocketArgsManager = AsyncManager,
+                    SessionConfig = Config,
+                    TlsSocketHandler = this,
+                    InboxProcessor = InboxProcessor,
+                    OutboxProcessor = OutboxProcessor,
+                    ServiceMethodCache = ServiceMethodCache
+                });
 
             SessionSetup?.Invoke(this, new SessionEventArgs<TSession, TConfig>(session));
             session.Closed += (sender, args) => OnClose(session, args.CloseReason);

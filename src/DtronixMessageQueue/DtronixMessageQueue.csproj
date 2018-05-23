@@ -83,6 +83,7 @@
     <Compile Include="TlsSocket\TlsSocketMode.cs" />
     <Compile Include="TlsSocket\TlsSocketServer.cs" />
     <Compile Include="TlsSocket\TlsSocketSession.cs" />
+    <Compile Include="TlsSocket\TlsSocketSessionCreateArguments.cs" />
     <Compile Include="Utilities.cs" />
     <Content Include="DtronixMessageQueue.nuspec">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>

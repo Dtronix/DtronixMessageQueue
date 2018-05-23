@@ -49,5 +49,10 @@
         /// 0 disables the automatic disconnection functionality.
         /// </summary>
         public int PingTimeout { get; set; } = 60000;
+
+        /// <summary>
+        /// 
+        /// </summary>
+        public bool EnableTls { get; set; } = true;
     }
 }
