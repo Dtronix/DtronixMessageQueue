@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Net.Sockets;
+using System.Security.Cryptography;
 using System.Threading;
 using DtronixMessageQueue.Rpc;
 
@@ -122,6 +123,11 @@ namespace DtronixMessageQueue.TlsSocket
         public ServiceMethodCache ServiceMethodCache;
 
         /// <summary>
+        /// Contains the encryption and description methods.
+        /// </summary>
+        private Aes Encryption;
+
+        /// <summary>
         /// This event fires when a connection has been established.
         /// </summary>
         public event EventHandler<SessionEventArgs<TSession, TConfig>> Connected;
@@ -130,6 +136,7 @@ namespace DtronixMessageQueue.TlsSocket
         /// This event fires when a connection has been shutdown.
         /// </summary>
         public event EventHandler<SessionClosedEventArgs<TSession, TConfig>> Closed;
+
 
         /// <summary>
         /// Creates a new socket session with a new Id.
@@ -159,7 +166,6 @@ namespace DtronixMessageQueue.TlsSocket
                 OutboxProcessor = args.OutboxProcessor,
                 ServiceMethodCache = args.ServiceMethodCache
             };
-
             session._sendArgs.Completed += session.IoCompleted;
             session._receiveArgs.Completed += session.IoCompleted;
 
@@ -181,6 +187,32 @@ namespace DtronixMessageQueue.TlsSocket
         }
 
         /// <summary>
+        /// Setup all the required security & encryption.
+        /// </summary>
+        /// <param name="rsa">
+        /// Rsa class to use during session secup.
+        /// Null if this is a on the client side.
+        /// </param>
+        void ISetupSocketSession.SecureSession(RSACng rsa)
+        {
+            if (CurrentState != State.Closed)
+                return;
+
+            if (rsa != null)
+            {
+                Encryption = new AesCryptoServiceProvider();
+
+                // Server side.
+                Encryption.GenerateKey();
+                Encryption.GenerateIV();
+
+                var rsaParams = rsa.ExportParameters(false);
+            }
+
+
+        }
+
+        /// <summary>
         /// Start the session's receive events.
         /// </summary>
         void ISetupSocketSession.Start()
@@ -193,8 +225,6 @@ namespace DtronixMessageQueue.TlsSocket
 
             // Start receiving data.
             _socket.ReceiveAsync(_receiveArgs);
-
-            
 
             // Session is ready for use by the overloaded classes.
             OnConnected();
@@ -392,6 +422,8 @@ namespace DtronixMessageQueue.TlsSocket
 
             InboxProcessor.Deregister(Id);
             OutboxProcessor.Deregister(Id);
+
+            Encryption.Dispose();
 
             CurrentState = State.Closed;
 

@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
+using System.Security.Cryptography;
 using System.Threading;
 using DtronixMessageQueue.Rpc;
 
@@ -75,6 +76,17 @@ namespace DtronixMessageQueue.TlsSocket
         /// </summary>
         protected ActionProcessor<Guid> InboxProcessor;
 
+
+        /// <summary>
+        /// Hold the RSA class for authentication during session setup.
+        /// </summary>
+        protected RSACng Rsa;
+
+        /// <summary>
+        /// Key used for encryption of data to the server side.
+        /// </summary>
+        protected byte[] RsaPublicKey;
+
         /// <summary>
         /// Dictionary of all connected clients.
         /// </summary>
@@ -128,6 +140,9 @@ namespace DtronixMessageQueue.TlsSocket
                     ThreadName = $"{modeLower}-inbox",
                     StartThreads = processorThreads
                 });
+
+                Rsa = new RSACng(4096);
+                RsaPublicKey = Rsa.ExportParameters(false).Modulus;
             }
 
             OutboxProcessor.Start();

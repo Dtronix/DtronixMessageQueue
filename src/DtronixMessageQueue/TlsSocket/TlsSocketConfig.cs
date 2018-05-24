@@ -51,8 +51,8 @@
         public int PingTimeout { get; set; } = 60000;
 
         /// <summary>
-        /// 
+        /// Path to the certificate file.
         /// </summary>
-        public bool EnableTls { get; set; } = true;
+        public string Certificate { get; set; } = "selfsigned.crt";
     }
 }

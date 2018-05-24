@@ -159,6 +159,10 @@ namespace DtronixMessageQueue.TlsSocket
                 // Add this session to the list of connected sessions.
                 ConnectedSessions.TryAdd(session.Id, session);
 
+
+                // Secure the channel via Rsa & AES.
+                ((ISetupSocketSession)session).SecureSession(Rsa);
+
                 // Start the session.
                 ((ISetupSocketSession)session).Start();
 

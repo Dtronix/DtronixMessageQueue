@@ -1,0 +1,2 @@
+openssl req -x509 -newkey rsa:4096 -sha256 -nodes -keyout dmq-sample.key -out dmq-sample.crt -subj "/CN=message-queue.dtronix.com" -days 3650
+openssl pkcs12 -export -in dmq-sample.crt -inkey dmq-sample.key -out dmq-sample.p12
