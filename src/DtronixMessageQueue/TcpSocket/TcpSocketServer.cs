@@ -161,15 +161,13 @@ namespace DtronixMessageQueue.TcpSocket
                 ConnectedSessions.TryAdd(session.Id, session);
 
                 // Start the session.
-                ((ISetupSocketSession)session).Start();
+                ((ISetupSocketSession)session).SecureSession(Rsa);
 
-                // Invoke the events.
-                OnConnect(session);
+                session.Connected += (sender, args) => OnConnect(session);
             }
 
             // Accept the next connection request
             StartAccept(e);
-            
         }
 
         /// <summary>

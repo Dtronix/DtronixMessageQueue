@@ -84,6 +84,7 @@
     <Compile Include="TcpSocket\TcpSocketMode.cs" />
     <Compile Include="TcpSocket\TcpSocketServer.cs" />
     <Compile Include="TcpSocket\TcpSocketSession.cs" />
+    <Compile Include="TcpSocket\TcpSocketSessionCreateArguments.cs" />
     <Compile Include="Utilities.cs" />
     <Content Include="DtronixMessageQueue.nuspec">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>

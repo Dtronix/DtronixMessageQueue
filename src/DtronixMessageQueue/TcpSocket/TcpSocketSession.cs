@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Net.Sockets;
+using System.Security.Cryptography;
 using System.Threading;
 using DtronixMessageQueue.Rpc;
 
@@ -25,6 +26,11 @@ namespace DtronixMessageQueue.TcpSocket
             Unknown,
 
             /// <summary>
+            ///  Session has initiated a connection request and is negotiating a secured channel of communication.
+            /// </summary>
+            Securing,
+
+            /// <summary>
             /// Session has connected to remote session.
             /// </summary>
             Connected,
@@ -37,8 +43,11 @@ namespace DtronixMessageQueue.TcpSocket
             /// <summary>
             /// Socket is in an error state.
             /// </summary>
-            Error
+            Error,
+
         }
+
+        public const byte ProtocolVersion = 1;
 
         private TConfig _config;
 
@@ -76,6 +85,11 @@ namespace DtronixMessageQueue.TcpSocket
         /// Base socket for this session.
         /// </summary>
         public TcpSocketHandler<TSession, TConfig> SocketHandler { get; private set; }
+
+        /// <summary>
+        /// Contains the version number of the protocol used by the other end of the connection.
+        /// </summary>
+        public byte ConnectionProtocolVersion { get; private set; }
 
         /// <summary>
         /// Processor to handle all inbound messages.
@@ -131,6 +145,23 @@ namespace DtronixMessageQueue.TcpSocket
         /// </summary>
         public event EventHandler<SessionClosedEventArgs<TSession, TConfig>> Closed;
 
+        private MemoryQueueStream _negotiationStream;
+
+        private MemoryQueueStream _receiveBlocks;
+        private MemoryQueueStream _sendBlocks;
+
+        private RSACng _rsa;
+
+        /// <summary>
+        /// Contains the encryption and description methods.
+        /// </summary>
+        private Aes _aes;
+
+        private ICryptoTransform _decryptor;
+
+        private ICryptoTransform _encryptor;
+
+
         /// <summary>
         /// Creates a new socket session with a new Id.
         /// </summary>
@@ -138,38 +169,29 @@ namespace DtronixMessageQueue.TcpSocket
         {
             Id = Guid.NewGuid();
             CurrentState = State.Closed;
+            _negotiationStream = new MemoryQueueStream();
+            _receiveBlocks = new MemoryQueueStream();
+            _sendBlocks = new MemoryQueueStream();
         }
 
         /// <summary>
         /// Sets up this socket with the specified configurations.
         /// </summary>
-        /// <param name="sessionSocket">Socket this session is to use.</param>
-        /// <param name="socketArgsManager">Argument pool for this session to use.  Pulls two asyncevents for reading and writing and returns them at the end of this socket's life.</param>
-        /// <param name="sessionConfig">Socket configurations this session is to use.</param>
-        /// <param name="tcpSocketHandler">Handler base which is handling this session.</param>
-        /// <param name="inboxProcessor">Processor which handles all inbox data.</param>
-        /// /// <param name="outboxProcessor">Processor which handles all outbox data.</param>
-        /// <param name="serviceMethodCache">Cache for commonly called methods used throughout the session.</param>
-        public static TSession Create(System.Net.Sockets.Socket sessionSocket, 
-            SocketAsyncEventArgsManager socketArgsManager,
-            TConfig sessionConfig, 
-            TcpSocketHandler<TSession, TConfig> tcpSocketHandler, 
-            ActionProcessor<Guid> inboxProcessor,
-            ActionProcessor<Guid> outboxProcessor,
-            ServiceMethodCache serviceMethodCache)
+        /// <param name="args">Args to initialize the socket with.</param>
+        public static TSession Create(TlsSocketSessionCreateArguments<TSession, TConfig> args)
         {
             var session = new TSession
             {
-                _config = sessionConfig,
-                _argsPool = socketArgsManager,
-                _socket = sessionSocket,
+                _config = args.SessionConfig,
+                _argsPool = args.SocketArgsManager,
+                _socket = args.SessionSocket,
                 _writeSemaphore = new SemaphoreSlim(1, 1),
-                SocketHandler = tcpSocketHandler,
-                _sendArgs = socketArgsManager.Create(),
-                _receiveArgs = socketArgsManager.Create(),
-                InboxProcessor = inboxProcessor,
-                OutboxProcessor = outboxProcessor,
-                ServiceMethodCache = serviceMethodCache
+                SocketHandler = args.TlsSocketHandler,
+                _sendArgs = args.SocketArgsManager.Create(),
+                _receiveArgs = args.SocketArgsManager.Create(),
+                InboxProcessor = args.InboxProcessor,
+                OutboxProcessor = args.OutboxProcessor,
+                ServiceMethodCache = args.ServiceMethodCache
             };
 
             session._sendArgs.Completed += session.IoCompleted;
@@ -195,16 +217,145 @@ namespace DtronixMessageQueue.TcpSocket
         /// <summary>
         /// Start the session's receive events.
         /// </summary>
-        void ISetupSocketSession.Start()
+        void ISetupSocketSession.SecureSession(RSACng rsa)
         {
             if (CurrentState != State.Closed)
                 return;
 
-            CurrentState = State.Connected;
+            _rsa = rsa;
+            CurrentState = State.Securing;
             ConnectedTime = DateTime.UtcNow;
 
-            // Start receiving data.
+            // Start receiving data for the secured channel.
             _socket.ReceiveAsync(_receiveArgs);
+
+            // Send the protocol version number along with the public key to the connected client.
+            if (SocketHandler.Mode == TcpSocketMode.Server)
+            {
+                var versionPublicKey = new byte[513];
+                versionPublicKey[0] = ProtocolVersion;
+                Buffer.BlockCopy(SocketHandler.RsaPublicKey, 0, versionPublicKey, 1, 512);
+
+                Send(versionPublicKey, 0, versionPublicKey.Length);
+            }
+            
+        }
+
+
+        private void SecureConnectionReceive(byte[] buffer)
+        {
+            if (CurrentState == State.Closed)
+                return;
+
+            _negotiationStream.Write(buffer);
+
+            if (SocketHandler.Mode == TcpSocketMode.Client)
+            {
+                // Set the connection version number.
+                if (ConnectionProtocolVersion == 0)
+                {
+                    var version = new byte[1];
+                    _negotiationStream.Read(version, 0, 1);
+                    ConnectionProtocolVersion = version[0];
+                }
+
+                // 4096 bits for the public key
+                if (ConnectionProtocolVersion > 0
+                    && SocketHandler.RsaPublicKey == null
+                    && _negotiationStream.Length >= 512)
+                {
+                    SocketHandler.RsaPublicKey = new byte[512];
+                    _negotiationStream.Read(SocketHandler.RsaPublicKey, 0, 512);
+
+                    _rsa = new RSACng();
+
+
+                    _rsa.ImportParameters(new RSAParameters
+                    {
+                        Modulus = SocketHandler.RsaPublicKey,
+                        Exponent = new byte[] {1, 0, 1}
+                    });
+
+                    // Setup the 256 AES encryption
+                    _aes = new AesCryptoServiceProvider
+                    {
+                        KeySize = 256,
+                        Mode = CipherMode.CBC,
+                        Padding = PaddingMode.PKCS7
+                    };
+
+                    // Server side.
+                    _aes.GenerateKey();
+                    _aes.GenerateIV();
+
+                    var ivKey = new byte[48];
+
+                    // Copy the arrays into the a structure to be read by the server.
+                    Buffer.BlockCopy(_aes.IV, 0, ivKey, 0, 16);
+                    Buffer.BlockCopy(_aes.Key, 0, ivKey, 16, 32);
+
+                    var rsaIvKey = _rsa.Encrypt(ivKey, RSAEncryptionPadding.OaepSHA512);
+
+                    _rsa.Dispose();
+                    _rsa = null;
+
+                    // Send the encryption key.
+                    Send(rsaIvKey, 0, rsaIvKey.Length);
+
+                    SecureConnectionComplete();
+                }
+            }
+            else // Server
+            {
+
+                if (_aes == null
+                    && _negotiationStream.Length >= 512)
+                {
+                    var rsaIvKey = new byte[512];
+                    _negotiationStream.Read(rsaIvKey, 0, rsaIvKey.Length);
+                    var ivKey = _rsa.Decrypt(rsaIvKey, RSAEncryptionPadding.OaepSHA512);
+
+                    var iv = new byte[16];
+                    var key = new byte[32];
+
+                    Buffer.BlockCopy(ivKey, 0, iv, 0, 16);
+                    Buffer.BlockCopy(ivKey, 16, key, 0, 32);
+
+                    // Setup the 256 AES encryption
+                    _aes = new AesCryptoServiceProvider
+                    {
+                        KeySize = 256,
+                        Mode = CipherMode.CBC,
+                        Padding = PaddingMode.PKCS7,
+                        Key = key,
+                        IV = iv
+                    };
+
+                    SecureConnectionComplete();
+                }
+            }
+        }
+
+        private void SecureConnectionComplete()
+        {
+            // If there is left over data in the stream, send it on to the 
+            if (_negotiationStream.Length > 0)
+            {
+                var excessBuffer = new byte[_negotiationStream.Length];
+                _negotiationStream.Read(excessBuffer, 0, excessBuffer.Length);
+
+                HandleIncomingBytes(excessBuffer);
+            }
+
+            // Set the encryptor and decryptor.
+            _decryptor = _aes.CreateDecryptor();
+            _encryptor = _aes.CreateEncryptor();
+
+            _negotiationStream.Close();
+            _negotiationStream = null;
+
+            // Set the state to connected.
+            CurrentState = State.Connected;
             OnConnected();
         }
 
@@ -267,7 +418,7 @@ namespace DtronixMessageQueue.TcpSocket
         }
 
         /// <summary>
-        /// Sends raw bytes to the socket.  Blocks until data is sent.
+        /// Sends raw bytes to the socket.  Blocks until data is sent to the underlying system to send.
         /// </summary>
         /// <param name="buffer">Buffer bytes to send.</param>
         /// <param name="offset">Offset in the buffer.</param>
@@ -276,26 +427,57 @@ namespace DtronixMessageQueue.TcpSocket
         {
             if (Socket == null || Socket.Connected == false)
                 return;
+            bool multiWrite = false;
 
-            _writeSemaphore.Wait(-1);
-
-            // Copy the bytes to the block buffer
-            Buffer.BlockCopy(buffer, offset, _sendArgs.Buffer, _sendArgs.Offset, length);
-
-            // Update the buffer length.
-            _sendArgs.SetBuffer(_sendArgs.Offset, length);
-
-            try
+            do
             {
-                if (Socket.SendAsync(_sendArgs) == false)
+                _writeSemaphore.Wait(-1);
+
+                if (_encryptor != null)
                 {
-                    IoCompleted(this, _sendArgs);
+                    if (!multiWrite)
+                        _sendBlocks.Write(buffer, offset, length);
+
+                    int transformBlockLength = Math.Max(Config.SendAndReceiveBufferSize, (int) _sendBlocks.Length) /
+                                               16 * 16;
+
+                    var rawBuffer = new byte[transformBlockLength];
+
+                    _sendBlocks.Read(rawBuffer, 0, rawBuffer.Length);
+
+                    length = _encryptor.TransformBlock(rawBuffer, offset, rawBuffer.Length, _sendArgs.Buffer,
+                        _sendArgs.Offset);
+
+                    /*
+                    if (transformed < length)
+                    {
+                        var finalBuffer = _encryptor.TransformFinalBlock(buffer, offset + transformBlockLength, excess);
+                        Buffer.BlockCopy(finalBuffer, 0, _sendArgs.Buffer, _sendArgs.Offset + transformed,
+                            finalBuffer.Length);
+
+                        // Update to the correct legnth.
+                        length = transformed + finalBuffer.Length;
+                    }*/
                 }
-            }
-            catch (ObjectDisposedException)
-            {
-                Close(CloseReason.SocketError);
-            }
+                else
+                    Buffer.BlockCopy(buffer, offset, _sendArgs.Buffer, _sendArgs.Offset, length);
+
+                // Update the buffer length.
+                _sendArgs.SetBuffer(_sendArgs.Offset, length);
+
+                try
+                {
+                    if (Socket.SendAsync(_sendArgs) == false)
+                    {
+                        IoCompleted(this, _sendArgs);
+                    }
+                }
+                catch (ObjectDisposedException)
+                {
+                    Close(CloseReason.SocketError);
+                }
+                multiWrite = true;
+            } while (_sendBlocks.Length >= 16);
         }
 
 
@@ -313,6 +495,7 @@ namespace DtronixMessageQueue.TcpSocket
             _writeSemaphore.Release(1);
         }
 
+
         /// <summary>
         /// This method is invoked when an asynchronous receive operation completes. 
         /// If the remote host closed the connection, then the socket is closed.
@@ -322,12 +505,13 @@ namespace DtronixMessageQueue.TcpSocket
         {
             if (CurrentState == State.Closed)
                 return;
-            
+
             if (e.BytesTransferred == 0)
             {
                 HandleIncomingBytes(null);
                 return;
             }
+
             if (e.BytesTransferred > 0 && e.SocketError == SocketError.Success)
             {
                 // Update the last time this session was active to prevent timeout.
@@ -335,10 +519,25 @@ namespace DtronixMessageQueue.TcpSocket
 
                 // Create a copy of these bytes.
                 var buffer = new byte[e.BytesTransferred];
-
                 Buffer.BlockCopy(e.Buffer, e.Offset, buffer, 0, e.BytesTransferred);
 
-                HandleIncomingBytes(buffer);
+                if (_decryptor != null)
+                {
+                    _receiveBlocks.Write(buffer);
+
+                    // Read out exactly the amount required.
+                    int transformBlockLength = (int)_receiveBlocks.Length / 16 * 16;
+                    var encryptedBytes = new byte[transformBlockLength];
+                    var decryptedBytes = new byte[transformBlockLength];
+                    _receiveBlocks.Read(encryptedBytes, 0, encryptedBytes.Length);
+
+                    var transformed = _decryptor.TransformBlock(encryptedBytes, 0, transformBlockLength, decryptedBytes, 0);
+                }
+
+                if (CurrentState == State.Securing)
+                    SecureConnectionReceive(buffer);
+                else
+                    HandleIncomingBytes(buffer);
 
                 try
                 {

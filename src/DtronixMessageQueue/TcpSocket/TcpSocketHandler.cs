@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
+using System.Security.Cryptography;
 using System.Threading;
 using DtronixMessageQueue.Rpc;
 
@@ -87,6 +88,16 @@ namespace DtronixMessageQueue.TcpSocket
         protected readonly ServiceMethodCache ServiceMethodCache;
 
         /// <summary>
+        /// Hold the RSA class for authentication during session setup.
+        /// </summary>
+        protected RSACng Rsa;
+
+        /// <summary>
+        /// Key used for encryption of data to the server side.
+        /// </summary>
+        public byte[] RsaPublicKey { get; set; }
+
+        /// <summary>
         /// Base constructor to all socket classes.
         /// </summary>
         /// <param name="config">Configurations for this socket.</param>
@@ -128,12 +139,13 @@ namespace DtronixMessageQueue.TcpSocket
                     ThreadName = $"{modeLower}-inbox",
                     StartThreads = processorThreads
                 });
+
+                Rsa = new RSACng(4096);
+                RsaPublicKey = Rsa.ExportParameters(false).Modulus;
             }
 
             OutboxProcessor.Start();
             InboxProcessor.Start();
-
-
         }
 
 
@@ -210,13 +222,17 @@ namespace DtronixMessageQueue.TcpSocket
         /// <returns>New session instance.</returns>
         protected virtual TSession CreateSession(System.Net.Sockets.Socket socket)
         {
-            var session = TcpSocketSession<TSession, TConfig>.Create(socket, 
-                AsyncManager, 
-                Config, 
-                this, 
-                InboxProcessor,
-                OutboxProcessor,
-                ServiceMethodCache);
+            var session = TcpSocketSession<TSession, TConfig>.Create(
+                new TlsSocketSessionCreateArguments<TSession, TConfig>
+                {
+                    SessionSocket = socket,
+                    SocketArgsManager = AsyncManager,
+                    SessionConfig = Config,
+                    TlsSocketHandler = this,
+                    InboxProcessor = InboxProcessor,
+                    OutboxProcessor = OutboxProcessor,
+                    ServiceMethodCache = ServiceMethodCache
+                });
 
             SessionSetup?.Invoke(this, new SessionEventArgs<TSession, TConfig>(session));
             session.Closed += (sender, args) => OnClose(session, args.CloseReason);
