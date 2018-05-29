@@ -147,8 +147,11 @@ namespace DtronixMessageQueue.TcpSocket
 
         private MemoryQueueStream _negotiationStream;
 
-        private MemoryQueueStream _receiveBlocks;
-        private MemoryQueueStream _sendBlocks;
+        private byte[] _sendBuffer = new byte[16];
+        private int _sendBufferLength = 0;
+
+        private byte[] _receiveBuffer = new byte[16];
+        private int _receiveBufferLength = 0;
 
         private RSACng _rsa;
 
@@ -170,8 +173,6 @@ namespace DtronixMessageQueue.TcpSocket
             Id = Guid.NewGuid();
             CurrentState = State.Closed;
             _negotiationStream = new MemoryQueueStream();
-            _receiveBlocks = new MemoryQueueStream();
-            _sendBlocks = new MemoryQueueStream();
         }
 
         /// <summary>
@@ -417,6 +418,56 @@ namespace DtronixMessageQueue.TcpSocket
             }
         }
 
+
+        private int TransformDataBuffer(
+            byte[] bufferSource, 
+            int offsetSource, 
+            int lengthSource,
+            byte[] bufferDest,
+            int offsetDest,
+
+            byte[] transformBuffer, 
+            ref int transformBufferLength,
+            ICryptoTransform transformer)
+        {
+            int transformLength = 0;
+            if (transformBufferLength > 0)
+            {
+                int bufferTaken = Math.Min(lengthSource, 16 - transformBufferLength);
+                Buffer.BlockCopy(bufferSource, offsetSource, transformBuffer, transformBufferLength, bufferTaken);
+                transformBufferLength += bufferTaken;
+                offsetSource += bufferTaken;
+                lengthSource -= bufferTaken;
+            }
+
+            if (transformBufferLength == 16)
+            {
+                transformLength += 16;
+                transformer.TransformBlock(transformBuffer, 0, transformBufferLength, bufferDest, offsetDest);
+                transformBufferLength = 0;
+            }
+            else if (lengthSource == 0)
+            {
+                return 0;
+            }
+
+
+            int blockTransformLength = lengthSource / 16 * 16;
+            int transformRemain = lengthSource - blockTransformLength;
+
+            transformLength += transformer.TransformBlock(bufferSource, offsetSource, blockTransformLength, bufferDest,
+                offsetDest + transformBufferLength);
+
+
+            if (transformRemain > 0)
+            {
+                Buffer.BlockCopy(bufferSource, offsetSource + blockTransformLength, transformBuffer, 0, transformRemain);
+                transformBufferLength = transformRemain;
+            }
+
+            return transformLength;
+        }
+
         /// <summary>
         /// Sends raw bytes to the socket.  Blocks until data is sent to the underlying system to send.
         /// </summary>
@@ -427,57 +478,86 @@ namespace DtronixMessageQueue.TcpSocket
         {
             if (Socket == null || Socket.Connected == false)
                 return;
-            bool multiWrite = false;
 
-            do
+            _writeSemaphore.Wait(-1);
+            int sendLength;
+
+            if (_encryptor != null)
             {
-                _writeSemaphore.Wait(-1);
 
-                if (_encryptor != null)
+                sendLength = TransformDataBuffer(buffer, offset, length, _sendArgs.Buffer, _sendArgs.Offset, _sendBuffer,
+                    ref _sendBufferLength, _encryptor);
+                if (sendLength == 0)
                 {
-                    if (!multiWrite)
-                        _sendBlocks.Write(buffer, offset, length);
-
-                    int transformBlockLength = Math.Max(Config.SendAndReceiveBufferSize, (int) _sendBlocks.Length) /
-                                               16 * 16;
-
-                    var rawBuffer = new byte[transformBlockLength];
-
-                    _sendBlocks.Read(rawBuffer, 0, rawBuffer.Length);
-
-                    length = _encryptor.TransformBlock(rawBuffer, offset, rawBuffer.Length, _sendArgs.Buffer,
-                        _sendArgs.Offset);
-
-                    /*
-                    if (transformed < length)
-                    {
-                        var finalBuffer = _encryptor.TransformFinalBlock(buffer, offset + transformBlockLength, excess);
-                        Buffer.BlockCopy(finalBuffer, 0, _sendArgs.Buffer, _sendArgs.Offset + transformed,
-                            finalBuffer.Length);
-
-                        // Update to the correct legnth.
-                        length = transformed + finalBuffer.Length;
-                    }*/
+                    // If the packet was small, the message could have gone completely into the send buffer.
+                    _writeSemaphore.Release();
+                    return;
                 }
-                else
-                    Buffer.BlockCopy(buffer, offset, _sendArgs.Buffer, _sendArgs.Offset, length);
+                
 
-                // Update the buffer length.
-                _sendArgs.SetBuffer(_sendArgs.Offset, length);
 
-                try
+                /*
+
+
+                //_sendBlocks.Write(buffer, offset, length);
+                if (_sendBufferLength > 0)
                 {
-                    if (Socket.SendAsync(_sendArgs) == false)
-                    {
-                        IoCompleted(this, _sendArgs);
-                    }
+                    int sendBufferTaken = Math.Min(length, 16 - _sendBufferLength);
+                    Buffer.BlockCopy(buffer, offset, _sendBuffer, _sendBufferLength, sendBufferTaken);
+                    _sendBufferLength += sendBufferTaken;
+                    offset += sendBufferTaken;
+                    length -= sendBufferTaken;
                 }
-                catch (ObjectDisposedException)
+
+                if (_sendBufferLength == 16)
                 {
-                    Close(CloseReason.SocketError);
+                    sendLength += 16;
+                    _encryptor.TransformBlock(_sendBuffer, 0, _sendBufferLength, _sendArgs.Buffer, _sendArgs.Offset);
+                    _sendBufferLength = 0;
                 }
-                multiWrite = true;
-            } while (_sendBlocks.Length >= 16);
+                else if (length == 0)
+                {
+                    // If the packet was small, the message could have gone completely into the send buffer.
+                    _writeSemaphore.Release();
+                    return;
+                }
+
+
+                int transformLength = length / 16 * 16;
+                int transformRemain = length - transformLength;
+
+                _encryptor.TransformBlock(buffer, offset, transformLength, _sendArgs.Buffer,
+                    _sendArgs.Offset + _sendBufferLength);
+
+
+                if (transformRemain > 0)
+                {
+                    Buffer.BlockCopy(buffer, offset + transformLength, _sendBuffer, 0, transformRemain);
+                    _sendBufferLength = transformRemain;
+                }
+                */
+            }
+            else
+            {
+                Buffer.BlockCopy(buffer, offset, _sendArgs.Buffer, _sendArgs.Offset, length);
+                sendLength = length;
+            }
+
+            // Update the buffer length.
+            _sendArgs.SetBuffer(_sendArgs.Offset, sendLength);
+
+            try
+            {
+                if (Socket.SendAsync(_sendArgs) == false)
+                {
+                    IoCompleted(this, _sendArgs);
+                }
+            }
+            catch (ObjectDisposedException)
+            {
+                Close(CloseReason.SocketError);
+            }
+
         }
 
 
@@ -523,15 +603,11 @@ namespace DtronixMessageQueue.TcpSocket
 
                 if (_decryptor != null)
                 {
-                    _receiveBlocks.Write(buffer);
 
-                    // Read out exactly the amount required.
-                    int transformBlockLength = (int)_receiveBlocks.Length / 16 * 16;
-                    var encryptedBytes = new byte[transformBlockLength];
-                    var decryptedBytes = new byte[transformBlockLength];
-                    _receiveBlocks.Read(encryptedBytes, 0, encryptedBytes.Length);
 
-                    var transformed = _decryptor.TransformBlock(encryptedBytes, 0, transformBlockLength, decryptedBytes, 0);
+                    
+
+
                 }
 
                 if (CurrentState == State.Securing)
