@@ -155,6 +155,8 @@ namespace DtronixMessageQueue.TcpSocket
         private byte[] _receivePartialBuffer = new byte[16];
         private int _receivePartialBufferLength = 0;
 
+        private int receiveBodyLengthRemaining;
+
         private RSACng _rsa;
 
         /// <summary>
@@ -422,7 +424,7 @@ namespace DtronixMessageQueue.TcpSocket
         }
 
 
-        private int TransformDataBuffer(byte[] bufferSource, int offsetSource, int lengthSource, byte[] bufferDest, int offsetDest, byte[] transformBuffer, ref int transformBufferLength, ICryptoTransform transformer, bool preDebug, bool postDebug)
+        private short TransformDataBuffer(byte[] bufferSource, int offsetSource, int lengthSource, byte[] bufferDest, int offsetDest, byte[] transformBuffer, ref int transformBufferLength, ICryptoTransform transformer, bool preDebug, bool postDebug)
         {
             int transformLength = 0;
             if (transformBufferLength > 0)
@@ -488,7 +490,7 @@ namespace DtronixMessageQueue.TcpSocket
                 transformBufferLength = transformRemain;
             }
 
-            return transformLength;
+            return (short)transformLength;
         }
 
         private enum EncryptedMessageType : byte
@@ -521,24 +523,30 @@ namespace DtronixMessageQueue.TcpSocket
                 return;
 
             _writeSemaphore.Wait(-1);
-            int sendLength;
+            short sendLength;
 
             if (_encryptor != null)
             {
 
-                sendLength = TransformDataBuffer(buffer, offset, length, _sendArgs.Buffer, _sendArgs.Offset, _sendBuffer,
+                sendLength = TransformDataBuffer(buffer, offset, length, _sendArgs.Buffer, _sendArgs.Offset + 3, _sendBuffer,
                     ref _sendBufferLength, _encryptor, false, false);
+
                 if (sendLength == 0)
                 {
                     // If the packet was small, the message could have gone completely into the send buffer.
                     _writeSemaphore.Release();
                     return;
                 }
+                var lengthBytes = BitConverter.GetBytes(sendLength);
+                // Set the message type.
+                _sendArgs.Buffer[_sendArgs.Offset] = (byte)EncryptedMessageType.FullMessage;
+                _sendArgs.Buffer[_sendArgs.Offset + 1] = lengthBytes[0];
+                _sendArgs.Buffer[_sendArgs.Offset + 2] = lengthBytes[1];
             }
             else
             {
                 Buffer.BlockCopy(buffer, offset, _sendArgs.Buffer, _sendArgs.Offset, length);
-                sendLength = length;
+                sendLength = (short)length;
             }
 
             // Update the buffer length.
@@ -589,7 +597,6 @@ namespace DtronixMessageQueue.TcpSocket
                 HandleIncomingBytes(null);
                 return;
             }
-            int receiveLength = 0;
 
             if (e.BytesTransferred > 0 && e.SocketError == SocketError.Success)
             {
@@ -598,33 +605,51 @@ namespace DtronixMessageQueue.TcpSocket
 
                 // Create a copy of these bytes.
                 byte[] buffer;
-
+                
                 if (_decryptor != null)
                 {
-                    receiveLength = TransformDataBuffer(_receiveArgs.Buffer, _receiveArgs.Offset, e.BytesTransferred,
-                        _receiveTransformedBuffer, 0, _receivePartialBuffer,
-                        ref _receivePartialBufferLength, _decryptor, false, false);
-                    if (receiveLength == 0)
-                    {
-                        // If the packet was small, the message could have gone completely into the send buffer.
-                        _writeSemaphore.Release();
-                        return;
-                    }
-                    buffer = new byte[receiveLength];
-                    Buffer.BlockCopy(_receiveTransformedBuffer, 0, buffer, 0, receiveLength);
+                    var currentPosition = 0;
 
-                    //WriteBuffer(buffer);
+                    while (currentPosition < e.BytesTransferred)
+                    {
+                        if (receiveBodyLengthRemaining == 0 
+                            && (EncryptedMessageType)e.Buffer[currentPosition + e.Offset] == EncryptedMessageType.FullMessage)
+                        {
+                            receiveBodyLengthRemaining = BitConverter.ToInt16(e.Buffer, currentPosition + e.Offset + 1);
+                            currentPosition += 3;
+                        }
+
+                        int readLength = Math.Min(e.BytesTransferred - currentPosition, receiveBodyLengthRemaining);
+                        int receiveLength = TransformDataBuffer(e.Buffer, currentPosition + e.Offset, readLength,
+                            _receiveTransformedBuffer, 0, _receivePartialBuffer,
+                            ref _receivePartialBufferLength, _decryptor, false, false);
+
+
+                        if (receiveLength == 0)
+                        {
+                            // If the packet was small, the message could have gone completely into the send buffer.
+                            _writeSemaphore.Release();
+                            break;
+                        }
+
+                        buffer = new byte[receiveLength];
+                        Buffer.BlockCopy(_receiveTransformedBuffer, 0, buffer, 0, receiveLength);
+
+                        HandleIncomingBytes(buffer);
+
+                        if (readLength <= receiveBodyLengthRemaining)
+                        {
+                            currentPosition += readLength;
+                            receiveBodyLengthRemaining -= readLength;
+                        }
+                    }
                 }
                 else
                 {
                     buffer = new byte[_receiveArgs.BytesTransferred];
                     Buffer.BlockCopy(_receiveArgs.Buffer, _receiveArgs.Offset, buffer, 0, _receiveArgs.BytesTransferred);
-                }
-
-                if (CurrentState == State.Securing)
                     SecureConnectionReceive(buffer);
-                else
-                    HandleIncomingBytes(buffer);
+                }
 
                 try
                 {
@@ -708,7 +733,7 @@ namespace DtronixMessageQueue.TcpSocket
         /// <returns>String representation.</returns>
         public override string ToString()
         {
-            return $"{SocketHandler.Mode} RcpSocketSession;";
+            return $"{SocketHandler.Mode} TcpSocketSession;";
         }
 
         /// <summary>
