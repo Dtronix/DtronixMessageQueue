@@ -8,8 +8,8 @@ namespace DtronixMessageQueue.TcpSocket
     public interface ISetupSocketSession
     {
         /// <summary>
-        /// Start the session's secure negotiation.
+        /// Start the session.
         /// </summary>
-        void SecureSession(RSACng rsa);
+        void StartSession();
     }
 }

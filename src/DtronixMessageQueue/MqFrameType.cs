@@ -11,7 +11,7 @@
         Unset = 0,
 
         /// <summary>
-        /// This frame type has not been determined yet.
+        /// This frame is empty and contains no content.
         /// </summary>
         Empty = 1,
 
@@ -38,6 +38,11 @@
         /// <summary>
         /// This frame is a type of command frame with no body.  This frame is consumed by the FrameBuilder.
         /// </summary>
-        Ping = 6
+        Ping = 6,
+
+        /// <summary>
+        /// This frame is used for padding and has no content.
+        /// </summary>
+        Padding = 7
     }
 }

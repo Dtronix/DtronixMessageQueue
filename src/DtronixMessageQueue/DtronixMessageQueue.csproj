@@ -54,6 +54,7 @@
     <Compile Include="MqSession.cs" />
     <Compile Include="MqConfig.cs" />
     <Compile Include="ActionProcessor.cs" />
+    <Compile Include="PlainCryptoTransform.cs" />
     <Compile Include="Rpc\DataContract\RpcServerInfoDataContract.cs" />
     <Compile Include="Rpc\IRemoteService.cs" />
     <Compile Include="Rpc\MessageHandler.cs" />
@@ -73,6 +74,8 @@
     <Compile Include="Rpc\SerializationCache.cs" />
     <Compile Include="Rpc\ServiceMethodCache.cs" />
     <Compile Include="TcpSocket\BufferManager.cs" />
+    <Compile Include="TcpSocket\EncryptedSocketSession.cs" />
+    <Compile Include="TcpSocket\ISecureSocketSession.cs" />
     <Compile Include="TcpSocket\ISetupSocketSession.cs" />
     <Compile Include="SessionEventArgs.cs" />
     <Compile Include="SessionClosedEventArgs.cs" />

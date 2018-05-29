@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Net.Sockets;
 using System.Security.Cryptography;
+using System.Text;
 using System.Threading;
 using DtronixMessageQueue.Rpc;
 
@@ -11,7 +12,7 @@ namespace DtronixMessageQueue.TcpSocket
     /// </summary>
     /// <typeparam name="TConfig">Configuration for this connection.</typeparam>
     /// <typeparam name="TSession">Session for this connection.</typeparam>
-    public abstract class TcpSocketSession<TSession, TConfig> : IDisposable, ISetupSocketSession
+    public abstract class TcpSocketSession<TSession, TConfig> : IDisposable, ISecureSocketSession
         where TSession : TcpSocketSession<TSession, TConfig>, new()
         where TConfig : TcpSocketConfig
     {
@@ -150,8 +151,9 @@ namespace DtronixMessageQueue.TcpSocket
         private byte[] _sendBuffer = new byte[16];
         private int _sendBufferLength = 0;
 
-        private byte[] _receiveBuffer = new byte[16];
-        private int _receiveBufferLength = 0;
+        private byte[] _receiveTransformedBuffer;
+        private byte[] _receivePartialBuffer = new byte[16];
+        private int _receivePartialBufferLength = 0;
 
         private RSACng _rsa;
 
@@ -195,6 +197,7 @@ namespace DtronixMessageQueue.TcpSocket
                 ServiceMethodCache = args.ServiceMethodCache
             };
 
+            session._receiveTransformedBuffer = new byte[args.SessionConfig.SendAndReceiveBufferSize];
             session._sendArgs.Completed += session.IoCompleted;
             session._receiveArgs.Completed += session.IoCompleted;
 
@@ -218,7 +221,7 @@ namespace DtronixMessageQueue.TcpSocket
         /// <summary>
         /// Start the session's receive events.
         /// </summary>
-        void ISetupSocketSession.SecureSession(RSACng rsa)
+        void ISecureSocketSession.SecureSession(RSACng rsa)
         {
             if (CurrentState != State.Closed)
                 return;
@@ -349,8 +352,8 @@ namespace DtronixMessageQueue.TcpSocket
             }
 
             // Set the encryptor and decryptor.
-            _decryptor = _aes.CreateDecryptor();
-            _encryptor = _aes.CreateEncryptor();
+            _decryptor = _aes.CreateDecryptor(); //new PlainCryptoTransform(); 
+            _encryptor = _aes.CreateEncryptor(); // new PlainCryptoTransform(); 
 
             _negotiationStream.Close();
             _negotiationStream = null;
@@ -419,16 +422,7 @@ namespace DtronixMessageQueue.TcpSocket
         }
 
 
-        private int TransformDataBuffer(
-            byte[] bufferSource, 
-            int offsetSource, 
-            int lengthSource,
-            byte[] bufferDest,
-            int offsetDest,
-
-            byte[] transformBuffer, 
-            ref int transformBufferLength,
-            ICryptoTransform transformer)
+        private int TransformDataBuffer(byte[] bufferSource, int offsetSource, int lengthSource, byte[] bufferDest, int offsetDest, byte[] transformBuffer, ref int transformBufferLength, ICryptoTransform transformer, bool preDebug, bool postDebug)
         {
             int transformLength = 0;
             if (transformBufferLength > 0)
@@ -444,20 +438,49 @@ namespace DtronixMessageQueue.TcpSocket
             {
                 transformLength += 16;
                 transformer.TransformBlock(transformBuffer, 0, transformBufferLength, bufferDest, offsetDest);
-                transformBufferLength = 0;
+                if (preDebug)
+                {
+                    WriteBuffer("Pre 16 Byte Buffer", transformBuffer, 0, transformBufferLength);
+                }
+
+                if (postDebug)
+                {
+                    WriteBuffer("Post 16 Byte Buffer", bufferDest, offsetDest, 16);
+                }
             }
             else if (lengthSource == 0)
             {
                 return 0;
             }
 
-
+            // Get the size of the block in chucks of 16 bytes.
             int blockTransformLength = lengthSource / 16 * 16;
             int transformRemain = lengthSource - blockTransformLength;
 
-            transformLength += transformer.TransformBlock(bufferSource, offsetSource, blockTransformLength, bufferDest,
-                offsetDest + transformBufferLength);
+            if (preDebug && blockTransformLength > 0)
+            {
+                WriteBuffer("Pre block transform", bufferSource, offsetSource, blockTransformLength);
+            }
 
+            // Only transform if we have a block large enough.
+            if(blockTransformLength > 0)
+                transformLength += transformer.TransformBlock(bufferSource, offsetSource, blockTransformLength, bufferDest,
+                    offsetDest + transformBufferLength);
+
+            if (postDebug && blockTransformLength > 0)
+            {
+                WriteBuffer("Post block transform", bufferDest, offsetDest + transformBufferLength, blockTransformLength);
+            }
+
+            // If the buffer was used this round, reset it to zero.
+            if (transformBufferLength == 16)
+                transformBufferLength = 0;
+
+
+            if (postDebug)
+            {
+                WriteBuffer("Whole buffer", bufferDest, offsetDest, transformLength);
+            }
 
             if (transformRemain > 0)
             {
@@ -468,8 +491,26 @@ namespace DtronixMessageQueue.TcpSocket
             return transformLength;
         }
 
+        private enum EncryptedMessageType : byte
+        {
+            Unknown = 0,
+            FullMessage = 1,
+            PartialMessage = 2,
+        }
+
+        /// <summary>
+        /// Send out any buffered data to the connection.
+        /// </summary>
+        private void Flush()
+        {
+            
+        }
+
         /// <summary>
         /// Sends raw bytes to the socket.  Blocks until data is sent to the underlying system to send.
+        /// Before transport encryption has been established, any buffer size will be sent.
+        /// After transport encryption has been established, only buffers in increments of 16.
+        /// Excess will be buffered until the next write.
         /// </summary>
         /// <param name="buffer">Buffer bytes to send.</param>
         /// <param name="offset">Offset in the buffer.</param>
@@ -486,56 +527,13 @@ namespace DtronixMessageQueue.TcpSocket
             {
 
                 sendLength = TransformDataBuffer(buffer, offset, length, _sendArgs.Buffer, _sendArgs.Offset, _sendBuffer,
-                    ref _sendBufferLength, _encryptor);
+                    ref _sendBufferLength, _encryptor, false, false);
                 if (sendLength == 0)
                 {
                     // If the packet was small, the message could have gone completely into the send buffer.
                     _writeSemaphore.Release();
                     return;
                 }
-                
-
-
-                /*
-
-
-                //_sendBlocks.Write(buffer, offset, length);
-                if (_sendBufferLength > 0)
-                {
-                    int sendBufferTaken = Math.Min(length, 16 - _sendBufferLength);
-                    Buffer.BlockCopy(buffer, offset, _sendBuffer, _sendBufferLength, sendBufferTaken);
-                    _sendBufferLength += sendBufferTaken;
-                    offset += sendBufferTaken;
-                    length -= sendBufferTaken;
-                }
-
-                if (_sendBufferLength == 16)
-                {
-                    sendLength += 16;
-                    _encryptor.TransformBlock(_sendBuffer, 0, _sendBufferLength, _sendArgs.Buffer, _sendArgs.Offset);
-                    _sendBufferLength = 0;
-                }
-                else if (length == 0)
-                {
-                    // If the packet was small, the message could have gone completely into the send buffer.
-                    _writeSemaphore.Release();
-                    return;
-                }
-
-
-                int transformLength = length / 16 * 16;
-                int transformRemain = length - transformLength;
-
-                _encryptor.TransformBlock(buffer, offset, transformLength, _sendArgs.Buffer,
-                    _sendArgs.Offset + _sendBufferLength);
-
-
-                if (transformRemain > 0)
-                {
-                    Buffer.BlockCopy(buffer, offset + transformLength, _sendBuffer, 0, transformRemain);
-                    _sendBufferLength = transformRemain;
-                }
-                */
             }
             else
             {
@@ -591,6 +589,7 @@ namespace DtronixMessageQueue.TcpSocket
                 HandleIncomingBytes(null);
                 return;
             }
+            int receiveLength = 0;
 
             if (e.BytesTransferred > 0 && e.SocketError == SocketError.Success)
             {
@@ -598,16 +597,28 @@ namespace DtronixMessageQueue.TcpSocket
                 _lastReceived = DateTime.UtcNow;
 
                 // Create a copy of these bytes.
-                var buffer = new byte[e.BytesTransferred];
-                Buffer.BlockCopy(e.Buffer, e.Offset, buffer, 0, e.BytesTransferred);
+                byte[] buffer;
 
                 if (_decryptor != null)
                 {
+                    receiveLength = TransformDataBuffer(_receiveArgs.Buffer, _receiveArgs.Offset, e.BytesTransferred,
+                        _receiveTransformedBuffer, 0, _receivePartialBuffer,
+                        ref _receivePartialBufferLength, _decryptor, false, false);
+                    if (receiveLength == 0)
+                    {
+                        // If the packet was small, the message could have gone completely into the send buffer.
+                        _writeSemaphore.Release();
+                        return;
+                    }
+                    buffer = new byte[receiveLength];
+                    Buffer.BlockCopy(_receiveTransformedBuffer, 0, buffer, 0, receiveLength);
 
-
-                    
-
-
+                    //WriteBuffer(buffer);
+                }
+                else
+                {
+                    buffer = new byte[_receiveArgs.BytesTransferred];
+                    Buffer.BlockCopy(_receiveArgs.Buffer, _receiveArgs.Offset, buffer, 0, _receiveArgs.BytesTransferred);
                 }
 
                 if (CurrentState == State.Securing)
@@ -632,6 +643,17 @@ namespace DtronixMessageQueue.TcpSocket
             {
                 Close(CloseReason.SocketError);
             }
+        }
+
+        private void WriteBuffer(string header, byte[] buffer, int offset, int length)
+        {
+            var sb = new StringBuilder(header + " new byte[" + length + "] { ");
+            for (var i = 0; i < length; i++)
+            {
+                sb.Append(buffer[i + offset]).Append(" ");
+            }
+            sb.AppendLine("}");
+            Console.WriteLine(sb.ToString());
         }
 
         /// <summary>
