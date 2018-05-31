@@ -149,7 +149,12 @@ namespace DtronixMessageQueue.Tests.Performance
 
             for (var i = 0; i < totalMessages; i++)
             {
+                
                 client.Send(message);
+                
+                //if(i % 50 == 1)
+                //    Thread.Sleep(1);
+
             }
 
             if (!_loopSemaphore.WaitOne(timeout))
