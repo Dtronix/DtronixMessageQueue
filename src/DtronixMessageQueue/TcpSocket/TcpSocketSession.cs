@@ -156,8 +156,6 @@ namespace DtronixMessageQueue.TcpSocket
         private byte[] _receivePartialBuffer = new byte[16];
         private int _receivePartialBufferLength = 0;
 
-        private int receiveBodyLengthRemaining;
-
         private RSACng _rsa;
 
         /// <summary>
@@ -527,8 +525,20 @@ namespace DtronixMessageQueue.TcpSocket
 
             if (_encryptor != null)
             {
+                var lengthBytes = BitConverter.GetBytes(length);
+                byte[] header = {
+                    (byte) ReceiveHeader.Type.FullMessage,
+                    lengthBytes[0],
+                    lengthBytes[1]
+                };
 
-                sendLength = TransformDataBuffer(buffer, offset, length, _sendArgs.Buffer, _sendArgs.Offset + 3, _sendBuffer,
+                // Encrypt the header.
+                sendLength = TransformDataBuffer(header, 0, 3, _sendArgs.Buffer, _sendArgs.Offset, _sendBuffer,
+                    ref _sendBufferLength, _encryptor, false, false);
+
+
+                // Encrypt the message.
+                sendLength += TransformDataBuffer(buffer, offset, length, _sendArgs.Buffer, _sendArgs.Offset + sendLength, _sendBuffer,
                     ref _sendBufferLength, _encryptor, false, false);
 
                 if (sendLength == 0)
@@ -537,13 +547,6 @@ namespace DtronixMessageQueue.TcpSocket
                     _writeSemaphore.Release();
                     return;
                 }
-                var lengthBytes = BitConverter.GetBytes(sendLength);
-                // Set the message type.
-                _sendArgs.Buffer[_sendArgs.Offset] = (byte)ReceiveHeader.Type.FullMessage;
-                _sendArgs.Buffer[_sendArgs.Offset + 1] = lengthBytes[0];
-                _sendArgs.Buffer[_sendArgs.Offset + 2] = lengthBytes[1];
-
-                sendLength += 3;
             }
             else
             {
@@ -606,6 +609,7 @@ namespace DtronixMessageQueue.TcpSocket
             public byte[] BodyLengthBuffer = new byte[2];
             public int BodyLengthBufferLength;
             public short BodyLength;
+            public int BodyPosition;
 
 
         }
@@ -638,28 +642,24 @@ namespace DtronixMessageQueue.TcpSocket
 
                 // Create a copy of these bytes.
                 byte[] buffer;
-                
+
                 if (_decryptor != null)
                 {
-                    totalReceives++;
-
                     var position = 0;
 
-                    while (position < e.BytesTransferred)
+                    int receiveLength = TransformDataBuffer(e.Buffer, e.Offset, e.BytesTransferred,
+                        _receiveTransformedBuffer, 0, _receivePartialBuffer,
+                        ref _receivePartialBufferLength, _decryptor, false, false);
+
+                    while (position < receiveLength)
                     {
-                        totalRecieveLoops++;
+                        if (receiveLength == 0)
+                            break;
+
                         // See if we are ready for a new header.
                         if (receiveHeader.HeaderReceiveState == ReceiveHeader.State.Empty)
                         {
-
-                            var tempBuffer = new byte[e.BytesTransferred];
-                            Buffer.BlockCopy(e.Buffer, e.Offset, tempBuffer, 0, e.BytesTransferred);
-
-                            var slice = new ArraySegment<byte>(e.Buffer, e.Offset + position, e.BytesTransferred);
-
-                            receiveHeader.HeaderType = (ReceiveHeader.Type) e.Buffer[position + e.Offset];
-
-                            
+                            receiveHeader.HeaderType = (ReceiveHeader.Type) _receiveTransformedBuffer[position];
 
                             switch (receiveHeader.HeaderType)
                             {
@@ -673,22 +673,18 @@ namespace DtronixMessageQueue.TcpSocket
                                     throw new ArgumentOutOfRangeException();
                             }
 
-                            position += 1;
-
-                            
-                            
+                            position++;
                         }
 
                         if (receiveHeader.HeaderReceiveState == ReceiveHeader.State.ReadingBodyLength
-                            && position < e.BytesTransferred)
+                            && position < receiveLength)
                         {
                             // See if the buffer has any contents.
                             if (receiveHeader.BodyLengthBufferLength == 0)
                             {
                                 if (position + 1 < e.BytesTransferred) // See if we can read the entire size at once.
                                 {
-                                    receiveBodyLengthRemaining = receiveHeader.BodyLength =
-                                        BitConverter.ToInt16(e.Buffer, position + e.Offset);
+                                    receiveHeader.BodyLength = BitConverter.ToInt16(e.Buffer, position + e.Offset);
                                     position += 2;
 
                                     // Body length complete.
@@ -697,7 +693,8 @@ namespace DtronixMessageQueue.TcpSocket
                                 else
                                 {
                                     // Read the first byte of the body length.
-                                    receiveHeader.BodyLengthBuffer[0] = e.Buffer[position + e.Offset];
+                                    receiveHeader.BodyLengthBuffer[0] = _receiveTransformedBuffer[position];
+                                    receiveHeader.BodyLengthBufferLength = 1;
                                     // Nothing more to read.
                                     break;
                                 }
@@ -705,16 +702,13 @@ namespace DtronixMessageQueue.TcpSocket
                             else
                             {
                                 // The buffer already contains a byte.
-                                receiveHeader.BodyLengthBuffer[1] = e.Buffer[position + e.Offset];
-                                position += 1;
+                                receiveHeader.BodyLengthBuffer[1] = _receiveTransformedBuffer[position];
+                                position++;
 
-                                receiveBodyLengthRemaining = receiveHeader.BodyLength =
-                                    BitConverter.ToInt16(receiveHeader.BodyLengthBuffer, 0);
+                                receiveHeader.BodyLength = BitConverter.ToInt16(receiveHeader.BodyLengthBuffer, 0);
 
                                 // Body length complete.
                                 receiveHeader.HeaderReceiveState = ReceiveHeader.State.Complete;
-
-
                             }
                         }
 
@@ -725,38 +719,31 @@ namespace DtronixMessageQueue.TcpSocket
                         // Reset the receive header buffer info.
                         receiveHeader.BodyLengthBufferLength = 0;
 
-                        int readLength = Math.Min(e.BytesTransferred - position, receiveBodyLengthRemaining);
-                        int receiveLength = TransformDataBuffer(e.Buffer, position + e.Offset, readLength,
-                            _receiveTransformedBuffer, 0, _receivePartialBuffer,
-                            ref _receivePartialBufferLength, _decryptor, false, false);
+                        var currentMessageReadLength = Math.Min(receiveHeader.BodyLength - receiveHeader.BodyPosition, receiveLength - position);
 
-
-                        end24 = e.Buffer.Skip(position + e.Offset + readLength - 24).Take(24).ToArray();
-
-                        if (receiveLength == 0)
+                        if (currentMessageReadLength == 0)
                             break;
 
-                        buffer = new byte[receiveLength];
-                        Buffer.BlockCopy(_receiveTransformedBuffer, 0, buffer, 0, receiveLength);
+                        buffer = new byte[currentMessageReadLength];
+                        Buffer.BlockCopy(_receiveTransformedBuffer, position, buffer, 0, currentMessageReadLength);
+
+                        receiveHeader.BodyPosition += currentMessageReadLength;
+                        position += currentMessageReadLength;
 
                         HandleIncomingBytes(buffer);
 
-                        if (readLength <= receiveBodyLengthRemaining)
-                        {
-                            position += readLength;
-                            receiveBodyLengthRemaining -= readLength;
-                        }
-
-                        if (receiveBodyLengthRemaining == 0)
+                        if (receiveHeader.BodyPosition == receiveHeader.BodyLength)
                         {
                             receiveHeader.HeaderReceiveState = ReceiveHeader.State.Empty;
+                            receiveHeader.BodyPosition = 0;
                         }
                     }
                 }
                 else
                 {
                     buffer = new byte[_receiveArgs.BytesTransferred];
-                    Buffer.BlockCopy(_receiveArgs.Buffer, _receiveArgs.Offset, buffer, 0, _receiveArgs.BytesTransferred);
+                    Buffer.BlockCopy(_receiveArgs.Buffer, _receiveArgs.Offset, buffer, 0,
+                        _receiveArgs.BytesTransferred);
                     SecureConnectionReceive(buffer);
                 }
 

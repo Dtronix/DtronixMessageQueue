@@ -37,10 +37,10 @@ namespace DtronixMessageQueue.Tests.Performance
 
             _smallMessage = new MqMessage
             {
-                new MqFrame(SequentialBytes(50), MqFrameType.More, _config),
-                new MqFrame(SequentialBytes(50), MqFrameType.More, _config),
-                new MqFrame(SequentialBytes(50), MqFrameType.More, _config),
-                new MqFrame(SequentialBytes(50), MqFrameType.Last, _config)
+                new MqFrame(SequentialBytes(10), MqFrameType.More, _config),
+                new MqFrame(SequentialBytes(10), MqFrameType.More, _config),
+                new MqFrame(SequentialBytes(10), MqFrameType.More, _config),
+                new MqFrame(SequentialBytes(10), MqFrameType.Last, _config)
             };
 
             _medimumMessage = new MqMessage
@@ -73,7 +73,7 @@ namespace DtronixMessageQueue.Tests.Performance
                 _config.SendAndReceiveBufferSize);
 
 
-            MqInProcessPerformanceTests(1000000, 5, _smallMessage, _config);
+            MqInProcessPerformanceTests(10000, 5, _smallMessage, _config);
 
             MqInProcessPerformanceTests(100000, 5, _medimumMessage, _config);
 
