@@ -141,6 +141,8 @@ namespace DtronixMessageQueue
 
             // Send the last of the buffer queue.
             SendBufferQueue(bufferQueue, length);
+
+            Flush();
         }
 
         /// <summary>

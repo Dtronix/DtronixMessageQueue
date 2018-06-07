@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Collections.Generic;
 using System.Linq;
 using System.Net.Sockets;
 using System.Security.Cryptography;
@@ -167,6 +168,8 @@ namespace DtronixMessageQueue.TcpSocket
 
         private ICryptoTransform _encryptor;
 
+        private ReceiveHeader receiveHeader = new ReceiveHeader();
+        private static byte[][] paddingBuffer;
 
         /// <summary>
         /// Creates a new socket session with a new Id.
@@ -176,6 +179,18 @@ namespace DtronixMessageQueue.TcpSocket
             Id = Guid.NewGuid();
             CurrentState = State.Closed;
             _negotiationStream = new MemoryQueueStream();
+
+            var paddingBufferList = new byte[15][];
+            if (paddingBuffer == null)
+            {
+                for (int i = 0; i < 15; i++)
+                {
+                    paddingBufferList[i] = new byte[i + 1];
+                    for (int j = 0; j < i + 1; j++)
+                        paddingBufferList[i][j] = (byte) ReceiveHeader.Type.Padding;
+                }
+                paddingBuffer = paddingBufferList;
+            }
         }
 
         /// <summary>
@@ -353,8 +368,8 @@ namespace DtronixMessageQueue.TcpSocket
             }
 
             // Set the encryptor and decryptor.
-            _decryptor = new PlainCryptoTransform();  //_aes.CreateDecryptor();
-            _encryptor = new PlainCryptoTransform(); //_aes.CreateEncryptor(); 
+            _decryptor = _aes.CreateDecryptor();
+            _encryptor = _aes.CreateEncryptor(); 
 
             _negotiationStream.Close();
             _negotiationStream = null;
@@ -493,15 +508,6 @@ namespace DtronixMessageQueue.TcpSocket
         }
 
      
-
-        /// <summary>
-        /// Send out any buffered data to the connection.
-        /// </summary>
-        private void Flush()
-        {
-            
-        }
-
         /// <summary>
         /// Sends raw bytes to the socket.  Blocks until data is sent to the underlying system to send.
         /// Before transport encryption has been established, any buffer size will be sent.
@@ -520,8 +526,6 @@ namespace DtronixMessageQueue.TcpSocket
                 throw new ArgumentException("Too large");
 
             _writeSemaphore.Wait(-1);
-            short sendLength;
-
 
             if (_encryptor != null)
             {
@@ -533,7 +537,7 @@ namespace DtronixMessageQueue.TcpSocket
                 };
 
                 // Encrypt the header.
-                sendLength = TransformDataBuffer(header, 0, 3, _sendArgs.Buffer, _sendArgs.Offset, _sendBuffer,
+                var sendLength = TransformDataBuffer(header, 0, 3, _sendArgs.Buffer, _sendArgs.Offset, _sendBuffer,
                     ref _sendBufferLength, _encryptor, false, false);
 
 
@@ -542,20 +546,71 @@ namespace DtronixMessageQueue.TcpSocket
                     ref _sendBufferLength, _encryptor, false, false);
 
                 if (sendLength == 0)
-                {
-                    // If the packet was small, the message could have gone completely into the send buffer.
-                    _writeSemaphore.Release();
                     return;
-                }
+
+                _sendArgs.SetBuffer(_sendArgs.Offset, sendLength);
+
+                SendInternal(null, 0, 0);
             }
             else
             {
-                Buffer.BlockCopy(buffer, offset, _sendArgs.Buffer, _sendArgs.Offset, length);
-                sendLength = (short)length;
+                SendInternal(buffer, offset, length);
             }
+        }
 
-            // Update the buffer length.
+        /// <summary>
+        /// Send out any buffered data to the connection.
+        /// </summary>
+        public void Flush()
+        {
+            if (Socket == null || Socket.Connected == false)
+                return;
+
+            _writeSemaphore.Wait(-1);
+
+            if (_sendBufferLength == 0)
+                return;
+
+            var paddingLength = 16 - _sendBufferLength;
+
+            // Padding
+            var sendLength = TransformDataBuffer(paddingBuffer[paddingLength - 1], 0, paddingLength, _sendArgs.Buffer,
+                _sendArgs.Offset, _sendBuffer,
+                ref _sendBufferLength, _encryptor, false, false);
+
             _sendArgs.SetBuffer(_sendArgs.Offset, sendLength);
+
+            SendInternal(null, 0, 0);
+
+        }
+
+
+
+
+        /// <summary>
+        /// Sends raw bytes to the socket.  Blocks until data is sent to the underlying system to send.
+        /// Before transport encryption has been established, any buffer size will be sent.
+        /// After transport encryption has been established, only buffers in increments of 16.
+        /// Excess will be buffered until the next write.
+        /// </summary>
+        /// <param name="buffer">Buffer bytes to send.</param>
+        /// <param name="offset">Offset in the buffer.</param>
+        /// <param name="length">Total bytes to send.</param>
+        private void SendInternal(byte[] buffer, int offset, int length)
+        {
+            if (Socket == null || Socket.Connected == false)
+                return;
+
+            if (length > Config.SendAndReceiveBufferSize)
+                throw new ArgumentException("Too large");
+
+            if (buffer != null)
+            {
+                Buffer.BlockCopy(buffer, offset, _sendArgs.Buffer, _sendArgs.Offset, length);
+
+                // Update the buffer length.
+                _sendArgs.SetBuffer(_sendArgs.Offset, length);
+            }
 
             try
             {
@@ -568,9 +623,7 @@ namespace DtronixMessageQueue.TcpSocket
             {
                 Close(CloseReason.SocketError);
             }
-
         }
-
 
         /// <summary>
         /// This method is invoked when an asynchronous send operation completes.  
@@ -594,7 +647,7 @@ namespace DtronixMessageQueue.TcpSocket
             {
                 Unknown = 0,
                 FullMessage = 1,
-                PartialMessage = 2,
+                Padding = 2,
             }
 
             public enum State
@@ -606,18 +659,13 @@ namespace DtronixMessageQueue.TcpSocket
 
             public State HeaderReceiveState = State.Empty;
             public Type HeaderType;
-            public byte[] BodyLengthBuffer = new byte[2];
+            public readonly byte[] BodyLengthBuffer = new byte[2];
             public int BodyLengthBufferLength;
             public short BodyLength;
             public int BodyPosition;
 
 
         }
-
-        private int totalRecieveLoops = 0;
-        private int totalReceives = 0;
-        private ReceiveHeader receiveHeader = new ReceiveHeader();
-        private byte[] end24;
 
         /// <summary>
         /// This method is invoked when an asynchronous receive operation completes. 
@@ -666,8 +714,9 @@ namespace DtronixMessageQueue.TcpSocket
                                 case ReceiveHeader.Type.FullMessage:
                                     receiveHeader.HeaderReceiveState = ReceiveHeader.State.ReadingBodyLength;
                                     break;
-                                case ReceiveHeader.Type.PartialMessage:
-                                    break;
+                                case ReceiveHeader.Type.Padding:
+                                    position++;
+                                    continue;
                                 case ReceiveHeader.Type.Unknown:
                                 default:
                                     throw new ArgumentOutOfRangeException();
@@ -684,7 +733,7 @@ namespace DtronixMessageQueue.TcpSocket
                             {
                                 if (position + 1 < e.BytesTransferred) // See if we can read the entire size at once.
                                 {
-                                    receiveHeader.BodyLength = BitConverter.ToInt16(e.Buffer, position + e.Offset);
+                                    receiveHeader.BodyLength = BitConverter.ToInt16(_receiveTransformedBuffer, position);
                                     position += 2;
 
                                     // Body length complete.

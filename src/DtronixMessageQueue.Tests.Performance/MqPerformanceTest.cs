@@ -73,7 +73,7 @@ namespace DtronixMessageQueue.Tests.Performance
                 _config.SendAndReceiveBufferSize);
 
 
-            MqInProcessPerformanceTests(10000, 5, _smallMessage, _config);
+            MqInProcessPerformanceTests(1000000, 5, _smallMessage, _config);
 
             MqInProcessPerformanceTests(100000, 5, _medimumMessage, _config);
 
