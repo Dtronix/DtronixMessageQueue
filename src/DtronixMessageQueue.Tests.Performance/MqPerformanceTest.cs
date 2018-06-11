@@ -33,6 +33,7 @@ namespace DtronixMessageQueue.Tests.Performance
             _config = new MqConfig
             {
                 Address = "127.0.0.1:2828",
+                PingFrequency = 0
             };
 
             _smallMessage = new MqMessage
@@ -72,6 +73,7 @@ namespace DtronixMessageQueue.Tests.Performance
             Console.WriteLine("FrameBufferSize: {0}; SendAndReceiveBufferSize: {1}\r\n", _config.FrameBufferSize,
                 _config.SendAndReceiveBufferSize);
 
+            MqInProcessPerformanceTests(1, 1, _smallMessage, _config);
 
             MqInProcessPerformanceTests(1000000, 5, _smallMessage, _config);
 
@@ -151,10 +153,6 @@ namespace DtronixMessageQueue.Tests.Performance
             {
                 
                 client.Send(message);
-                
-                //if(i % 50 == 1)
-                //    Thread.Sleep(1);
-
             }
 
             if (!_loopSemaphore.WaitOne(timeout))

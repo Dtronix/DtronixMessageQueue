@@ -271,9 +271,9 @@ namespace DtronixMessageQueue.TcpSocket
             PartialMessage = 2,
         }
 
-        protected override void Send(byte[] buffer, int offset, int length)
+        protected override void Send(byte[] buffer, int offset, int length, bool last)
         {
-            base.Send(buffer, offset, length);
+            base.Send(buffer, offset, length, last);
         }
 
   

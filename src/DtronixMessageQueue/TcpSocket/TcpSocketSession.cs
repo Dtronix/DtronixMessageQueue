@@ -213,7 +213,7 @@ namespace DtronixMessageQueue.TcpSocket
                 ServiceMethodCache = args.ServiceMethodCache
             };
 
-            session._receiveTransformedBuffer = new byte[args.SessionConfig.SendAndReceiveBufferSize];
+            session._receiveTransformedBuffer = new byte[args.SessionConfig.SendAndReceiveBufferSize + 3];
             session._sendArgs.Completed += session.IoCompleted;
             session._receiveArgs.Completed += session.IoCompleted;
 
@@ -301,7 +301,7 @@ namespace DtronixMessageQueue.TcpSocket
                     {
                         KeySize = 256,
                         Mode = CipherMode.CBC,
-                        Padding = PaddingMode.PKCS7
+                        Padding = PaddingMode.None
                     };
 
                     // Server side.
@@ -346,7 +346,7 @@ namespace DtronixMessageQueue.TcpSocket
                     {
                         KeySize = 256,
                         Mode = CipherMode.CBC,
-                        Padding = PaddingMode.PKCS7,
+                        Padding = PaddingMode.None,
                         Key = key,
                         IV = iv
                     };
@@ -368,8 +368,11 @@ namespace DtronixMessageQueue.TcpSocket
             }
 
             // Set the encryptor and decryptor.
+            /*_decryptor = new PlainCryptoTransform();
+            _encryptor = new PlainCryptoTransform(); //*/
+            
             _decryptor = _aes.CreateDecryptor();
-            _encryptor = _aes.CreateEncryptor(); 
+            _encryptor = _aes.CreateEncryptor();  //*/
 
             _negotiationStream.Close();
             _negotiationStream = null;
@@ -522,7 +525,7 @@ namespace DtronixMessageQueue.TcpSocket
             if (Socket == null || Socket.Connected == false)
                 return;
 
-            if(length + 3 >= Config.SendAndReceiveBufferSize)
+            if(length > Config.SendAndReceiveBufferSize)
                 throw new ArgumentException("Too large");
 
             _writeSemaphore.Wait(-1);
@@ -545,8 +548,19 @@ namespace DtronixMessageQueue.TcpSocket
                 sendLength += TransformDataBuffer(buffer, offset, length, _sendArgs.Buffer, _sendArgs.Offset + sendLength, _sendBuffer,
                     ref _sendBufferLength, _encryptor, false, false);
 
+                // If this is the last frame in a packet, pad the ending.
+                if (length + 3 != sendLength)
+                { 
+                    var paddingLength = 16 - _sendBufferLength;
+                    sendLength += TransformDataBuffer(paddingBuffer[paddingLength - 1], 0, paddingLength,
+                        _sendArgs.Buffer,
+                        _sendArgs.Offset + sendLength, _sendBuffer,
+                        ref _sendBufferLength, _encryptor, false, false);
+                }
+
                 if (sendLength == 0)
                     return;
+                
 
                 _sendArgs.SetBuffer(_sendArgs.Offset, sendLength);
 
@@ -563,13 +577,14 @@ namespace DtronixMessageQueue.TcpSocket
         /// </summary>
         public void Flush()
         {
+
             if (Socket == null || Socket.Connected == false)
                 return;
 
-            _writeSemaphore.Wait(-1);
-
             if (_sendBufferLength == 0)
                 return;
+
+            //_writeSemaphore.Wait(-1);
 
             var paddingLength = 16 - _sendBufferLength;
 

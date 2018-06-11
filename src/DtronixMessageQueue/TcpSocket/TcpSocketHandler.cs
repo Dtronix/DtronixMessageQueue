@@ -212,8 +212,10 @@ namespace DtronixMessageQueue.TcpSocket
             var maxConnections = Config.MaxConnections + 1;
 
             // preallocate pool of SocketAsyncEventArgs objects
-            AsyncManager = new SocketAsyncEventArgsManager(Config.SendAndReceiveBufferSize * maxConnections * 2,
-                Config.SendAndReceiveBufferSize);
+            var bufferSize = Config.SendAndReceiveBufferSize / 16 * 16 + 16;
+
+            AsyncManager = new SocketAsyncEventArgsManager(bufferSize * 2,
+                bufferSize);
         }
 
         /// <summary>

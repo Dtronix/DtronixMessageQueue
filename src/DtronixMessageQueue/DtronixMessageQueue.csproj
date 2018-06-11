@@ -74,7 +74,7 @@
     <Compile Include="Rpc\SerializationCache.cs" />
     <Compile Include="Rpc\ServiceMethodCache.cs" />
     <Compile Include="TcpSocket\BufferManager.cs" />
-    <Compile Include="TcpSocket\EncryptedSocketSession.cs" />
+    <None Include="TcpSocket\EncryptedSocketSession.cs" />
     <Compile Include="TcpSocket\ISecureSocketSession.cs" />
     <Compile Include="TcpSocket\ISetupSocketSession.cs" />
     <Compile Include="SessionEventArgs.cs" />

@@ -110,14 +110,13 @@ namespace DtronixMessageQueue
 
             while (_outbox.TryDequeue(out message))
             {
-
                 if(CurrentState != State.Closed)
                     _sendingSemaphore.Release();
 
                 message.PrepareSend();
-                foreach (var frame in message)
+                for (var i = 0; i < message.Count; i++)
                 {
-                    var frameSize = frame.FrameSize;
+                    var frameSize = message[i].FrameSize;
 
                     // If this would overflow the max client buffer size, send the full buffer queue.
                     if (length + frameSize > Config.FrameBufferSize + MqFrame.HeaderLength)
@@ -127,7 +126,7 @@ namespace DtronixMessageQueue
                         // Reset the length to 0;
                         length = 0;
                     }
-                    bufferQueue.Enqueue(frame.RawFrame());
+                    bufferQueue.Enqueue(message[i].RawFrame());
 
                     // Increment the total buffer length.
                     length += frameSize;

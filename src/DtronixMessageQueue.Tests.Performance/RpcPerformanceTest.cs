@@ -29,7 +29,7 @@ namespace DtronixMessageQueue.Tests.Performance
 
             RpcSingleProcessTest(10000, 4, config, RpcTestType.Return);
 
-            RpcSingleProcessTest(10000, 4, config, RpcTestType.Exception);
+            RpcSingleProcessTest(100, 4, config, RpcTestType.Exception);
 
 
         }
@@ -81,7 +81,7 @@ namespace DtronixMessageQueue.Tests.Performance
 
             var send = new Action(() =>
             {
-
+                
                 var service = client.Session.GetProxy<ITestService>();
                 service.ResetTest();
 
