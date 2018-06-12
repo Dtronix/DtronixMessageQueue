@@ -51,7 +51,10 @@ namespace DtronixMessageQueue.TcpSocket
             Interlocked.Increment(ref _count);
             var eventArg = new SocketAsyncEventArgs();
 
-            _bufferManager.SetBuffer(eventArg);
+            if (_bufferManager.SetBuffer(eventArg) == false)
+            {
+                
+            }
 
             return eventArg;
         }

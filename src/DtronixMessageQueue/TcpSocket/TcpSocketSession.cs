@@ -213,7 +213,7 @@ namespace DtronixMessageQueue.TcpSocket
                 ServiceMethodCache = args.ServiceMethodCache
             };
 
-            session._receiveTransformedBuffer = new byte[args.SessionConfig.SendAndReceiveBufferSize + 3];
+            session._receiveTransformedBuffer = new byte[args.SessionConfig.SendAndReceiveBufferSize / 16 * 16 + 16];
             session._sendArgs.Completed += session.IoCompleted;
             session._receiveArgs.Completed += session.IoCompleted;
 

@@ -214,7 +214,7 @@ namespace DtronixMessageQueue.TcpSocket
             // preallocate pool of SocketAsyncEventArgs objects
             var bufferSize = Config.SendAndReceiveBufferSize / 16 * 16 + 16;
 
-            AsyncManager = new SocketAsyncEventArgsManager(bufferSize * 2,
+            AsyncManager = new SocketAsyncEventArgsManager(bufferSize * 2 * maxConnections,
                 bufferSize);
         }
 
