@@ -88,16 +88,6 @@ namespace DtronixMessageQueue.TcpSocket
         protected readonly ServiceMethodCache ServiceMethodCache;
 
         /// <summary>
-        /// Hold the RSA class for authentication during session setup.
-        /// </summary>
-        protected RSACng Rsa;
-
-        /// <summary>
-        /// Key used for encryption of data to the server side.
-        /// </summary>
-        public byte[] RsaPublicKey { get; set; }
-
-        /// <summary>
         /// Base constructor to all socket classes.
         /// </summary>
         /// <param name="config">Configurations for this socket.</param>
@@ -139,9 +129,6 @@ namespace DtronixMessageQueue.TcpSocket
                     ThreadName = $"{modeLower}-inbox",
                     StartThreads = processorThreads
                 });
-
-                Rsa = new RSACng(4096);
-                RsaPublicKey = Rsa.ExportParameters(false).Modulus;
             }
 
             OutboxProcessor.Start();

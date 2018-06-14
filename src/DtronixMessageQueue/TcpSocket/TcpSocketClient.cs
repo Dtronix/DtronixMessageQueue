@@ -97,7 +97,7 @@ namespace DtronixMessageQueue.TcpSocket
 
                     ConnectedSessions.TryAdd(Session.Id, Session);
 
-                    ((ISecureSocketSession) Session).SecureSession(Rsa);
+                    ((ISetupSocketSession) Session).StartSession();
                 }
             };
 
