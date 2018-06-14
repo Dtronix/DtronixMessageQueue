@@ -259,17 +259,12 @@ namespace DtronixMessageQueue
             if (CurrentState == State.Closed && reason != CloseReason.ConnectionRefused)
                 return;
 
-            if (reason == CloseReason.ProtocolError)
-            {
-                
-            }
-
             MqFrame closeFrame = null;
             if (CurrentState == State.Connected || reason == CloseReason.ConnectionRefused)
             {
                 closeFrame = CreateFrame(new byte[2], MqFrameType.Command);
 
-                closeFrame.Write(0, (byte)0);
+                closeFrame.Write(0, (byte)0); // Close
                 closeFrame.Write(1, (byte)reason);
             }
 
