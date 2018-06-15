@@ -140,8 +140,6 @@ namespace DtronixMessageQueue
 
             // Send the last of the buffer queue.
             SendBufferQueue(bufferQueue, length);
-
-            Flush();
         }
 
         /// <summary>
@@ -259,6 +257,7 @@ namespace DtronixMessageQueue
             if (CurrentState == State.Closed && reason != CloseReason.ConnectionRefused)
                 return;
 
+            /*
             MqFrame closeFrame = null;
             if (CurrentState == State.Connected || reason == CloseReason.ConnectionRefused)
             {
@@ -291,7 +290,7 @@ namespace DtronixMessageQueue
 
                 // QueueOnce the last bit of data.
                 ProcessOutbox();
-            }
+            }*/
 
             base.Close(reason);
 

@@ -72,10 +72,10 @@ namespace DtronixMessageQueue.Tests.Gui.Tests
             return val;
         }
 
-        protected override void Send(byte[] buffer, int offset, int length)
+        protected override void Send(byte[] buffer, int offset, int count)
         {
-            base.Send(buffer, offset, length);
-            Interlocked.Add(ref TotalSent, length);
+            base.Send(buffer, offset, count);
+            Interlocked.Add(ref TotalSent, count);
         }
 
 
