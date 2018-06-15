@@ -1,4 +1,5 @@
-﻿using System.Collections.Generic;
+﻿using System;
+using System.Collections.Generic;
 using System.Net.Sockets;
 
 namespace DtronixMessageQueue.TcpSocket
@@ -48,36 +49,28 @@ namespace DtronixMessageQueue.TcpSocket
         }
 
         /// <summary>
-        /// Assigns a buffer from the buffer pool to the specified SocketAsyncEventArgs object
+        /// Returns a buffer from the buffer pool.
         /// </summary>
-        /// <param name="args"></param>
-        /// <returns>true if the buffer was successfully set, else false</returns>
-        public bool SetBuffer(SocketAsyncEventArgs args)
+        /// <returns>ArraySegment with the buffer section</returns>
+        public ArraySegment<byte> GetBuffer()
         {
             if (_freeIndexPool.Count > 0)
-            {
-                args.SetBuffer(_buffer, _freeIndexPool.Pop(), _bufferSize);
-            }
-            else
-            {
-                if (_numBytes - _bufferSize < _currentIndex)
-                {
-                    return false;
-                }
-                args.SetBuffer(_buffer, _currentIndex, _bufferSize);
-                _currentIndex += _bufferSize;
-            }
-            return true;
+                return new ArraySegment<byte>(_buffer, _freeIndexPool.Pop(), _bufferSize);
+
+            if (_numBytes - _bufferSize < _currentIndex)
+                throw new Exception("Buffer manager exhausted.");
+
+            _currentIndex += _bufferSize;
+            return new ArraySegment<byte>(_buffer, _currentIndex, _bufferSize);
         }
 
         /// <summary>
         /// Removes the buffer from a SocketAsyncEventArg object. This frees the buffer back to the buffer pool.
         /// </summary>
         /// <param name="args"></param>
-        public void FreeBuffer(SocketAsyncEventArgs args)
+        public void FreeBuffer(ArraySegment<byte> args)
         {
             _freeIndexPool.Push(args.Offset);
-            //args.SetBuffer(null, 0, 0);
         }
     }
 }

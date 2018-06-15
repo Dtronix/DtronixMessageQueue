@@ -152,7 +152,8 @@ namespace DtronixMessageQueue.TcpSocket
         private byte[] _sendBuffer = new byte[16];
         private int _sendBufferLength = 0;
 
-        private byte[] _receiveTransformedBuffer;
+        private ArraySegment<byte> _receiveTransformedBuffer;
+        private BufferManager _receiveTransformedBufferManager;
         private byte[] _receivePartialBuffer = new byte[16];
         private int _receivePartialBufferLength = 0;
 
@@ -214,10 +215,11 @@ namespace DtronixMessageQueue.TcpSocket
                 _receiveArgs = args.SocketArgsManager.Create(),
                 InboxProcessor = args.InboxProcessor,
                 OutboxProcessor = args.OutboxProcessor,
-                ServiceMethodCache = args.ServiceMethodCache
+                ServiceMethodCache = args.ServiceMethodCache,
+                _receiveTransformedBufferManager = args.ReceiveBufferManager,
+                _receiveTransformedBuffer = args.ReceiveBufferManager.GetBuffer()
             };
 
-            session._receiveTransformedBuffer = new byte[args.SessionConfig.SendAndReceiveBufferSize / 16 * 16 + 16];
             session._sendArgs.Completed += session.IoCompleted;
             session._receiveArgs.Completed += session.IoCompleted;
 
@@ -317,7 +319,7 @@ namespace DtronixMessageQueue.TcpSocket
 
                 if (SocketHandler.Mode == TcpSocketMode.Server)
                 {
-                    var sendPacket = new byte[1 + 140];
+                    var sendPacket = new byte[1 + 140]; // ProtocolVersion + PublicKey
                     sendPacket[0] = ProtocolVersion;
                     var publicKey = dh.PublicKey.ToByteArray();
                     Buffer.BlockCopy(publicKey, 0, sendPacket, 1, 140);
@@ -711,7 +713,7 @@ namespace DtronixMessageQueue.TcpSocket
                 var position = 0;
 
                 int receiveLength = TransformDataBuffer(buffer, offset, count,
-                    _receiveTransformedBuffer, 0, _receivePartialBuffer,
+                    _receiveTransformedBuffer.Array, _receiveTransformedBuffer.Offset, _receivePartialBuffer,
                     ref _receivePartialBufferLength, _decryptor, false, false);
 
                 while (position < receiveLength)
@@ -722,7 +724,7 @@ namespace DtronixMessageQueue.TcpSocket
                     // See if we are ready for a new header.
                     if (receiveHeader.HeaderReceiveState == ReceiveHeader.State.Empty)
                     {
-                        receiveHeader.HeaderType = (ReceiveHeader.Type)_receiveTransformedBuffer[position];
+                        receiveHeader.HeaderType = (ReceiveHeader.Type)_receiveTransformedBuffer.Array[_receiveTransformedBuffer.Offset + position];
 
                         switch (receiveHeader.HeaderType)
                         {
@@ -748,7 +750,7 @@ namespace DtronixMessageQueue.TcpSocket
                         {
                             if (position + 1 < count) // See if we can read the entire size at once.
                             {
-                                receiveHeader.BodyLength = BitConverter.ToInt16(_receiveTransformedBuffer, position);
+                                receiveHeader.BodyLength = BitConverter.ToInt16(_receiveTransformedBuffer.Array, _receiveTransformedBuffer.Offset + position);
                                 position += 2;
 
                                 // Body length complete.
@@ -757,7 +759,7 @@ namespace DtronixMessageQueue.TcpSocket
                             else
                             {
                                 // Read the first byte of the body length.
-                                receiveHeader.BodyLengthBuffer[0] = _receiveTransformedBuffer[position];
+                                receiveHeader.BodyLengthBuffer[0] = _receiveTransformedBuffer.Array[_receiveTransformedBuffer.Offset + position];
                                 receiveHeader.BodyLengthBufferLength = 1;
                                 // Nothing more to read.
                                 break;
@@ -766,7 +768,7 @@ namespace DtronixMessageQueue.TcpSocket
                         else
                         {
                             // The buffer already contains a byte.
-                            receiveHeader.BodyLengthBuffer[1] = _receiveTransformedBuffer[position];
+                            receiveHeader.BodyLengthBuffer[1] = _receiveTransformedBuffer.Array[_receiveTransformedBuffer.Offset + position];
                             position++;
 
                             receiveHeader.BodyLength = BitConverter.ToInt16(receiveHeader.BodyLengthBuffer, 0);
@@ -789,7 +791,7 @@ namespace DtronixMessageQueue.TcpSocket
                         break;
 
                     readBuffer = new byte[currentMessageReadLength];
-                    Buffer.BlockCopy(_receiveTransformedBuffer, position, readBuffer, 0, currentMessageReadLength);
+                    Buffer.BlockCopy(_receiveTransformedBuffer.Array, _receiveTransformedBuffer.Offset + position, readBuffer, 0, currentMessageReadLength);
 
                     receiveHeader.BodyPosition += currentMessageReadLength;
                     position += currentMessageReadLength;
@@ -856,9 +858,12 @@ namespace DtronixMessageQueue.TcpSocket
             _sendArgs.Completed -= IoCompleted;
             _receiveArgs.Completed -= IoCompleted;
 
-            // Free the SocketAsyncEventArg so they can be reused by another client
+            // Free the SocketAsyncEventArg so they can be reused by another client.
             _argsPool.Free(_sendArgs);
             _argsPool.Free(_receiveArgs);
+
+            // Free the transformed buffer.
+            _receiveTransformedBufferManager.FreeBuffer(_receiveTransformedBuffer);
 
             InboxProcessor.Deregister(Id);
             OutboxProcessor.Deregister(Id);

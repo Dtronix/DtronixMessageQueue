@@ -48,5 +48,10 @@ namespace DtronixMessageQueue.TcpSocket
         /// Cache for commonly called methods used throughout the session.
         /// </summary>
         public ServiceMethodCache ServiceMethodCache;
+
+        /// <summary>
+        /// Receive buffer manager used to encryption trasformations on received data.
+        /// </summary>
+        public BufferManager ReceiveBufferManager;
     }
 }
