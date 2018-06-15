@@ -84,7 +84,7 @@
     <Compile Include="TcpSocket\SocketAsyncEventArgsManager.cs" />
     <Compile Include="TcpSocket\TcpSocketHandler.cs" />
     <Compile Include="TcpSocket\TcpSocketClient.cs" />
-    <Compile Include="CloseReason.cs" />
+    <Compile Include="TcpSocket\CloseReason.cs" />
     <Compile Include="TcpSocket\TcpSocketConfig.cs" />
     <Compile Include="TcpSocket\TcpSocketMode.cs" />
     <Compile Include="TcpSocket\TcpSocketServer.cs" />
