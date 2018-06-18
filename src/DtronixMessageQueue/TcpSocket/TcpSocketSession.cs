@@ -630,7 +630,15 @@ namespace DtronixMessageQueue.TcpSocket
             public short BodyLength;
             public int BodyPosition;
 
-
+            public void Reset()
+            {
+                HeaderType = Type.Unknown;
+                HeaderReceiveState = State.Empty;
+                BodyLengthBufferLength = 0;
+                BodyPosition = 0;
+                BodyLength = 0;
+                BodyLengthBufferLength = 0;
+            }
         }
 
         /// <summary>
@@ -651,7 +659,9 @@ namespace DtronixMessageQueue.TcpSocket
 
             if (e.BytesTransferred > 0 && e.SocketError == SocketError.Success)
             {
-                ReceiveCompleteInternal(e.Buffer, e.Offset, e.BytesTransferred);
+                // If the session was closed curing the internal receive, don't read any more.
+                if (!ReceiveCompleteInternal(e.Buffer, e.Offset, e.BytesTransferred))
+                    return;
 
                 try
                 {
@@ -672,15 +682,10 @@ namespace DtronixMessageQueue.TcpSocket
             }
         }
 
-        private void ReceiveCompleteInternal(byte[] buffer, int offset, int count)
+        private bool ReceiveCompleteInternal(byte[] buffer, int offset, int count)
         {
             // Update the last time this session was active to prevent timeout.
             _lastReceived = DateTime.UtcNow;
-
-            // Create a copy of these bytes.
-
-            /*if (_decryptor != null)
-            {*/
             var position = 0;
             var receiveBuffer = _receiveTransformedBuffer.Array;
             var receiveOffset = _receiveTransformedBuffer.Offset;
@@ -703,6 +708,11 @@ namespace DtronixMessageQueue.TcpSocket
                     switch (_header.HeaderType)
                     {
                         case Header.Type.FullMessage:
+                            if (CurrentState != State.Connected)
+                            {
+                                Close(CloseReason.ProtocolError);
+                                return false;
+                            }
                             _header.HeaderReceiveState = Header.State.ReadingBodyLength;
                             break;
 
@@ -711,6 +721,11 @@ namespace DtronixMessageQueue.TcpSocket
                             break;
 
                         case Header.Type.EncryptChannel:
+                            if (CurrentState != State.Securing)
+                            {
+                                Close(CloseReason.ProtocolError);
+                                return false;
+                            }
                             _header.HeaderReceiveState = Header.State.ReadingEncryptionKey;
                             break;
 
@@ -722,6 +737,7 @@ namespace DtronixMessageQueue.TcpSocket
                             throw new ArgumentOutOfRangeException();
                     }
 
+                    // Advance the position past the record type bit.
                     position++;
                 }
 
@@ -734,7 +750,7 @@ namespace DtronixMessageQueue.TcpSocket
 
                     // Close the session.
                     Close(reason);
-                    return;
+                    return false;
                 }
 
                 // Read the close reason.
@@ -747,7 +763,7 @@ namespace DtronixMessageQueue.TcpSocket
                         readLength);
 
                     if (SecureConnectionReceive(encryptionKeyBuffer))
-                        _header.HeaderReceiveState = Header.State.Complete;
+                        _header.Reset();
 
                     position += readLength;
                 }
@@ -816,18 +832,11 @@ namespace DtronixMessageQueue.TcpSocket
 
                 if (_header.BodyPosition == _header.BodyLength)
                 {
-                    _header.HeaderReceiveState = Header.State.Empty;
-                    _header.BodyPosition = 0;
+                    _header.Reset();
                 }
             }
-            /*}
-            else
-            {
-                readBuffer = new byte[_receiveArgs.BytesTransferred];
-                Buffer.BlockCopy(_receiveArgs.Buffer, _receiveArgs.Offset, readBuffer, 0,
-                    _receiveArgs.BytesTransferred);
-                SecureConnectionReceive(readBuffer);
-            }*/
+
+            return true;
         }
 
         /// <summary>
