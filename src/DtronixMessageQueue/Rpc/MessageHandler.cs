@@ -1,4 +1,6 @@
-﻿using System.Collections.Generic;
+﻿using System;
+using System.Collections.Concurrent;
+using System.Collections.Generic;
 using DtronixMessageQueue.TcpSocket;
 
 namespace DtronixMessageQueue.Rpc
@@ -8,7 +10,7 @@ namespace DtronixMessageQueue.Rpc
     /// </summary>
     /// <typeparam name="TSession">Session type for this connection.</typeparam>
     /// <typeparam name="TConfig">Configuration for this connection.</typeparam>
-    public abstract class MessageHandler<TSession, TConfig>
+    public abstract class MessageHandler<TSession, TConfig> : IDisposable
         where TSession : RpcSession<TSession, TConfig>, new()
         where TConfig : RpcConfig
     {
@@ -27,16 +29,25 @@ namespace DtronixMessageQueue.Rpc
         /// <summary>
         /// Session of the connection.
         /// </summary>
-        public TSession Session;
+        public TSession Session { get; }
+
+        private Guid HandlerId;
+
+        private ConcurrentQueue<MqMessage> handlerQueue = new ConcurrentQueue<MqMessage>();
+
+        private readonly ActionProcessor<Guid> _rpcActionProcessor;
 
         /// <summary>
         /// All registered handlers for the MessageHandler.
         /// </summary>
         protected Dictionary<byte, ActionHandler> Handlers = new Dictionary<byte, ActionHandler>();
 
-        protected MessageHandler(TSession session)
+        protected MessageHandler(TSession session, ActionProcessor<Guid> rpcActionProcessor)
         {
+            HandlerId = Guid.NewGuid();
             Session = session;
+            _rpcActionProcessor = rpcActionProcessor;
+            rpcActionProcessor.Register(HandlerId, ProcessMessage);
         }
 
         /// <summary>
@@ -50,21 +61,31 @@ namespace DtronixMessageQueue.Rpc
             if (message[0][0] != Id)
             {
                 Session.Close(CloseReason.ProtocolError);
+                return false;
             }
 
-            // Read the type of message.
-            var messageType = message[0].ReadByte(1);
+            _rpcActionProcessor.QueueOnce(HandlerId);
 
-            if (Handlers.ContainsKey(messageType))
+            return true;
+        }
+
+        private void ProcessMessage()
+        {
+            while (handlerQueue.TryDequeue(out var message))
             {
-                message.RemoveAt(0);
-                Handlers[messageType].Invoke(messageType, message);
-                return true;
-            }
+                // Read the type of message.
+                var messageType = message[0].ReadByte(1);
 
-            // Unknown message type passed.  Disconnect the connection.
-            Session.Close(CloseReason.ProtocolError);
-            return false;
+                if (Handlers.ContainsKey(messageType))
+                {
+                    message.RemoveAt(0);
+                    Handlers[messageType].Invoke(messageType, message);
+                    return;
+                }
+
+                // Unknown message type passed.  Disconnect the connection.
+                Session.Close(CloseReason.ProtocolError);
+            }
         }
 
         /// <summary>
@@ -96,6 +117,11 @@ namespace DtronixMessageQueue.Rpc
             };
 
             Session.Send(sendMessage);
+        }
+
+        public void Dispose()
+        {
+            _rpcActionProcessor.Deregister(HandlerId);
         }
     }
 }

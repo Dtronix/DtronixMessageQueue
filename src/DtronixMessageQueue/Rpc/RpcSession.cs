@@ -53,6 +53,8 @@ namespace DtronixMessageQueue.Rpc
         /// </summary>
         public event EventHandler<SessionEventArgs<TSession, TConfig>> Ready;
 
+
+
         /// <summary>
         /// True if this session has passed authentication;  False otherwise.
         /// </summary>
