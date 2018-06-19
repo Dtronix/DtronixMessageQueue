@@ -105,12 +105,12 @@ namespace DtronixMessageQueue.TcpSocket
         protected ActionProcessor<Guid> OutboxProcessor;
 
 
-        private System.Net.Sockets.Socket _socket;
+        private Socket _socket;
 
         /// <summary>
         /// Raw socket for this session.
         /// </summary>
-        public System.Net.Sockets.Socket Socket => _socket;
+        public Socket Socket => _socket;
 
         /// <summary>
         /// Async args used to send data to the wire.
@@ -148,32 +148,78 @@ namespace DtronixMessageQueue.TcpSocket
         /// </summary>
         public event EventHandler<SessionClosedEventArgs<TSession, TConfig>> Closed;
 
+        /// <summary>
+        /// Stream to handle the receiving and buffering of data during the secure negotiation stage.
+        /// </summary>
         private MemoryQueueStream _negotiationStream;
 
-        private byte[] _sendPartialBuffer = new byte[16];
+        /// <summary>
+        /// Send partial buffer used to contain the data sent which exceeds the 16 bit alignment.
+        /// </summary>
+        private readonly byte[] _sendPartialBuffer = new byte[16];
+
+        /// <summary>
+        /// Length of the data in the send partial buffer.
+        /// </summary>
         private int _sendPartialBufferLength = 0;
-        private byte[] _receivePartialBuffer = new byte[16];
+
+        /// <summary>
+        /// Receive partial buffer used to contain the data sent which exceeds the 16 bit alignment.
+        /// </summary>
+        private readonly byte[] _receivePartialBuffer = new byte[16];
+
+        /// <summary>
+        /// Length of the data in the receive partial buffer.
+        /// </summary>
         private int _receivePartialBufferLength = 0;
 
-
+        /// <summary>
+        /// Pooled buffer segment used for the transformation of data.
+        /// </summary>
         private ArraySegment<byte> _receiveTransformedBuffer;
+
+        /// <summary>
+        /// Manager for the _receiveTransformedBuffer buffer segment.
+        /// Segment to be released upon session closure to free up for next session.
+        /// </summary>
         private BufferManager _receiveTransformedBufferManager;
 
+        /// <summary>
+        /// Contains the other connection's ecdh public key.
+        /// Null if it has not been received yet or been consumed.
+        /// </summary>
+        private byte[] _otherDhPublicKey;
 
         /// <summary>
         /// Contains the encryption and description methods.
         /// </summary>
         private Aes _aes;
-
+        
+        /// <summary>
+        /// Contains the current decryptor for inbound data.
+        /// </summary>
         private ICryptoTransform _decryptor;
 
+        /// <summary>
+        /// Contains the current encryptor used for outbound data.
+        /// </summary>
         private ICryptoTransform _encryptor;
 
-        private Header _header = new Header();
+        /// <summary>
+        /// Contains state information about the current receiving header.
+        /// </summary>
+        private readonly Header _receivingHeader = new Header();
+        
+        /// <summary>
+        /// Buffer containing bytes for padding end of packets for 16 bit alignment.
+        /// </summary>
+        // ReSharper disable once StaticMemberInGenericType
+        private static byte[][] _paddingBuffer;
 
-        private static byte[][] paddingBuffer;
-
-        private ECDiffieHellmanCng dh;
+        /// <summary>
+        /// Current elliptical curve algorithm used to generate a private key for this session.
+        /// </summary>
+        private ECDiffieHellmanCng _ecdh;
 
         /// <summary>
         /// Creates a new socket session with a new Id.
@@ -184,25 +230,27 @@ namespace DtronixMessageQueue.TcpSocket
             CurrentState = State.Closed;
             _negotiationStream = new MemoryQueueStream();
 
-            dh = new ECDiffieHellmanCng
+            _ecdh = new ECDiffieHellmanCng
             {
                 KeyDerivationFunction = ECDiffieHellmanKeyDerivationFunction.Hash,
                 HashAlgorithm = CngAlgorithm.Sha384
             };
 
+            // Create dummy transformations for the use of the TransformDataBuffer method.
             _decryptor = new PlainCryptoTransform();
             _encryptor = new PlainCryptoTransform();
 
+            // Create an array of padding bytes to be used for copying.
             var paddingBufferList = new byte[15][];
-            if (paddingBuffer == null)
+            if (_paddingBuffer == null)
             {
-                for (int i = 0; i < 15; i++)
+                for (var i = 0; i < 15; i++)
                 {
                     paddingBufferList[i] = new byte[i + 1];
                     for (int j = 0; j < i + 1; j++)
                         paddingBufferList[i][j] = (byte) Header.Type.Padding;
                 }
-                paddingBuffer = paddingBufferList;
+                _paddingBuffer = paddingBufferList;
             }
         }
 
@@ -255,6 +303,8 @@ namespace DtronixMessageQueue.TcpSocket
         {
             if (CurrentState != State.Closed)
                 return;
+
+            // Change into a securing state for the 
             CurrentState = State.Securing;
             ConnectedTime = DateTime.UtcNow;
 
@@ -264,13 +314,11 @@ namespace DtronixMessageQueue.TcpSocket
             // Send the protocol version number along with the public key to the connected client.
             if (SocketHandler.Mode == TcpSocketMode.Client)
             {
-                var key = dh.PublicKey.ToByteArray();
+                var key = _ecdh.PublicKey.ToByteArray();
                 SendWithHeader(Header.Type.EncryptChannel, null, 0, 0, key, 0, key.Length, true);
             }
             
         }
-
-        private byte[] _otherDHPublicKey;
 
         private bool SecureConnectionReceive(byte[] buffer)
         {
@@ -290,12 +338,14 @@ namespace DtronixMessageQueue.TcpSocket
             if (_aes == null
                 && _negotiationStream.Length >= 140)
             {
-                _otherDHPublicKey = new byte[140];
-                _negotiationStream.Read(_otherDHPublicKey, 0, 140);
+                _otherDhPublicKey = new byte[140];
+                _negotiationStream.Read(_otherDhPublicKey, 0, 140);
 
                 var otherPublicKey =
-                    ECDiffieHellmanCngPublicKey.FromByteArray(_otherDHPublicKey, CngKeyBlobFormat.EccPublicBlob);
-                var generatedKey = dh.DeriveKeyMaterial(otherPublicKey);
+                    ECDiffieHellmanCngPublicKey.FromByteArray(_otherDhPublicKey, CngKeyBlobFormat.EccPublicBlob);
+                _otherDhPublicKey = null;
+
+                var generatedKey = _ecdh.DeriveKeyMaterial(otherPublicKey);
 
                 var iv = new byte[16];
                 var key = new byte[32];
@@ -315,7 +365,7 @@ namespace DtronixMessageQueue.TcpSocket
 
                 if (SocketHandler.Mode == TcpSocketMode.Server)
                 {
-                    var pKey = dh.PublicKey.ToByteArray();
+                    var pKey = _ecdh.PublicKey.ToByteArray();
                     SendWithHeader(Header.Type.EncryptChannel, null, 0, 0, pKey, 0, pKey.Length, true);
                 }
 
@@ -334,6 +384,9 @@ namespace DtronixMessageQueue.TcpSocket
             // Set the encryptor and decryptor.
             _decryptor = _aes.CreateDecryptor();
             _encryptor = _aes.CreateEncryptor();
+
+            _ecdh.Dispose();
+            _ecdh = null;
 
             // If the stream has any extra data sent, pass it along to the reader.
             if (_negotiationStream.Length > 0)
@@ -593,7 +646,7 @@ namespace DtronixMessageQueue.TcpSocket
                 // Determine how much to pad the buffer.
                 var paddingLength = 16 - _sendPartialBufferLength;
                 sendLength += TransformDataBuffer(
-                    paddingBuffer[paddingLength - 1],
+                    _paddingBuffer[paddingLength - 1],
                     0,
                     paddingLength,
                     _sendArgs.Buffer,
@@ -746,12 +799,12 @@ namespace DtronixMessageQueue.TcpSocket
                     break;
 
                 // See if we are ready for a new header.
-                if (_header.HeaderReceiveState == Header.State.Empty)
+                if (_receivingHeader.HeaderReceiveState == Header.State.Empty)
                 {
-                    _header.HeaderType =
+                    _receivingHeader.HeaderType =
                         (Header.Type) receiveBuffer[receiveOffset + position];
 
-                    switch (_header.HeaderType)
+                    switch (_receivingHeader.HeaderType)
                     {
                         case Header.Type.BodyPayload:
                             if (CurrentState != State.Connected)
@@ -759,11 +812,11 @@ namespace DtronixMessageQueue.TcpSocket
                                 Close(CloseReason.ProtocolError);
                                 return false;
                             }
-                            _header.HeaderReceiveState = Header.State.ReadingBodyLength;
+                            _receivingHeader.HeaderReceiveState = Header.State.ReadingBodyLength;
                             break;
 
                         case Header.Type.ConnectionClose:
-                            _header.HeaderReceiveState = Header.State.ReadingCloseReason;
+                            _receivingHeader.HeaderReceiveState = Header.State.ReadingCloseReason;
                             break;
 
                         case Header.Type.EncryptChannel:
@@ -772,7 +825,7 @@ namespace DtronixMessageQueue.TcpSocket
                                 Close(CloseReason.ProtocolError);
                                 return false;
                             }
-                            _header.HeaderReceiveState = Header.State.ReadingEncryptionKey;
+                            _receivingHeader.HeaderReceiveState = Header.State.ReadingEncryptionKey;
                             break;
 
                         case Header.Type.Padding:
@@ -788,7 +841,7 @@ namespace DtronixMessageQueue.TcpSocket
                 }
 
                 // Read the DH key
-                if (_header.HeaderReceiveState == Header.State.ReadingCloseReason
+                if (_receivingHeader.HeaderReceiveState == Header.State.ReadingCloseReason
                     && position < receiveLength)
                 {
                     var reason =
@@ -800,7 +853,7 @@ namespace DtronixMessageQueue.TcpSocket
                 }
 
                 // Read the close reason.
-                if (_header.HeaderReceiveState == Header.State.ReadingEncryptionKey
+                if (_receivingHeader.HeaderReceiveState == Header.State.ReadingEncryptionKey
                     && position < receiveLength)
                 {
                     var readLength = Math.Min(140 - (int)_negotiationStream.Length, receiveLength - position);
@@ -809,33 +862,33 @@ namespace DtronixMessageQueue.TcpSocket
                         readLength);
 
                     if (SecureConnectionReceive(encryptionKeyBuffer))
-                        _header.Reset();
+                        _receivingHeader.Reset();
 
                     position += readLength;
                 }
 
                 // Read the number of bytes contained in the body.
-                if (_header.HeaderReceiveState == Header.State.ReadingBodyLength
+                if (_receivingHeader.HeaderReceiveState == Header.State.ReadingBodyLength
                     && position < receiveLength)
                 {
                     // See if the buffer has any contents.
-                    if (_header.BodyLengthBufferLength == 0)
+                    if (_receivingHeader.BodyLengthBufferLength == 0)
                     {
                         if (position + 1 < count) // See if we can read the entire size at once.
                         {
-                            _header.BodyLength = BitConverter.ToInt16(receiveBuffer,
+                            _receivingHeader.BodyLength = BitConverter.ToInt16(receiveBuffer,
                                 receiveOffset + position);
                             position += 2;
 
                             // Body length complete.
-                            _header.HeaderReceiveState = Header.State.Complete;
+                            _receivingHeader.HeaderReceiveState = Header.State.Complete;
                         }
                         else
                         {
                             // Read the first byte of the body length.
-                            _header.BodyLengthBuffer[0] =
+                            _receivingHeader.BodyLengthBuffer[0] =
                                 receiveBuffer[receiveOffset + position];
-                            _header.BodyLengthBufferLength = 1;
+                            _receivingHeader.BodyLengthBufferLength = 1;
                             // Nothing more to read.
                             break;
                         }
@@ -843,25 +896,25 @@ namespace DtronixMessageQueue.TcpSocket
                     else
                     {
                         // The buffer already contains a byte.
-                        _header.BodyLengthBuffer[1] =
+                        _receivingHeader.BodyLengthBuffer[1] =
                             receiveBuffer[receiveOffset + position];
                         position++;
 
-                        _header.BodyLength = BitConverter.ToInt16(_header.BodyLengthBuffer, 0);
+                        _receivingHeader.BodyLength = BitConverter.ToInt16(_receivingHeader.BodyLengthBuffer, 0);
 
                         // Body length complete.
-                        _header.HeaderReceiveState = Header.State.Complete;
+                        _receivingHeader.HeaderReceiveState = Header.State.Complete;
                     }
                 }
 
                 // If we do not have a complete receive header, stop parsing
-                if (_header.HeaderReceiveState != Header.State.Complete)
+                if (_receivingHeader.HeaderReceiveState != Header.State.Complete)
                     break;
 
                 // Reset the receive header buffer info.
-                _header.BodyLengthBufferLength = 0;
+                _receivingHeader.BodyLengthBufferLength = 0;
 
-                var currentMessageReadLength = Math.Min(_header.BodyLength - _header.BodyPosition,
+                var currentMessageReadLength = Math.Min(_receivingHeader.BodyLength - _receivingHeader.BodyPosition,
                     receiveLength - position);
 
                 if (currentMessageReadLength == 0)
@@ -871,14 +924,14 @@ namespace DtronixMessageQueue.TcpSocket
                 Buffer.BlockCopy(receiveBuffer, receiveOffset + position,
                     readBuffer, 0, currentMessageReadLength);
 
-                _header.BodyPosition += currentMessageReadLength;
+                _receivingHeader.BodyPosition += currentMessageReadLength;
                 position += currentMessageReadLength;
 
                 HandleIncomingBytes(readBuffer);
 
-                if (_header.BodyPosition == _header.BodyLength)
+                if (_receivingHeader.BodyPosition == _receivingHeader.BodyLength)
                 {
-                    _header.Reset();
+                    _receivingHeader.Reset();
                 }
             }
 
