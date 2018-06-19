@@ -265,7 +265,7 @@ namespace DtronixMessageQueue.TcpSocket
             if (SocketHandler.Mode == TcpSocketMode.Client)
             {
                 var key = dh.PublicKey.ToByteArray();
-                SendWithHeader(key, 0, key.Length, Header.Type.EncryptChannel, null, 0, 0);
+                SendWithHeader(Header.Type.EncryptChannel, null, 0, 0, key, 0, key.Length, true);
             }
             
         }
@@ -316,7 +316,7 @@ namespace DtronixMessageQueue.TcpSocket
                 if (SocketHandler.Mode == TcpSocketMode.Server)
                 {
                     var pKey = dh.PublicKey.ToByteArray();
-                    SendWithHeader(pKey, 0, pKey.Length, Header.Type.EncryptChannel, null, 0, 0);
+                    SendWithHeader(Header.Type.EncryptChannel, null, 0, 0, pKey, 0, pKey.Length, true);
                 }
 
 
@@ -411,29 +411,64 @@ namespace DtronixMessageQueue.TcpSocket
         }
 
 
-        private short TransformDataBuffer(byte[] bufferSource, int offsetSource, int lengthSource, byte[] bufferDest, int offsetDest, byte[] transformBuffer, ref int transformBufferLength, ICryptoTransform transformer)
+        /// <summary>
+        /// Transforms passed buffer to another buffer based upon the transformer passed.
+        /// Works in blocks of 16 bytes.
+        /// </summary>
+        /// <param name="bufferSource">Source buffer to transform.</param>
+        /// <param name="offsetSource">Offset in the source buffer to read.</param>
+        /// <param name="countSource">Total bytes to read in the buffer.</param>
+        /// <param name="bufferDest">Destination buffer to put the transformed data into.</param>
+        /// <param name="offsetDest">Offset in the destination buffer to write to.</param>
+        /// <param name="transformBuffer">Buffer used to contain excess data outside the 16 byte blocks.</param>
+        /// <param name="transformBufferLength">Reference to integer containing the total number of bytes in the transformBuffer.</param>
+        /// <param name="transformer">Transformer to apply to the data.</param>
+        /// <returns>Number of bytes transformed.  Will always be in increments of 16.</returns>
+        private int TransformDataBuffer(
+            byte[] bufferSource, 
+            int offsetSource, 
+            int countSource, 
+            byte[] bufferDest, 
+            int offsetDest, 
+            byte[] transformBuffer, 
+            ref int transformBufferLength, 
+            ICryptoTransform transformer)
         {
             int transformLength = 0;
+
+            // If there is data in the transformBuffer, fill it with the first portion of the source data
+            // to maintain data continuity.
             if (transformBufferLength > 0)
             {
-                int bufferTaken = Math.Min(lengthSource, 16 - transformBufferLength);
+                // Determine how much can be read from the source buffer.
+                int bufferTaken = Math.Min(countSource, 16 - transformBufferLength);
                 Buffer.BlockCopy(bufferSource, offsetSource, transformBuffer, transformBufferLength, bufferTaken);
+
+                // Add the length of the source data added to the transform buffer.
                 transformBufferLength += bufferTaken;
+
+                // Offset the source to bypass the transferred data into the transform buffer.
                 offsetSource += bufferTaken;
-                lengthSource -= bufferTaken;
+                countSource -= bufferTaken;
             }
 
             if (transformBufferLength == 16)
             {
-                transformLength += 16;
-                transformer.TransformBlock(transformBuffer, 0, transformBufferLength, bufferDest, offsetDest);
+                // If the transformBuffer is full, apply the transformation to the data and add it to the destination buffer.
+                transformLength +=
+                    transformer.TransformBlock(transformBuffer, 0, transformBufferLength, bufferDest, offsetDest);
             }
-            else if (lengthSource == 0)
+            else if (countSource == 0)
+            {
+                // If we have reached the end of the data in the source before we have filled the transform buffer,
+                // return 0 as nothing more can be done.
                 return 0;
+            }
 
             // Get the size of the block in chucks of 16 bytes.
-            int blockTransformLength = lengthSource / 16 * 16;
-            int transformRemain = lengthSource - blockTransformLength;
+            int blockTransformLength = countSource / 16 * 16;
+            int transformRemain = countSource - blockTransformLength;
+
             // Only transform if we have a block large enough.
             if(blockTransformLength > 0)
                 transformLength += transformer.TransformBlock(bufferSource, offsetSource, blockTransformLength, bufferDest,
@@ -443,13 +478,14 @@ namespace DtronixMessageQueue.TcpSocket
             if (transformBufferLength == 16)
                 transformBufferLength = 0;
 
+            // If excess remains at the end of the bufferSouce, copy it to the transformBuffer.
             if (transformRemain > 0)
             {
                 Buffer.BlockCopy(bufferSource, offsetSource + blockTransformLength, transformBuffer, 0, transformRemain);
                 transformBufferLength = transformRemain;
             }
 
-            return (short)transformLength;
+            return transformLength;
         }
 
         /// <summary>
@@ -461,7 +497,7 @@ namespace DtronixMessageQueue.TcpSocket
         /// <param name="buffer">Buffer bytes to send.</param>
         /// <param name="offset">Offset in the buffer.</param>
         /// <param name="count">Total bytes to send.</param>
-        protected virtual void Send(byte[] buffer, int offset, int count)
+        protected virtual void Send(byte[] buffer, int offset, int count, bool pad)
         {
             if (Socket == null || Socket.Connected == false)
                 return;
@@ -471,114 +507,113 @@ namespace DtronixMessageQueue.TcpSocket
                 lengthBytes[0],
                 lengthBytes[1]
             };
-
-            SendWithHeader(buffer, offset, count, Header.Type.FullMessage, bodyLengthBytes, 0, 2);
+            
+            // Send with FullMessage header.
+            SendWithHeader(Header.Type.BodyPayload, bodyLengthBytes, 0, 2, buffer, offset, count, pad);
         }
 
         /// <summary>
         /// Sends raw bytes to the socket.  Blocks until data is sent to the underlying system to send.
-        /// Before transport encryption has been established, any buffer size will be sent.
-        /// After transport encryption has been established, only buffers in increments of 16.
-        /// Excess will be buffered until the next write.
         /// </summary>
-        /// <param name="buffer">Buffer bytes to send.</param>
-        /// <param name="offset">Offset in the buffer.</param>
-        /// <param name="count">Total bytes to send.</param>
-        /// <param name="type"></param>
-        /// <param name="headerBuffer"></param>
-        /// <param name="headerOffset"></param>
-        /// <param name="headerCount"></param>
+        /// <remarks>
+        /// Only buffers in increments of 16 will be sent.  This includes the header type (byte), headerBuffer &  bodyBuffer.
+        /// Excess will be buffered until the next write.
+        /// </remarks>
+        /// <param name="headerType">The type of header to send.</param>
+        /// <param name="headerBuffer">Buffer to send after the header type.  Can be null.</param>
+        /// <param name="headerOffset">Offset in the header buffer to read.</param>
+        /// <param name="headerCount">Number of bytes to read in the header buffer.</param>
+        /// <param name="bodyBuffer">Buffer bytes to send.  Can be null.</param>
+        /// <param name="bodyOffset">Offset in the buffer.</param>
+        /// <param name="bodyCount">Number of bytes to send from the body buffer.</param>
+        /// <param name="pad">True to pad the data until it reaches 16 bytes.</param>
         private void SendWithHeader(
-            byte[] buffer, 
-            int offset, 
-            int count, 
-            Header.Type type, 
+            Header.Type headerType,
             byte[] headerBuffer,
-            int headerOffset, 
-            int headerCount)
+            int headerOffset,
+            int headerCount,
+            byte[] bodyBuffer,
+            int bodyOffset,
+            int bodyCount,
+            bool pad)
         {
             if (Socket == null || Socket.Connected == false)
                 return;
 
-            if (count > Config.SendAndReceiveBufferSize)
-                throw new ArgumentException("Too large");
+            // type (byte) + header
+            if (1 + headerCount > 16)
+                throw new ArgumentException("Header can not exceed 15 bytes in length.");
 
+            // body
+            if (bodyCount > Config.SendAndReceiveBufferSize)
+                throw new ArgumentException("Attempted to send buffer larger than ");
+
+            // Ensure sending occurs sequentially.
             _writeSemaphore.Wait(-1);
 
-
-            var sendLength = TransformDataBuffer(new[] {(byte) type}, 0, 1, _sendArgs.Buffer, _sendArgs.Offset,
+            // Add the header type to the buffer.
+            var sendLength = TransformDataBuffer(
+                new[] {(byte) headerType},
+                0,
+                1,
+                _sendArgs.Buffer,
+                _sendArgs.Offset,
                 _sendPartialBuffer,
-                ref _sendPartialBufferLength, _encryptor);
+                ref _sendPartialBufferLength,
+                _encryptor);
 
+            // Send if there is a header.
             if (headerBuffer != null)
-            {
-                sendLength += TransformDataBuffer(headerBuffer, headerOffset, headerCount, _sendArgs.Buffer,
-                    _sendArgs.Offset, _sendPartialBuffer,
-                    ref _sendPartialBufferLength, _encryptor);
-            }
+                sendLength += TransformDataBuffer(
+                    headerBuffer,
+                    headerOffset,
+                    headerCount,
+                    _sendArgs.Buffer,
+                    _sendArgs.Offset + sendLength,
+                    _sendPartialBuffer,
+                    ref _sendPartialBufferLength,
+                    _encryptor);
 
-            if (buffer != null)
-            {
-                // Encrypt the message.
-                sendLength += TransformDataBuffer(buffer, offset, count, _sendArgs.Buffer,
-                    _sendArgs.Offset + sendLength, _sendPartialBuffer,
-                    ref _sendPartialBufferLength, _encryptor);
-            }
+            // Send if there is a body.
+            if (bodyBuffer != null)
+                sendLength += TransformDataBuffer(
+                    bodyBuffer,
+                    bodyOffset,
+                    bodyCount,
+                    _sendArgs.Buffer,
+                    _sendArgs.Offset + sendLength,
+                    _sendPartialBuffer,
+                    ref _sendPartialBufferLength,
+                    _encryptor);
 
             // If this is the last frame in a packet, pad the ending.
             // 1 is for the header type byte.
-            if (count + headerCount + 1 != sendLength)
-                sendLength += PadSendBuffer(sendLength);
+            if (pad && _sendPartialBufferLength > 0) //bodyCount + headerCount + 1 != sendLength)
+            {
+                // Determine how much to pad the buffer.
+                var paddingLength = 16 - _sendPartialBufferLength;
+                sendLength += TransformDataBuffer(
+                    paddingBuffer[paddingLength - 1],
+                    0,
+                    paddingLength,
+                    _sendArgs.Buffer,
+                    _sendArgs.Offset + sendLength,
+                    _sendPartialBuffer,
+                    ref _sendPartialBufferLength, _encryptor);
+            }
 
+            // Zero if everything added is still in the _sendPartialBuffer.
             if (sendLength == 0)
                 return;
 
+            // Set the buffer.
             _sendArgs.SetBuffer(_sendArgs.Offset, sendLength);
-
-            SendInternal(null, 0, 0);
-        }
-
-        private short PadSendBuffer(int currentSendLength)
-        {
-            var paddingLength = 16 - _sendPartialBufferLength;
-            return TransformDataBuffer(paddingBuffer[paddingLength - 1], 0, paddingLength,
-                _sendArgs.Buffer,
-                _sendArgs.Offset + currentSendLength, _sendPartialBuffer,
-                ref _sendPartialBufferLength, _encryptor);
-        }
-
-
-        /// <summary>
-        /// Sends raw bytes to the socket.  Blocks until data is sent to the underlying system to send.
-        /// Before transport encryption has been established, any buffer size will be sent.
-        /// After transport encryption has been established, only buffers in increments of 16.
-        /// Excess will be buffered until the next write.
-        /// </summary>
-        /// <param name="buffer">Buffer bytes to send.</param>
-        /// <param name="offset">Offset in the buffer.</param>
-        /// <param name="length">Total bytes to send.</param>
-        private void SendInternal(byte[] buffer, int offset, int length)
-        {
-            if (Socket == null || Socket.Connected == false)
-                return;
-
-            if (length > Config.SendAndReceiveBufferSize)
-                throw new ArgumentException("Too large");
-
-            if (buffer != null)
-            {
-                Buffer.BlockCopy(buffer, offset, _sendArgs.Buffer, _sendArgs.Offset, length);
-
-                // Update the buffer length.
-                _sendArgs.SetBuffer(_sendArgs.Offset, length);
-            }
 
             try
             {
-                if (Socket.SendAsync(_sendArgs) == false)
-                {
-                    IoCompleted(this, _sendArgs);
-                }
+                // Set the data to be sent.
+                if (!Socket.SendAsync(_sendArgs))
+                    throw new Exception("System can not send data asynchronously.");
             }
             catch (ObjectDisposedException)
             {
@@ -606,8 +641,19 @@ namespace DtronixMessageQueue.TcpSocket
         {
             public enum Type : byte
             {
+                /// <summary>
+                /// Type is unset.
+                /// </summary>
                 Unknown = 0,
-                FullMessage = 1,
+
+                /// <summary>
+                /// The header contains a length of a body payload.
+                /// </summary>
+                BodyPayload = 1,
+
+                /// <summary>
+                /// The header is a single byte consumed for padding purposes.
+                /// </summary>
                 Padding = 2,
                 ConnectionClose = 3,
                 EncryptChannel = 4
@@ -707,7 +753,7 @@ namespace DtronixMessageQueue.TcpSocket
 
                     switch (_header.HeaderType)
                     {
-                        case Header.Type.FullMessage:
+                        case Header.Type.BodyPayload:
                             if (CurrentState != State.Connected)
                             {
                                 Close(CloseReason.ProtocolError);
@@ -857,7 +903,7 @@ namespace DtronixMessageQueue.TcpSocket
                 if (Socket.Connected)
                 {
                     // Alert the other end of the connection that the session has been closed.
-                    SendWithHeader(null, 0, 0, Header.Type.ConnectionClose, new[] {(byte) reason}, 0, 1);
+                    SendWithHeader(Header.Type.ConnectionClose, new[] {(byte) reason}, 0, 1, null, 0, 0, true);
 
                     Socket.Shutdown(SocketShutdown.Receive);
                     Socket.Disconnect(false);

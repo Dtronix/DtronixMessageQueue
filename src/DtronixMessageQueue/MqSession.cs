@@ -78,7 +78,7 @@ namespace DtronixMessageQueue
         /// </summary>
         /// <param name="bufferQueue">QueueOnce of bytes to send to the wire.</param>
         /// <param name="length">Total length of the bytes in the queue to send.</param>
-        private void SendBufferQueue(Queue<byte[]> bufferQueue, int length)
+        private void SendBufferQueue(Queue<byte[]> bufferQueue, int length, bool last)
         {
             var buffer = new byte[length];
             var offset = 0;
@@ -94,7 +94,7 @@ namespace DtronixMessageQueue
 
 
             // This will block 
-            Send(buffer, 0, buffer.Length);
+            Send(buffer, 0, buffer.Length, last);
         }
 
 
@@ -121,7 +121,7 @@ namespace DtronixMessageQueue
                     // If this would overflow the max client buffer size, send the full buffer queue.
                     if (length + frameSize > Config.FrameBufferSize + MqFrame.HeaderLength)
                     {
-                        SendBufferQueue(bufferQueue, length);
+                        SendBufferQueue(bufferQueue, length, false);
 
                         // Reset the length to 0;
                         length = 0;
@@ -139,7 +139,7 @@ namespace DtronixMessageQueue
             }
 
             // Send the last of the buffer queue.
-            SendBufferQueue(bufferQueue, length);
+            SendBufferQueue(bufferQueue, length, true);
         }
 
         /// <summary>
