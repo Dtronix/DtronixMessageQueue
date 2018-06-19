@@ -11,7 +11,7 @@ namespace DtronixMessageQueue
     /// Class used for straight BlockCOpy of input buffer to output buffer.
     /// Used for sessions which have not yet negotiated the encryption channels.
     /// </summary>
-    internal class PlainCryptoTransform : ICryptoTransform
+    internal class BlockCopyCryptoTransform : ICryptoTransform
     {
         public int InputBlockSize => 16;
         public int OutputBlockSize => 16;

@@ -237,8 +237,8 @@ namespace DtronixMessageQueue.TcpSocket
             };
 
             // Create dummy transformations for the use of the TransformDataBuffer method.
-            _decryptor = new PlainCryptoTransform();
-            _encryptor = new PlainCryptoTransform();
+            _decryptor = new BlockCopyCryptoTransform();
+            _encryptor = new BlockCopyCryptoTransform();
 
             // Create an array of padding bytes to be used for copying.
             var paddingBufferList = new byte[15][];
