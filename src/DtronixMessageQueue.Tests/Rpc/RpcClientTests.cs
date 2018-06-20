@@ -123,9 +123,7 @@ namespace DtronixMessageQueue.Tests.Rpc
         {
             Server.Config.RequireAuthentication = true;
 
-
             Client.Authenticate += (sender, e) => { TestComplete.Set(); };
-
 
             StartAndWait();
         }
