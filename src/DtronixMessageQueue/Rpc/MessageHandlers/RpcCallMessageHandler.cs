@@ -24,8 +24,6 @@ namespace DtronixMessageQueue.Rpc.MessageHandlers
         private readonly Dictionary<string, IRemoteService<TSession, TConfig>> _serviceInstances =
             new Dictionary<string, IRemoteService<TSession, TConfig>>();
 
-        
-
         /// <summary>
         /// Proxy objects to be invoked on this session and proxied to the recipient session.
         /// </summary>
@@ -41,7 +39,10 @@ namespace DtronixMessageQueue.Rpc.MessageHandlers
 
         private readonly ResponseWait<ResponseWaitHandle> _remoteWaitOperations = new ResponseWait<ResponseWaitHandle>();
 
-        public RpcCallMessageHandler(TSession session) : base(session)
+        public RpcCallMessageHandler(
+            TConfig config, 
+            SerializationCache serializationCache,
+            ServiceMethodCache serviceMethodCache) : base(config, serializationCache, serviceMethodCache)
         {
             Handlers.Add((byte) RpcCallMessageAction.MethodCancel, MethodCancelAction);
 
@@ -77,117 +78,113 @@ namespace DtronixMessageQueue.Rpc.MessageHandlers
         /// <param name="message">Message containing the Rpc call.</param>
         private void ProcessRpcCallAction(byte actionId, MqMessage message)
         {
-            // Execute the processing on the worker thread.
-            Task.Run(() =>
+            var messageType = (RpcCallMessageAction) actionId;
+
+            // Retrieve a serialization cache to work with.
+            var serialization = SerializationCache.Get(message);
+            ushort recMessageReturnId = 0;
+
+            try
             {
-                var messageType = (RpcCallMessageAction)actionId;
+                // Determine if this call has a return value.
+                if (messageType == RpcCallMessageAction.MethodCall)
+                {
+                    recMessageReturnId = serialization.MessageReader.ReadUInt16();
+                }
 
-                // Retrieve a serialization cache to work with.
-                var serialization = Session.SerializationCache.Get(message);
-                ushort recMessageReturnId = 0;
+                // Read the string service name, method and number of arguments.
+                var recServiceName = serialization.MessageReader.ReadString();
+                var recMethodName = serialization.MessageReader.ReadString();
+                var recArgumentCount = serialization.MessageReader.ReadByte();
 
+                // Get the method info from the cache.
+                var serviceMethod = ServiceMethodCache.GetMethodInfo(recServiceName, recMethodName);
+
+
+                // Verify that the requested service exists.
+                if (serviceMethod == null || !_serviceInstances.ContainsKey(recServiceName))
+                    throw new Exception($"Service '{recServiceName}' does not exist.");
+
+                ResponseWaitHandle cancellationWait = null;
+
+                // If the past parameter is a cancellation token, setup a return wait for this call to allow for remote cancellation.
+                if (recMessageReturnId != 0 && serviceMethod.HasCancellation)
+                {
+                    cancellationWait = _remoteWaitOperations.CreateWaitHandle(recMessageReturnId);
+
+                    cancellationWait.TokenSource = new CancellationTokenSource();
+                    cancellationWait.Token = cancellationWait.TokenSource.Token;
+                }
+
+                // Setup the parameters to pass to the invoked method.
+                object[] parameters = new object[recArgumentCount + (cancellationWait == null ? 0 : 1)];
+
+                // Determine if we have any parameters to pass to the invoked method.
+                if (recArgumentCount > 0)
+                {
+                    serialization.PrepareDeserializeReader();
+
+                    // Parse each parameter to the parameter list.
+                    for (var i = 0; i < recArgumentCount; i++)
+                        parameters[i] = serialization.DeserializeFromReader(serviceMethod.ParameterTypes[i], i);
+                }
+
+                // Add the cancellation token to the parameters.
+                if (cancellationWait != null)
+                    parameters[parameters.Length - 1] = cancellationWait.Token;
+
+
+                object returnValue;
                 try
                 {
-                    // Determine if this call has a return value.
-                    if (messageType == RpcCallMessageAction.MethodCall)
-                    {
-                        recMessageReturnId = serialization.MessageReader.ReadUInt16();
-                    }
-
-                    // Read the string service name, method and number of arguments.
-                    var recServiceName = serialization.MessageReader.ReadString();
-                    var recMethodName = serialization.MessageReader.ReadString();
-                    var recArgumentCount = serialization.MessageReader.ReadByte();
-
-                    // Get the method info from the cache.
-                    var serviceMethod = Session.ServiceMethodCache.GetMethodInfo(recServiceName, recMethodName);
-                   
-
-                    // Verify that the requested service exists.
-                    if (serviceMethod == null || !_serviceInstances.ContainsKey(recServiceName))
-                        throw new Exception($"Service '{recServiceName}' does not exist.");
-
-                    ResponseWaitHandle cancellationWait = null;
-
-                    // If the past parameter is a cancellation token, setup a return wait for this call to allow for remote cancellation.
-                    if (recMessageReturnId != 0 && serviceMethod.HasCancellation)
-                    {
-                        cancellationWait = _remoteWaitOperations.CreateWaitHandle(recMessageReturnId);
-
-                        cancellationWait.TokenSource = new CancellationTokenSource();
-                        cancellationWait.Token = cancellationWait.TokenSource.Token;
-                    }
-
-                    // Setup the parameters to pass to the invoked method.
-                    object[] parameters = new object[recArgumentCount + (cancellationWait == null ? 0 : 1)];
-
-                    // Determine if we have any parameters to pass to the invoked method.
-                    if (recArgumentCount > 0)
-                    {
-                        serialization.PrepareDeserializeReader();
-
-                        // Parse each parameter to the parameter list.
-                        for (var i = 0; i < recArgumentCount; i++)
-                            parameters[i] = serialization.DeserializeFromReader(serviceMethod.ParameterTypes[i], i);
-                    }
-
-                    // Add the cancellation token to the parameters.
-                    if (cancellationWait != null)
-                        parameters[parameters.Length - 1] = cancellationWait.Token;
-
-
-                    object returnValue;
-                    try
-                    {
-                        // Invoke the requested method.
-                        returnValue = serviceMethod.Invoke(_serviceInstances[recServiceName], parameters);
-                    }
-                    catch (Exception ex)
-                    {
-                        // Determine if this method was waited on.  If it was and an exception was thrown,
-                        // Let the recipient session know an exception was thrown.
-                        if (recMessageReturnId != 0 &&
-                            ex.InnerException?.GetType() != typeof(OperationCanceledException))
-                        {
-                            SendRpcException(serialization, ex, recMessageReturnId);
-                        }
-                        return;
-                    }
-                    finally
-                    {
-                        _remoteWaitOperations.Remove(recMessageReturnId);
-                    }
-
-
-                    // Determine what to do with the return value.
-                    if (messageType == RpcCallMessageAction.MethodCall)
-                    {
-                        // Reset the stream.
-                        serialization.Stream.SetLength(0);
-                        serialization.MessageWriter.Clear();
-
-                        // Write the return id.
-                        serialization.MessageWriter.Write(recMessageReturnId);
-
-                        // Serialize the return value and add it to the stream.
-                        serialization.SerializeToWriter(returnValue, 0);
-
-                        // Send the return value message to the recipient.
-                        SendHandlerMessage((byte)RpcCallMessageAction.MethodReturn,
-                            serialization.MessageWriter.ToMessage(true));
-                    }
+                    // Invoke the requested method.
+                    returnValue = serviceMethod.Invoke(_serviceInstances[recServiceName], parameters);
                 }
                 catch (Exception ex)
                 {
-                    // If an exception occurred, notify the recipient connection.
-                    SendRpcException(serialization, ex, recMessageReturnId);
+                    // Determine if this method was waited on.  If it was and an exception was thrown,
+                    // Let the recipient session know an exception was thrown.
+                    if (recMessageReturnId != 0 &&
+                        ex.InnerException?.GetType() != typeof(OperationCanceledException))
+                    {
+                        SendRpcException(serialization, ex, recMessageReturnId);
+                    }
+                    return;
                 }
                 finally
                 {
-                    // Return the serialization to the cache to be reused.
-                    Session.SerializationCache.Put(serialization);
+                    _remoteWaitOperations.Remove(recMessageReturnId);
                 }
-            });
+
+
+                // Determine what to do with the return value.
+                if (messageType == RpcCallMessageAction.MethodCall)
+                {
+                    // Reset the stream.
+                    serialization.Stream.SetLength(0);
+                    serialization.MessageWriter.Clear();
+
+                    // Write the return id.
+                    serialization.MessageWriter.Write(recMessageReturnId);
+
+                    // Serialize the return value and add it to the stream.
+                    serialization.SerializeToWriter(returnValue, 0);
+
+                    // Send the return value message to the recipient.
+                    SendHandlerMessage((byte) RpcCallMessageAction.MethodReturn,
+                        serialization.MessageWriter.ToMessage(true));
+                }
+            }
+            catch (Exception ex)
+            {
+                // If an exception occurred, notify the recipient connection.
+                SendRpcException(serialization, ex, recMessageReturnId);
+            }
+            finally
+            {
+                // Return the serialization to the cache to be reused.
+                SerializationCache.Put(serialization);
+            }
         }
 
 

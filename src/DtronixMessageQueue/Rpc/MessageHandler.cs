@@ -10,10 +10,17 @@ namespace DtronixMessageQueue.Rpc
     /// </summary>
     /// <typeparam name="TSession">Session type for this connection.</typeparam>
     /// <typeparam name="TConfig">Configuration for this connection.</typeparam>
-    public abstract class MessageHandler<TSession, TConfig> : IDisposable
+    public abstract class MessageHandler<TSession, TConfig>
         where TSession : RpcSession<TSession, TConfig>, new()
         where TConfig : RpcConfig
     {
+        protected readonly TConfig Config;
+        protected readonly SerializationCache SerializationCache;
+        protected readonly ServiceMethodCache ServiceMethodCache;
+
+        [ThreadStatic]
+        public static TSession Session;
+
         /// <summary>
         /// Delegate used to be called on each successfully parsed action call in this MessageHandler.
         /// </summary>
@@ -27,72 +34,40 @@ namespace DtronixMessageQueue.Rpc
         public abstract byte Id { get; }
 
         /// <summary>
-        /// Session of the connection.
-        /// </summary>
-        public TSession Session { get; }
-
-        private Guid HandlerId;
-
-        private ConcurrentQueue<MqMessage> handlerQueue = new ConcurrentQueue<MqMessage>();
-
-        private readonly ActionProcessor<Guid> _rpcActionProcessor;
-
-        /// <summary>
         /// All registered handlers for the MessageHandler.
         /// </summary>
         protected Dictionary<byte, ActionHandler> Handlers = new Dictionary<byte, ActionHandler>();
 
-        protected MessageHandler(TSession session, ActionProcessor<Guid> rpcActionProcessor)
+        protected MessageHandler(TConfig config, SerializationCache serializationCache, ServiceMethodCache serviceMethodCache)
         {
-            HandlerId = Guid.NewGuid();
+            Config = config;
+            SerializationCache = serializationCache;
+            ServiceMethodCache = serviceMethodCache;
+        }
+
+        public bool ProcessMessage(TSession session, MqMessage message)
+        {
             Session = session;
-            _rpcActionProcessor = rpcActionProcessor;
-            rpcActionProcessor.Register(HandlerId, ProcessMessage);
-        }
+            // Read the type of message.
+            var messageType = message[0].ReadByte(1);
 
-        /// <summary>
-        /// Parses and passes the message to the correct action in the handler.
-        /// Automatically removes the first frame of the message used to determine which action id to call.
-        /// </summary>
-        /// <param name="message">Message to parse</param>
-        /// <returns>True on successful parsing.</returns>
-        public bool HandleMessage(MqMessage message)
-        {
-            if (message[0][0] != Id)
+            if (Handlers.TryGetValue(messageType, out var handler))
             {
-                Session.Close(CloseReason.ProtocolError);
-                return false;
+                message.RemoveAt(0);
+                handler.Invoke(messageType, message);
+                return true;
             }
 
-            _rpcActionProcessor.QueueOnce(HandlerId);
-
-            return true;
-        }
-
-        private void ProcessMessage()
-        {
-            while (handlerQueue.TryDequeue(out var message))
-            {
-                // Read the type of message.
-                var messageType = message[0].ReadByte(1);
-
-                if (Handlers.ContainsKey(messageType))
-                {
-                    message.RemoveAt(0);
-                    Handlers[messageType].Invoke(messageType, message);
-                    return;
-                }
-
-                // Unknown message type passed.  Disconnect the connection.
-                Session.Close(CloseReason.ProtocolError);
-            }
+            // Unknown message type passed.  Disconnect the connection.
+            session.Close(CloseReason.ProtocolError);
+            return false;
         }
 
         /// <summary>
         /// Send a null message to the 
         /// </summary>
         /// <param name="actionId"></param>
-        public void SendHandlerMessage(byte actionId)
+        protected void SendHandlerMessage(byte actionId)
         {
             SendHandlerMessage(actionId, null);
         }
@@ -102,7 +77,7 @@ namespace DtronixMessageQueue.Rpc
         /// </summary>
         /// <param name="actionId">Action enum value to pass the message to.</param>
         /// <param name="message">Message to send to the connection.</param>
-        public void SendHandlerMessage(byte actionId, MqMessage message)
+        protected void SendHandlerMessage(byte actionId, MqMessage message)
         {
             var headerFrame = Session.CreateFrame(new byte[2], MqFrameType.More);
             // Id of the message handler.
@@ -117,11 +92,6 @@ namespace DtronixMessageQueue.Rpc
             };
 
             Session.Send(sendMessage);
-        }
-
-        public void Dispose()
-        {
-            _rpcActionProcessor.Deregister(HandlerId);
         }
     }
 }

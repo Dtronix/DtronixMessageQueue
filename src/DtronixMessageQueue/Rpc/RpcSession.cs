@@ -17,14 +17,9 @@ namespace DtronixMessageQueue.Rpc
         where TSession : RpcSession<TSession, TConfig>, new()
         where TConfig : RpcConfig
     {
-        public Dictionary<byte, MessageHandler<TSession, TConfig>> MessageHandlers { get; }
+        private SerializationCache SerializationCache;
 
         protected RpcCallMessageHandler<TSession, TConfig> RpcCallHandler;
-
-        /// <summary>
-        /// Store which contains instances of all classes for serialization and destabilization of data.
-        /// </summary>
-        public SerializationCache SerializationCache { get; set; }
 
         /// <summary>
         /// Server base socket for this session.
@@ -54,20 +49,21 @@ namespace DtronixMessageQueue.Rpc
         public event EventHandler<SessionEventArgs<TSession, TConfig>> Ready;
 
 
-
         /// <summary>
         /// True if this session has passed authentication;  False otherwise.
         /// </summary>
         public bool Authenticated { get; private set; }
 
+        private Dictionary<byte, MessageHandler<TSession, TConfig>> MessageHandlers;
+
         private Task _authTimeout;
 
         private readonly CancellationTokenSource _authTimeoutCancel = new CancellationTokenSource();
 
-        protected RpcSession()
-        {
-            MessageHandlers = new Dictionary<byte, MessageHandler<TSession, TConfig>>();
-        }
+        private Queue<MqMessage> ProcessQueue = new Queue<MqMessage>();
+
+
+        private ActionProcessor<Guid> _rpcActionProcessor;
 
         /// <summary>
         /// Called when this session is being setup.
@@ -78,14 +74,30 @@ namespace DtronixMessageQueue.Rpc
 
             // Determine if this session is running on the server or client to retrieve the worker thread pool.
             if (SocketHandler.Mode == TcpSocketMode.Server)
+            {
                 Server = (RpcServer<TSession, TConfig>) SocketHandler;
+                SerializationCache = Server.SerializationCache;
+                MessageHandlers = Server.MessageHandlers;
+                RpcCallHandler = Server.RpcCallHandler;
+                _rpcActionProcessor = Server.RpcActionProcessor;
+            }
             else
+            {
                 Client = (RpcClient<TSession, TConfig>) SocketHandler;
+                SerializationCache = Client.SerializationCache;
+                MessageHandlers = Client.MessageHandlers;
+                RpcCallHandler = Client.RpcCallHandler;
+                _rpcActionProcessor = Client.RpcActionProcessor;
+            }
 
-            SerializationCache = new SerializationCache(Config);
+            _rpcActionProcessor.Register(Id, ProcessMessageHandler);
+        }
 
-            RpcCallHandler = new RpcCallMessageHandler<TSession, TConfig>((TSession) this);
-            MessageHandlers.Add(RpcCallHandler.Id, RpcCallHandler);
+        protected override void OnDisconnected(CloseReason reason)
+        {
+            _rpcActionProcessor.Deregister(Id);
+
+            base.OnDisconnected(reason);
         }
 
 
@@ -323,31 +335,42 @@ namespace DtronixMessageQueue.Rpc
         /// <param name="e">Event args for the message.</param>
         protected override void OnIncomingMessage(object sender, IncomingMessageEventArgs<TSession, TConfig> e)
         {
-            MqMessage message;
+            var totalMessages = e.Messages.Count;
+            for (int i = 0; i < totalMessages; i++)
+                ProcessQueue.Enqueue(e.Messages.Dequeue());
 
+            _rpcActionProcessor.QueueOnce(Id);
+        }
+
+        private void ProcessMessageHandler()
+        {
             // Continue to parse the messages in this queue.
-            while (e.Messages.Count > 0)
+            while (ProcessQueue.Count > 0)
             {
-                message = e.Messages.Dequeue();
+                var message = ProcessQueue.Dequeue();
 
                 // Read the first byte for the ID.
                 var handlerId = message[0].ReadByte(0);
-                var handledMessage = false;
+                bool handledMessage;
 
                 // See if we have a handler for the requested Id.
-                if (MessageHandlers.ContainsKey(handlerId))
+                if (MessageHandlers.TryGetValue(handlerId, out var handler))
                 {
                     // If anything in the message handler throws, disconnect the connection.
                     try
                     {
-                        handledMessage = MessageHandlers[handlerId].HandleMessage(message);
+                        handledMessage = handler.ProcessMessage((TSession)this, message);
                     }
                     catch
                     {
                         Close(CloseReason.ApplicationError);
                         return;
                     }
-                    
+                }
+                else
+                {
+                    Close(CloseReason.ApplicationError);
+                    return;
                 }
 
                 // If the we can not handle this message, disconnect the session.
@@ -394,5 +417,6 @@ namespace DtronixMessageQueue.Rpc
             ServiceMethodCache.AddService(instance.Name, instance);
             RpcCallHandler.AddService(instance);
         }
+
     }
 }

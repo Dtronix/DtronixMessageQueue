@@ -1,5 +1,7 @@
 ﻿using System;
+using System.Collections.Generic;
 using DtronixMessageQueue.Rpc.DataContract;
+using DtronixMessageQueue.Rpc.MessageHandlers;
 using DtronixMessageQueue.TcpSocket;
 
 namespace DtronixMessageQueue.Rpc
@@ -17,6 +19,16 @@ namespace DtronixMessageQueue.Rpc
         /// Information about this server passed along to client's on connect.
         /// </summary>
         public RpcServerInfoDataContract ServerInfo { get; }
+
+        public ActionProcessor<Guid> RpcActionProcessor { get; set; }
+
+        public SerializationCache SerializationCache { get; }
+
+        public RpcCallMessageHandler<TSession, TConfig> RpcCallHandler { get; }
+
+        public ServiceMethodCache ServiceMethodCache { get; }
+
+        public Dictionary<byte, MessageHandler<TSession, TConfig>> MessageHandlers { get; }
 
         /// <summary>
         /// Called to send authentication data to the server.
@@ -44,6 +56,17 @@ namespace DtronixMessageQueue.Rpc
         public RpcServer(TConfig config, RpcServerInfoDataContract serverInfo) : base(config)
         {
             ServerInfo = serverInfo ?? new RpcServerInfoDataContract();
+            RpcActionProcessor = new ActionProcessor<Guid>(new ActionProcessor<Guid>.Config
+            {
+                ThreadName = "RpcActionProcessor"
+            });
+
+            SerializationCache = new SerializationCache(config);
+            ServiceMethodCache = new ServiceMethodCache();
+            RpcCallHandler = new RpcCallMessageHandler<TSession, TConfig>(config, SerializationCache, ServiceMethodCache);
+
+            MessageHandlers = new Dictionary<byte, MessageHandler<TSession, TConfig>>();
+            MessageHandlers.Add(RpcCallHandler.Id, RpcCallHandler);
         }
 
         /// <summary>
@@ -53,10 +76,6 @@ namespace DtronixMessageQueue.Rpc
         protected override TSession CreateSession(System.Net.Sockets.Socket sessionSocket)
         {
             var session = base.CreateSession(sessionSocket);
-
-            // Add the service method cache.
-            session.ServiceMethodCache = ServiceMethodCache;
-
 
             session.Ready += (sender, e) => { Ready?.Invoke(sender, e); };
             session.Authenticate += (sender, e) => { Authenticate?.Invoke(sender, e); };
