@@ -33,14 +33,15 @@ namespace DtronixMessageQueue.Tests.Performance
             _config = new MqConfig
             {
                 Address = "127.0.0.1:2828",
+                PingFrequency = 0
             };
 
             _smallMessage = new MqMessage
             {
-                new MqFrame(SequentialBytes(50), MqFrameType.More, _config),
-                new MqFrame(SequentialBytes(50), MqFrameType.More, _config),
-                new MqFrame(SequentialBytes(50), MqFrameType.More, _config),
-                new MqFrame(SequentialBytes(50), MqFrameType.Last, _config)
+                new MqFrame(SequentialBytes(10), MqFrameType.More, _config),
+                new MqFrame(SequentialBytes(10), MqFrameType.More, _config),
+                new MqFrame(SequentialBytes(10), MqFrameType.More, _config),
+                new MqFrame(SequentialBytes(10), MqFrameType.Last, _config)
             };
 
             _medimumMessage = new MqMessage
@@ -72,6 +73,7 @@ namespace DtronixMessageQueue.Tests.Performance
             Console.WriteLine("FrameBufferSize: {0}; SendAndReceiveBufferSize: {1}\r\n", _config.FrameBufferSize,
                 _config.SendAndReceiveBufferSize);
 
+            MqInProcessPerformanceTests(1, 1, _smallMessage, _config);
 
             MqInProcessPerformanceTests(1000000, 5, _smallMessage, _config);
 
@@ -149,6 +151,7 @@ namespace DtronixMessageQueue.Tests.Performance
 
             for (var i = 0; i < totalMessages; i++)
             {
+                
                 client.Send(message);
             }
 

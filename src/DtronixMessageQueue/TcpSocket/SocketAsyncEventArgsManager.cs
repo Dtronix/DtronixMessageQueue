@@ -1,4 +1,5 @@
-﻿using System.Net.Sockets;
+﻿using System;
+using System.Net.Sockets;
 using System.Threading;
 
 namespace DtronixMessageQueue.TcpSocket
@@ -34,12 +35,12 @@ namespace DtronixMessageQueue.TcpSocket
         /// <summary>
         /// Remove the instance from the buffer
         /// </summary>
-        /// <param name="item">The "item" parameter is the SocketAsyncEventArgs instance to add to the pool</param>
-        public void Free(SocketAsyncEventArgs item)
+        /// <param name="eventArgs">SocketAsyncEventArgs containing a buffer user token.</param>
+        public void Free(SocketAsyncEventArgs eventArgs)
         {
             Interlocked.Decrement(ref _count);
-            _bufferManager.FreeBuffer(item);
-            item.Dispose();
+            _bufferManager.FreeBuffer((ArraySegment<byte>)eventArgs.UserToken);
+            eventArgs.Dispose();
         }
 
         /// <summary>
@@ -51,7 +52,20 @@ namespace DtronixMessageQueue.TcpSocket
             Interlocked.Increment(ref _count);
             var eventArg = new SocketAsyncEventArgs();
 
-            _bufferManager.SetBuffer(eventArg);
+            try
+            {
+                var buffer = _bufferManager.GetBuffer();
+
+                // Set the buffer to the event args for freeing later.
+                eventArg.UserToken = buffer;
+
+                eventArg.SetBuffer(buffer.Array, buffer.Offset, buffer.Count);
+            }
+            catch
+            {
+                throw new Exception("Attempted to create more than the max number of sessions.");
+            }
+
 
             return eventArg;
         }

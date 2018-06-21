@@ -93,7 +93,7 @@ namespace DtronixMessageQueue.Tests.Mq
             client2.Connected += (sender, args) => TestComplete.Set();
             client.Connect();
 
-            TestComplete.Wait(new TimeSpan(0, 0, 0, 0, 1000));
+            TestComplete.Wait(new TimeSpan(0, 0, 0, 0, 2000));
 
             if (TestComplete.IsSet == false)
             {

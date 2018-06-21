@@ -1,4 +1,6 @@
-﻿namespace DtronixMessageQueue.TcpSocket
+﻿using System.Security.Cryptography;
+
+namespace DtronixMessageQueue.TcpSocket
 {
     /// <summary>
     /// Class to implement on classes which have setup events.
@@ -6,8 +8,8 @@
     public interface ISetupSocketSession
     {
         /// <summary>
-        /// Start the session's receive events.
+        /// Start the session.
         /// </summary>
-        void Start();
+        void StartSession();
     }
 }

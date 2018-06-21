@@ -37,9 +37,8 @@ namespace DtronixMessageQueue.Rpc
                 lock (_idLock)
                 {
                     if (++_id > ushort.MaxValue)
-                    {
                         _id = 0;
-                    }
+
                     returnWait.Id = (ushort) _id;
                 }
             }
@@ -52,23 +51,6 @@ namespace DtronixMessageQueue.Rpc
             }
 
             return returnWait;
-        }
-
-        /// <summary>
-        /// Called to cancel a operation on this and the recipient connection if specified.
-        /// </summary>
-        /// <param name="handleId">Id of the waiting operation to cancel.</param>
-        public void Cancel(ushort handleId)
-        {
-            T callWaitHandle;
-
-            // Try to get the wait.  If the Id does not exist, the wait operation has already been completed or removed.
-            if (!TryRemove(handleId, out callWaitHandle))
-            {
-                return;
-            }
-
-            callWaitHandle.TokenSource?.Cancel();
         }
 
         /// <summary>

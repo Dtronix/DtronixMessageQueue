@@ -684,6 +684,8 @@ namespace DtronixMessageQueue
                         // If an exception was thrown on an action processing, then increment the exception counter and add the performance data.
                         RollingEstimate(ref action.AverageUsageTime, _perfStopwatch.ElapsedMilliseconds, 10);
                         Interlocked.Increment(ref action.ThrownExceptionsCount);
+
+                        // TODO: Log these exceptions.
                     }
                 }
 

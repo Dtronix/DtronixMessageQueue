@@ -1,5 +1,10 @@
 ﻿using System;
+using System.Collections.Generic;
+using System.Diagnostics.CodeAnalysis;
+using System.Linq;
 using System.Net.Sockets;
+using System.Security.Cryptography;
+using System.Text;
 using System.Threading;
 using DtronixMessageQueue.Rpc;
 
@@ -25,6 +30,11 @@ namespace DtronixMessageQueue.TcpSocket
             Unknown,
 
             /// <summary>
+            /// Session is in the process of securing the communication channel.
+            /// </summary>
+            Securing,
+
+            /// <summary>
             /// Session has connected to remote session.
             /// </summary>
             Connected,
@@ -37,8 +47,10 @@ namespace DtronixMessageQueue.TcpSocket
             /// <summary>
             /// Socket is in an error state.
             /// </summary>
-            Error
+            Error,
         }
+
+        public const byte ProtocolVersion = 1;
 
         private TConfig _config;
 
@@ -78,6 +90,11 @@ namespace DtronixMessageQueue.TcpSocket
         public TcpSocketHandler<TSession, TConfig> SocketHandler { get; private set; }
 
         /// <summary>
+        /// Contains the version number of the protocol used by the other end of the connection.
+        /// </summary>
+        public byte OtherProtocolVersion { get; private set; }
+
+        /// <summary>
         /// Processor to handle all inbound messages.
         /// </summary>
         protected ActionProcessor<Guid> InboxProcessor;
@@ -88,12 +105,12 @@ namespace DtronixMessageQueue.TcpSocket
         protected ActionProcessor<Guid> OutboxProcessor;
 
 
-        private System.Net.Sockets.Socket _socket;
+        private Socket _socket;
 
         /// <summary>
         /// Raw socket for this session.
         /// </summary>
-        public System.Net.Sockets.Socket Socket => _socket;
+        public Socket Socket => _socket;
 
         /// <summary>
         /// Async args used to send data to the wire.
@@ -132,44 +149,131 @@ namespace DtronixMessageQueue.TcpSocket
         public event EventHandler<SessionClosedEventArgs<TSession, TConfig>> Closed;
 
         /// <summary>
+        /// Stream to handle the receiving and buffering of data during the secure negotiation stage.
+        /// </summary>
+        private MemoryQueueStream _negotiationStream;
+
+        /// <summary>
+        /// Send partial buffer used to contain the data sent which exceeds the 16 bit alignment.
+        /// </summary>
+        private readonly byte[] _sendPartialBuffer = new byte[16];
+
+        /// <summary>
+        /// Length of the data in the send partial buffer.
+        /// </summary>
+        private int _sendPartialBufferLength = 0;
+
+        /// <summary>
+        /// Receive partial buffer used to contain the data sent which exceeds the 16 bit alignment.
+        /// </summary>
+        private readonly byte[] _receivePartialBuffer = new byte[16];
+
+        /// <summary>
+        /// Length of the data in the receive partial buffer.
+        /// </summary>
+        private int _receivePartialBufferLength = 0;
+
+        /// <summary>
+        /// Pooled buffer segment used for the transformation of data.
+        /// </summary>
+        private ArraySegment<byte> _receiveTransformedBuffer;
+
+        /// <summary>
+        /// Manager for the _receiveTransformedBuffer buffer segment.
+        /// Segment to be released upon session closure to free up for next session.
+        /// </summary>
+        private BufferManager _receiveTransformedBufferManager;
+
+        /// <summary>
+        /// Contains the other connection's ecdh public key.
+        /// Null if it has not been received yet or been consumed.
+        /// </summary>
+        private byte[] _otherDhPublicKey;
+
+        /// <summary>
+        /// Contains the encryption and description methods.
+        /// </summary>
+        private Aes _aes;
+        
+        /// <summary>
+        /// Contains the current decryptor for inbound data.
+        /// </summary>
+        private ICryptoTransform _decryptor;
+
+        /// <summary>
+        /// Contains the current encryptor used for outbound data.
+        /// </summary>
+        private ICryptoTransform _encryptor;
+
+        /// <summary>
+        /// Contains state information about the current receiving header.
+        /// </summary>
+        private readonly Header _receivingHeader = new Header();
+        
+        /// <summary>
+        /// Buffer containing bytes for padding end of packets for 16 bit alignment.
+        /// </summary>
+        // ReSharper disable once StaticMemberInGenericType
+        private static byte[][] _paddingBuffer;
+
+        /// <summary>
+        /// Current elliptical curve algorithm used to generate a private key for this session.
+        /// </summary>
+        private ECDiffieHellmanCng _ecdh;
+
+        /// <summary>
         /// Creates a new socket session with a new Id.
         /// </summary>
         protected TcpSocketSession()
         {
             Id = Guid.NewGuid();
             CurrentState = State.Closed;
+            _negotiationStream = new MemoryQueueStream();
+
+            _ecdh = new ECDiffieHellmanCng
+            {
+                KeyDerivationFunction = ECDiffieHellmanKeyDerivationFunction.Hash,
+                HashAlgorithm = CngAlgorithm.Sha384
+            };
+
+            // Create dummy transformations for the use of the TransformDataBuffer method.
+            _decryptor = new BlockCopyCryptoTransform();
+            _encryptor = new BlockCopyCryptoTransform();
+
+            // Create an array of padding bytes to be used for copying.
+            var paddingBufferList = new byte[15][];
+            if (_paddingBuffer == null)
+            {
+                for (var i = 0; i < 15; i++)
+                {
+                    paddingBufferList[i] = new byte[i + 1];
+                    for (int j = 0; j < i + 1; j++)
+                        paddingBufferList[i][j] = (byte) Header.Type.Padding;
+                }
+                _paddingBuffer = paddingBufferList;
+            }
         }
 
         /// <summary>
         /// Sets up this socket with the specified configurations.
         /// </summary>
-        /// <param name="sessionSocket">Socket this session is to use.</param>
-        /// <param name="socketArgsManager">Argument pool for this session to use.  Pulls two asyncevents for reading and writing and returns them at the end of this socket's life.</param>
-        /// <param name="sessionConfig">Socket configurations this session is to use.</param>
-        /// <param name="tcpSocketHandler">Handler base which is handling this session.</param>
-        /// <param name="inboxProcessor">Processor which handles all inbox data.</param>
-        /// /// <param name="outboxProcessor">Processor which handles all outbox data.</param>
-        /// <param name="serviceMethodCache">Cache for commonly called methods used throughout the session.</param>
-        public static TSession Create(System.Net.Sockets.Socket sessionSocket, 
-            SocketAsyncEventArgsManager socketArgsManager,
-            TConfig sessionConfig, 
-            TcpSocketHandler<TSession, TConfig> tcpSocketHandler, 
-            ActionProcessor<Guid> inboxProcessor,
-            ActionProcessor<Guid> outboxProcessor,
-            ServiceMethodCache serviceMethodCache)
+        /// <param name="args">Args to initialize the socket with.</param>
+        public static TSession Create(TlsSocketSessionCreateArguments<TSession, TConfig> args)
         {
             var session = new TSession
             {
-                _config = sessionConfig,
-                _argsPool = socketArgsManager,
-                _socket = sessionSocket,
+                _config = args.SessionConfig,
+                _argsPool = args.SocketArgsManager,
+                _socket = args.SessionSocket,
                 _writeSemaphore = new SemaphoreSlim(1, 1),
-                SocketHandler = tcpSocketHandler,
-                _sendArgs = socketArgsManager.Create(),
-                _receiveArgs = socketArgsManager.Create(),
-                InboxProcessor = inboxProcessor,
-                OutboxProcessor = outboxProcessor,
-                ServiceMethodCache = serviceMethodCache
+                SocketHandler = args.TlsSocketHandler,
+                _sendArgs = args.SocketArgsManager.Create(),
+                _receiveArgs = args.SocketArgsManager.Create(),
+                InboxProcessor = args.InboxProcessor,
+                OutboxProcessor = args.OutboxProcessor,
+                ServiceMethodCache = args.ServiceMethodCache,
+                _receiveTransformedBufferManager = args.ReceiveBufferManager,
+                _receiveTransformedBuffer = args.ReceiveBufferManager.GetBuffer()
             };
 
             session._sendArgs.Completed += session.IoCompleted;
@@ -195,16 +299,109 @@ namespace DtronixMessageQueue.TcpSocket
         /// <summary>
         /// Start the session's receive events.
         /// </summary>
-        void ISetupSocketSession.Start()
+        void ISetupSocketSession.StartSession()
         {
             if (CurrentState != State.Closed)
                 return;
 
-            CurrentState = State.Connected;
+            // Change into a securing state for the 
+            CurrentState = State.Securing;
             ConnectedTime = DateTime.UtcNow;
 
-            // Start receiving data.
+            // Start receiving data for the secured channel.
             _socket.ReceiveAsync(_receiveArgs);
+
+            // Send the protocol version number along with the public key to the connected client.
+            if (SocketHandler.Mode == TcpSocketMode.Client)
+            {
+                var key = _ecdh.PublicKey.ToByteArray();
+                SendWithHeader(Header.Type.EncryptChannel, null, 0, 0, key, 0, key.Length, true);
+            }
+            
+        }
+
+        private bool SecureConnectionReceive(byte[] buffer)
+        {
+            if (CurrentState == State.Closed)
+                return false;
+
+            if (CurrentState != State.Securing)
+            {
+                Close(CloseReason.ProtocolError);
+                return false;
+            }
+
+            _negotiationStream.Write(buffer);
+
+            // Set the connection version number.
+
+            if (_aes == null
+                && _negotiationStream.Length >= 140)
+            {
+                _otherDhPublicKey = new byte[140];
+                _negotiationStream.Read(_otherDhPublicKey, 0, 140);
+
+                var otherPublicKey =
+                    ECDiffieHellmanCngPublicKey.FromByteArray(_otherDhPublicKey, CngKeyBlobFormat.EccPublicBlob);
+                _otherDhPublicKey = null;
+
+                var generatedKey = _ecdh.DeriveKeyMaterial(otherPublicKey);
+
+                var iv = new byte[16];
+                var key = new byte[32];
+                // Copy the arrays into the a structure to be read by the server.
+                Buffer.BlockCopy(generatedKey, 0, iv, 0, 16);
+                Buffer.BlockCopy(generatedKey, 16, key, 0, 32);
+
+                // Setup the 256 AES encryption
+                _aes = new AesCryptoServiceProvider
+                {
+                    KeySize = 256,
+                    Mode = CipherMode.CBC,
+                    Padding = PaddingMode.None,
+                    Key = key,
+                    IV = iv
+                };
+
+                if (SocketHandler.Mode == TcpSocketMode.Server)
+                {
+                    var pKey = _ecdh.PublicKey.ToByteArray();
+                    SendWithHeader(Header.Type.EncryptChannel, null, 0, 0, pKey, 0, pKey.Length, true);
+                }
+
+
+                SecureConnectionComplete();
+                return true;
+            }
+
+            return false;
+        }
+
+
+
+        private void SecureConnectionComplete()
+        {
+            // Set the encryptor and decryptor.
+            _decryptor = _aes.CreateDecryptor();
+            _encryptor = _aes.CreateEncryptor();
+
+            _ecdh.Dispose();
+            _ecdh = null;
+
+            // If the stream has any extra data sent, pass it along to the reader.
+            if (_negotiationStream.Length > 0)
+            {
+                byte[] partialBuffer = new byte[_negotiationStream.Length];
+                _negotiationStream.Read(partialBuffer, 0, partialBuffer.Length);
+
+                ReceiveCompleteInternal(partialBuffer, 0, partialBuffer.Length);
+            }
+
+            _negotiationStream.Close();
+            _negotiationStream = null;
+
+            // Set the state to connected.
+            CurrentState = State.Connected;
             OnConnected();
         }
 
@@ -266,38 +463,216 @@ namespace DtronixMessageQueue.TcpSocket
             }
         }
 
+
         /// <summary>
-        /// Sends raw bytes to the socket.  Blocks until data is sent.
+        /// Transforms passed buffer to another buffer based upon the transformer passed.
+        /// Works in blocks of 16 bytes.
+        /// </summary>
+        /// <param name="bufferSource">Source buffer to transform.</param>
+        /// <param name="offsetSource">Offset in the source buffer to read.</param>
+        /// <param name="countSource">Total bytes to read in the buffer.</param>
+        /// <param name="bufferDest">Destination buffer to put the transformed data into.</param>
+        /// <param name="offsetDest">Offset in the destination buffer to write to.</param>
+        /// <param name="transformBuffer">Buffer used to contain excess data outside the 16 byte blocks.</param>
+        /// <param name="transformBufferLength">Reference to integer containing the total number of bytes in the transformBuffer.</param>
+        /// <param name="transformer">Transformer to apply to the data.</param>
+        /// <returns>Number of bytes transformed.  Will always be in increments of 16.</returns>
+        private int TransformDataBuffer(
+            byte[] bufferSource, 
+            int offsetSource, 
+            int countSource, 
+            byte[] bufferDest, 
+            int offsetDest, 
+            byte[] transformBuffer, 
+            ref int transformBufferLength, 
+            ICryptoTransform transformer)
+        {
+            int transformLength = 0;
+
+            // If there is data in the transformBuffer, fill it with the first portion of the source data
+            // to maintain data continuity.
+            if (transformBufferLength > 0)
+            {
+                // Determine how much can be read from the source buffer.
+                int bufferTaken = Math.Min(countSource, 16 - transformBufferLength);
+                Buffer.BlockCopy(bufferSource, offsetSource, transformBuffer, transformBufferLength, bufferTaken);
+
+                // Add the length of the source data added to the transform buffer.
+                transformBufferLength += bufferTaken;
+
+                // Offset the source to bypass the transferred data into the transform buffer.
+                offsetSource += bufferTaken;
+                countSource -= bufferTaken;
+            }
+
+            if (transformBufferLength == 16)
+            {
+                // If the transformBuffer is full, apply the transformation to the data and add it to the destination buffer.
+                transformLength +=
+                    transformer.TransformBlock(transformBuffer, 0, transformBufferLength, bufferDest, offsetDest);
+            }
+            else if (countSource == 0)
+            {
+                // If we have reached the end of the data in the source before we have filled the transform buffer,
+                // return 0 as nothing more can be done.
+                return 0;
+            }
+
+            // Get the size of the block in chucks of 16 bytes.
+            int blockTransformLength = countSource / 16 * 16;
+            int transformRemain = countSource - blockTransformLength;
+
+            // Only transform if we have a block large enough.
+            if(blockTransformLength > 0)
+                transformLength += transformer.TransformBlock(bufferSource, offsetSource, blockTransformLength, bufferDest,
+                    offsetDest + transformBufferLength);
+
+            // If the buffer was used this round, reset it to zero.
+            if (transformBufferLength == 16)
+                transformBufferLength = 0;
+
+            // If excess remains at the end of the bufferSouce, copy it to the transformBuffer.
+            if (transformRemain > 0)
+            {
+                Buffer.BlockCopy(bufferSource, offsetSource + blockTransformLength, transformBuffer, 0, transformRemain);
+                transformBufferLength = transformRemain;
+            }
+
+            return transformLength;
+        }
+
+        /// <summary>
+        /// Sends raw bytes to the socket.  Blocks until data is sent to the underlying system to send.
+        /// Before transport encryption has been established, any buffer size will be sent.
+        /// After transport encryption has been established, only buffers in increments of 16.
+        /// Excess will be buffered until the next write.
         /// </summary>
         /// <param name="buffer">Buffer bytes to send.</param>
         /// <param name="offset">Offset in the buffer.</param>
-        /// <param name="length">Total bytes to send.</param>
-        protected virtual void Send(byte[] buffer, int offset, int length)
+        /// <param name="count">Total bytes to send.</param>
+        protected virtual void Send(byte[] buffer, int offset, int count, bool pad)
         {
             if (Socket == null || Socket.Connected == false)
                 return;
 
+            var lengthBytes = BitConverter.GetBytes(count);
+            byte[] bodyLengthBytes = {
+                lengthBytes[0],
+                lengthBytes[1]
+            };
+            
+            // Send with FullMessage header.
+            SendWithHeader(Header.Type.BodyPayload, bodyLengthBytes, 0, 2, buffer, offset, count, pad);
+        }
+
+        /// <summary>
+        /// Sends raw bytes to the socket.  Blocks until data is sent to the underlying system to send.
+        /// </summary>
+        /// <remarks>
+        /// Only buffers in increments of 16 will be sent.  This includes the header type (byte), headerBuffer &  bodyBuffer.
+        /// Excess will be buffered until the next write.
+        /// </remarks>
+        /// <param name="headerType">The type of header to send.</param>
+        /// <param name="headerBuffer">Buffer to send after the header type.  Can be null.</param>
+        /// <param name="headerOffset">Offset in the header buffer to read.</param>
+        /// <param name="headerCount">Number of bytes to read in the header buffer.</param>
+        /// <param name="bodyBuffer">Buffer bytes to send.  Can be null.</param>
+        /// <param name="bodyOffset">Offset in the buffer.</param>
+        /// <param name="bodyCount">Number of bytes to send from the body buffer.</param>
+        /// <param name="pad">True to pad the data until it reaches 16 bytes.</param>
+        private void SendWithHeader(
+            Header.Type headerType,
+            byte[] headerBuffer,
+            int headerOffset,
+            int headerCount,
+            byte[] bodyBuffer,
+            int bodyOffset,
+            int bodyCount,
+            bool pad)
+        {
+            if (Socket == null || Socket.Connected == false)
+                return;
+
+            // type (byte) + header
+            if (1 + headerCount > 16)
+                throw new ArgumentException("Header can not exceed 15 bytes in length.");
+
+            // body
+            if (bodyCount > Config.SendAndReceiveBufferSize)
+                throw new ArgumentException("Attempted to send buffer larger than ");
+
+            // Ensure sending occurs sequentially.
             _writeSemaphore.Wait(-1);
 
-            // Copy the bytes to the block buffer
-            Buffer.BlockCopy(buffer, offset, _sendArgs.Buffer, _sendArgs.Offset, length);
+            // Add the header type to the buffer.
+            var sendLength = TransformDataBuffer(
+                new[] {(byte) headerType},
+                0,
+                1,
+                _sendArgs.Buffer,
+                _sendArgs.Offset,
+                _sendPartialBuffer,
+                ref _sendPartialBufferLength,
+                _encryptor);
 
-            // Update the buffer length.
-            _sendArgs.SetBuffer(_sendArgs.Offset, length);
+            // Send if there is a header.
+            if (headerBuffer != null)
+                sendLength += TransformDataBuffer(
+                    headerBuffer,
+                    headerOffset,
+                    headerCount,
+                    _sendArgs.Buffer,
+                    _sendArgs.Offset + sendLength,
+                    _sendPartialBuffer,
+                    ref _sendPartialBufferLength,
+                    _encryptor);
+
+            // Send if there is a body.
+            if (bodyBuffer != null)
+                sendLength += TransformDataBuffer(
+                    bodyBuffer,
+                    bodyOffset,
+                    bodyCount,
+                    _sendArgs.Buffer,
+                    _sendArgs.Offset + sendLength,
+                    _sendPartialBuffer,
+                    ref _sendPartialBufferLength,
+                    _encryptor);
+
+            // If this is the last frame in a packet, pad the ending.
+            // 1 is for the header type byte.
+            if (pad && _sendPartialBufferLength > 0) //bodyCount + headerCount + 1 != sendLength)
+            {
+                // Determine how much to pad the buffer.
+                var paddingLength = 16 - _sendPartialBufferLength;
+                sendLength += TransformDataBuffer(
+                    _paddingBuffer[paddingLength - 1],
+                    0,
+                    paddingLength,
+                    _sendArgs.Buffer,
+                    _sendArgs.Offset + sendLength,
+                    _sendPartialBuffer,
+                    ref _sendPartialBufferLength, _encryptor);
+            }
+
+            // Zero if everything added is still in the _sendPartialBuffer.
+            if (sendLength == 0)
+                return;
+
+            // Set the buffer.
+            _sendArgs.SetBuffer(_sendArgs.Offset, sendLength);
 
             try
             {
-                if (Socket.SendAsync(_sendArgs) == false)
-                {
-                    IoCompleted(this, _sendArgs);
-                }
+                // Set the data to be sent.
+                if (!Socket.SendAsync(_sendArgs))
+                    throw new Exception("System can not send data asynchronously.");
             }
             catch (ObjectDisposedException)
             {
                 Close(CloseReason.SocketError);
             }
         }
-
 
         /// <summary>
         /// This method is invoked when an asynchronous send operation completes.  
@@ -313,6 +688,58 @@ namespace DtronixMessageQueue.TcpSocket
             _writeSemaphore.Release(1);
         }
 
+
+
+        private class Header
+        {
+            public enum Type : byte
+            {
+                /// <summary>
+                /// Type is unset.
+                /// </summary>
+                Unknown = 0,
+
+                /// <summary>
+                /// The header contains a length of a body payload.
+                /// </summary>
+                BodyPayload = 1,
+
+                /// <summary>
+                /// The header is a single byte consumed for padding purposes.
+                /// </summary>
+                Padding = 2,
+                ConnectionClose = 3,
+                EncryptChannel = 4
+            }
+
+
+            public enum State
+            {
+                Empty,
+                ReadingBodyLength,
+                ReadingCloseReason,
+                ReadingEncryptionKey,
+                Complete,
+            }
+
+            public State HeaderReceiveState = State.Empty;
+            public Type HeaderType;
+            public readonly byte[] BodyLengthBuffer = new byte[2];
+            public int BodyLengthBufferLength;
+            public short BodyLength;
+            public int BodyPosition;
+
+            public void Reset()
+            {
+                HeaderType = Type.Unknown;
+                HeaderReceiveState = State.Empty;
+                BodyLengthBufferLength = 0;
+                BodyPosition = 0;
+                BodyLength = 0;
+                BodyLengthBufferLength = 0;
+            }
+        }
+
         /// <summary>
         /// This method is invoked when an asynchronous receive operation completes. 
         /// If the remote host closed the connection, then the socket is closed.
@@ -322,23 +749,18 @@ namespace DtronixMessageQueue.TcpSocket
         {
             if (CurrentState == State.Closed)
                 return;
-            
+
             if (e.BytesTransferred == 0)
             {
                 HandleIncomingBytes(null);
                 return;
             }
+
             if (e.BytesTransferred > 0 && e.SocketError == SocketError.Success)
             {
-                // Update the last time this session was active to prevent timeout.
-                _lastReceived = DateTime.UtcNow;
-
-                // Create a copy of these bytes.
-                var buffer = new byte[e.BytesTransferred];
-
-                Buffer.BlockCopy(e.Buffer, e.Offset, buffer, 0, e.BytesTransferred);
-
-                HandleIncomingBytes(buffer);
+                // If the session was closed curing the internal receive, don't read any more.
+                if (!ReceiveCompleteInternal(e.Buffer, e.Offset, e.BytesTransferred))
+                    return;
 
                 try
                 {
@@ -359,6 +781,163 @@ namespace DtronixMessageQueue.TcpSocket
             }
         }
 
+        private bool ReceiveCompleteInternal(byte[] buffer, int offset, int count)
+        {
+            // Update the last time this session was active to prevent timeout.
+            _lastReceived = DateTime.UtcNow;
+            var position = 0;
+            var receiveBuffer = _receiveTransformedBuffer.Array;
+            var receiveOffset = _receiveTransformedBuffer.Offset;
+
+            int receiveLength = TransformDataBuffer(buffer, offset, count,
+                receiveBuffer, receiveOffset, _receivePartialBuffer,
+                ref _receivePartialBufferLength, _decryptor);
+
+            while (position < receiveLength)
+            {
+                if (receiveLength == 0)
+                    break;
+
+                // See if we are ready for a new header.
+                if (_receivingHeader.HeaderReceiveState == Header.State.Empty)
+                {
+                    _receivingHeader.HeaderType =
+                        (Header.Type) receiveBuffer[receiveOffset + position];
+
+                    switch (_receivingHeader.HeaderType)
+                    {
+                        case Header.Type.BodyPayload:
+                            if (CurrentState != State.Connected)
+                            {
+                                Close(CloseReason.ProtocolError);
+                                return false;
+                            }
+                            _receivingHeader.HeaderReceiveState = Header.State.ReadingBodyLength;
+                            break;
+
+                        case Header.Type.ConnectionClose:
+                            _receivingHeader.HeaderReceiveState = Header.State.ReadingCloseReason;
+                            break;
+
+                        case Header.Type.EncryptChannel:
+                            if (CurrentState != State.Securing)
+                            {
+                                Close(CloseReason.ProtocolError);
+                                return false;
+                            }
+                            _receivingHeader.HeaderReceiveState = Header.State.ReadingEncryptionKey;
+                            break;
+
+                        case Header.Type.Padding:
+                            position++;
+                            continue;
+
+                        default:
+                            throw new ArgumentOutOfRangeException();
+                    }
+
+                    // Advance the position past the record type bit.
+                    position++;
+                }
+
+                // Read the DH key
+                if (_receivingHeader.HeaderReceiveState == Header.State.ReadingCloseReason
+                    && position < receiveLength)
+                {
+                    var reason =
+                        (CloseReason)receiveBuffer[receiveOffset + position];
+
+                    // Close the session.
+                    Close(reason);
+                    return false;
+                }
+
+                // Read the close reason.
+                if (_receivingHeader.HeaderReceiveState == Header.State.ReadingEncryptionKey
+                    && position < receiveLength)
+                {
+                    var readLength = Math.Min(140 - (int)_negotiationStream.Length, receiveLength - position);
+                    var encryptionKeyBuffer = new byte[readLength];
+                    Buffer.BlockCopy(receiveBuffer, receiveOffset + position, encryptionKeyBuffer, 0,
+                        readLength);
+
+                    if (SecureConnectionReceive(encryptionKeyBuffer))
+                        _receivingHeader.Reset();
+
+                    position += readLength;
+                }
+
+                // Read the number of bytes contained in the body.
+                if (_receivingHeader.HeaderReceiveState == Header.State.ReadingBodyLength
+                    && position < receiveLength)
+                {
+                    // See if the buffer has any contents.
+                    if (_receivingHeader.BodyLengthBufferLength == 0)
+                    {
+                        if (position + 1 < count) // See if we can read the entire size at once.
+                        {
+                            _receivingHeader.BodyLength = BitConverter.ToInt16(receiveBuffer,
+                                receiveOffset + position);
+                            position += 2;
+
+                            // Body length complete.
+                            _receivingHeader.HeaderReceiveState = Header.State.Complete;
+                        }
+                        else
+                        {
+                            // Read the first byte of the body length.
+                            _receivingHeader.BodyLengthBuffer[0] =
+                                receiveBuffer[receiveOffset + position];
+                            _receivingHeader.BodyLengthBufferLength = 1;
+                            // Nothing more to read.
+                            break;
+                        }
+                    }
+                    else
+                    {
+                        // The buffer already contains a byte.
+                        _receivingHeader.BodyLengthBuffer[1] =
+                            receiveBuffer[receiveOffset + position];
+                        position++;
+
+                        _receivingHeader.BodyLength = BitConverter.ToInt16(_receivingHeader.BodyLengthBuffer, 0);
+
+                        // Body length complete.
+                        _receivingHeader.HeaderReceiveState = Header.State.Complete;
+                    }
+                }
+
+                // If we do not have a complete receive header, stop parsing
+                if (_receivingHeader.HeaderReceiveState != Header.State.Complete)
+                    break;
+
+                // Reset the receive header buffer info.
+                _receivingHeader.BodyLengthBufferLength = 0;
+
+                var currentMessageReadLength = Math.Min(_receivingHeader.BodyLength - _receivingHeader.BodyPosition,
+                    receiveLength - position);
+
+                if (currentMessageReadLength == 0)
+                    break;
+
+                var readBuffer = new byte[currentMessageReadLength];
+                Buffer.BlockCopy(receiveBuffer, receiveOffset + position,
+                    readBuffer, 0, currentMessageReadLength);
+
+                _receivingHeader.BodyPosition += currentMessageReadLength;
+                position += currentMessageReadLength;
+
+                HandleIncomingBytes(readBuffer);
+
+                if (_receivingHeader.BodyPosition == _receivingHeader.BodyLength)
+                {
+                    _receivingHeader.Reset();
+                }
+            }
+
+            return true;
+        }
+
         /// <summary>
         /// Called when this session is desired or requested to be closed.
         /// </summary>
@@ -376,6 +955,9 @@ namespace DtronixMessageQueue.TcpSocket
             {
                 if (Socket.Connected)
                 {
+                    // Alert the other end of the connection that the session has been closed.
+                    SendWithHeader(Header.Type.ConnectionClose, new[] {(byte) reason}, 0, 1, null, 0, 0, true);
+
                     Socket.Shutdown(SocketShutdown.Receive);
                     Socket.Disconnect(false);
                 }
@@ -392,9 +974,12 @@ namespace DtronixMessageQueue.TcpSocket
             _sendArgs.Completed -= IoCompleted;
             _receiveArgs.Completed -= IoCompleted;
 
-            // Free the SocketAsyncEventArg so they can be reused by another client
+            // Free the SocketAsyncEventArg so they can be reused by another client.
             _argsPool.Free(_sendArgs);
             _argsPool.Free(_receiveArgs);
+
+            // Free the transformed buffer.
+            _receiveTransformedBufferManager.FreeBuffer(_receiveTransformedBuffer);
 
             InboxProcessor.Deregister(Id);
             OutboxProcessor.Deregister(Id);
@@ -411,7 +996,7 @@ namespace DtronixMessageQueue.TcpSocket
         /// <returns>String representation.</returns>
         public override string ToString()
         {
-            return $"{SocketHandler.Mode} RcpSocketSession;";
+            return $"{SocketHandler.Mode} TcpSocketSession;";
         }
 
         /// <summary>
@@ -423,7 +1008,5 @@ namespace DtronixMessageQueue.TcpSocket
                 Close(CloseReason.Closing);
 
         }
-
-
     }
 }

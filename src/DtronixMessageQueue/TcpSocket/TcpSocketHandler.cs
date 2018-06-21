@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
+using System.Security.Cryptography;
 using System.Threading;
 using DtronixMessageQueue.Rpc;
 
@@ -53,7 +54,7 @@ namespace DtronixMessageQueue.TcpSocket
         /// <summary>
         /// Pool of async args for sessions to use.
         /// </summary>
-        protected SocketAsyncEventArgsManager AsyncManager;
+        private SocketAsyncEventArgsManager _asyncManager;
 
         /// <summary>
         /// True if the timeout timer is running.  False otherwise.
@@ -68,12 +69,12 @@ namespace DtronixMessageQueue.TcpSocket
         /// <summary>
         /// Processor to handle all inbound and outbound message handling.
         /// </summary>
-        protected ActionProcessor<Guid> OutboxProcessor;
+        private readonly ActionProcessor<Guid> _outboxProcessor;
 
         /// <summary>
         /// Processor to handle all inbound and outbound message handling.
         /// </summary>
-        protected ActionProcessor<Guid> InboxProcessor;
+        private readonly ActionProcessor<Guid> _inboxProcessor;
 
         /// <summary>
         /// Dictionary of all connected clients.
@@ -85,6 +86,11 @@ namespace DtronixMessageQueue.TcpSocket
         /// Cache for commonly called methods used throughout the session.
         /// </summary>
         protected readonly ServiceMethodCache ServiceMethodCache;
+
+        /// <summary>
+        /// Contains the buffer manager for all the encryption transformations.
+        /// </summary>
+        private BufferManager _receiveBufferManager;
 
         /// <summary>
         /// Base constructor to all socket classes.
@@ -101,12 +107,12 @@ namespace DtronixMessageQueue.TcpSocket
 
             if (mode == TcpSocketMode.Client)
             {
-                OutboxProcessor = new ActionProcessor<Guid>(new ActionProcessor<Guid>.Config
+                _outboxProcessor = new ActionProcessor<Guid>(new ActionProcessor<Guid>.Config
                 {
                     ThreadName = $"{modeLower}-outbox",
                     StartThreads = 1
                 });
-                InboxProcessor = new ActionProcessor<Guid>(new ActionProcessor<Guid>.Config
+                _inboxProcessor = new ActionProcessor<Guid>(new ActionProcessor<Guid>.Config
                 {
                     ThreadName = $"{modeLower}-inbox",
                     StartThreads = 1
@@ -118,22 +124,20 @@ namespace DtronixMessageQueue.TcpSocket
                     ? Environment.ProcessorCount
                     : config.ProcessorThreads;
 
-                OutboxProcessor = new ActionProcessor<Guid>(new ActionProcessor<Guid>.Config
+                _outboxProcessor = new ActionProcessor<Guid>(new ActionProcessor<Guid>.Config
                 {
                     ThreadName = $"{modeLower}-outbox",
                     StartThreads = processorThreads
                 });
-                InboxProcessor = new ActionProcessor<Guid>(new ActionProcessor<Guid>.Config
+                _inboxProcessor = new ActionProcessor<Guid>(new ActionProcessor<Guid>.Config
                 {
                     ThreadName = $"{modeLower}-inbox",
                     StartThreads = processorThreads
                 });
             }
 
-            OutboxProcessor.Start();
-            InboxProcessor.Start();
-
-
+            _outboxProcessor.Start();
+            _inboxProcessor.Start();
         }
 
 
@@ -200,8 +204,12 @@ namespace DtronixMessageQueue.TcpSocket
             var maxConnections = Config.MaxConnections + 1;
 
             // preallocate pool of SocketAsyncEventArgs objects
-            AsyncManager = new SocketAsyncEventArgsManager(Config.SendAndReceiveBufferSize * maxConnections * 2,
-                Config.SendAndReceiveBufferSize);
+            var bufferSize = Config.SendAndReceiveBufferSize / 16 * 16 + 16;
+
+            _asyncManager = new SocketAsyncEventArgsManager(bufferSize * 2 * maxConnections,
+                bufferSize);
+
+            _receiveBufferManager = new BufferManager(bufferSize * maxConnections, bufferSize);
         }
 
         /// <summary>
@@ -210,13 +218,18 @@ namespace DtronixMessageQueue.TcpSocket
         /// <returns>New session instance.</returns>
         protected virtual TSession CreateSession(System.Net.Sockets.Socket socket)
         {
-            var session = TcpSocketSession<TSession, TConfig>.Create(socket, 
-                AsyncManager, 
-                Config, 
-                this, 
-                InboxProcessor,
-                OutboxProcessor,
-                ServiceMethodCache);
+            var session = TcpSocketSession<TSession, TConfig>.Create(
+                new TlsSocketSessionCreateArguments<TSession, TConfig>
+                {
+                    SessionSocket = socket,
+                    SocketArgsManager = _asyncManager,
+                    SessionConfig = Config,
+                    TlsSocketHandler = this,
+                    InboxProcessor = _inboxProcessor,
+                    OutboxProcessor = _outboxProcessor,
+                    ServiceMethodCache = ServiceMethodCache,
+                    ReceiveBufferManager = _receiveBufferManager
+                });
 
             SessionSetup?.Invoke(this, new SessionEventArgs<TSession, TConfig>(session));
             session.Closed += (sender, args) => OnClose(session, args.CloseReason);

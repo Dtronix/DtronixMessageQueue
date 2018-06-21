@@ -69,26 +69,6 @@ namespace DtronixMessageQueue.Rpc
 
             // Get the called method's arguments.
             object[] arguments = methodCall.Args;
-            CancellationToken cancellationToken = CancellationToken.None;
-
-            // Check to see if the last argument of the method is a CancellationToken.
-            if (methodCall.ArgCount > 0)
-            {
-                var lastArgument = methodCall.Args.Last();
-
-                if (lastArgument is CancellationToken)
-                {
-                    cancellationToken = (CancellationToken) lastArgument;
-
-                    // Remove the last argument from being serialized.
-                    if (methodCall.ArgCount > 1)
-                    {
-                        arguments = methodCall.Args.Take(methodCall.ArgCount - 1).ToArray();
-                    }
-                }
-            }
-
-
             ResponseWaitHandle returnWait = null;
             RpcCallMessageAction callType;
 
@@ -108,7 +88,6 @@ namespace DtronixMessageQueue.Rpc
 
                 // Byte[0,1] Wait Id which is used for returning the value and cancellation.
                 serializer.MessageWriter.Write(returnWait.Id);
-                returnWait.Token = cancellationToken;
             }
 
             // Write the name of this service class.
@@ -123,7 +102,16 @@ namespace DtronixMessageQueue.Rpc
             // Serialize all arguments to the message.
             for (var i = 0; i < arguments.Length; i++)
             {
-                serializer.SerializeToWriter(arguments[i], i);
+                try
+                {
+                    serializer.SerializeToWriter(arguments[i], i);
+                }
+                catch (Exception e)
+                {
+                    return
+                        new ReturnMessage(new ArgumentException($"Argument {i} can not be converted to a protobuf object.", e), methodCall);
+                }
+                
             }
 
             // Send the message over the session.
@@ -138,26 +126,12 @@ namespace DtronixMessageQueue.Rpc
             // Wait for the completion of the remote call.
             try
             {
-                returnWait.ReturnResetEvent.Wait(returnWait.Token);
+                returnWait.ReturnResetEvent.Wait(_session.Config.RpcExecutionTimeout);
             }
             catch (OperationCanceledException)
             {
-                // If the operation was canceled, cancel the wait on this end and notify the other end.
-                _callMessageHandler.ProxyWaitOperations.Cancel(returnWait.Id);
-
-                var frame = new MqFrame(new byte[2], MqFrameType.Last, _session.Config);
-                frame.Write(0, returnWait.Id);
-
-                _callMessageHandler.SendHandlerMessage((byte) RpcCallMessageAction.MethodCancel, new MqMessage(frame));
-                throw new OperationCanceledException("Wait handle was canceled while waiting for a response.");
-            }
-
-            // If the wait times out, alert the callee.
-            if (returnWait.ReturnResetEvent.IsSet == false)
-            {
                 throw new TimeoutException("Wait handle timed out waiting for a response.");
             }
-
 
             try
             {

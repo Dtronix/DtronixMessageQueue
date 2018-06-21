@@ -88,9 +88,10 @@ namespace DtronixMessageQueue
                     _currentFrameType = (MqFrameType) frameTypeBytes[0];
                 }
 
-                if (_currentFrameType == MqFrameType.Empty ||
-                    _currentFrameType == MqFrameType.EmptyLast ||
-                    _currentFrameType == MqFrameType.Ping)
+                if (_currentFrameType == MqFrameType.Empty
+                    || _currentFrameType == MqFrameType.EmptyLast
+                    || _currentFrameType == MqFrameType.Ping
+                    || _currentFrameType == MqFrameType.Padding)
                 {
                     EnqueueAndReset();
                     continue;
@@ -147,7 +148,10 @@ namespace DtronixMessageQueue
         /// </summary>
         private void EnqueueAndReset()
         {
-            Frames.Enqueue(new MqFrame(_currentFrameData, _currentFrameType, _config));
+            // Eat padding frames as they are made to align the messages.
+            if(_currentFrameType != MqFrameType.Padding)
+                Frames.Enqueue(new MqFrame(_currentFrameData, _currentFrameType, _config));
+
             _currentFrameType = MqFrameType.Unset;
             _currentFrameData = null;
         }

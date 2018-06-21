@@ -29,16 +29,6 @@ namespace DtronixMessageQueue.Rpc
         public byte MessageActionId { get; set; }
 
         /// <summary>
-        /// Cancellation token for the request.
-        /// </summary>
-        public CancellationToken Token { get; set; }
-
-        /// <summary>
-        /// Cancellation token source for the request.
-        /// </summary>
-        public CancellationTokenSource TokenSource { get; set; }
-
-        /// <summary>
         /// Contains the time that this call wait was created to check for timeouts.
         /// </summary>
         public DateTime Created { get; } = DateTime.UtcNow;

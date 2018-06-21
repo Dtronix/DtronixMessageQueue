@@ -78,7 +78,7 @@ namespace DtronixMessageQueue
         /// </summary>
         /// <param name="bufferQueue">QueueOnce of bytes to send to the wire.</param>
         /// <param name="length">Total length of the bytes in the queue to send.</param>
-        private void SendBufferQueue(Queue<byte[]> bufferQueue, int length)
+        private void SendBufferQueue(Queue<byte[]> bufferQueue, int length, bool last)
         {
             var buffer = new byte[length];
             var offset = 0;
@@ -94,7 +94,7 @@ namespace DtronixMessageQueue
 
 
             // This will block 
-            Send(buffer, 0, buffer.Length);
+            Send(buffer, 0, buffer.Length, last);
         }
 
 
@@ -110,24 +110,23 @@ namespace DtronixMessageQueue
 
             while (_outbox.TryDequeue(out message))
             {
-
                 if(CurrentState != State.Closed)
                     _sendingSemaphore.Release();
 
                 message.PrepareSend();
-                foreach (var frame in message)
+                for (var i = 0; i < message.Count; i++)
                 {
-                    var frameSize = frame.FrameSize;
+                    var frameSize = message[i].FrameSize;
 
                     // If this would overflow the max client buffer size, send the full buffer queue.
                     if (length + frameSize > Config.FrameBufferSize + MqFrame.HeaderLength)
                     {
-                        SendBufferQueue(bufferQueue, length);
+                        SendBufferQueue(bufferQueue, length, false);
 
                         // Reset the length to 0;
                         length = 0;
                     }
-                    bufferQueue.Enqueue(frame.RawFrame());
+                    bufferQueue.Enqueue(message[i].RawFrame());
 
                     // Increment the total buffer length.
                     length += frameSize;
@@ -140,7 +139,7 @@ namespace DtronixMessageQueue
             }
 
             // Send the last of the buffer queue.
-            SendBufferQueue(bufferQueue, length);
+            SendBufferQueue(bufferQueue, length, true);
         }
 
         /// <summary>
@@ -258,17 +257,13 @@ namespace DtronixMessageQueue
             if (CurrentState == State.Closed && reason != CloseReason.ConnectionRefused)
                 return;
 
-            if (reason == CloseReason.ProtocolError)
-            {
-                
-            }
-
+            /*
             MqFrame closeFrame = null;
             if (CurrentState == State.Connected || reason == CloseReason.ConnectionRefused)
             {
                 closeFrame = CreateFrame(new byte[2], MqFrameType.Command);
 
-                closeFrame.Write(0, (byte)0);
+                closeFrame.Write(0, (byte)0); // Close
                 closeFrame.Write(1, (byte)reason);
             }
 
@@ -295,7 +290,7 @@ namespace DtronixMessageQueue
 
                 // QueueOnce the last bit of data.
                 ProcessOutbox();
-            }
+            }*/
 
             base.Close(reason);
 

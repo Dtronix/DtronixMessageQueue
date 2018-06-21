@@ -18,6 +18,8 @@ namespace DtronixMessageQueue.Rpc
         /// </summary>
         public RpcServerInfoDataContract ServerInfo { get; }
 
+        public ActionProcessor<Guid> RpcActionProcessor { get; }
+
         /// <summary>
         /// Called to send authentication data to the server.
         /// </summary>
@@ -44,6 +46,15 @@ namespace DtronixMessageQueue.Rpc
         public RpcServer(TConfig config, RpcServerInfoDataContract serverInfo) : base(config)
         {
             ServerInfo = serverInfo ?? new RpcServerInfoDataContract();
+            RpcActionProcessor = new ActionProcessor<Guid>(new ActionProcessor<Guid>.Config
+            {
+                ThreadName = "rpc-processor-server",
+                StartThreads = config.MinExecutionThreads == -1
+                    ? Environment.ProcessorCount
+                    : config.MinExecutionThreads
+            });
+
+            RpcActionProcessor.Start();
         }
 
         /// <summary>

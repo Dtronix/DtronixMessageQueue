@@ -18,6 +18,8 @@ namespace DtronixMessageQueue.Rpc
         /// </summary>
         public RpcServerInfoDataContract ServerInfo { get; set; }
 
+        public ActionProcessor<Guid> RpcActionProcessor { get; }
+
         /// <summary>
         /// Called to send authentication data to the server.
         /// </summary>
@@ -28,12 +30,21 @@ namespace DtronixMessageQueue.Rpc
         /// </summary>
         public event EventHandler<SessionEventArgs<TSession, TConfig>> Ready;
 
+       
+
         /// <summary>
         /// Initializes a new instance of a Rpc client.
         /// </summary>
         /// <param name="config">Configurations for this client to use.</param>
         public RpcClient(TConfig config) : base(config)
         {
+            RpcActionProcessor = new ActionProcessor<Guid>(new ActionProcessor<Guid>.Config
+            {
+                StartThreads = 1,
+                ThreadName = "rpc-processor-client"
+            });
+
+            RpcActionProcessor.Start();
         }
 
         protected override TSession CreateSession(System.Net.Sockets.Socket sessionSocket)

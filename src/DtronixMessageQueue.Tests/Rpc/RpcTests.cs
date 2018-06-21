@@ -7,7 +7,7 @@ using NUnit.Framework;
 
 namespace DtronixMessageQueue.Tests.Rpc
 {
-    public class RpcClientTests : RpcTestsBase
+    public class RpcTests : RpcTestsBase
     {
 
         public class Test
@@ -19,17 +19,17 @@ namespace DtronixMessageQueue.Tests.Rpc
         [Test]
         public void Client_calls_proxy_method()
         {
-            Server.SessionSetup += (sender, args) => { args.Session.AddService(new CalculatorService()); };
+            Server.SessionSetup += (sender, args) => { args.Session.AddService(new SampleService()); };
 
             Client.SessionSetup += (sender, args) =>
             {
-                args.Session.AddProxy<ICalculatorService>("CalculatorService");
+                args.Session.AddProxy<ISampleService>("SampleService");
             };
 
 
             Client.Ready += (sender, args) =>
             {
-                var service = Client.Session.GetProxy<ICalculatorService>();
+                var service = Client.Session.GetProxy<ISampleService>();
                 var result = service.Add(100, 200);
 
                 if (result != 300)
@@ -46,13 +46,13 @@ namespace DtronixMessageQueue.Tests.Rpc
         [Test]
         public void Client_calls_proxy_method_sequential()
         {
-            Server.SessionSetup += (sender, args) => { args.Session.AddService(new CalculatorService()); };
+            Server.SessionSetup += (sender, args) => { args.Session.AddService(new SampleService()); };
 
 
             Client.Ready += (sender, args) =>
             {
-                args.Session.AddProxy<ICalculatorService>("CalculatorService");
-                var service = Client.Session.GetProxy<ICalculatorService>();
+                args.Session.AddProxy<ISampleService>("SampleService");
+                var service = Client.Session.GetProxy<ISampleService>();
                 Stopwatch stopwatch = Stopwatch.StartNew();
 
                 int addedInt = 0;
@@ -80,52 +80,11 @@ namespace DtronixMessageQueue.Tests.Rpc
         }
 
         [Test]
-        public void Client_calls_proxy_method_and_canceles()
-        {
-            Server.SessionSetup += (sender, args) =>
-            {
-                var service = new CalculatorService();
-                args.Session.AddService<ICalculatorService>(service);
-
-                service.LongRunningTaskCanceled += (o, eventArgs) => { TestComplete.Set(); };
-            };
-
-
-            Client.Ready += (sender, args) =>
-            {
-                args.Session.AddProxy<ICalculatorService>("CalculatorService");
-                var service = Client.Session.GetProxy<ICalculatorService>();
-                var tokenSource = new CancellationTokenSource();
-
-
-                bool threw = false;
-                try
-                {
-                    tokenSource.CancelAfter(500);
-                    service.LongRunningTask(1, 2, tokenSource.Token);
-                }
-                catch (OperationCanceledException)
-                {
-                    threw = true;
-                }
-
-                if (threw != true)
-                {
-                    LastException = new Exception("Operation did not cancel.");
-                }
-            };
-
-            StartAndWait();
-        }
-
-        [Test]
         public void Server_requests_authentication()
         {
             Server.Config.RequireAuthentication = true;
 
-
             Client.Authenticate += (sender, e) => { TestComplete.Set(); };
-
 
             StartAndWait();
         }
@@ -136,15 +95,15 @@ namespace DtronixMessageQueue.Tests.Rpc
             Server.Config.RequireAuthentication = false;
 
             Server.SessionSetup +=
-                (sender, args) => { args.Session.AddService<ICalculatorService>(new CalculatorService()); };
+                (sender, args) => { args.Session.AddService<ISampleService>(new SampleService()); };
 
             Client.Authenticate += (sender, e) => { };
 
 
             Client.Ready += (sender, e) =>
             {
-                e.Session.AddProxy<ICalculatorService>("CalculatorService");
-                var service = Client.Session.GetProxy<ICalculatorService>();
+                e.Session.AddProxy<ISampleService>("SampleService");
+                var service = Client.Session.GetProxy<ISampleService>();
 
                 var result = service.Add(100, 200);
 
@@ -168,7 +127,7 @@ namespace DtronixMessageQueue.Tests.Rpc
             Server.Config.RequireAuthentication = true;
 
             Server.SessionSetup +=
-                (sender, args) => { args.Session.AddService<ICalculatorService>(new CalculatorService()); };
+                (sender, args) => { args.Session.AddService<ISampleService>(new SampleService()); };
 
             Server.Authenticate += (sender, e) =>
             {
@@ -198,7 +157,7 @@ namespace DtronixMessageQueue.Tests.Rpc
             Server.Config.RequireAuthentication = true;
 
             Server.SessionSetup +=
-                (sender, args) => { args.Session.AddService<ICalculatorService>(new CalculatorService()); };
+                (sender, args) => { args.Session.AddService<ISampleService>(new SampleService()); };
 
             Server.Authenticate += (sender, e) => { e.Authenticated = false; };
 
@@ -225,7 +184,7 @@ namespace DtronixMessageQueue.Tests.Rpc
             Server.Config.RequireAuthentication = true;
 
             Server.SessionSetup +=
-                (sender, args) => { args.Session.AddService<ICalculatorService>(new CalculatorService()); };
+                (sender, args) => { args.Session.AddService<ISampleService>(new SampleService()); };
 
             Server.Authenticate += (sender, e) => { e.Authenticated = false; };
 
@@ -250,7 +209,7 @@ namespace DtronixMessageQueue.Tests.Rpc
             ServerConfig.RequireAuthentication = true;
 
             Server.SessionSetup +=
-                (sender, args) => { args.Session.AddService<ICalculatorService>(new CalculatorService()); };
+                (sender, args) => { args.Session.AddService<ISampleService>(new SampleService()); };
 
             Server.Authenticate += (sender, e) => { e.Authenticated = true; };
 
@@ -313,6 +272,36 @@ namespace DtronixMessageQueue.Tests.Rpc
                 if (!TestComplete.IsSet)
                 {
                     Client.Connect();
+                }
+            };
+
+            StartAndWait();
+        }
+
+        [Test]
+        public void Client_throws_on_invalid_argument_passed()
+        {
+            Client.Ready += (sender, args) =>
+            {
+                args.Session.AddProxy<ISampleService>("SampleService");
+                var service = Client.Session.GetProxy<ISampleService>();
+                var tokenSource = new CancellationTokenSource();
+
+
+                bool threw = false;
+                try
+                {
+                    service.InvalidArguments(1, 2, tokenSource.Token);
+                }
+                catch (ArgumentException)
+                {
+                    TestComplete.Set();
+                    threw = true;
+                }
+
+                if (threw != true)
+                {
+                    LastException = new Exception("Operation did not throw ArgumentException.");
                 }
             };
 
