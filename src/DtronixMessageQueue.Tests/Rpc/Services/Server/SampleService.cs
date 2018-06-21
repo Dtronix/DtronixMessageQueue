@@ -1,12 +1,13 @@
 ﻿using System;
 using System.Threading;
+using System.Threading.Tasks;
 using DtronixMessageQueue.Rpc;
 
 namespace DtronixMessageQueue.Tests.Rpc.Services.Server
 {
-    public class CalculatorService : MarshalByRefObject, ICalculatorService
+    public class SampleService : MarshalByRefObject, ISampleService
     {
-        public string Name { get; } = "CalculatorService";
+        public string Name { get; } = "SampleService";
         public SimpleRpcSession Session { get; set; }
 
         public event EventHandler LongRunningTaskCanceled;
@@ -33,30 +34,17 @@ namespace DtronixMessageQueue.Tests.Rpc.Services.Server
             return number1 / number2;
         }
 
-        public int LongRunningTask(int number1, int number2, CancellationToken token)
+        public void InvalidArguments(int number1, int number2, CancellationToken token)
         {
-            ManualResetEventSlim mre = new ManualResetEventSlim();
-
-            try
-            {
-                mre.Wait(token);
-            }
-            catch (Exception)
-            {
-                LongRunningTaskCanceled?.Invoke(this, EventArgs.Empty);
-                throw;
-            }
-
-            return number1 / number2;
         }
     }
 
-    public interface ICalculatorService : IRemoteService<SimpleRpcSession, RpcConfig>
+    public interface ISampleService : IRemoteService<SimpleRpcSession, RpcConfig>
     {
         int Add(int number1, int number2);
         int Subtract(int number1, int number2);
         int Multiply(int number1, int number2);
         int Divide(int number1, int number2);
-        int LongRunningTask(int number1, int number2, CancellationToken token);
+        void InvalidArguments(int number1, int number2, CancellationToken token);
     }
 }

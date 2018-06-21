@@ -43,8 +43,6 @@ namespace DtronixMessageQueue.Rpc.MessageHandlers
 
         public RpcCallMessageHandler(TSession session) : base(session)
         {
-            Handlers.Add((byte) RpcCallMessageAction.MethodCancel, MethodCancelAction);
-
             Handlers.Add((byte) RpcCallMessageAction.MethodCallNoReturn, ProcessRpcCallAction);
             Handlers.Add((byte) RpcCallMessageAction.MethodCall, ProcessRpcCallAction);
 
@@ -56,17 +54,6 @@ namespace DtronixMessageQueue.Rpc.MessageHandlers
         {
             // Add the instance to this handler.
             _serviceInstances.Add(instance.Name, instance);
-        }
-
-        /// <summary>
-        /// Cancels the specified action.
-        /// </summary>
-        /// <param name="actionId">byte associated with the RpcCallMessageAction enum.></param>
-        /// <param name="message">Message containing the cancellation information.</param>
-        public void MethodCancelAction(byte actionId, MqMessage message)
-        {
-            var cancellationId = message[0].ReadUInt16(0);
-            _remoteWaitOperations.Cancel(cancellationId);
         }
 
 
@@ -104,19 +91,8 @@ namespace DtronixMessageQueue.Rpc.MessageHandlers
                 if (serviceMethod == null || !_serviceInstances.ContainsKey(recServiceName))
                     throw new Exception($"Service '{recServiceName}' does not exist.");
 
-                ResponseWaitHandle cancellationWait = null;
-
-                // If the past parameter is a cancellation token, setup a return wait for this call to allow for remote cancellation.
-                if (recMessageReturnId != 0 && serviceMethod.HasCancellation)
-                {
-                    cancellationWait = _remoteWaitOperations.CreateWaitHandle(recMessageReturnId);
-
-                    cancellationWait.TokenSource = new CancellationTokenSource();
-                    cancellationWait.Token = cancellationWait.TokenSource.Token;
-                }
-
                 // Setup the parameters to pass to the invoked method.
-                var parameters = new object[recArgumentCount + (cancellationWait == null ? 0 : 1)];
+                var parameters = new object[recArgumentCount];
 
                 // Determine if we have any parameters to pass to the invoked method.
                 if (recArgumentCount > 0)
@@ -128,11 +104,6 @@ namespace DtronixMessageQueue.Rpc.MessageHandlers
                         parameters[i] = serialization.DeserializeFromReader(serviceMethod.ParameterTypes[i], i);
                 }
 
-                // Add the cancellation token to the parameters.
-                if (cancellationWait != null)
-                    parameters[parameters.Length - 1] = cancellationWait.Token;
-
-
                 object returnValue;
                 try
                 {
@@ -143,11 +114,9 @@ namespace DtronixMessageQueue.Rpc.MessageHandlers
                 {
                     // Determine if this method was waited on.  If it was and an exception was thrown,
                     // Let the recipient session know an exception was thrown.
-                    if (recMessageReturnId != 0 &&
-                        ex.InnerException?.GetType() != typeof(OperationCanceledException))
-                    {
+                    if (recMessageReturnId != 0)
                         SendRpcException(serialization, ex, recMessageReturnId);
-                    }
+
                     return;
                 }
                 finally

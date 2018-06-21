@@ -30,10 +30,5 @@
         /// Message is a Rpc response.  Message contains information about the exception thrown.
         /// </summary>
         MethodException = 4,
-
-        /// <summary>
-        /// Message used to cancel a pending operation.
-        /// </summary>
-        MethodCancel = 5,
     }
 }

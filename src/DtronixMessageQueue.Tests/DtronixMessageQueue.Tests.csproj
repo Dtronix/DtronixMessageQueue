@@ -67,9 +67,9 @@
     <Compile Include="Mq\MqTestsBase.cs" />
     <Compile Include="Mq\MqClientTests.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
-    <Compile Include="Rpc\RpcClientTests.cs" />
+    <Compile Include="Rpc\RpcTests.cs" />
     <Compile Include="Rpc\RpcTestsBase.cs" />
-    <Compile Include="Rpc\Services\Server\CalculatorService.cs" />
+    <Compile Include="Rpc\Services\Server\SampleService.cs" />
     <Compile Include="Mq\SimpleMqSession.cs" />
     <Compile Include="Rpc\SimpleRpcSession.cs" />
     <Compile Include="TestBase.cs" />
