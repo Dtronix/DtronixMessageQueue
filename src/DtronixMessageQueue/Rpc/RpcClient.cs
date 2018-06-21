@@ -41,7 +41,7 @@ namespace DtronixMessageQueue.Rpc
             RpcActionProcessor = new ActionProcessor<Guid>(new ActionProcessor<Guid>.Config
             {
                 StartThreads = 1,
-                ThreadName = "RpcProcessor-Client"
+                ThreadName = "rpc-processor-client"
             });
 
             RpcActionProcessor.Start();
