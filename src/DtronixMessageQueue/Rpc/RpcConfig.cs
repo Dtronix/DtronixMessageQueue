@@ -10,8 +10,9 @@ namespace DtronixMessageQueue.Rpc
         /// <summary>
         /// Number of threads used for executing RPC calls.
         /// -1 sets number of threads to number of logical processors.
+        /// Will always be 1 on the client.
         /// </summary>
-        public int MaxExecutionThreads { get; set; } = -1;
+        public int MinExecutionThreads { get; set; } = -1;
 
         /// <summary>
         /// Number of threads each session is allowed to use at a time from the main thread pool.
