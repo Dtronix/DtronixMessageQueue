@@ -70,20 +70,6 @@ All transmissions are sent in blocks of 16 bytes.  This aligns with the 16 byte 
   </tr>
 </table>
 
-#### Header Type ConnectionClose
-<table>
-  <tr align="center">
-    <td colspan="8">0</td> <td colspan="8">1</td>
-  </tr>
-  <tr>
-    <td>0</td><td>1</td><td>2</td><td>3</td><td>4</td><td>5</td><td>6</td><td>7</td>
-    <td>0</td><td>1</td><td>2</td><td>3</td><td>4</td><td>5</td><td>6</td><td>7</td>
-  </tr>
-  <tr align="center">
-    <td colspan="8">3 (byte) [8]</td><td colspan="16">CloseReason(byte) [8]</td>
-  </tr>
-</table>
-
 #### Header Type EncryptChanel
 <table>
   <tr align="center">
@@ -96,6 +82,6 @@ All transmissions are sent in blocks of 16 bytes.  This aligns with the 16 byte 
     <td colspan="8">4 (byte) [8]</td>
   </tr>
     <tr align="center">
-    <td colspan="8">DH public key (byte[128])</td>
+    <td colspan="8">DH public key (byte) [140]</td>
   </tr>
 </table>
