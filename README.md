@@ -34,7 +34,10 @@ Intel(R) Core(TM) i5-3470 CPU @ 3.20GHz with 8 GB of RAM installed.
 | Release |    Return |     10,000 |        1,595 |      6,273 |
 | Release | Exception |      2,000 |          552 |      3,631 |
 
+### Protocols
+DtronixMessageQueue utilizies several layers a [custom encryption protocol](docs/secured-transport.md) on top of the TCP protocol.
 
+DtronixMessageQueie laytes the [message queue protocol](docs/dtronix-message-queue.md) on top of the TcpScocket protocol.
 
 ### License
 Released under [MIT license](LICENSE)
