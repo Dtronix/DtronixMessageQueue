@@ -2,7 +2,7 @@ DtronixMessageQueue [![Build Status](https://travis-ci.org/Dtronix/DtronixMessag
 ============
 DtronixMessageQueue is a small .net TCP message queueing system using the microsoft [SocketAsyncEventArgs](https://msdn.microsoft.com/en-us/library/system.net.sockets.socketasynceventargs(v=vs.110).aspx) interface.
 
-All transported information is encrypted by 128 bit AES.
+All transported information is encrypted by 256 bit AES.
 
 The purpose of this project is to provide a simple transport protocol for multiple systems, mostly being the DtronixRpc system.
 
