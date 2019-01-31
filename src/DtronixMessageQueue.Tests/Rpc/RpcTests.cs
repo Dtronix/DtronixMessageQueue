@@ -307,5 +307,34 @@ namespace DtronixMessageQueue.Tests.Rpc
 
             StartAndWait();
         }
+
+        [Test]
+        public void Client_receives_large_argument_payload()
+        {
+            var sampleService = new SampleService();
+            var payloadLength = 1024 * 1024;
+
+            Server.SessionSetup +=
+                (sender, args) => { args.Session.AddService<ISampleService>(sampleService); };
+
+            sampleService.ReceivedByteArray += (sender, l) =>
+            {
+                if (l == payloadLength)
+                    TestComplete.Set();
+                else
+                    LastException = new Exception($"Service only received {l} bytes.  Expecting {payloadLength} bytes.");
+            };
+
+            Client.Ready += (sender, args) =>
+            {
+                args.Session.AddProxy<ISampleService>("SampleService");
+                var service = Client.Session.GetProxy<ISampleService>();
+
+                service.SendByteArray(new byte[payloadLength]);
+            };
+
+            StartAndWait();
+        }
+
     }
 }

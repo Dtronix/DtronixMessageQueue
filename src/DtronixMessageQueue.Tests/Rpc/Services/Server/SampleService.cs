@@ -12,6 +12,8 @@ namespace DtronixMessageQueue.Tests.Rpc.Services.Server
 
         public event EventHandler LongRunningTaskCanceled;
 
+        public event EventHandler<long> ReceivedByteArray;
+
         public byte[] StreamBytes = null;
 
         public int Add(int number1, int number2)
@@ -37,6 +39,11 @@ namespace DtronixMessageQueue.Tests.Rpc.Services.Server
         public void InvalidArguments(int number1, int number2, CancellationToken token)
         {
         }
+
+        public void SendByteArray(byte[] data)
+        {
+            ReceivedByteArray?.Invoke(this, data.LongLength);
+        }
     }
 
     public interface ISampleService : IRemoteService<SimpleRpcSession, RpcConfig>
@@ -46,5 +53,6 @@ namespace DtronixMessageQueue.Tests.Rpc.Services.Server
         int Multiply(int number1, int number2);
         int Divide(int number1, int number2);
         void InvalidArguments(int number1, int number2, CancellationToken token);
+        void SendByteArray(byte[] data);
     }
 }
