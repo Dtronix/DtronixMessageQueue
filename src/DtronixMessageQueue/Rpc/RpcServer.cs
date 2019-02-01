@@ -82,6 +82,11 @@ namespace DtronixMessageQueue.Rpc
         protected override void TimeoutCallback(object state)
         {
             var timoutInt = Config.PingTimeout;
+
+            // If the client is not to timeout, do not time any clients out.
+            if (timoutInt == 0)
+                return;
+
             var timeoutTime = DateTime.UtcNow.Subtract(new TimeSpan(0, 0, 0, 0, timoutInt));
 
             foreach (var session in ConnectedSessions.Values)

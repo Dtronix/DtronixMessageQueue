@@ -45,7 +45,7 @@ namespace DtronixMessageQueue
                 _pingTimer.Change(pingFrequency / 2, pingFrequency);
             }
 
-            if (TimeoutTimerRunning == false)
+            if (TimeoutTimerRunning == false && Config.PingTimeout > 0)
             {
                 TimeoutTimer.Change(0, Config.PingTimeout);
                 TimeoutTimerRunning = true;

@@ -314,8 +314,15 @@ namespace DtronixMessageQueue.Tests.Rpc
             var sampleService = new SampleService();
             var payloadLength = 1024 * 1024;
 
+            //ServerConfig.RequireAuthentication = true;
+            //ClientConfig.RequireAuthentication = true;
+            ClientConfig.PingFrequency = 0;
+            ServerConfig.PingTimeout = 0;
+
             Server.SessionSetup +=
                 (sender, args) => { args.Session.AddService<ISampleService>(sampleService); };
+
+            Server.Authenticate += (sender, args) => args.Authenticated = true;
 
             sampleService.ReceivedByteArray += (sender, l) =>
             {
@@ -330,10 +337,12 @@ namespace DtronixMessageQueue.Tests.Rpc
                 args.Session.AddProxy<ISampleService>("SampleService");
                 var service = Client.Session.GetProxy<ISampleService>();
 
-                service.SendByteArray(new byte[payloadLength]);
+                service.SendByteArray(new byte[20]);
             };
 
-            StartAndWait();
+            Client.Closed += (sender, args) => { };
+            Server.Closed += (sender, args) => { };
+            StartAndWait(true, 60000);
         }
 
     }

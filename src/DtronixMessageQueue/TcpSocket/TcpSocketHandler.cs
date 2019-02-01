@@ -167,7 +167,7 @@ namespace DtronixMessageQueue.TcpSocket
         protected virtual void OnConnect(TSession session)
         {
             // Start the timeout timer if it is not already running.
-            if (TimeoutTimerRunning == false)
+            if (TimeoutTimerRunning == false && Config.PingTimeout > 0)
             {
                 TimeoutTimer.Change(0, Config.PingTimeout);
                 TimeoutTimerRunning = true;
