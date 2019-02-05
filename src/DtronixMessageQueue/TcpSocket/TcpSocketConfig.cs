@@ -49,5 +49,11 @@
         /// 0 disables the automatic disconnection functionality.
         /// </summary>
         public int PingTimeout { get; set; } = 60000;
+
+        /// <summary>
+        /// (Server/Client)
+        /// Logger used by the system for debugging purposes.
+        /// </summary>
+        public MqLogger Logger { get; set; }
     }
 }

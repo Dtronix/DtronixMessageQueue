@@ -51,7 +51,8 @@ namespace DtronixMessageQueue.Rpc
                 ThreadName = "rpc-processor-server",
                 StartThreads = config.MinExecutionThreads == -1
                     ? Environment.ProcessorCount
-                    : config.MinExecutionThreads
+                    : config.MinExecutionThreads,
+                Logger = config.Logger
             });
 
             RpcActionProcessor.Start();

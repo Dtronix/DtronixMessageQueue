@@ -322,6 +322,7 @@ namespace DtronixMessageQueue.TcpSocket
 
         private bool SecureConnectionReceive(byte[] buffer)
         {
+            _config.Logger?.Trace($"{SocketHandler.Mode}: Received {buffer.Length} bytes.");
             if (CurrentState == State.Closed)
                 return false;
 
@@ -338,6 +339,7 @@ namespace DtronixMessageQueue.TcpSocket
             if (_aes == null
                 && _negotiationStream.Length >= 140)
             {
+                _config.Logger?.Trace($"{SocketHandler.Mode}: Received enough bytes for ECDH key.");
                 _otherDhPublicKey = new byte[140];
                 _negotiationStream.Read(_otherDhPublicKey, 0, 140);
 
@@ -365,6 +367,7 @@ namespace DtronixMessageQueue.TcpSocket
 
                 if (SocketHandler.Mode == TcpSocketMode.Server)
                 {
+                    _config.Logger?.Trace($"{SocketHandler.Mode}: Sending client public ECDH key.");
                     var pKey = _ecdh.PublicKey.ToByteArray();
                     SendWithHeader(Header.Type.EncryptChannel, null, 0, 0, pKey, 0, pKey.Length, true);
                 }
@@ -402,6 +405,8 @@ namespace DtronixMessageQueue.TcpSocket
 
             // Set the state to connected.
             CurrentState = State.Connected;
+
+            _config.Logger?.Trace($"{SocketHandler.Mode}: Securing complete.");
             OnConnected();
         }
 
@@ -441,6 +446,7 @@ namespace DtronixMessageQueue.TcpSocket
         /// <param name="e">SocketAsyncEventArg associated with the completed receive operation</param>
         protected virtual void IoCompleted(object sender, SocketAsyncEventArgs e)
         {
+            _config.Logger?.Trace($"{SocketHandler.Mode}: {e.LastOperation}");
             // determine which type of operation just completed and call the associated handler
             switch (e.LastOperation)
             {
@@ -595,11 +601,17 @@ namespace DtronixMessageQueue.TcpSocket
 
             // type (byte) + header
             if (1 + headerCount > 16)
+            {
+                _config.Logger?.Error($"{SocketHandler.Mode}: Header can not exceed 15 bytes in length.");
                 throw new ArgumentException("Header can not exceed 15 bytes in length.");
+            }
 
             // body
             if (bodyCount > Config.SendAndReceiveBufferSize)
-                throw new ArgumentException("Attempted to send buffer larger than ");
+            {
+                _config.Logger?.Error($"{SocketHandler.Mode}: Attempted to send buffer larger than SendAndReceiveBufferSize.");
+                throw new ArgumentException("Attempted to send buffer larger than SendAndReceiveBufferSize.");
+            }
 
             // Ensure sending occurs sequentially.
             _writeSemaphore.Wait(-1);
@@ -666,7 +678,10 @@ namespace DtronixMessageQueue.TcpSocket
             {
                 // Set the data to be sent.
                 if (!Socket.SendAsync(_sendArgs))
+                {
+                    _config.Logger?.Error($"{SocketHandler.Mode}: System can not send data asynchronously.");
                     throw new Exception("System can not send data asynchronously.");
+                }
             }
             catch (ObjectDisposedException)
             {
@@ -747,6 +762,7 @@ namespace DtronixMessageQueue.TcpSocket
         /// <param name="e">Event args of this action.</param>
         protected void RecieveComplete(SocketAsyncEventArgs e)
         {
+            _config.Logger?.Trace($"{SocketHandler.Mode}: Received {e.BytesTransferred} bytes.");
             if (CurrentState == State.Closed)
                 return;
 
@@ -777,6 +793,7 @@ namespace DtronixMessageQueue.TcpSocket
             }
             else
             {
+                _config.Logger?.Trace($"{SocketHandler.Mode}: Received {e.BytesTransferred} bytes.");
                 Close(CloseReason.SocketError);
             }
         }
@@ -838,9 +855,11 @@ namespace DtronixMessageQueue.TcpSocket
 
                     // Advance the position past the record type bit.
                     position++;
+
+                    _config.Logger?.Trace($"{SocketHandler.Mode}: New header {_receivingHeader.HeaderType}");
                 }
 
-                // Read the DH key
+                // Read the close reason.
                 if (_receivingHeader.HeaderReceiveState == Header.State.ReadingCloseReason
                     && position < receiveLength)
                 {
@@ -852,7 +871,7 @@ namespace DtronixMessageQueue.TcpSocket
                     return false;
                 }
 
-                // Read the close reason.
+                // Read the DH key
                 if (_receivingHeader.HeaderReceiveState == Header.State.ReadingEncryptionKey
                     && position < receiveLength)
                 {
@@ -927,6 +946,8 @@ namespace DtronixMessageQueue.TcpSocket
                 _receivingHeader.BodyPosition += currentMessageReadLength;
                 position += currentMessageReadLength;
 
+                _config.Logger?.Trace($"{SocketHandler.Mode}: Read {readBuffer.Length} body bytes.");
+
                 HandleIncomingBytes(readBuffer);
 
                 if (_receivingHeader.BodyPosition == _receivingHeader.BodyLength)
@@ -947,6 +968,8 @@ namespace DtronixMessageQueue.TcpSocket
             // If this session has already been closed, nothing more to do.
             if (CurrentState == State.Closed && reason != CloseReason.ConnectionRefused)
                 return;
+
+            _config.Logger?.Trace($"{SocketHandler.Mode}: Connection closed. Reason: {reason}.");
 
             CurrentState = State.Closed;
 

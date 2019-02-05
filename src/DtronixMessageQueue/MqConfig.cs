@@ -6,9 +6,10 @@ namespace DtronixMessageQueue
     {
         /// <summary>
         /// Max size of the frame.  Needs to be equal or smaller than SendAndReceiveBufferSize.
-        /// Need to exclude the header length for a frame.
+        /// Need to exclude the header length for a frame along with the TCP socket encryption header.
+        /// 
         /// </summary>
-        public int FrameBufferSize { get; set; } = 1024 * 16 - MqFrame.HeaderLength;
+        public int FrameBufferSize { get; set; } = 1024 * 16 - MqFrame.HeaderLength - 3;
 
         /// <summary>
         /// (Client) 

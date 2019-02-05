@@ -121,7 +121,7 @@ namespace DtronixMessageQueue
             for (var i = 0; i < count; i++)
             {
                 var id = Interlocked.Increment(ref _threadId);
-                var pThread = new ProcessorThread($"dmq-{_configs.ThreadName}-{id}");
+                var pThread = new ProcessorThread($"dmq-{_configs.ThreadName}-{id}", _configs);
                 _threads.Add(pThread);
                 if (_isRunning)
                     pThread.Start();
@@ -492,6 +492,11 @@ namespace DtronixMessageQueue
             ///
             /// </summary>
             public int RebalanceLoadDelta { get; set; } = 10;
+
+            /// <summary>
+            /// Logger used by the system for debugging purposes.
+            /// </summary>
+            public MqLogger Logger { get; set; }
         }
 
         /// <summary>
@@ -546,6 +551,8 @@ namespace DtronixMessageQueue
             /// Name of the thread.
             /// </summary>
             private readonly string _name;
+
+            private readonly Config _config;
 
             /// <summary>
             /// Thread which is being managed.
@@ -608,9 +615,10 @@ namespace DtronixMessageQueue
             /// Starts a new managed thread to handle the actions passed to process.
             /// </summary>
             /// <param name="name">Name of the thread.</param>
-            public ProcessorThread(string name)
+            public ProcessorThread(string name, Config config)
             {
                 _name = name;
+                _config = config;
                 _actions = new BlockingCollection<RegisteredAction>();
                 _registeredActions = new ConcurrentDictionary<T, RegisteredAction>();
             }
@@ -672,11 +680,12 @@ namespace DtronixMessageQueue
                                 Idle.Invoke(this);
                         }
                     }
-                    catch (OperationCanceledException)
+                    catch (OperationCanceledException e)
                     {
+                        _config.Logger?.Info($"ActionProcessor[{_name}]: Thread canceled.");
                         // ignored
                     }
-                    catch
+                    catch(Exception e)
                     {
                         if (action == null)
                             continue;
@@ -685,7 +694,7 @@ namespace DtronixMessageQueue
                         RollingEstimate(ref action.AverageUsageTime, _perfStopwatch.ElapsedMilliseconds, 10);
                         Interlocked.Increment(ref action.ThrownExceptionsCount);
 
-                        // TODO: Log these exceptions.
+                        _config.Logger?.Warn($"[{_name}]: Execution of action threw exception: {e.Message}");
                     }
                 }
 

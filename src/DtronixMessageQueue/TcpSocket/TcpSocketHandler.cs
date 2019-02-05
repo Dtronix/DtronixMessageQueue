@@ -110,12 +110,14 @@ namespace DtronixMessageQueue.TcpSocket
                 _outboxProcessor = new ActionProcessor<Guid>(new ActionProcessor<Guid>.Config
                 {
                     ThreadName = $"{modeLower}-outbox",
-                    StartThreads = 1
+                    StartThreads = 1,
+                    Logger = config.Logger
                 });
                 _inboxProcessor = new ActionProcessor<Guid>(new ActionProcessor<Guid>.Config
                 {
                     ThreadName = $"{modeLower}-inbox",
-                    StartThreads = 1
+                    StartThreads = 1,
+                    Logger = config.Logger
                 });
             }
             else
@@ -127,12 +129,14 @@ namespace DtronixMessageQueue.TcpSocket
                 _outboxProcessor = new ActionProcessor<Guid>(new ActionProcessor<Guid>.Config
                 {
                     ThreadName = $"{modeLower}-outbox",
-                    StartThreads = processorThreads
+                    StartThreads = processorThreads,
+                    Logger = config.Logger
                 });
                 _inboxProcessor = new ActionProcessor<Guid>(new ActionProcessor<Guid>.Config
                 {
                     ThreadName = $"{modeLower}-inbox",
-                    StartThreads = processorThreads
+                    StartThreads = processorThreads,
+                    Logger = config.Logger
                 });
             }
 
