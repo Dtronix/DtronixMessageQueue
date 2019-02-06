@@ -49,8 +49,11 @@
     <Reference Include="System.Xml" />
   </ItemGroup>
   <ItemGroup>
+    <Compile Include="LogEventArgs.cs" />
+    <Compile Include="LogEventLevel.cs" />
     <Compile Include="MemoryQueueStream.cs" />
     <Compile Include="MqCommandType.cs" />
+    <Compile Include="MqLogger.cs" />
     <Compile Include="MqMessageReader.cs" />
     <Compile Include="MqMessageWriter.cs" />
     <Compile Include="MqSession.cs" />

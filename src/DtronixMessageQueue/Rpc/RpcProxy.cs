@@ -67,6 +67,7 @@ namespace DtronixMessageQueue.Rpc
 
             var serializer = _session.SerializationCache.Get();
 
+
             // Get the called method's arguments.
             object[] arguments = methodCall.Args;
             ResponseWaitHandle returnWait = null;
@@ -114,8 +115,9 @@ namespace DtronixMessageQueue.Rpc
                 
             }
 
+            var message = serializer.MessageWriter.ToMessage(true);
             // Send the message over the session.
-            _callMessageHandler.SendHandlerMessage((byte) callType, serializer.MessageWriter.ToMessage(true));
+            _callMessageHandler.SendHandlerMessage((byte) callType, message);
 
             // If there is no return wait, our work on this session is complete.
             if (returnWait == null)

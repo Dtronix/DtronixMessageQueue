@@ -320,31 +320,28 @@ namespace DtronixMessageQueue.Tests.Mq
         [Test]
         public void Client_receives_large_payload()
         {
-            int connected_times = 0;
-            Server.Start();
+            int size = 1024 * 512;
 
             Server.Connected += (sender, args) =>
             {
                 var writer = new MqMessageWriter(ClientConfig);
-                writer.Write(new byte[1024 * 1024]);
+                writer.Write(new byte[size]);
 
                 args.Session.Send(writer.ToMessage(true));
             };
 
             Client.IncomingMessage += (sender, args) =>
             {
-                if(args.Messages.Count == 1)
-                    TestComplete.Set();
+                if (args.Messages.Count == 1)
+                {
+                    var message = args.Messages.Dequeue();
+                    if(message.DataLength != size)
+                        LastException = new Exception($"Entire message was not received. Expected:{size}; Received:{message.DataLength}");
+                }
+                TestComplete.Set();
             };
 
-            Client.Connect();
-
-            TestComplete.Wait(new TimeSpan(0, 0, 0, 0, 2000));
-
-            if (TestComplete.IsSet == false)
-            {
-                throw new TimeoutException("Test timed out.");
-            }
+            StartAndWait();
         }
     }
 }

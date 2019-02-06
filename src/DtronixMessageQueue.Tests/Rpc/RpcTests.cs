@@ -313,11 +313,23 @@ namespace DtronixMessageQueue.Tests.Rpc
         {
             var sampleService = new SampleService();
             var payloadLength = 1024 * 1024;
-
-            //ServerConfig.RequireAuthentication = true;
-            //ClientConfig.RequireAuthentication = true;
             ClientConfig.PingFrequency = 0;
-            ServerConfig.PingTimeout = 0;
+            ClientConfig.PingTimeout = ServerConfig.PingTimeout = 0;
+
+            ClientConfig.Logger = ServerConfig.Logger = new MqLogger();
+
+            ClientConfig.Logger.MinimumLogLevel = LogEventLevel.Trace;
+
+            var startTime = DateTime.Now;
+            ClientConfig.Logger.LogEvent += (sender, args) =>
+            {
+                var membname = String.Format("{0,-10}", args.MemberName.Substring(0, Math.Min(10, args.MemberName.Length)));
+                var filename = String.Format("{0,-10}", args.Filename.Substring(0, Math.Min(10, args.Filename.Length)));
+                TestContext.Out.WriteLine(
+                    $"[{(args.Time - startTime).TotalMilliseconds:000,000}:{args.Level}]{filename}:{membname}:{args.SourceLineNumber}: {args.Message}");
+            };
+
+
 
             Server.SessionSetup +=
                 (sender, args) => { args.Session.AddService<ISampleService>(sampleService); };
@@ -337,12 +349,12 @@ namespace DtronixMessageQueue.Tests.Rpc
                 args.Session.AddProxy<ISampleService>("SampleService");
                 var service = Client.Session.GetProxy<ISampleService>();
 
-                service.SendByteArray(new byte[20]);
+                service.SendByteArray(new byte[payloadLength]); //ClientConfig.FrameBufferSize-45 is valid
             };
 
             Client.Closed += (sender, args) => { };
             Server.Closed += (sender, args) => { };
-            StartAndWait(true, 60000);
+            StartAndWait(true, 2000);
         }
 
     }
