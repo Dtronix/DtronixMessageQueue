@@ -555,6 +555,10 @@ namespace DtronixMessageQueue.TcpSocket
         /// <param name="buffer">Buffer bytes to send.</param>
         /// <param name="offset">Offset in the buffer.</param>
         /// <param name="count">Total bytes to send.</param>
+        /// <param name="pad">
+        /// Set to true to pad the data in the to the next 16 byte alignment to allow for instant sending.
+        /// Set to false to prevent padding.
+        /// </param>
         protected virtual void Send(byte[] buffer, int offset, ushort count, bool pad)
         {
             if (Socket == null || Socket.Connected == false)
