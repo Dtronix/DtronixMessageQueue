@@ -320,7 +320,7 @@ namespace DtronixMessageQueue.Tests.Mq
         [Test]
         public void Client_receives_large_payload()
         {
-            int size = 1024 * 1024;
+            int size = 1024 * 512;
 
             Server.Connected += (sender, args) =>
             {

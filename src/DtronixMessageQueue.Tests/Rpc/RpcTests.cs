@@ -319,9 +319,15 @@ namespace DtronixMessageQueue.Tests.Rpc
             ClientConfig.Logger = ServerConfig.Logger = new MqLogger();
 
             ClientConfig.Logger.MinimumLogLevel = LogEventLevel.Trace;
+
+            var startTime = DateTime.Now;
             ClientConfig.Logger.LogEvent += (sender, args) =>
+            {
+                var membname = String.Format("{0,-10}", args.MemberName.Substring(0, Math.Min(10, args.MemberName.Length)));
+                var filename = String.Format("{0,-10}", args.Filename.Substring(0, Math.Min(10, args.Filename.Length)));
                 TestContext.Out.WriteLine(
-                    $"[{args.Level}]{args.Filename}:{args.MemberName:-10}:{args.SourceLineNumber}: {args.Message}");
+                    $"[{(args.Time - startTime).TotalMilliseconds:000,000}:{args.Level}]{filename}:{membname}:{args.SourceLineNumber}: {args.Message}");
+            };
 
 
 

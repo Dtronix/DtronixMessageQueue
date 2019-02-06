@@ -94,7 +94,7 @@ namespace DtronixMessageQueue
 
 
             // This will block 
-            Send(buffer, 0, buffer.Length, last);
+            Send(buffer, 0, (ushort)buffer.Length, last);
         }
 
 
