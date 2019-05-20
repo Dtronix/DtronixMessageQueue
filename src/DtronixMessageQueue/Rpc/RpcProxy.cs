@@ -1,8 +1,6 @@
 ﻿using System;
 using System.Linq;
 using System.Reflection;
-using System.Runtime.Remoting.Messaging;
-using System.Runtime.Remoting.Proxies;
 using System.Threading;
 using DtronixMessageQueue.Rpc.DataContract;
 using DtronixMessageQueue.Rpc.MessageHandlers;
@@ -15,7 +13,7 @@ namespace DtronixMessageQueue.Rpc
     /// <typeparam name="T">Type of class to proxy. method calls.</typeparam>
     /// <typeparam name="TSession">Session to proxy the method calls over.</typeparam>
     /// <typeparam name="TConfig">Configuration for this connection</typeparam>
-    public class RpcProxy<T, TSession, TConfig> : RealProxy
+    public class RpcProxy<T, TSession, TConfig> : DispatchProxy
         where T : IRemoteService<TSession, TConfig>
         where TSession : RpcSession<TSession, TConfig>, new()
         where TConfig : RpcConfig
@@ -39,7 +37,7 @@ namespace DtronixMessageQueue.Rpc
         /// <param name="session">Session to convey proxied method calls over.</param>
         /// <param name="callMessageHandler">Call handler for the RPC session.</param>
         public RpcProxy(string serviceName, RpcSession<TSession, TConfig> session,
-            RpcCallMessageHandler<TSession, TConfig> callMessageHandler) : base(typeof(T))
+            RpcCallMessageHandler<TSession, TConfig> callMessageHandler)
         {
             ServiceName = serviceName;
             _callMessageHandler = callMessageHandler;
@@ -51,25 +49,18 @@ namespace DtronixMessageQueue.Rpc
         /// </summary>
         /// <param name="msg">Information about the method called.</param>
         /// <returns>Method call result.</returns>
-        public override IMessage Invoke(IMessage msg)
+        protected override object Invoke(MethodInfo methodInfo, object[] arguments)
         {
-            var methodCall = (IMethodCallMessage)msg;
-            var methodInfo = (MethodInfo)methodCall.MethodBase;
-
+            Create
             if (_session.Authenticated == false)
             {
-                return
-                    new ReturnMessage(
-                        new InvalidOperationException(
-                            "Session is not authenticated.  Must be authenticated before calling proxy methods."),
-                        methodCall);
+                throw new InvalidOperationException("Session is not authenticated.  Must be authenticated before calling proxy methods.");
             }
 
             var serializer = _session.SerializationCache.Get();
 
 
             // Get the called method's arguments.
-            object[] arguments = methodCall.Args;
             ResponseWaitHandle returnWait = null;
             RpcCallMessageAction callType;
 
@@ -95,7 +86,7 @@ namespace DtronixMessageQueue.Rpc
             serializer.MessageWriter.Write(ServiceName);
 
             // Method name which will be remotely invoked.
-            serializer.MessageWriter.Write(methodCall.MethodName);
+            serializer.MessageWriter.Write(methodInfo.Name);
 
             // Total number of arguments being serialized and sent.
             serializer.MessageWriter.Write((byte) arguments.Length);
@@ -109,8 +100,7 @@ namespace DtronixMessageQueue.Rpc
                 }
                 catch (Exception e)
                 {
-                    return
-                        new ReturnMessage(new ArgumentException($"Argument {i} can not be converted to a protobuf object.", e), methodCall);
+                    throw new ArgumentException($"Argument {i} can not be converted to a protobuf object.", e);
                 }
                 
             }
@@ -122,7 +112,7 @@ namespace DtronixMessageQueue.Rpc
             // If there is no return wait, our work on this session is complete.
             if (returnWait == null)
             {
-                return new ReturnMessage(null, null, 0, methodCall.LogicalCallContext, methodCall);
+                return null;
             }
 
             // Wait for the completion of the remote call.
@@ -153,15 +143,13 @@ namespace DtronixMessageQueue.Rpc
 
                         // Deserialize the return value and return it to the local method call.
                         var returnValue = serializer.DeserializeFromReader(methodInfo.ReturnType, 0);
-                        return new ReturnMessage(returnValue, null, 0, methodCall.LogicalCallContext, methodCall);
+                        return returnValue;
 
                     case RpcCallMessageAction.MethodException:
 
                         // Deserialize the exception and let the local method call receive it.
                         var returnException = serializer.DeserializeFromReader(typeof(RpcRemoteExceptionDataContract), 0);
-                        return
-                            new ReturnMessage(new RpcRemoteException((RpcRemoteExceptionDataContract) returnException),
-                                methodCall);
+                        throw new RpcRemoteException((RpcRemoteExceptionDataContract)returnException);
 
                     default:
                         throw new ArgumentOutOfRangeException();
@@ -173,5 +161,6 @@ namespace DtronixMessageQueue.Rpc
                 _session.SerializationCache.Put(serializer);
             }
         }
+
     }
 }

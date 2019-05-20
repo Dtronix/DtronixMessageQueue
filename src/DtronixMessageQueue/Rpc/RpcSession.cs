@@ -390,10 +390,10 @@ namespace DtronixMessageQueue.Rpc
         /// <param name="serviceName">Name of the service for this interface on the remote connection.</param>
         public void AddProxy<T>(string serviceName) where T : IRemoteService<TSession, TConfig>
         {
-            var proxy = new RpcProxy<T, TSession, TConfig>(serviceName, this, RpcCallHandler);
+            var proxy = new RpcProxy<TSession, TConfig>(serviceName, this, RpcCallHandler);
 
             RpcCallHandler.RemoteServiceRealproxy.Add(typeof(T), proxy);
-            RpcCallHandler.RemoteServicesProxy.Add(typeof(T), (T) proxy.GetTransparentProxy());
+            RpcCallHandler.RemoteServicesProxy.Add(typeof(T), (T) proxy..GetTransparentProxy());
         }
 
         /// <summary>

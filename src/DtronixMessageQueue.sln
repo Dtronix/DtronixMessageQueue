@@ -1,15 +1,15 @@
 ﻿
 Microsoft Visual Studio Solution File, Format Version 12.00
-# Visual Studio 15
-VisualStudioVersion = 15.0.26403.7
+# Visual Studio Version 16
+VisualStudioVersion = 16.0.28902.138
 MinimumVisualStudioVersion = 10.0.40219.1
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "DtronixMessageQueue", "DtronixMessageQueue\DtronixMessageQueue.csproj", "{060BFECA-A3D2-4871-AE35-28DECCB95FE3}"
-EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "DtronixMessageQueue.Tests", "DtronixMessageQueue.Tests\DtronixMessageQueue.Tests.csproj", "{C51DA0D8-7831-49E0-925F-149C9A5B1625}"
-EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "DtronixMessageQueue.Tests.Performance", "DtronixMessageQueue.Tests.Performance\DtronixMessageQueue.Tests.Performance.csproj", "{1DF3332E-9B24-45B9-934B-43542793986C}"
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "DtronixMessageQueue.Tests.Gui", "DtronixMessageQueue.Tests.Gui\DtronixMessageQueue.Tests.Gui.csproj", "{98F57431-718F-4865-968F-5265453BA5BC}"
+EndProject
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "DtronixMessageQueue", "DtronixMessageQueue\DtronixMessageQueue.csproj", "{A1933F50-46FD-4BFB-84AA-81B609F291AE}"
+EndProject
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "DtronixMessageQueue.Tests", "DtronixMessageQueue.Tests\DtronixMessageQueue.Tests.csproj", "{72FC24DE-C529-45D1-8210-A3D4E071E51A}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
@@ -18,18 +18,6 @@ Global
 		Release|Any CPU = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(ProjectConfigurationPlatforms) = postSolution
-		{060BFECA-A3D2-4871-AE35-28DECCB95FE3}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
-		{060BFECA-A3D2-4871-AE35-28DECCB95FE3}.Debug|Any CPU.Build.0 = Debug|Any CPU
-		{060BFECA-A3D2-4871-AE35-28DECCB95FE3}.Nuget|Any CPU.ActiveCfg = Nuget|Any CPU
-		{060BFECA-A3D2-4871-AE35-28DECCB95FE3}.Nuget|Any CPU.Build.0 = Nuget|Any CPU
-		{060BFECA-A3D2-4871-AE35-28DECCB95FE3}.Release|Any CPU.ActiveCfg = Release|Any CPU
-		{060BFECA-A3D2-4871-AE35-28DECCB95FE3}.Release|Any CPU.Build.0 = Release|Any CPU
-		{C51DA0D8-7831-49E0-925F-149C9A5B1625}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
-		{C51DA0D8-7831-49E0-925F-149C9A5B1625}.Debug|Any CPU.Build.0 = Debug|Any CPU
-		{C51DA0D8-7831-49E0-925F-149C9A5B1625}.Nuget|Any CPU.ActiveCfg = Nuget|Any CPU
-		{C51DA0D8-7831-49E0-925F-149C9A5B1625}.Nuget|Any CPU.Build.0 = Nuget|Any CPU
-		{C51DA0D8-7831-49E0-925F-149C9A5B1625}.Release|Any CPU.ActiveCfg = Release|Any CPU
-		{C51DA0D8-7831-49E0-925F-149C9A5B1625}.Release|Any CPU.Build.0 = Release|Any CPU
 		{1DF3332E-9B24-45B9-934B-43542793986C}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
 		{1DF3332E-9B24-45B9-934B-43542793986C}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{1DF3332E-9B24-45B9-934B-43542793986C}.Nuget|Any CPU.ActiveCfg = Nuget|Any CPU
@@ -42,8 +30,23 @@ Global
 		{98F57431-718F-4865-968F-5265453BA5BC}.Nuget|Any CPU.Build.0 = Release|Any CPU
 		{98F57431-718F-4865-968F-5265453BA5BC}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{98F57431-718F-4865-968F-5265453BA5BC}.Release|Any CPU.Build.0 = Release|Any CPU
+		{A1933F50-46FD-4BFB-84AA-81B609F291AE}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{A1933F50-46FD-4BFB-84AA-81B609F291AE}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{A1933F50-46FD-4BFB-84AA-81B609F291AE}.Nuget|Any CPU.ActiveCfg = Debug|Any CPU
+		{A1933F50-46FD-4BFB-84AA-81B609F291AE}.Nuget|Any CPU.Build.0 = Debug|Any CPU
+		{A1933F50-46FD-4BFB-84AA-81B609F291AE}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{A1933F50-46FD-4BFB-84AA-81B609F291AE}.Release|Any CPU.Build.0 = Release|Any CPU
+		{72FC24DE-C529-45D1-8210-A3D4E071E51A}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{72FC24DE-C529-45D1-8210-A3D4E071E51A}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{72FC24DE-C529-45D1-8210-A3D4E071E51A}.Nuget|Any CPU.ActiveCfg = Debug|Any CPU
+		{72FC24DE-C529-45D1-8210-A3D4E071E51A}.Nuget|Any CPU.Build.0 = Debug|Any CPU
+		{72FC24DE-C529-45D1-8210-A3D4E071E51A}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{72FC24DE-C529-45D1-8210-A3D4E071E51A}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
+	EndGlobalSection
+	GlobalSection(ExtensibilityGlobals) = postSolution
+		SolutionGuid = {665FD164-965B-4DD3-ADD6-CB9DA0550E0D}
 	EndGlobalSection
 EndGlobal
