@@ -3,7 +3,7 @@ using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Security.Cryptography;
 using System.Threading;
-using DtronixMessageQueue.Rpc;
+//using DtronixMessageQueue.Rpc;
 
 namespace DtronixMessageQueue.TcpSocket
 {
@@ -85,7 +85,7 @@ namespace DtronixMessageQueue.TcpSocket
         /// <summary>
         /// Cache for commonly called methods used throughout the session.
         /// </summary>
-        protected readonly ServiceMethodCache ServiceMethodCache;
+        //protected readonly ServiceMethodCache ServiceMethodCache;
 
         /// <summary>
         /// Contains the buffer manager for all the encryption transformations.
@@ -100,7 +100,7 @@ namespace DtronixMessageQueue.TcpSocket
         protected TcpSocketHandler(TConfig config, TcpSocketMode mode)
         {
             TimeoutTimer = new Timer(TimeoutCallback);
-            ServiceMethodCache = new ServiceMethodCache();
+            //ServiceMethodCache = new ServiceMethodCache();
             Mode = mode;
             Config = config;
             var modeLower = mode.ToString().ToLower();
@@ -231,7 +231,7 @@ namespace DtronixMessageQueue.TcpSocket
                     TlsSocketHandler = this,
                     InboxProcessor = _inboxProcessor,
                     OutboxProcessor = _outboxProcessor,
-                    ServiceMethodCache = ServiceMethodCache,
+                    //ServiceMethodCache = ServiceMethodCache,
                     ReceiveBufferManager = _receiveBufferManager
                 });
 

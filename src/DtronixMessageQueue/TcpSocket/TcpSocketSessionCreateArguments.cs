@@ -1,6 +1,6 @@
 ﻿using System;
 using System.Net.Sockets;
-using DtronixMessageQueue.Rpc;
+//using DtronixMessageQueue.Rpc;
 
 namespace DtronixMessageQueue.TcpSocket
 {
@@ -47,7 +47,7 @@ namespace DtronixMessageQueue.TcpSocket
         /// <summary>
         /// Cache for commonly called methods used throughout the session.
         /// </summary>
-        public ServiceMethodCache ServiceMethodCache;
+        //public ServiceMethodCache ServiceMethodCache;
 
         /// <summary>
         /// Receive buffer manager used to encryption trasformations on received data.

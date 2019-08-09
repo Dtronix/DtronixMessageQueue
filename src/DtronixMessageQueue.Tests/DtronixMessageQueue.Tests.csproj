@@ -1,4 +1,4 @@
-<Project Sdk="Microsoft.NET.Sdk">
+﻿<Project Sdk="Microsoft.NET.Sdk">
 
   <PropertyGroup>
     <TargetFramework>netcoreapp3.0</TargetFramework>
@@ -7,9 +7,27 @@
   </PropertyGroup>
 
   <ItemGroup>
+    <Compile Remove="Rpc\RpcTests.cs" />
+    <Compile Remove="Rpc\RpcTestsBase.cs" />
+    <Compile Remove="Rpc\Services\Server\SampleService.cs" />
+    <Compile Remove="Rpc\SimpleRpcSession.cs" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <None Include="Rpc\RpcTests.cs" />
+    <None Include="Rpc\RpcTestsBase.cs" />
+    <None Include="Rpc\Services\Server\SampleService.cs" />
+    <None Include="Rpc\SimpleRpcSession.cs" />
+  </ItemGroup>
+
+  <ItemGroup>
     <PackageReference Include="nunit" Version="3.11.0" />
     <PackageReference Include="NUnit3TestAdapter" Version="3.12.0" />
     <PackageReference Include="Microsoft.NET.Test.Sdk" Version="15.9.0" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\DtronixMessageQueue\DtronixMessageQueue.csproj" />
   </ItemGroup>
 
 </Project>

@@ -4,7 +4,51 @@
     <TargetFramework>netstandard2.1</TargetFramework>
     <RootNamespace>DtronixMessageQueue</RootNamespace>
     <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
+    <AssemblyVersion>2.0.0.0</AssemblyVersion>
+    <FileVersion>2.0.0.0</FileVersion>
   </PropertyGroup>
+
+  <ItemGroup>
+    <Compile Remove="Rpc\DataContract\RpcRemoteExceptionDataContract.cs" />
+    <Compile Remove="Rpc\DataContract\RpcServerInfoDataContract.cs" />
+    <Compile Remove="Rpc\IRemoteService.cs" />
+    <Compile Remove="Rpc\MessageHandler.cs" />
+    <Compile Remove="Rpc\MessageHandlers\RpcCallMessageAction.cs" />
+    <Compile Remove="Rpc\MessageHandlers\RpcCallMessageHandler.cs" />
+    <Compile Remove="Rpc\ResponseWait.cs" />
+    <Compile Remove="Rpc\ResponseWaitHandle.cs" />
+    <Compile Remove="Rpc\RpcAuthEventArgs.cs" />
+    <Compile Remove="Rpc\RpcClient.cs" />
+    <Compile Remove="Rpc\RpcCommandType.cs" />
+    <Compile Remove="Rpc\RpcConfig.cs" />
+    <Compile Remove="Rpc\RpcProxy.cs" />
+    <Compile Remove="Rpc\RpcRemoteException.cs" />
+    <Compile Remove="Rpc\RpcServer.cs" />
+    <Compile Remove="Rpc\RpcSession.cs" />
+    <Compile Remove="Rpc\SerializationCache.cs" />
+    <Compile Remove="Rpc\ServiceMethodCache.cs" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <None Include="Rpc\DataContract\RpcRemoteExceptionDataContract.cs" />
+    <None Include="Rpc\DataContract\RpcServerInfoDataContract.cs" />
+    <None Include="Rpc\IRemoteService.cs" />
+    <None Include="Rpc\MessageHandler.cs" />
+    <None Include="Rpc\MessageHandlers\RpcCallMessageAction.cs" />
+    <None Include="Rpc\MessageHandlers\RpcCallMessageHandler.cs" />
+    <None Include="Rpc\ResponseWait.cs" />
+    <None Include="Rpc\ResponseWaitHandle.cs" />
+    <None Include="Rpc\RpcAuthEventArgs.cs" />
+    <None Include="Rpc\RpcClient.cs" />
+    <None Include="Rpc\RpcCommandType.cs" />
+    <None Include="Rpc\RpcConfig.cs" />
+    <None Include="Rpc\RpcProxy.cs" />
+    <None Include="Rpc\RpcRemoteException.cs" />
+    <None Include="Rpc\RpcServer.cs" />
+    <None Include="Rpc\RpcSession.cs" />
+    <None Include="Rpc\SerializationCache.cs" />
+    <None Include="Rpc\ServiceMethodCache.cs" />
+  </ItemGroup>
 
   <ItemGroup>
     <PackageReference Include="MessagePack" Version="1.7.3.7" />

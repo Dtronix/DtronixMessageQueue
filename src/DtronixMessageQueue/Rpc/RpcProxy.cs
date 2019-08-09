@@ -51,7 +51,6 @@ namespace DtronixMessageQueue.Rpc
         /// <returns>Method call result.</returns>
         protected override object Invoke(MethodInfo methodInfo, object[] arguments)
         {
-            Create
             if (_session.Authenticated == false)
             {
                 throw new InvalidOperationException("Session is not authenticated.  Must be authenticated before calling proxy methods.");
