@@ -88,11 +88,6 @@ namespace DtronixMessageQueue.TcpSocket
         //protected readonly ServiceMethodCache ServiceMethodCache;
 
         /// <summary>
-        /// Contains the buffer manager for all the encryption transformations.
-        /// </summary>
-        private BufferManager _receiveBufferManager;
-
-        /// <summary>
         /// Base constructor to all socket classes.
         /// </summary>
         /// <param name="config">Configurations for this socket.</param>
@@ -208,12 +203,7 @@ namespace DtronixMessageQueue.TcpSocket
             var maxConnections = Config.MaxConnections + 1;
 
             // preallocate pool of SocketAsyncEventArgs objects
-            var bufferSize = Config.SendAndReceiveBufferSize / 16 * 16 + 16;
-
-            _asyncManager = new SocketAsyncEventArgsManager(bufferSize * 2 * maxConnections,
-                bufferSize);
-
-            _receiveBufferManager = new BufferManager(bufferSize * maxConnections, bufferSize);
+            _asyncManager = new SocketAsyncEventArgsManager(Config.SendAndReceiveBufferSize, 2 * maxConnections);
         }
 
         /// <summary>
@@ -232,7 +222,6 @@ namespace DtronixMessageQueue.TcpSocket
                     InboxProcessor = _inboxProcessor,
                     OutboxProcessor = _outboxProcessor,
                     //ServiceMethodCache = ServiceMethodCache,
-                    ReceiveBufferManager = _receiveBufferManager
                 });
 
             SessionSetup?.Invoke(this, new SessionEventArgs<TSession, TConfig>(session));

@@ -20,27 +20,16 @@ namespace DtronixMessageQueue.TcpSocket
         /// <summary>
         /// Manager which contains the buffers used for all SocketAsyncEventArgs.
         /// </summary>
-        private readonly BufferManager _bufferManager;
+        private readonly BufferMemoryPool _bufferManager;
 
         /// <summary>
         /// Creates a manager with the specified buffer size and total size for use in the produced objects.
         /// </summary>
-        /// <param name="totalBytes">Total size of the buffer for all the sessions.</param>
-        /// <param name="bufferSize">Size of the each of the individual buffers for the sessions.</param>
-        public SocketAsyncEventArgsManager(int totalBytes, int bufferSize)
+        /// <param name="rentBufferSize">Size for the buffer of each arg</param>
+        /// <param name="maxRentals">Max number of available sockets.</param>
+        public SocketAsyncEventArgsManager(int rentBufferSize, int maxRentals)
         {
-            _bufferManager = new BufferManager(totalBytes, bufferSize);
-        }
-
-        /// <summary>
-        /// Remove the instance from the buffer
-        /// </summary>
-        /// <param name="eventArgs">SocketAsyncEventArgs containing a buffer user token.</param>
-        public void Free(SocketAsyncEventArgs eventArgs)
-        {
-            Interlocked.Decrement(ref _count);
-            _bufferManager.FreeBuffer((ArraySegment<byte>)eventArgs.UserToken);
-            eventArgs.Dispose();
+            _bufferManager = new BufferMemoryPool(rentBufferSize, maxRentals);
         }
 
         /// <summary>
@@ -50,16 +39,16 @@ namespace DtronixMessageQueue.TcpSocket
         public SocketAsyncEventArgs Create()
         {
             Interlocked.Increment(ref _count);
-            var eventArg = new SocketAsyncEventArgs();
+            var eventArg = new TcpSocketAsyncEventArgs();
 
             try
             {
-                var buffer = _bufferManager.GetBuffer();
+                var buffer = _bufferManager.Rent();
 
                 // Set the buffer to the event args for freeing later.
-                eventArg.UserToken = buffer;
+                eventArg.MemoryOwner = buffer;
 
-                eventArg.SetBuffer(buffer.Array, buffer.Offset, buffer.Count);
+                eventArg.SetBuffer(buffer.Memory);
             }
             catch
             {
@@ -72,7 +61,7 @@ namespace DtronixMessageQueue.TcpSocket
 
         public override string ToString()
         {
-            return $"Capacity {_count} active objects.";
+            return $"Capacity {_bufferManager.TotalRentals} of {_bufferManager.TotalRentals} active objects.";
         }
     }
 }

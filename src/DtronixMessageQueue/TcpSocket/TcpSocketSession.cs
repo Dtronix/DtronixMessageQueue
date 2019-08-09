@@ -453,8 +453,8 @@ namespace DtronixMessageQueue.TcpSocket
             _receiveArgs.Completed -= IoCompleted;
 
             // Free the SocketAsyncEventArg so they can be reused by another client.
-            _argsPool.Free(_sendArgs);
-            _argsPool.Free(_receiveArgs);
+            _sendArgs.Free();
+            _receiveArgs.Free();
 
 
             InboxProcessor.Deregister(Id);
