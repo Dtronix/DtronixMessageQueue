@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Diagnostics.CodeAnalysis;
 using System.Linq;
 using System.Net.Sockets;
+using System.Runtime.InteropServices;
 using System.Security.Cryptography;
 using System.Text;
 using System.Threading;
@@ -204,7 +205,7 @@ namespace DtronixMessageQueue.TcpSocket
             ConnectedTime = DateTime.UtcNow;
 
             // Start receiving data for the secured channel.
-            _socket.ReceiveAsync(_receiveArgs);
+            var result = _socket.ReceiveAsync(_receiveArgs);
 
             // TODO: REMOVE ---------------
             CurrentState = State.Connected;
@@ -300,7 +301,7 @@ namespace DtronixMessageQueue.TcpSocket
                     break;
 
                 case SocketAsyncOperation.Receive:
-                    RecieveComplete(e);
+                    ReceiveComplete(e);
                     break;
 
                 case SocketAsyncOperation.Send:
@@ -320,28 +321,37 @@ namespace DtronixMessageQueue.TcpSocket
         /// After transport encryption has been established, only buffers in increments of 16.
         /// Excess will be buffered until the next write.
         /// </summary>
-        /// <param name="buffer">Buffer bytes to send.</param>
-        /// <param name="offset">Offset in the buffer.</param>
-        /// <param name="count">Total bytes to send.</param>
-        /// <param name="pad">
-        /// Set to true to pad the data in the to the next 16 byte alignment to allow for instant sending.
-        /// Set to false to prevent padding.
-        /// </param>
-        protected virtual void Send(byte[] buffer, int offset, ushort count, bool pad)
+        /// <param name="buffer">Buffer to copy and send.</param>
+        protected virtual void Send(ReadOnlyMemory<byte> buffer)
         {
             if (Socket == null || Socket.Connected == false)
                 return;
 
-            _config.Logger?.Trace($"{SocketHandler.Mode}: Sending {count} decrypted bytes.");
+            if (buffer.Length > _config.SendAndReceiveBufferSize)
+            {
+                _config.Logger?.Error($"{SocketHandler.Mode}: Sending {buffer.Length} bytes exceeds the SendAndReceiveBufferSize[{_config.SendAndReceiveBufferSize}].");
+                throw new Exception($"Sending {buffer.Length} bytes exceeds the SendAndReceiveBufferSize[{_config.SendAndReceiveBufferSize}].");
+            }
+            _writeSemaphore.Wait(-1);
 
-            var lengthBytes = BitConverter.GetBytes(count);
-            byte[] bodyLengthBytes = {
-                lengthBytes[0],
-                lengthBytes[1]
-            };
-            
-            // Send with FullMessage header.
-            //SendWithHeader(Header.Type.BodyPayload, bodyLengthBytes, 0, 2, buffer, offset, count, pad);
+            var remaining = _sendArgs.Write(buffer);
+            _sendArgs.PrepareForSend();
+
+            try
+            {
+                // Set the data to be sent.
+                if (!Socket.SendAsync(_sendArgs))
+                {
+                    // Send process occured synchronously
+                    SendComplete(_sendArgs);
+                }
+            }
+            catch (ObjectDisposedException)
+            {
+                Close(CloseReason.SocketError);
+            }
+
+
         }
 
 
@@ -357,6 +367,9 @@ namespace DtronixMessageQueue.TcpSocket
                 Close(CloseReason.SocketError);
             }
 
+            // Reset the socket args for sending again.
+            _sendArgs.ResetSend();
+
             _config.Logger?.Trace($"{SocketHandler.Mode}: Sending {e.BytesTransferred} bytes complete. Releasing Semaphore...");
             _writeSemaphore.Release(1);
             _config.Logger?.Trace($"{SocketHandler.Mode}: Released semaphore.");
@@ -369,7 +382,7 @@ namespace DtronixMessageQueue.TcpSocket
         /// If the remote host closed the connection, then the socket is closed.
         /// </summary>
         /// <param name="e">Event args of this action.</param>
-        protected void RecieveComplete(SocketAsyncEventArgs e)
+        private void ReceiveComplete(SocketAsyncEventArgs e)
         {
             _config.Logger?.Trace($"{SocketHandler.Mode}: Received {e.BytesTransferred} encrypted bytes.");
             if (CurrentState == State.Closed)
@@ -384,13 +397,13 @@ namespace DtronixMessageQueue.TcpSocket
             if (e.BytesTransferred > 0 && e.SocketError == SocketError.Success)
             {
                 // If the session was closed curing the internal receive, don't read any more.
-                if (!ReceiveCompleteInternal(e.Buffer, e.Offset, e.BytesTransferred))
+                if (!ReceiveCompleteInternal(e))
                     return;
 
                 try
                 {
                     // Re-setup the receive async call.
-                    if (Socket.ReceiveAsync(e) == false)
+                    if (!Socket.ReceiveAsync(e))
                     {
                         IoCompleted(this, e);
                     }
@@ -406,10 +419,10 @@ namespace DtronixMessageQueue.TcpSocket
             }
         }
 
-        private bool ReceiveCompleteInternal(byte[] buffer, int offset, int count)
+        private bool ReceiveCompleteInternal(SocketAsyncEventArgs e)
         {
-            
 
+            HandleIncomingBytes(_receiveArgs.MemoryBuffer.Slice(0, e.BytesTransferred));
             return true;
         }
 

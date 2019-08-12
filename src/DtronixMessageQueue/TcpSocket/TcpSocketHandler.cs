@@ -77,7 +77,15 @@ namespace DtronixMessageQueue.TcpSocket
         protected readonly ConcurrentDictionary<Guid, TSession> ConnectedSessions =
             new ConcurrentDictionary<Guid, TSession>();
 
-        private BufferMemoryPool _bufferPool;
+        /// <summary>
+        /// Buffer pool used to send and receive data.
+        /// </summary>
+        private BufferMemoryPool _socketBufferPool;
+
+        /// <summary>
+        /// Buffer pool used to receive data from the socket and buffer until read.
+        /// </summary>
+        private BufferMemoryPool _receiveBufferPool;
 
         /// <summary>
         /// Cache for commonly called methods used throughout the session.
@@ -199,7 +207,8 @@ namespace DtronixMessageQueue.TcpSocket
             // new clients when the MaxConnections has been reached.
             var maxConnections = Config.MaxConnections + 1;
 
-            _bufferPool = new BufferMemoryPool(Config.SendAndReceiveBufferSize, 2 * maxConnections);
+            _socketBufferPool = new BufferMemoryPool(Config.SendAndReceiveBufferSize, 2 * maxConnections);
+            _receiveBufferPool = new BufferMemoryPool(Config.SendAndReceiveBufferSize * 2,  maxConnections);
         }
 
         /// <summary>
@@ -212,7 +221,7 @@ namespace DtronixMessageQueue.TcpSocket
                 new TlsSocketSessionCreateArguments<TSession, TConfig>
                 {
                     SessionSocket = socket,
-                    BufferPool = _bufferPool,
+                    BufferPool = _socketBufferPool,
                     SessionConfig = Config,
                     TlsSocketHandler = this,
                     InboxProcessor = _inboxProcessor,
