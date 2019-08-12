@@ -59,9 +59,9 @@ namespace DtronixMessageQueue.TcpSocket
 
         public override IMemoryOwner<byte> Rent(int minBufferSize = -1)
         {
-            if (minBufferSize != _rentBufferSize)
+            if (minBufferSize != -1 && minBufferSize != _rentBufferSize)
                 throw new ArgumentOutOfRangeException(nameof(minBufferSize),
-                    $"Rent size [{minBufferSize}] must match constructed rental size of [{_rentBufferSize}]");
+                    $"Rent size [{minBufferSize}] must either be -1 or match constructed rental size of [{_rentBufferSize}]");
 
             if (_disposed)
                 throw new ObjectDisposedException(nameof(BufferMemoryPool));

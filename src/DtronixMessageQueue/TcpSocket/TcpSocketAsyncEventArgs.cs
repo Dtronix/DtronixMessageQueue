@@ -6,13 +6,23 @@ using System.Text;
 
 namespace DtronixMessageQueue.TcpSocket
 {
-    internal class TcpSocketAsyncEventArgs : SocketAsyncEventArgs
+    public class TcpSocketAsyncEventArgs : SocketAsyncEventArgs
     {
-        public IMemoryOwner<byte> MemoryOwner { get; set; }
+        private IMemoryOwner<byte> _memoryOwner;
+
+        public TcpSocketAsyncEventArgs(BufferMemoryPool argsBufferPool)
+        {
+            _memoryOwner = argsBufferPool.Rent();
+            SetBuffer(_memoryOwner.Memory);
+        }
 
         public void Free()
         {
-            MemoryOwner.Dispose();
+            if(_memoryOwner == null)
+                throw new ObjectDisposedException(nameof(TcpSocketAsyncEventArgs));
+
+            _memoryOwner.Dispose();
+            _memoryOwner = null;
             Dispose();
         }
 

@@ -20,11 +20,6 @@ namespace DtronixMessageQueue.TcpSocket
         public Socket SessionSocket;
 
         /// <summary>
-        /// Argument pool for this session to use.  Pulls two asyncevents for reading and writing and returns them at the end of this socket's life.
-        /// </summary>
-        public SocketAsyncEventArgsManager SocketArgsManager;
-
-        /// <summary>
         /// Socket configurations this session is to use.
         /// </summary>
         public TConfig SessionConfig;
@@ -48,5 +43,7 @@ namespace DtronixMessageQueue.TcpSocket
         /// Cache for commonly called methods used throughout the session.
         /// </summary>
         //public ServiceMethodCache ServiceMethodCache;
+
+        public BufferMemoryPool BufferPool;
     }
 }

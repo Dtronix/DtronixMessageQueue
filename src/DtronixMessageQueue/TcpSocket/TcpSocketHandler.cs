@@ -50,12 +50,7 @@ namespace DtronixMessageQueue.TcpSocket
         /// Main socket used by the child class for connection or for the listening of incoming connections.
         /// </summary>
         protected System.Net.Sockets.Socket MainSocket;
-
-        /// <summary>
-        /// Pool of async args for sessions to use.
-        /// </summary>
-        private SocketAsyncEventArgsManager _asyncManager;
-
+        
         /// <summary>
         /// True if the timeout timer is running.  False otherwise.
         /// </summary>
@@ -81,6 +76,8 @@ namespace DtronixMessageQueue.TcpSocket
         /// </summary>
         protected readonly ConcurrentDictionary<Guid, TSession> ConnectedSessions =
             new ConcurrentDictionary<Guid, TSession>();
+
+        private BufferMemoryPool _bufferPool;
 
         /// <summary>
         /// Cache for commonly called methods used throughout the session.
@@ -202,8 +199,7 @@ namespace DtronixMessageQueue.TcpSocket
             // new clients when the MaxConnections has been reached.
             var maxConnections = Config.MaxConnections + 1;
 
-            // preallocate pool of SocketAsyncEventArgs objects
-            _asyncManager = new SocketAsyncEventArgsManager(Config.SendAndReceiveBufferSize, 2 * maxConnections);
+            _bufferPool = new BufferMemoryPool(Config.SendAndReceiveBufferSize, 2 * maxConnections);
         }
 
         /// <summary>
@@ -216,7 +212,7 @@ namespace DtronixMessageQueue.TcpSocket
                 new TlsSocketSessionCreateArguments<TSession, TConfig>
                 {
                     SessionSocket = socket,
-                    SocketArgsManager = _asyncManager,
+                    BufferPool = _bufferPool,
                     SessionConfig = Config,
                     TlsSocketHandler = this,
                     InboxProcessor = _inboxProcessor,

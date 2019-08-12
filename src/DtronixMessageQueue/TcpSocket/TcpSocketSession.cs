@@ -115,17 +115,12 @@ namespace DtronixMessageQueue.TcpSocket
         /// <summary>
         /// Async args used to send data to the wire.
         /// </summary>
-        private SocketAsyncEventArgs _sendArgs;
+        private TcpSocketAsyncEventArgs _sendArgs;
 
         /// <summary>
         /// Async args used to receive data off the wire.
         /// </summary>
-        private SocketAsyncEventArgs _receiveArgs;
-
-        /// <summary>
-        /// Pool used by all the sessions on this SessionHandler.
-        /// </summary>
-        private SocketAsyncEventArgsManager _argsPool;
+        private TcpSocketAsyncEventArgs _receiveArgs;
 
         /// <summary>
         /// Reset event used to ensure only one MqWorker can write to the socket at a time.
@@ -166,12 +161,11 @@ namespace DtronixMessageQueue.TcpSocket
             var session = new TSession
             {
                 _config = args.SessionConfig,
-                _argsPool = args.SocketArgsManager,
                 _socket = args.SessionSocket,
                 _writeSemaphore = new SemaphoreSlim(1, 1),
                 SocketHandler = args.TlsSocketHandler,
-                _sendArgs = args.SocketArgsManager.Create(),
-                _receiveArgs = args.SocketArgsManager.Create(),
+                _sendArgs = new TcpSocketAsyncEventArgs(args.BufferPool),
+                _receiveArgs = new TcpSocketAsyncEventArgs(args.BufferPool),
                 InboxProcessor = args.InboxProcessor,
                 OutboxProcessor = args.OutboxProcessor,
                 //ServiceMethodCache = args.ServiceMethodCache,
@@ -211,6 +205,11 @@ namespace DtronixMessageQueue.TcpSocket
 
             // Start receiving data for the secured channel.
             _socket.ReceiveAsync(_receiveArgs);
+
+            // TODO: REMOVE ---------------
+            CurrentState = State.Connected;
+            OnConnected();
+            // TODO -----------------------
 
             // Send the protocol version number along with the public key to the connected client.
             if (SocketHandler.Mode == TcpSocketMode.Client)
@@ -253,7 +252,7 @@ namespace DtronixMessageQueue.TcpSocket
             CurrentState = State.Connected;
 
             _config.Logger?.Trace($"{SocketHandler.Mode}: Securing complete.");
-            OnConnected();
+            
         }
 
         /// <summary>
