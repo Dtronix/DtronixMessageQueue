@@ -1,26 +1,18 @@
 ﻿using System;
-using System.Collections.Generic;
-using System.Diagnostics.CodeAnalysis;
-using System.Linq;
 using System.Net.Sockets;
-using System.Runtime.InteropServices;
-using System.Security.Cryptography;
-using System.Text;
 using System.Threading;
-using DtronixMessageQueue.TlsSocket;
+using DtronixMessageQueue.TcpSocket;
 
 //using DtronixMessageQueue.Rpc;
 
-namespace DtronixMessageQueue.TcpSocket
+namespace DtronixMessageQueue.TlsSocket
 {
     /// <summary>
     /// Base socket session to be sub-classes by the implementer.
     /// </summary>
     /// <typeparam name="TConfig">Configuration for this connection.</typeparam>
     /// <typeparam name="TSession">Session for this connection.</typeparam>
-    public abstract class TcpSocketSession<TSession, TConfig> : IDisposable, ISetupSocketSession
-        where TSession : TcpSocketSession<TSession, TConfig>, new()
-        where TConfig : TcpSocketConfig
+    public class TlsSocketSession : IDisposable
     {
         /// <summary>
         /// Current state of the socket.
@@ -55,12 +47,12 @@ namespace DtronixMessageQueue.TcpSocket
 
         public const byte ProtocolVersion = 1;
 
-        private TConfig _config;
+        private TlsSocketConfig _config;
 
         /// <summary>
         /// Configurations for the associated socket.
         /// </summary>
-        public TConfig Config => _config;
+        public TlsSocketConfig Config => _config;
 
         /// <summary>
         /// Id for this session
@@ -90,12 +82,14 @@ namespace DtronixMessageQueue.TcpSocket
         /// <summary>
         /// Base socket for this session.
         /// </summary>
-        public TcpSocketHandler<TSession, TConfig> SocketHandler { get; private set; }
+        //public TcpSocketHandler<TSession, TConfig> SocketHandler { get; private set; }
 
         /// <summary>
         /// Contains the version number of the protocol used by the other end of the connection.
         /// </summary>
         public byte OtherProtocolVersion { get; private set; }
+
+        public TcpSocketMode Mode { get; }
 
         /// <summary>
         /// Processor to handle all inbound messages.
@@ -139,65 +133,50 @@ namespace DtronixMessageQueue.TcpSocket
         /// <summary>
         /// This event fires when a connection has been established.
         /// </summary>
-        public event EventHandler<SessionEventArgs<TSession, TConfig>> Connected;
+        public event EventHandler<TlsSocketSessionEventArgs> Connected;
 
         /// <summary>
         /// This event fires when a connection has been shutdown.
         /// </summary>
-        public event EventHandler<SessionClosedEventArgs<TSession, TConfig>> Closed;
+        public event EventHandler<TlsSocketSessionClosedEventArgs> Closed;
 
         /// <summary>
         /// Creates a new socket session with a new Id.
         /// </summary>
-        protected TcpSocketSession()
+        public TlsSocketSession(TlsSocketSessionCreateArguments args)
         {
             Id = Guid.NewGuid();
             CurrentState = State.Closed;
-        }
+            Mode = args.Mode;
+            _config = args.SessionConfig;
+            _socket = args.SessionSocket;
+            _writeSemaphore = new SemaphoreSlim(1, 1);
+            _sendArgs = new TcpSocketAsyncEventArgs(args.BufferPool);
+            _receiveArgs = new TcpSocketAsyncEventArgs(args.BufferPool);
+            InboxProcessor = args.InboxProcessor;
+            OutboxProcessor = args.OutboxProcessor;
+            //ServiceMethodCache = args.ServiceMethodCache,
 
-        /// <summary>
-        /// Sets up this socket with the specified configurations.
-        /// </summary>
-        /// <param name="args">Args to initialize the socket with.</param>
-        public static TSession Create(TlsSocketSessionCreateArguments<TSession, TConfig> args)
-        {
-            var session = new TSession
-            {
-                _config = args.SessionConfig,
-                _socket = args.SessionSocket,
-                _writeSemaphore = new SemaphoreSlim(1, 1),
-                SocketHandler = args.TlsSocketHandler,
-                _sendArgs = new TcpSocketAsyncEventArgs(args.BufferPool),
-                _receiveArgs = new TcpSocketAsyncEventArgs(args.BufferPool),
-                InboxProcessor = args.InboxProcessor,
-                OutboxProcessor = args.OutboxProcessor,
-                //ServiceMethodCache = args.ServiceMethodCache,
-            };
+            _sendArgs.Completed += IoCompleted;
+            _receiveArgs.Completed += IoCompleted;
 
-            session._sendArgs.Completed += session.IoCompleted;
-            session._receiveArgs.Completed += session.IoCompleted;
+            if (_config.SendTimeout > 0)
+                _socket.SendTimeout = _config.SendTimeout;
 
-            if (session._config.SendTimeout > 0)
-                session._socket.SendTimeout = session._config.SendTimeout;
+            if (_config.SendAndReceiveBufferSize > 0)
+                _socket.ReceiveBufferSize = _config.SendAndReceiveBufferSize;
 
-            if (session._config.SendAndReceiveBufferSize > 0)
-                session._socket.ReceiveBufferSize = session._config.SendAndReceiveBufferSize;
+            if (_config.SendAndReceiveBufferSize > 0)
+                _socket.SendBufferSize = _config.SendAndReceiveBufferSize;
 
-            if (session._config.SendAndReceiveBufferSize > 0)
-                session._socket.SendBufferSize = session._config.SendAndReceiveBufferSize;
-
-            session._socket.NoDelay = true;
-            session._socket.SetSocketOption(SocketOptionLevel.Socket, SocketOptionName.DontLinger, true);
-
-            session.OnSetup();
-
-            return session;
+            _socket.NoDelay = true;
+            _socket.SetSocketOption(SocketOptionLevel.Socket, SocketOptionName.DontLinger, true);
         }
 
         /// <summary>
         /// Start the session's receive events.
         /// </summary>
-        void ISetupSocketSession.StartSession()
+        public void StartSession()
         {
             if (CurrentState != State.Closed)
                 return;
@@ -214,54 +193,14 @@ namespace DtronixMessageQueue.TcpSocket
             OnConnected();
             // TODO -----------------------
 
-            // Send the protocol version number along with the public key to the connected client.
+            /*// Send the protocol version number along with the public key to the connected client.
             if (SocketHandler.Mode == TcpSocketMode.Client)
             {
 
                 // Authenticate client
             }
-            
+            */
         }
-
-        private bool SecureConnectionReceive(byte[] buffer)
-        {
-            if (CurrentState == State.Closed)
-                return false;
-
-            if (CurrentState != State.Securing)
-            {
-                Close(CloseReason.ProtocolError);
-                return false;
-            }
-
-
-
-                if (SocketHandler.Mode == TcpSocketMode.Server)
-                {
-                    _config.Logger?.Trace($"{SocketHandler.Mode}: Sending client public ECDH key.");
-                }
-
-
-                SecureConnectionComplete();
-                return true;
-
-        }
-
-
-
-        private void SecureConnectionComplete()
-        {
-            // Set the state to connected.
-            CurrentState = State.Connected;
-
-            _config.Logger?.Trace($"{SocketHandler.Mode}: Securing complete.");
-            
-        }
-
-        /// <summary>
-        /// Called after the initial setup has occurred on the session.
-        /// </summary>
-        protected abstract void OnSetup();
 
         /// <summary>
         /// Called when this session is connected to the socket.
@@ -269,7 +208,7 @@ namespace DtronixMessageQueue.TcpSocket
         protected virtual void OnConnected()
         {
             //logger.Info("Session {0}: Connected", Id);
-            Connected?.Invoke(this, new SessionEventArgs<TSession, TConfig>((TSession)this));
+            Connected?.Invoke(this, new TlsSocketSessionEventArgs(this));
         }
 
         /// <summary>
@@ -278,7 +217,7 @@ namespace DtronixMessageQueue.TcpSocket
         /// <param name="reason">Reason this socket is disconnecting</param>
         protected virtual void OnDisconnected(CloseReason reason)
         {
-            Closed?.Invoke(this, new SessionClosedEventArgs<TSession, TConfig>((TSession)this, reason));
+            Closed?.Invoke(this, new TlsSocketSessionClosedEventArgs(this, reason));
         }
 
         /// <summary>
@@ -311,7 +250,7 @@ namespace DtronixMessageQueue.TcpSocket
                     break;
 
                 default:
-                    _config.Logger?.Error($"{SocketHandler.Mode}: The last operation completed on the socket was not a receive, send connect or disconnect. {e.LastOperation}");
+                    _config.Logger?.Error($"{Mode}: The last operation completed on the socket was not a receive, send connect or disconnect. {e.LastOperation}");
                     throw new ArgumentException(
                         "The last operation completed on the socket was not a receive, send connect or disconnect.");
             }
@@ -331,7 +270,7 @@ namespace DtronixMessageQueue.TcpSocket
 
             if (buffer.Length > _config.SendAndReceiveBufferSize)
             {
-                _config.Logger?.Error($"{SocketHandler.Mode}: Sending {buffer.Length} bytes exceeds the SendAndReceiveBufferSize[{_config.SendAndReceiveBufferSize}].");
+                _config.Logger?.Error($"{Mode}: Sending {buffer.Length} bytes exceeds the SendAndReceiveBufferSize[{_config.SendAndReceiveBufferSize}].");
                 throw new Exception($"Sending {buffer.Length} bytes exceeds the SendAndReceiveBufferSize[{_config.SendAndReceiveBufferSize}].");
             }
             _writeSemaphore.Wait(-1);
@@ -372,9 +311,9 @@ namespace DtronixMessageQueue.TcpSocket
             // Reset the socket args for sending again.
             _sendArgs.ResetSend();
 
-            _config.Logger?.Trace($"{SocketHandler.Mode}: Sending {e.BytesTransferred} bytes complete. Releasing Semaphore...");
+            _config.Logger?.Trace($"{Mode}: Sending {e.BytesTransferred} bytes complete. Releasing Semaphore...");
             _writeSemaphore.Release(1);
-            _config.Logger?.Trace($"{SocketHandler.Mode}: Released semaphore.");
+            _config.Logger?.Trace($"{Mode}: Released semaphore.");
         }
 
 
@@ -386,7 +325,7 @@ namespace DtronixMessageQueue.TcpSocket
         /// <param name="e">Event args of this action.</param>
         private void ReceiveComplete(SocketAsyncEventArgs e)
         {
-            _config.Logger?.Trace($"{SocketHandler.Mode}: Received {e.BytesTransferred} encrypted bytes.");
+            _config.Logger?.Trace($"{Mode}: Received {e.BytesTransferred} encrypted bytes.");
             if (CurrentState == State.Closed)
                 return;
 
@@ -438,7 +377,7 @@ namespace DtronixMessageQueue.TcpSocket
             if (CurrentState == State.Closed && reason != CloseReason.ConnectionRefused)
                 return;
 
-            _config.Logger?.Trace($"{SocketHandler.Mode}: Connection closed. Reason: {reason}.");
+            _config.Logger?.Trace($"{Mode}: Connection closed. Reason: {reason}.");
 
             CurrentState = State.Closed;
 
@@ -486,7 +425,7 @@ namespace DtronixMessageQueue.TcpSocket
         /// <returns>String representation.</returns>
         public override string ToString()
         {
-            return $"{SocketHandler.Mode} TcpSocketSession;";
+            return $"{Mode} TlsSocketSession;";
         }
 
         /// <summary>

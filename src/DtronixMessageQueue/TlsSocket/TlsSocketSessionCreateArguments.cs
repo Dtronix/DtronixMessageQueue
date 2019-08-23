@@ -1,8 +1,10 @@
 ﻿using System;
 using System.Net.Sockets;
+using DtronixMessageQueue.TcpSocket;
+
 //using DtronixMessageQueue.Rpc;
 
-namespace DtronixMessageQueue.TcpSocket
+namespace DtronixMessageQueue.TlsSocket
 {
 
     /// <summary>
@@ -10,9 +12,7 @@ namespace DtronixMessageQueue.TcpSocket
     /// </summary>
     /// <typeparam name="TSession"></typeparam>
     /// <typeparam name="TConfig"></typeparam>
-    public class TlsSocketSessionCreateArguments<TSession, TConfig>
-        where TSession : TcpSocketSession<TSession, TConfig>, new()
-        where TConfig : TcpSocketConfig
+    public class TlsSocketSessionCreateArguments
     {
         /// <summary>
         /// Socket this session is to use.
@@ -22,12 +22,12 @@ namespace DtronixMessageQueue.TcpSocket
         /// <summary>
         /// Socket configurations this session is to use.
         /// </summary>
-        public TConfig SessionConfig;
+        public TlsSocketConfig SessionConfig;
 
         /// <summary>
         /// Handler base which is handling this session.
         /// </summary>
-        public TcpSocketHandler<TSession, TConfig> TlsSocketHandler;
+        //public TcpSocketHandler<TSession, TConfig> TlsSocketHandler;
 
         /// <summary>
         /// Processor which handles all inbox data.
@@ -45,5 +45,7 @@ namespace DtronixMessageQueue.TcpSocket
         //public ServiceMethodCache ServiceMethodCache;
 
         public BufferMemoryPool BufferPool;
+
+        public TcpSocketMode Mode;
     }
 }

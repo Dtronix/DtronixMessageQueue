@@ -3,6 +3,8 @@ using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Security.Cryptography;
 using System.Threading;
+using DtronixMessageQueue.TlsSocket;
+
 //using DtronixMessageQueue.Rpc;
 
 namespace DtronixMessageQueue.TcpSocket
