@@ -1,19 +1,18 @@
 ﻿using System;
 using System.Buffers;
-using System.Collections.Generic;
 using System.Net.Sockets;
-using System.Text;
+using DtronixMessageQueue.TcpSocket;
 
-namespace DtronixMessageQueue.TcpSocket
+namespace DtronixMessageQueue.Transports.Tcp
 {
-    public class TcpSocketAsyncEventArgs : SocketAsyncEventArgs
+    public class TcpTransportAsyncEventArgs : SocketAsyncEventArgs
     {
         private IMemoryOwner<byte> _memoryOwner;
         
         private int _currentWritePosition = 0;
 
 
-        public TcpSocketAsyncEventArgs(BufferMemoryPool argsBufferPool)
+        public TcpTransportAsyncEventArgs(BufferMemoryPool argsBufferPool)
         {
             _memoryOwner = argsBufferPool.Rent();
 
@@ -75,7 +74,7 @@ namespace DtronixMessageQueue.TcpSocket
         public void Free()
         {
             if (_memoryOwner == null)
-                throw new ObjectDisposedException(nameof(TcpSocketAsyncEventArgs));
+                throw new ObjectDisposedException(nameof(TcpTransportAsyncEventArgs));
 
             _memoryOwner.Dispose();
             _memoryOwner = null;

@@ -8,6 +8,7 @@ using System.Security.Cryptography;
 using System.Text;
 using System.Threading;
 using DtronixMessageQueue.TlsSocket;
+using DtronixMessageQueue.Transports;
 
 //using DtronixMessageQueue.Rpc;
 
@@ -18,41 +19,13 @@ namespace DtronixMessageQueue.TcpSocket
     /// </summary>
     /// <typeparam name="TConfig">Configuration for this connection.</typeparam>
     /// <typeparam name="TSession">Session for this connection.</typeparam>
-    public abstract class TcpSocketSession<TSession, TConfig> : IDisposable, ISetupSocketSession
+    public abstract class TcpSocketSession<TSession, TConfig> : ISetupSocketSession
         where TSession : TcpSocketSession<TSession, TConfig>, new()
         where TConfig : TcpSocketConfig
     {
         /// <summary>
         /// Current state of the socket.
         /// </summary>
-        public enum State : byte
-        {
-            /// <summary>
-            /// State has not been set.
-            /// </summary>
-            Unknown,
-
-            /// <summary>
-            /// Session is in the process of securing the communication channel.
-            /// </summary>
-            Securing,
-
-            /// <summary>
-            /// Session has connected to remote session.
-            /// </summary>
-            Connected,
-
-            /// <summary>
-            /// Session has been closed and no longer can be used.
-            /// </summary>
-            Closed,
-
-            /// <summary>
-            /// Socket is in an error state.
-            /// </summary>
-            Error,
-        }
-
         public const byte ProtocolVersion = 1;
 
         private TConfig _config;
@@ -66,11 +39,6 @@ namespace DtronixMessageQueue.TcpSocket
         /// Id for this session
         /// </summary>
         public Guid Id { get; }
-
-        /// <summary>
-        /// State that this socket is in.  Can only perform most operations when the socket is in a Connected state.
-        /// </summary>
-        public State CurrentState { get; protected set; }
 
         /// <summary>
         /// The last time that this session received a message.
@@ -93,11 +61,6 @@ namespace DtronixMessageQueue.TcpSocket
         public TcpSocketHandler<TSession, TConfig> SocketHandler { get; private set; }
 
         /// <summary>
-        /// Contains the version number of the protocol used by the other end of the connection.
-        /// </summary>
-        public byte OtherProtocolVersion { get; private set; }
-
-        /// <summary>
         /// Processor to handle all inbound messages.
         /// </summary>
         protected ActionProcessor<Guid> InboxProcessor;
@@ -107,28 +70,9 @@ namespace DtronixMessageQueue.TcpSocket
         /// </summary>
         protected ActionProcessor<Guid> OutboxProcessor;
 
+        private ITransportSession _transportSession;
 
-        private Socket _socket;
 
-        /// <summary>
-        /// Raw socket for this session.
-        /// </summary>
-        public Socket Socket => _socket;
-
-        /// <summary>
-        /// Async args used to send data to the wire.
-        /// </summary>
-        private TcpSocketAsyncEventArgs _sendArgs;
-
-        /// <summary>
-        /// Async args used to receive data off the wire.
-        /// </summary>
-        private TcpSocketAsyncEventArgs _receiveArgs;
-
-        /// <summary>
-        /// Reset event used to ensure only one MqWorker can write to the socket at a time.
-        /// </summary>
-        private SemaphoreSlim _writeSemaphore;
 
 
         /// <summary>
@@ -152,42 +96,22 @@ namespace DtronixMessageQueue.TcpSocket
         protected TcpSocketSession()
         {
             Id = Guid.NewGuid();
-            CurrentState = State.Closed;
         }
 
         /// <summary>
         /// Sets up this socket with the specified configurations.
         /// </summary>
         /// <param name="args">Args to initialize the socket with.</param>
-        public static TSession Create(TlsSocketSessionCreateArguments<TSession, TConfig> args)
+        public static TSession Create(TcpSocketSessionCreateArguments<TSession, TConfig> args)
         {
             var session = new TSession
             {
                 _config = args.SessionConfig,
-                _socket = args.SessionSocket,
-                _writeSemaphore = new SemaphoreSlim(1, 1),
                 SocketHandler = args.TlsSocketHandler,
-                _sendArgs = new TcpSocketAsyncEventArgs(args.BufferPool),
-                _receiveArgs = new TcpSocketAsyncEventArgs(args.BufferPool),
                 InboxProcessor = args.InboxProcessor,
                 OutboxProcessor = args.OutboxProcessor,
                 //ServiceMethodCache = args.ServiceMethodCache,
             };
-
-            session._sendArgs.Completed += session.IoCompleted;
-            session._receiveArgs.Completed += session.IoCompleted;
-
-            if (session._config.SendTimeout > 0)
-                session._socket.SendTimeout = session._config.SendTimeout;
-
-            if (session._config.SendAndReceiveBufferSize > 0)
-                session._socket.ReceiveBufferSize = session._config.SendAndReceiveBufferSize;
-
-            if (session._config.SendAndReceiveBufferSize > 0)
-                session._socket.SendBufferSize = session._config.SendAndReceiveBufferSize;
-
-            session._socket.NoDelay = true;
-            session._socket.SetSocketOption(SocketOptionLevel.Socket, SocketOptionName.DontLinger, true);
 
             session.OnSetup();
 
@@ -199,123 +123,40 @@ namespace DtronixMessageQueue.TcpSocket
         /// </summary>
         void ISetupSocketSession.StartSession()
         {
-            if (CurrentState != State.Closed)
-                return;
-
-            // Change into a securing state for the 
-            CurrentState = State.Securing;
             ConnectedTime = DateTime.UtcNow;
 
-            // Start receiving data for the secured channel.
-            var result = _socket.ReceiveAsync(_receiveArgs);
-
-            // TODO: REMOVE ---------------
-            CurrentState = State.Connected;
-            OnConnected();
+            _transportSession.Start();
             // TODO -----------------------
 
             // Send the protocol version number along with the public key to the connected client.
-            if (SocketHandler.Mode == TcpSocketMode.Client)
+            if (SocketHandler.Mode == TransportMode.Client)
             {
-
                 // Authenticate client
             }
-            
         }
 
         private bool SecureConnectionReceive(byte[] buffer)
         {
-            if (CurrentState == State.Closed)
-                return false;
-
-            if (CurrentState != State.Securing)
+            if (SocketHandler.Mode == TransportMode.Server)
             {
-                Close(CloseReason.ProtocolError);
-                return false;
+                _config.Logger?.Trace($"{SocketHandler.Mode}: Sending client public ECDH key.");
             }
 
 
-
-                if (SocketHandler.Mode == TcpSocketMode.Server)
-                {
-                    _config.Logger?.Trace($"{SocketHandler.Mode}: Sending client public ECDH key.");
-                }
-
-
-                SecureConnectionComplete();
-                return true;
-
+            SecureConnectionComplete();
+            return true;
         }
-
 
 
         private void SecureConnectionComplete()
         {
-            // Set the state to connected.
-            CurrentState = State.Connected;
-
             _config.Logger?.Trace($"{SocketHandler.Mode}: Securing complete.");
-            
         }
 
         /// <summary>
         /// Called after the initial setup has occurred on the session.
         /// </summary>
         protected abstract void OnSetup();
-
-        /// <summary>
-        /// Called when this session is connected to the socket.
-        /// </summary>
-        protected virtual void OnConnected()
-        {
-            //logger.Info("Session {0}: Connected", Id);
-            Connected?.Invoke(this, new SessionEventArgs<TSession, TConfig>((TSession)this));
-        }
-
-        /// <summary>
-        /// Called when this session is disconnected from the socket.
-        /// </summary>
-        /// <param name="reason">Reason this socket is disconnecting</param>
-        protected virtual void OnDisconnected(CloseReason reason)
-        {
-            Closed?.Invoke(this, new SessionClosedEventArgs<TSession, TConfig>((TSession)this, reason));
-        }
-
-        /// <summary>
-        /// Overridden to parse incoming bytes from the wire.
-        /// </summary>
-        /// <param name="buffer">Buffer of bytes to parse.</param>
-        protected abstract void HandleIncomingBytes(byte[] buffer);
-
-        /// <summary>
-        /// This method is called whenever a receive or send operation is completed on a socket 
-        /// </summary>
-        /// <param name="sender"></param>
-        /// <param name="e">SocketAsyncEventArg associated with the completed receive operation</param>
-        protected virtual void IoCompleted(object sender, SocketAsyncEventArgs e)
-        {
-            
-            // determine which type of operation just completed and call the associated handler
-            switch (e.LastOperation)
-            {
-                case SocketAsyncOperation.Disconnect:
-                    Close(CloseReason.Closing);
-                    break;
-
-                case SocketAsyncOperation.Receive:
-                    ReceiveComplete(e);
-                    break;
-
-                case SocketAsyncOperation.Send:
-                    SendComplete(e);
-                    break;
-
-                default:
-                    _config.Logger?.Error($"{SocketHandler.Mode}: The last operation completed on the socket was not a receive, send connect or disconnect. {e.LastOperation}");
-                    throw new ArgumentException(
-                        "The last operation completed on the socket was not a receive, send connect or disconnect.");
-            }
-        }
 
         /// <summary>
         /// Sends raw bytes to the socket.  Blocks until data is sent to the underlying system to send.
@@ -326,107 +167,11 @@ namespace DtronixMessageQueue.TcpSocket
         /// <param name="buffer">Buffer to copy and send.</param>
         protected virtual void Send(ReadOnlyMemory<byte> buffer)
         {
-            if (Socket == null || Socket.Connected == false)
-                return;
-
-            if (buffer.Length > _config.SendAndReceiveBufferSize)
-            {
-                _config.Logger?.Error($"{SocketHandler.Mode}: Sending {buffer.Length} bytes exceeds the SendAndReceiveBufferSize[{_config.SendAndReceiveBufferSize}].");
-                throw new Exception($"Sending {buffer.Length} bytes exceeds the SendAndReceiveBufferSize[{_config.SendAndReceiveBufferSize}].");
-            }
-            _writeSemaphore.Wait(-1);
-
-            var remaining = _sendArgs.Write(buffer);
-            _sendArgs.PrepareForSend();
-
-            try
-            {
-                // Set the data to be sent.
-                if (!Socket.SendAsync(_sendArgs))
-                {
-                    // Send process occured synchronously
-                    SendComplete(_sendArgs);
-                }
-            }
-            catch (ObjectDisposedException)
-            {
-                Close(CloseReason.SocketError);
-            }
-
-
-        }
-
-
-        /// <summary>
-        /// This method is invoked when an asynchronous send operation completes.  
-        /// The method issues another receive on the socket to read any additional data sent from the client
-        /// </summary>
-        /// <param name="e">Event args of this action.</param>
-        private void SendComplete(SocketAsyncEventArgs e)
-        {
-            if (e.SocketError != SocketError.Success)
-            {
-                Close(CloseReason.SocketError);
-            }
-
-            // Reset the socket args for sending again.
-            _sendArgs.ResetSend();
-
-            _config.Logger?.Trace($"{SocketHandler.Mode}: Sending {e.BytesTransferred} bytes complete. Releasing Semaphore...");
-            _writeSemaphore.Release(1);
-            _config.Logger?.Trace($"{SocketHandler.Mode}: Released semaphore.");
+            _transportSession.Send(buffer);
         }
 
 
 
-        /// <summary>
-        /// This method is invoked when an asynchronous receive operation completes. 
-        /// If the remote host closed the connection, then the socket is closed.
-        /// </summary>
-        /// <param name="e">Event args of this action.</param>
-        private void ReceiveComplete(SocketAsyncEventArgs e)
-        {
-            _config.Logger?.Trace($"{SocketHandler.Mode}: Received {e.BytesTransferred} encrypted bytes.");
-            if (CurrentState == State.Closed)
-                return;
-
-            if (e.BytesTransferred == 0)
-            {
-                HandleIncomingBytes(null);
-                return;
-            }
-
-            if (e.BytesTransferred > 0 && e.SocketError == SocketError.Success)
-            {
-                // If the session was closed curing the internal receive, don't read any more.
-                if (!ReceiveCompleteInternal(e))
-                    return;
-
-                try
-                {
-                    // Re-setup the receive async call.
-                    if (!Socket.ReceiveAsync(e))
-                    {
-                        IoCompleted(this, e);
-                    }
-                }
-                catch (ObjectDisposedException)
-                {
-                    Close(CloseReason.SocketError);
-                }
-            }
-            else
-            {
-                Close(CloseReason.SocketError);
-            }
-        }
-
-        private bool ReceiveCompleteInternal(SocketAsyncEventArgs e)
-        {
-
-            HandleIncomingBytes(_receiveArgs.MemoryBuffer.Slice(0, e.BytesTransferred));
-            return true;
-        }
 
         /// <summary>
         /// Called when this session is desired or requested to be closed.
@@ -434,50 +179,16 @@ namespace DtronixMessageQueue.TcpSocket
         /// <param name="reason">Reason this socket is closing.</param>
         public virtual void Close(CloseReason reason)
         {
-            // If this session has already been closed, nothing more to do.
-            if (CurrentState == State.Closed && reason != CloseReason.ConnectionRefused)
-                return;
+
 
             _config.Logger?.Trace($"{SocketHandler.Mode}: Connection closed. Reason: {reason}.");
-
-            CurrentState = State.Closed;
-
-            // close the socket associated with the client
-            try
-            {
-                if (Socket.Connected)
-                {
-                    // Alert the other end of the connection that the session has been closed.
-                    //SendWithHeader(Header.Type.ConnectionClose, new[] {(byte) reason}, 0, 1, null, 0, 0, true);
-
-                    Socket.Shutdown(SocketShutdown.Receive);
-                    Socket.Disconnect(false);
-                }
-            }
-            catch (Exception)
-            {
-                // ignored
-            }
-            finally
-            {
-                Socket.Close(1000);
-            }
-
-            _sendArgs.Completed -= IoCompleted;
-            _receiveArgs.Completed -= IoCompleted;
-
-            // Free the SocketAsyncEventArg so they can be reused by another client.
-            _sendArgs.Free();
-            _receiveArgs.Free();
 
 
             InboxProcessor.Deregister(Id);
             OutboxProcessor.Deregister(Id);
 
-            CurrentState = State.Closed;
+            _transportSession.Close();
 
-            // Notify the session has been closed.
-            OnDisconnected(reason);
         }
 
         /// <summary>
@@ -487,16 +198,6 @@ namespace DtronixMessageQueue.TcpSocket
         public override string ToString()
         {
             return $"{SocketHandler.Mode} TcpSocketSession;";
-        }
-
-        /// <summary>
-        /// Disconnects client and releases resources.
-        /// </summary>
-        public void Dispose()
-        {
-            if (CurrentState == State.Connected)
-                Close(CloseReason.Closing);
-
         }
     }
 }

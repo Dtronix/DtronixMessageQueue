@@ -30,4 +30,8 @@
     <ProjectReference Include="..\DtronixMessageQueue\DtronixMessageQueue.csproj" />
   </ItemGroup>
 
+  <ItemGroup>
+    <Folder Include="Transports\" />
+  </ItemGroup>
+
 </Project>

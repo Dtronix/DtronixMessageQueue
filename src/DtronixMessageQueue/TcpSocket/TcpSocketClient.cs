@@ -3,6 +3,7 @@ using System.Net;
 using System.Net.Sockets;
 using System.Threading;
 using System.Threading.Tasks;
+using DtronixMessageQueue.Transports;
 
 namespace DtronixMessageQueue.TcpSocket
 {
@@ -35,7 +36,7 @@ namespace DtronixMessageQueue.TcpSocket
         /// Creates a socket client with the specified configurations.
         /// </summary>
         /// <param name="config">Configurations to use.</param>
-        public TcpSocketClient(TConfig config) : base(config, TcpSocketMode.Client)
+        public TcpSocketClient(TConfig config) : base(config, TransportMode.Client)
         {
             // Override the number of processors to one for each sending queue and receiving queue.
             config.ProcessorThreads = 1;

@@ -10,9 +10,7 @@ namespace DtronixMessageQueue.TlsSocket
     /// <summary>
     /// Base socket session to be sub-classes by the implementer.
     /// </summary>
-    /// <typeparam name="TConfig">Configuration for this connection.</typeparam>
-    /// <typeparam name="TSession">Session for this connection.</typeparam>
-    public class TlsSocketSession : IDisposable
+    public abstract class TlsSocketSession : IDisposable
     {
         /// <summary>
         /// Current state of the socket.
@@ -102,22 +100,9 @@ namespace DtronixMessageQueue.TlsSocket
         protected ActionProcessor<Guid> OutboxProcessor;
 
 
-        private Socket _socket;
+        
 
-        /// <summary>
-        /// Raw socket for this session.
-        /// </summary>
-        public Socket Socket => _socket;
 
-        /// <summary>
-        /// Async args used to send data to the wire.
-        /// </summary>
-        private TcpSocketAsyncEventArgs _sendArgs;
-
-        /// <summary>
-        /// Async args used to receive data off the wire.
-        /// </summary>
-        private TcpSocketAsyncEventArgs _receiveArgs;
 
         /// <summary>
         /// Reset event used to ensure only one MqWorker can write to the socket at a time.
@@ -143,7 +128,7 @@ namespace DtronixMessageQueue.TlsSocket
         /// <summary>
         /// Creates a new socket session with a new Id.
         /// </summary>
-        public TlsSocketSession(TlsSocketSessionCreateArguments args)
+        protected TlsSocketSession(TlsSocketSessionCreateArguments args)
         {
             Id = Guid.NewGuid();
             CurrentState = State.Closed;
@@ -151,26 +136,11 @@ namespace DtronixMessageQueue.TlsSocket
             _config = args.SessionConfig;
             _socket = args.SessionSocket;
             _writeSemaphore = new SemaphoreSlim(1, 1);
-            _sendArgs = new TcpSocketAsyncEventArgs(args.BufferPool);
-            _receiveArgs = new TcpSocketAsyncEventArgs(args.BufferPool);
+
             InboxProcessor = args.InboxProcessor;
             OutboxProcessor = args.OutboxProcessor;
             //ServiceMethodCache = args.ServiceMethodCache,
 
-            _sendArgs.Completed += IoCompleted;
-            _receiveArgs.Completed += IoCompleted;
-
-            if (_config.SendTimeout > 0)
-                _socket.SendTimeout = _config.SendTimeout;
-
-            if (_config.SendAndReceiveBufferSize > 0)
-                _socket.ReceiveBufferSize = _config.SendAndReceiveBufferSize;
-
-            if (_config.SendAndReceiveBufferSize > 0)
-                _socket.SendBufferSize = _config.SendAndReceiveBufferSize;
-
-            _socket.NoDelay = true;
-            _socket.SetSocketOption(SocketOptionLevel.Socket, SocketOptionName.DontLinger, true);
         }
 
         /// <summary>
@@ -224,141 +194,11 @@ namespace DtronixMessageQueue.TlsSocket
         /// Overridden to parse incoming bytes from the wire.
         /// </summary>
         /// <param name="buffer">Buffer of bytes to parse.</param>
-        protected abstract void HandleIncomingBytes(byte[] buffer);
+        protected abstract void HandleIncomingBytes(ReadOnlyMemory<byte> buffer);
 
-        /// <summary>
-        /// This method is called whenever a receive or send operation is completed on a socket 
-        /// </summary>
-        /// <param name="sender"></param>
-        /// <param name="e">SocketAsyncEventArg associated with the completed receive operation</param>
-        protected virtual void IoCompleted(object sender, SocketAsyncEventArgs e)
-        {
-            
-            // determine which type of operation just completed and call the associated handler
-            switch (e.LastOperation)
-            {
-                case SocketAsyncOperation.Disconnect:
-                    Close(CloseReason.Closing);
-                    break;
+        
 
-                case SocketAsyncOperation.Receive:
-                    ReceiveComplete(e);
-                    break;
-
-                case SocketAsyncOperation.Send:
-                    SendComplete(e);
-                    break;
-
-                default:
-                    _config.Logger?.Error($"{Mode}: The last operation completed on the socket was not a receive, send connect or disconnect. {e.LastOperation}");
-                    throw new ArgumentException(
-                        "The last operation completed on the socket was not a receive, send connect or disconnect.");
-            }
-        }
-
-        /// <summary>
-        /// Sends raw bytes to the socket.  Blocks until data is sent to the underlying system to send.
-        /// Before transport encryption has been established, any buffer size will be sent.
-        /// After transport encryption has been established, only buffers in increments of 16.
-        /// Excess will be buffered until the next write.
-        /// </summary>
-        /// <param name="buffer">Buffer to copy and send.</param>
-        protected virtual void Send(ReadOnlyMemory<byte> buffer)
-        {
-            if (Socket == null || Socket.Connected == false)
-                return;
-
-            if (buffer.Length > _config.SendAndReceiveBufferSize)
-            {
-                _config.Logger?.Error($"{Mode}: Sending {buffer.Length} bytes exceeds the SendAndReceiveBufferSize[{_config.SendAndReceiveBufferSize}].");
-                throw new Exception($"Sending {buffer.Length} bytes exceeds the SendAndReceiveBufferSize[{_config.SendAndReceiveBufferSize}].");
-            }
-            _writeSemaphore.Wait(-1);
-
-            var remaining = _sendArgs.Write(buffer);
-            _sendArgs.PrepareForSend();
-
-            try
-            {
-                // Set the data to be sent.
-                if (!Socket.SendAsync(_sendArgs))
-                {
-                    // Send process occured synchronously
-                    SendComplete(_sendArgs);
-                }
-            }
-            catch (ObjectDisposedException)
-            {
-                Close(CloseReason.SocketError);
-            }
-
-
-        }
-
-
-        /// <summary>
-        /// This method is invoked when an asynchronous send operation completes.  
-        /// The method issues another receive on the socket to read any additional data sent from the client
-        /// </summary>
-        /// <param name="e">Event args of this action.</param>
-        private void SendComplete(SocketAsyncEventArgs e)
-        {
-            if (e.SocketError != SocketError.Success)
-            {
-                Close(CloseReason.SocketError);
-            }
-
-            // Reset the socket args for sending again.
-            _sendArgs.ResetSend();
-
-            _config.Logger?.Trace($"{Mode}: Sending {e.BytesTransferred} bytes complete. Releasing Semaphore...");
-            _writeSemaphore.Release(1);
-            _config.Logger?.Trace($"{Mode}: Released semaphore.");
-        }
-
-
-
-        /// <summary>
-        /// This method is invoked when an asynchronous receive operation completes. 
-        /// If the remote host closed the connection, then the socket is closed.
-        /// </summary>
-        /// <param name="e">Event args of this action.</param>
-        private void ReceiveComplete(SocketAsyncEventArgs e)
-        {
-            _config.Logger?.Trace($"{Mode}: Received {e.BytesTransferred} encrypted bytes.");
-            if (CurrentState == State.Closed)
-                return;
-
-            if (e.BytesTransferred == 0)
-            {
-                HandleIncomingBytes(null);
-                return;
-            }
-
-            if (e.BytesTransferred > 0 && e.SocketError == SocketError.Success)
-            {
-                // If the session was closed curing the internal receive, don't read any more.
-                if (!ReceiveCompleteInternal(e))
-                    return;
-
-                try
-                {
-                    // Re-setup the receive async call.
-                    if (!Socket.ReceiveAsync(e))
-                    {
-                        IoCompleted(this, e);
-                    }
-                }
-                catch (ObjectDisposedException)
-                {
-                    Close(CloseReason.SocketError);
-                }
-            }
-            else
-            {
-                Close(CloseReason.SocketError);
-            }
-        }
+        
 
         private bool ReceiveCompleteInternal(SocketAsyncEventArgs e)
         {

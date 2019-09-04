@@ -4,6 +4,7 @@ using System.Collections.Generic;
 using System.Security.Cryptography;
 using System.Threading;
 using DtronixMessageQueue.TlsSocket;
+using DtronixMessageQueue.Transports;
 
 //using DtronixMessageQueue.Rpc;
 
@@ -21,7 +22,7 @@ namespace DtronixMessageQueue.TcpSocket
         /// <summary>
         /// Mode that this socket is running as.
         /// </summary>
-        public TcpSocketMode Mode { get; }
+        public TransportMode Mode { get; }
 
         /// <summary>
         /// True if the socket is connected/listening.
@@ -220,12 +221,11 @@ namespace DtronixMessageQueue.TcpSocket
         protected virtual TSession CreateSession(System.Net.Sockets.Socket socket)
         {
             var session = TcpSocketSession<TSession, TConfig>.Create(
-                new TlsSocketSessionCreateArguments<TSession, TConfig>
+                new TcpSocketSessionCreateArguments<TSession, TConfig>
                 {
                     SessionSocket = socket,
                     BufferPool = _socketBufferPool,
                     SessionConfig = Config,
-                    TlsSocketHandler = this,
                     InboxProcessor = _inboxProcessor,
                     OutboxProcessor = _outboxProcessor,
                     //ServiceMethodCache = ServiceMethodCache,
@@ -235,11 +235,6 @@ namespace DtronixMessageQueue.TcpSocket
             session.Closed += (sender, args) => OnClose(session, args.CloseReason);
 
             return session;
-        }
-
-        public IEnumerator<KeyValuePair<Guid, TSession>> GetSessionsEnumerator()
-        {
-            return ConnectedSessions.GetEnumerator();
         }
     }
 }

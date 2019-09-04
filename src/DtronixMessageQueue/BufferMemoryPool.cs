@@ -1,11 +1,9 @@
 ﻿using System;
 using System.Buffers;
 using System.Collections.Concurrent;
-using System.Collections.Generic;
-using System.Text;
 using System.Threading;
 
-namespace DtronixMessageQueue.TcpSocket
+namespace DtronixMessageQueue
 {
     public class BufferMemoryPool : MemoryPool<byte>
     {

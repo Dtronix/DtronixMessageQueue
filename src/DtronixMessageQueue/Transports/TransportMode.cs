@@ -1,10 +1,12 @@
-﻿namespace DtronixMessageQueue.TcpSocket
+﻿namespace DtronixMessageQueue.Transports
 {
     /// <summary>
     /// Mode that the current Socket base is in.
     /// </summary>
-    public enum TcpSocketMode
+    public enum TransportMode
     {
+        Unset,
+
         /// <summary>
         /// Socket base is running in server mode.
         /// </summary>
