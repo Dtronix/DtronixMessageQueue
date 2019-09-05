@@ -7,17 +7,35 @@
   </PropertyGroup>
 
   <ItemGroup>
+    <Compile Remove="Mq\MqClientTests.cs" />
+    <Compile Remove="Mq\MqFrameBuilderTests.cs" />
+    <Compile Remove="Mq\MqFrameTests.cs" />
+    <Compile Remove="Mq\MqMessageWriterReaderTests.cs" />
+    <Compile Remove="Mq\MqServerTests.cs" />
+    <Compile Remove="Mq\MqTestsBase.cs" />
+    <Compile Remove="Mq\SimpleMqSession.cs" />
     <Compile Remove="Rpc\RpcTests.cs" />
     <Compile Remove="Rpc\RpcTestsBase.cs" />
     <Compile Remove="Rpc\Services\Server\SampleService.cs" />
     <Compile Remove="Rpc\SimpleRpcSession.cs" />
+    <Compile Remove="TlsSocket\TestTlsSocketSession.cs" />
+    <Compile Remove="TlsSocket\TlsSocketSessionTests.cs" />
   </ItemGroup>
 
   <ItemGroup>
+    <None Include="Mq\MqClientTests.cs" />
+    <None Include="Mq\MqFrameBuilderTests.cs" />
+    <None Include="Mq\MqFrameTests.cs" />
+    <None Include="Mq\MqMessageWriterReaderTests.cs" />
+    <None Include="Mq\MqServerTests.cs" />
+    <None Include="Mq\MqTestsBase.cs" />
+    <None Include="Mq\SimpleMqSession.cs" />
     <None Include="Rpc\RpcTests.cs" />
     <None Include="Rpc\RpcTestsBase.cs" />
     <None Include="Rpc\Services\Server\SampleService.cs" />
     <None Include="Rpc\SimpleRpcSession.cs" />
+    <None Include="TlsSocket\TestTlsSocketSession.cs" />
+    <None Include="TlsSocket\TlsSocketSessionTests.cs" />
   </ItemGroup>
 
   <ItemGroup>
@@ -28,10 +46,6 @@
 
   <ItemGroup>
     <ProjectReference Include="..\DtronixMessageQueue\DtronixMessageQueue.csproj" />
-  </ItemGroup>
-
-  <ItemGroup>
-    <Folder Include="Transports\" />
   </ItemGroup>
 
 </Project>
