@@ -125,7 +125,7 @@ namespace DtronixMessageQueue.TcpSocket
         {
             ConnectedTime = DateTime.UtcNow;
 
-            _transportSession.Start();
+            _transportSession.Connect();
             // TODO -----------------------
 
             // Send the protocol version number along with the public key to the connected client.
@@ -187,7 +187,7 @@ namespace DtronixMessageQueue.TcpSocket
             InboxProcessor.Deregister(Id);
             OutboxProcessor.Deregister(Id);
 
-            _transportSession.Close();
+            _transportSession.Disconnect();
 
         }
 

@@ -1,14 +1,14 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Net;
 using System.Net.Sockets;
 using System.Text;
-using DtronixMessageQueue.TcpSocket;
 
 namespace DtronixMessageQueue.Transports.Tcp
 {
     public class TcpTransportListener : ITransportListener
     {
-        private readonly TcpTransportConfig _config;
+        private readonly TransportConfig _config;
 
         /// <summary>
         /// Set to the max number of connections allowed for the server.
@@ -22,26 +22,26 @@ namespace DtronixMessageQueue.Transports.Tcp
         private readonly object _connectionLock = new object();
         
 
-        private Socket MainSocket;
+        private Socket _mainSocket;
+        private BufferMemoryPool _socketBufferPool;
 
         /// <summary>
         /// True if the server is listening and accepting connections.  False if the server is closed.
         /// </summary>
-        public bool IsListening => MainSocket?.IsBound ?? false;
+        public bool IsListening => _mainSocket?.IsBound ?? false;
 
         public event EventHandler<TransportSessionEventArgs> Connected;
         public event EventHandler<TransportSessionEventArgs> Disconnected;
         public event EventHandler Stopped;
         public event EventHandler Started;
 
-        public TcpTransportListener(TcpTransportConfig config)
+        public TcpTransportListener(TransportConfig config)
         {
             _config = config;
 
-            // create the socket which listens for incoming connections
-            MainSocket = new Socket(SocketType.Stream, ProtocolType.Tcp);
-            //MainSocket.SetSocketOption(SocketOptionLevel.Socket, SocketOptionName.ReuseAddress, true);
-            //MainSocket.SetSocketOption(SocketOptionLevel.Socket, SocketOptionName.DontLinger, true);
+            var maxConnections = _config.MaxConnections + 1;
+
+            _socketBufferPool = new BufferMemoryPool(_config.SendAndReceiveBufferSize, 2 * maxConnections);
         }
 
 
@@ -65,7 +65,7 @@ namespace DtronixMessageQueue.Transports.Tcp
 
             try
             {
-                if (MainSocket.AcceptAsync(e) == false)
+                if (_mainSocket.AcceptAsync(e) == false)
                 {
                     AcceptCompleted(e);
                 }
@@ -78,25 +78,29 @@ namespace DtronixMessageQueue.Transports.Tcp
 
         public void Start()
         {
+            if (IsListening)
+            {
+                throw new InvalidOperationException("Server is already running.");
+            }
+
+            // create the socket which listens for incoming connections
+            _mainSocket = new Socket(SocketType.Stream, ProtocolType.Tcp);
+            //MainSocket.SetSocketOption(SocketOptionLevel.Socket, SocketOptionName.ReuseAddress, true);
+            //MainSocket.SetSocketOption(SocketOptionLevel.Socket, SocketOptionName.DontLinger, true);
+
             // Reset the remaining connections.
             _remainingConnections = _config.MaxConnections;
-
-            MainSocket.Bind(localEndPoint);
+            
+            _mainSocket.Bind(Utilities.CreateIPEndPoint(_config.Address));
 
             // start the server with a listen backlog.
-            MainSocket.Listen(_config.ListenerBacklog);
+            _mainSocket.Listen(_config.ListenerBacklog);
 
             // post accepts on the listening socket
             StartAccept(null);
 
             // Invoke the started event.
             Started?.Invoke(this, EventArgs.Empty);
-
-            var localEndPoint = Utilities.CreateIPEndPoint(_config.Address);
-            if (IsListening)
-            {
-                throw new InvalidOperationException("Server is already running.");
-            }
         }
 
         public void Stop()
@@ -106,8 +110,8 @@ namespace DtronixMessageQueue.Transports.Tcp
 
             try
             {
-                MainSocket.Shutdown(SocketShutdown.Both);
-                MainSocket.Disconnect(true);
+                _mainSocket.Shutdown(SocketShutdown.Both);
+                _mainSocket.Disconnect(true);
             }
             catch
             {
@@ -115,7 +119,7 @@ namespace DtronixMessageQueue.Transports.Tcp
             }
             finally
             {
-                MainSocket.Close();
+                _mainSocket.Close();
             }
 
             // Invoke the stopped event.
@@ -128,7 +132,7 @@ namespace DtronixMessageQueue.Transports.Tcp
         /// <param name="e">Event args for this event.</param>
         private void AcceptCompleted(SocketAsyncEventArgs e)
         {
-            if (MainSocket.IsBound == false)
+            if (_mainSocket.IsBound == false)
             {
                 return;
             }
@@ -152,25 +156,18 @@ namespace DtronixMessageQueue.Transports.Tcp
 
             e.AcceptSocket.NoDelay = true;
 
-            var session = new TcpTransportSession(e.AcceptSocket, _config, memoryPool);
+            var session = new TcpTransportSession(e.AcceptSocket, _config, _socketBufferPool);
 
             // If we are at max sessions, close the new connection with a connection refused reason.
             if (maxSessions)
             {
-                session.Close();
+                session.Disconnect();
             }
             else
             {
-                // Add event to remove this session from the active client list.
-                session.Closed += RemoveClientEvent;
-
-                // Add this session to the list of connected sessions.
-                ConnectedSessions.TryAdd(session.Id, session);
-
-                // Start the session.
-                ((ISetupSocketSession)session).StartSession();
-
-                session.Connected += (sender, args) => OnConnect(session);
+                session.Connect();
+                session.Disconnected += (sender, args) => Disconnected?.Invoke(this, args);
+                session.Connected += (sender, args) => Connected?.Invoke(this, args);
             }
 
             // Accept the next connection request

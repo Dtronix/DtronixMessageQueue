@@ -1,8 +1,8 @@
-﻿using DtronixMessageQueue.TcpSocket;
+﻿using DtronixMessageQueue.Transports;
 
 namespace DtronixMessageQueue
 {
-    public class MqConfig : TcpSocketConfig
+    public class MqConfig : TransportConfig
     {
         /// <summary>
         /// Max size of the frame.  Needs to be equal or smaller than SendAndReceiveBufferSize.

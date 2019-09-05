@@ -1,9 +1,9 @@
-﻿namespace DtronixMessageQueue.Transports.Tcp
+﻿namespace DtronixMessageQueue.Transports
 {
     /// <summary>
     /// Configurations for the server/client.
     /// </summary>
-    public class TcpTransportConfig
+    public class TransportConfig
     {
         /// <summary>
         /// Maximum number of connections allowed.  Only used by the server.

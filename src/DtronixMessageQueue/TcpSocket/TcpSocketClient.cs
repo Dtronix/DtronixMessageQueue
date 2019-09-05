@@ -57,7 +57,7 @@ namespace DtronixMessageQueue.TcpSocket
         /// <param name="endPoint">Endpoint to connect to.</param>
         public void Connect(IPEndPoint endPoint)
         {
-            if (MainSocket != null && Session?.CurrentState != TcpSocketSession<TSession, TConfig>.State.Closed)
+            if (MainSocket != null && Session?.CurrentState != TransportState.Closed)
             {
                 throw new InvalidOperationException("Client is in the process of connecting.");
             }

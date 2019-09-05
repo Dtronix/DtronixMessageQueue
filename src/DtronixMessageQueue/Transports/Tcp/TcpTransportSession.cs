@@ -3,16 +3,15 @@ using System.Collections.Generic;
 using System.Net.Sockets;
 using System.Text;
 using System.Threading;
-using DtronixMessageQueue.TcpSocket;
-using DtronixMessageQueue.TlsSocket;
 
 namespace DtronixMessageQueue.Transports.Tcp
 {
     public class TcpTransportSession : ITransportSession
     {
         public event EventHandler<TransportReceiveEventArgs> Received;
-        public event EventHandler Sent;
-        public event EventHandler Closed;
+        public event EventHandler<TransportSessionEventArgs> Sent;
+        public event EventHandler<TransportSessionEventArgs> Disconnected;
+        public event EventHandler<TransportSessionEventArgs> Connected;
 
 
         public TransportState State { get; private set; }
@@ -20,7 +19,7 @@ namespace DtronixMessageQueue.Transports.Tcp
 
         private Socket _socket;
 
-        private readonly TcpTransportConfig _config;
+        private readonly TransportConfig _config;
 
         /// <summary>
         /// Async args used to send data to the wire.
@@ -39,7 +38,7 @@ namespace DtronixMessageQueue.Transports.Tcp
 
 
 
-        public TcpTransportSession(Socket socket, TcpTransportConfig config, BufferMemoryPool memoryPool)
+        public TcpTransportSession(Socket socket, TransportConfig config, BufferMemoryPool memoryPool)
         {
             State = TransportState.Unknown;
             _socket = socket;
@@ -64,7 +63,7 @@ namespace DtronixMessageQueue.Transports.Tcp
         }
 
 
-        public void Start()
+        public void Connect()
         {
             if (State != TransportState.Closed)
                 return;
@@ -75,6 +74,8 @@ namespace DtronixMessageQueue.Transports.Tcp
             }
 
             State = TransportState.Connected;
+
+            Connected?.Invoke(this, new TransportSessionEventArgs(this));
         }
 
         /// <summary>
@@ -112,7 +113,7 @@ namespace DtronixMessageQueue.Transports.Tcp
             }
             catch (ObjectDisposedException)
             {
-                Close();
+                Disconnect();
                 return false;
             }
 
@@ -121,7 +122,7 @@ namespace DtronixMessageQueue.Transports.Tcp
 
 
 
-        public void Close()
+        public void Disconnect()
         {
             // If this session has already been closed, nothing more to do.
             if (State == TransportState.Closed)
@@ -156,7 +157,7 @@ namespace DtronixMessageQueue.Transports.Tcp
 
             }
 
-            Closed?.Invoke(this, EventArgs.Empty);
+            Disconnected?.Invoke(this, new TransportSessionEventArgs(this));
         }
 
         /// <summary>
@@ -171,7 +172,7 @@ namespace DtronixMessageQueue.Transports.Tcp
             switch (e.LastOperation)
             {
                 case SocketAsyncOperation.Disconnect:
-                    Close();
+                    Disconnect();
                     break;
 
                 case SocketAsyncOperation.Receive:
@@ -198,7 +199,7 @@ namespace DtronixMessageQueue.Transports.Tcp
         {
             if (e.SocketError != SocketError.Success)
             {
-                Close();
+                Disconnect();
             }
 
             // Reset the socket args for sending again.
@@ -207,6 +208,8 @@ namespace DtronixMessageQueue.Transports.Tcp
             _config.Logger?.Trace($"{Mode}: Sending {e.BytesTransferred} bytes complete. Releasing Semaphore...");
             _writeSemaphore.Release(1);
             _config.Logger?.Trace($"{Mode}: Released semaphore.");
+
+            Sent?.Invoke(this, new TransportSessionEventArgs(this));
         }
 
 
@@ -243,18 +246,18 @@ namespace DtronixMessageQueue.Transports.Tcp
                 }
                 catch (ObjectDisposedException)
                 {
-                    Close();
+                    Disconnect();
                 }
             }
             else
             {
-                Close();
+                Disconnect();
             }
         }
 
         public void Dispose()
         {
-            Close();
+            Disconnect();
         }
     }
 }

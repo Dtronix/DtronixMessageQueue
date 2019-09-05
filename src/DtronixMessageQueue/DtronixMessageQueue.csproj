@@ -9,6 +9,13 @@
   </PropertyGroup>
 
   <ItemGroup>
+    <Compile Remove="IncomingMessageEventArgs.cs" />
+    <Compile Remove="MqClient.cs" />
+    <Compile Remove="MqCommandType.cs" />
+    <Compile Remove="MqMessageReader.cs" />
+    <Compile Remove="MqMessageWriter.cs" />
+    <Compile Remove="MqServer.cs" />
+    <Compile Remove="MqSession.cs" />
     <Compile Remove="Rpc\DataContract\RpcRemoteExceptionDataContract.cs" />
     <Compile Remove="Rpc\DataContract\RpcServerInfoDataContract.cs" />
     <Compile Remove="Rpc\IRemoteService.cs" />
@@ -27,9 +34,33 @@
     <Compile Remove="Rpc\RpcSession.cs" />
     <Compile Remove="Rpc\SerializationCache.cs" />
     <Compile Remove="Rpc\ServiceMethodCache.cs" />
+    <Compile Remove="SessionClosedEventArgs.cs" />
+    <Compile Remove="SessionEventArgs.cs" />
+    <Compile Remove="TcpSocket\CloseReason.cs" />
+    <Compile Remove="TcpSocket\CustomScheduler.cs" />
+    <Compile Remove="TcpSocket\ISetupSocketSession.cs" />
+    <Compile Remove="TcpSocket\TcpSocketClient.cs" />
+    <Compile Remove="TcpSocket\TcpSocketConfig.cs" />
+    <Compile Remove="TcpSocket\TcpSocketHandler.cs" />
+    <Compile Remove="TcpSocket\TcpSocketServer.cs" />
+    <Compile Remove="TcpSocket\TcpSocketSession.cs" />
+    <Compile Remove="TcpSocket\TcpSocketSessionCreateArguments.cs" />
+    <Compile Remove="TcpSocket\TlsInnerStream.cs" />
+    <Compile Remove="TlsSocket\TlsSocketConfig.cs" />
+    <Compile Remove="TlsSocket\TlsSocketSession.cs" />
+    <Compile Remove="TlsSocket\TlsSocketSessionClosedEventArgs.cs" />
+    <Compile Remove="TlsSocket\TlsSocketSessionCreateArguments.cs" />
+    <Compile Remove="TlsSocket\TlsSocketSessionEventArgs.cs" />
   </ItemGroup>
 
   <ItemGroup>
+    <None Include="IncomingMessageEventArgs.cs" />
+    <None Include="MqClient.cs" />
+    <None Include="MqCommandType.cs" />
+    <None Include="MqMessageReader.cs" />
+    <None Include="MqMessageWriter.cs" />
+    <None Include="MqServer.cs" />
+    <None Include="MqSession.cs" />
     <None Include="Rpc\DataContract\RpcRemoteExceptionDataContract.cs" />
     <None Include="Rpc\DataContract\RpcServerInfoDataContract.cs" />
     <None Include="Rpc\IRemoteService.cs" />
@@ -48,6 +79,23 @@
     <None Include="Rpc\RpcSession.cs" />
     <None Include="Rpc\SerializationCache.cs" />
     <None Include="Rpc\ServiceMethodCache.cs" />
+    <None Include="SessionClosedEventArgs.cs" />
+    <None Include="SessionEventArgs.cs" />
+    <None Include="TcpSocket\CloseReason.cs" />
+    <None Include="TcpSocket\CustomScheduler.cs" />
+    <None Include="TcpSocket\ISetupSocketSession.cs" />
+    <None Include="TcpSocket\TcpSocketClient.cs" />
+    <None Include="TcpSocket\TcpSocketConfig.cs" />
+    <None Include="TcpSocket\TcpSocketHandler.cs" />
+    <None Include="TcpSocket\TcpSocketServer.cs" />
+    <None Include="TcpSocket\TcpSocketSession.cs" />
+    <None Include="TcpSocket\TcpSocketSessionCreateArguments.cs" />
+    <None Include="TcpSocket\TlsInnerStream.cs" />
+    <None Include="TlsSocket\TlsSocketConfig.cs" />
+    <None Include="TlsSocket\TlsSocketSession.cs" />
+    <None Include="TlsSocket\TlsSocketSessionClosedEventArgs.cs" />
+    <None Include="TlsSocket\TlsSocketSessionCreateArguments.cs" />
+    <None Include="TlsSocket\TlsSocketSessionEventArgs.cs" />
   </ItemGroup>
 
   <ItemGroup>

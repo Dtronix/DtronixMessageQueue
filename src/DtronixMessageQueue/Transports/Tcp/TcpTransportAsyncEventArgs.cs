@@ -1,7 +1,6 @@
 ﻿using System;
 using System.Buffers;
 using System.Net.Sockets;
-using DtronixMessageQueue.TcpSocket;
 
 namespace DtronixMessageQueue.Transports.Tcp
 {
