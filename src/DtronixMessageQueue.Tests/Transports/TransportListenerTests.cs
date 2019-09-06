@@ -11,21 +11,39 @@ using NUnit.Framework.Internal;
 
 namespace DtronixMessageQueue.Tests.Transports
 {
+
+
     public class TransportListenerTests : TransportTestBase
     {
+
+        [Test]
+        public void ListenerStarts()
+        {
+            var listener = new TcpTransportListener(Config);
+
+            listener.Started += (sender, args) => TestComplete.Set();
+
+            listener.Start();
+
+            WaitTestComplete();
+        }
+
         [Test]
         public void ListenerAcceptsNewConnection()
         {
-
+            
 
             var listener = new TcpTransportListener(Config);
-            var connector = new TcpTransportClientConnector();
+            var connector = new TcpTransportClientConnector(Config);
 
             listener.Connected += (sender, args) => TestComplete.Set();
 
-            connector.Connect(Config);
+            listener.Start();
+            connector.Connect();
 
             WaitTestComplete();
+
+            throw new Exception();
         }
     }
 
@@ -65,9 +83,10 @@ namespace DtronixMessageQueue.Tests.Transports
         }
 
 
-        protected void WaitTestComplete(int time = -1)
+        protected void WaitTestComplete(int time = 100000)
         {
-            TestComplete.Wait(time);
+            if (!TestComplete.Wait(time))
+                throw new TimeoutException($"Test timed out at {time}ms");
 
             if (LastException != null)
                 throw LastException;

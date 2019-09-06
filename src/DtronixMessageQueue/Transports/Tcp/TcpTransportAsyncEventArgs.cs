@@ -13,9 +13,11 @@ namespace DtronixMessageQueue.Transports.Tcp
 
         public TcpTransportAsyncEventArgs(BufferMemoryPool argsBufferPool)
         {
-            _memoryOwner = argsBufferPool.Rent();
-
-            SetBuffer(_memoryOwner.Memory);
+            if (argsBufferPool != null)
+            {
+                _memoryOwner = argsBufferPool.Rent();
+                SetBuffer(_memoryOwner.Memory);
+            }
         }
 
         public int Write(ReadOnlyMemory<byte> source)

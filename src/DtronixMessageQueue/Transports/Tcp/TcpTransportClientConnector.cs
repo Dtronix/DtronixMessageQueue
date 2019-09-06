@@ -9,20 +9,28 @@ namespace DtronixMessageQueue.Transports.Tcp
 {
     public class TcpTransportClientConnector : ITransportClientConnector
     {
+        private readonly TransportConfig _config;
+        private BufferMemoryPool _socketBufferPool;
 
         public event EventHandler<TransportSessionEventArgs> Connected;
         public event EventHandler ConnectionError;
 
-        public void Connect(TransportConfig config)
+        public TcpTransportClientConnector(TransportConfig config)
         {
+            _config = config;
 
-            var socketBufferPool = new BufferMemoryPool(config.SendAndReceiveBufferSize, 2);
+            _socketBufferPool = new BufferMemoryPool(_config.SendAndReceiveBufferSize, 2);
+
+        }
+
+        public void Connect()
+        {
 
             var mainSocket = new Socket(SocketType.Stream, ProtocolType.Tcp);
 
-            var eventArg = new TcpTransportAsyncEventArgs(socketBufferPool)
+            var eventArg = new SocketAsyncEventArgs()
             {
-                RemoteEndPoint = Utilities.CreateIPEndPoint(config.Address)
+                RemoteEndPoint = Utilities.CreateIPEndPoint(_config.Address)
             };
 
             var timedOut = false;
@@ -40,7 +48,7 @@ namespace DtronixMessageQueue.Transports.Tcp
                     // Stop the timeout timer.
                     connectionTimeoutCancellation.Cancel();
 
-                    session = new TcpTransportSession(mainSocket, config, socketBufferPool);
+                    session = new TcpTransportSession(mainSocket, _config, _socketBufferPool);
                     session.Connected += (sndr, e) => Connected?.Invoke(sndr, e);
 
                     session.Connect();
@@ -53,7 +61,7 @@ namespace DtronixMessageQueue.Transports.Tcp
             {
                 try
                 {
-                    await Task.Delay(config.ConnectionTimeout, connectionTimeoutCancellation.Token);
+                    await Task.Delay(_config.ConnectionTimeout, connectionTimeoutCancellation.Token);
                 }
                 catch
                 {

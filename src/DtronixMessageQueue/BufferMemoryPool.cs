@@ -71,7 +71,7 @@ namespace DtronixMessageQueue
             }
             else
             {
-                if (_rentalIndex + 1 >= _totalRentals)
+                if (_rentalIndex + 1 > _totalRentals)
                     throw new Exception("Pool exhausted.");
 
                 index = Interlocked.Increment(ref _rentalIndex);

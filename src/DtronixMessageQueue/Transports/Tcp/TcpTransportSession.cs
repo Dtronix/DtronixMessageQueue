@@ -36,8 +36,6 @@ namespace DtronixMessageQueue.Transports.Tcp
         /// </summary>
         private SemaphoreSlim _writeSemaphore;
 
-
-
         public TcpTransportSession(Socket socket, TransportConfig config, BufferMemoryPool memoryPool)
         {
             State = TransportState.Unknown;
