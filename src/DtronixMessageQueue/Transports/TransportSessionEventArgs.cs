@@ -6,11 +6,11 @@ namespace DtronixMessageQueue.Transports
 {
     public class TransportSessionEventArgs : EventArgs
     {
-        public TransportSessionEventArgs(ITransportSession session)
+        public TransportSessionEventArgs(TransportSession session)
         {
             Session = session;
         }
 
-        public ITransportSession Session { get; set; }
+        public TransportSession Session { get; set; }
     }
 }

@@ -6,39 +6,38 @@ using System.Threading;
 
 namespace DtronixMessageQueue.Transports.Tcp
 {
-    public class TcpTransportSession : ITransportSession
+    public class TcpTransportSession : TransportSession
     {
-        public event EventHandler<TransportReceiveEventArgs> Received;
-        public event EventHandler<TransportSessionEventArgs> Sent;
-        public event EventHandler<TransportSessionEventArgs> Disconnected;
-        public event EventHandler<TransportSessionEventArgs> Connected;
+        public override event EventHandler<TransportReceiveEventArgs> Received;
+        public override event EventHandler<TransportSessionEventArgs> Sent;
+        public override event EventHandler<TransportSessionEventArgs> Disconnected;
+        public override event EventHandler<TransportSessionEventArgs> Connected;
 
 
-        public TransportState State { get; private set; }
-        public TransportMode Mode { get; } = TransportMode.Unset;
+        public override TransportState State { get; protected set; } = TransportState.Unknown;
+        public override TransportMode Mode { get; protected set; } = TransportMode.Unset;
 
-        private Socket _socket;
+        private readonly Socket _socket;
 
         private readonly TransportConfig _config;
 
         /// <summary>
         /// Async args used to send data to the wire.
         /// </summary>
-        private TcpTransportAsyncEventArgs _sendArgs;
+        private readonly TcpTransportAsyncEventArgs _sendArgs;
 
         /// <summary>
         /// Async args used to receive data off the wire.
         /// </summary>
-        private TcpTransportAsyncEventArgs _receiveArgs;
+        private readonly TcpTransportAsyncEventArgs _receiveArgs;
 
         /// <summary>
         /// Reset event used to ensure only one MqWorker can write to the socket at a time.
         /// </summary>
-        private SemaphoreSlim _writeSemaphore;
+        private readonly SemaphoreSlim _writeSemaphore;
 
         public TcpTransportSession(Socket socket, TransportConfig config, BufferMemoryPool memoryPool)
         {
-            State = TransportState.Unknown;
             _socket = socket;
             _config = config;
             _writeSemaphore = new SemaphoreSlim(1,1);
@@ -62,7 +61,7 @@ namespace DtronixMessageQueue.Transports.Tcp
         }
 
 
-        public void Connect()
+        public override void Connect()
         {
             if (State != TransportState.Unknown)
                 return;
@@ -84,7 +83,7 @@ namespace DtronixMessageQueue.Transports.Tcp
         /// Excess will be buffered until the next write.
         /// </summary>
         /// <param name="buffer">Buffer to copy and send.</param>
-        public bool Send(ReadOnlyMemory<byte> buffer)
+        public override bool Send(ReadOnlyMemory<byte> buffer)
         {
             if (_socket == null || _socket.Connected == false)
                 return false;
@@ -121,7 +120,7 @@ namespace DtronixMessageQueue.Transports.Tcp
 
 
 
-        public void Disconnect()
+        public override void Disconnect()
         {
             // If this session has already been closed, nothing more to do.
             if (State == TransportState.Closed)
@@ -232,9 +231,7 @@ namespace DtronixMessageQueue.Transports.Tcp
 
             if (e.BytesTransferred > 0 && e.SocketError == SocketError.Success)
             {
-                // If the session was closed curing the internal receive, don't read any more.
-                Received?.Invoke(this, new TransportReceiveEventArgs(
-                    e.MemoryBuffer.Slice(0, e.BytesTransferred)));
+                OnReceived(e);
 
                 try
                 {
@@ -253,6 +250,13 @@ namespace DtronixMessageQueue.Transports.Tcp
             {
                 Disconnect();
             }
+        }
+
+        protected override void OnReceived(SocketAsyncEventArgs e)
+        {
+            // If the session was closed curing the internal receive, don't read any more.
+            Received?.Invoke(this, new TransportReceiveEventArgs(
+                e.MemoryBuffer.Slice(0, e.BytesTransferred)));
         }
 
         public void Dispose()
