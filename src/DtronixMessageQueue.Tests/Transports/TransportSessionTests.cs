@@ -94,5 +94,30 @@ namespace DtronixMessageQueue.Tests.Transports
 
             WaitTestComplete(500);
         }
+
+        [Test]
+        public void SessionThrowsOnTooLargeSend()
+        {
+            var (listener, connector) = CreateClientServer();
+            var memory = new Memory<byte>(new byte[ClientConfig.SendAndReceiveBufferSize + 1]);
+
+            listener.Connected += (sender, args) =>
+            {
+                try
+                {
+                    args.Session.Send(memory);
+                    LastException = new Exception("Did not throw on buffer overflow");
+                }
+                catch
+                {
+                    TestComplete.Set();
+                }
+            };
+
+            listener.Start();
+            connector.Connect();
+
+            WaitTestComplete(500);
+        }
     }
 }

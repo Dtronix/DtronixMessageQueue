@@ -100,6 +100,37 @@ namespace DtronixMessageQueue.Tests.Transports
         }
 
         [Test]
+        public void ServerAcceptsConnectionAfterStop()
+        {
+            var (listener, connector) = CreateClientServer();
+            var startCount = 0;
+
+            void OnListenerOnStarted(object sender, EventArgs args)
+            {
+                if (++startCount == 2)
+                {
+                    listener.Started -= OnListenerOnStarted;
+                    connector.Connect();
+                    return;
+                }
+                listener.Stop();
+
+            }
+
+            void OnListenerOnStopped(object sender, EventArgs args)
+            {
+                listener.Start();
+
+            }
+
+            connector.Connected += (sender, args) => TestComplete.Set();
+
+            listener.Started += OnListenerOnStarted;
+            listener.Stopped += OnListenerOnStopped;
+            listener.Start();
+        }
+
+        [Test]
         public void ServerFiresStoppedEvent()
         {
             var (listener, connector) = CreateClientServer();

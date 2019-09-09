@@ -25,14 +25,14 @@ namespace DtronixMessageQueue.Transports.Tcp
 
         }
 
-        public bool IsConnected { get; private set; }
+        public bool IsActive { get; private set; }
 
         public void Connect()
         {
-            if(IsConnected)
+            if(IsActive)
                 throw new InvalidOperationException("Can't connect when client is already connected.");
 
-            IsConnected = true;
+            IsActive = true;
 
             var mainSocket = new Socket(SocketType.Stream, ProtocolType.Tcp);
 
@@ -66,7 +66,7 @@ namespace DtronixMessageQueue.Transports.Tcp
                     }
 
                     session.Connected += (sndr, e) => Connected?.Invoke(sndr, e);
-                    session.Disconnected += (o, eventArgs) => IsConnected = false;
+                    session.Disconnected += (o, eventArgs) => IsActive = false;
 
                     session.Connect();
                 }

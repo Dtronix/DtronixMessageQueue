@@ -23,7 +23,7 @@ namespace DtronixMessageQueue.Transports.Tcp
         
 
         private Socket _mainSocket;
-        private BufferMemoryPool _socketBufferPool;
+        private readonly BufferMemoryPool _socketBufferPool;
 
         /// <summary>
         /// True if the server is listening and accepting connections.  False if the server is closed.

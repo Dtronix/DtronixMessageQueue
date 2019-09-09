@@ -64,6 +64,31 @@ namespace DtronixMessageQueue.Tests.Transports
         }
 
         [Test]
+        public void ClientConnectorConnectsAfterDisconnect()
+        {
+            var (listener, connector) = CreateClientServer();
+            var totalConnections = 0;
+
+            connector.Connected += (sender, args) =>
+            {
+                if (++totalConnections == 2)
+                {
+                    TestComplete.Set();
+                    return;
+                }
+
+                args.Session.Disconnected += (o, eventArgs) => connector.Connect();
+
+                args.Session.Disconnect();
+            };
+
+            listener.Start();
+            connector.Connect();
+            
+            WaitTestComplete();
+        }
+
+        [Test]
         public void ClientConnectorThrowsOnMultipleSimultaneousConnections()
         {
             var connector = CreateClient();
