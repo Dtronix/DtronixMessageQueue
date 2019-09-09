@@ -41,6 +41,7 @@ namespace DtronixMessageQueue.Transports.Tcp
             State = TransportState.Unknown;
             _socket = socket;
             _config = config;
+            _writeSemaphore = new SemaphoreSlim(1,1);
 
             _sendArgs = new TcpTransportAsyncEventArgs(memoryPool);
             _receiveArgs = new TcpTransportAsyncEventArgs(memoryPool);
@@ -225,14 +226,15 @@ namespace DtronixMessageQueue.Transports.Tcp
 
             if (e.BytesTransferred == 0)
             {
-                Received?.Invoke(this, new TransportReceiveEventArgs(null));
+                Disconnect();
                 return;
             }
 
             if (e.BytesTransferred > 0 && e.SocketError == SocketError.Success)
             {
                 // If the session was closed curing the internal receive, don't read any more.
-                Received?.Invoke(this, new TransportReceiveEventArgs(e.MemoryBuffer));
+                Received?.Invoke(this, new TransportReceiveEventArgs(
+                    e.MemoryBuffer.Slice(0, e.BytesTransferred)));
 
                 try
                 {

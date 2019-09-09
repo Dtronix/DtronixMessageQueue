@@ -1,11 +1,10 @@
 ﻿using System;
 using System.Collections.Generic;
-using System.Net;
-using System.Net.Sockets;
 using System.Text;
-using System.Threading;
+using System.Threading.Tasks;
 using DtronixMessageQueue.Transports;
 using DtronixMessageQueue.Transports.Tcp;
+using Microsoft.VisualStudio.TestPlatform.ObjectModel;
 using NUnit.Framework;
 using NUnit.Framework.Internal;
 
@@ -19,7 +18,7 @@ namespace DtronixMessageQueue.Tests.Transports
         [Test]
         public void ListenerStarts()
         {
-            var listener = new TcpTransportListener(Config);
+            var (listener, connector) = CreateClientServer();
 
             listener.Started += (sender, args) => TestComplete.Set();
 
@@ -31,10 +30,7 @@ namespace DtronixMessageQueue.Tests.Transports
         [Test]
         public void ListenerAcceptsNewConnection()
         {
-            
-
-            var listener = new TcpTransportListener(Config);
-            var connector = new TcpTransportClientConnector(Config);
+            var (listener, connector) = CreateClientServer();
 
             listener.Connected += (sender, args) => TestComplete.Set();
 
@@ -43,54 +39,85 @@ namespace DtronixMessageQueue.Tests.Transports
 
             WaitTestComplete();
         }
-    }
 
-    public class TransportTestBase
-    {
-        private Exception _lastException;
-        public ManualResetEventSlim TestComplete { get; set; }
-        public TransportConfig Config { get; set; }
-
-        public Exception LastException
+        [Test]
+        public void ServerDisconnects()
         {
-            get => _lastException;
-            set
-            {
-                _lastException = value;
-                TestComplete.Set();
-            }
-        }
+            var (listener, connector) = CreateClientServer();
 
-        public TransportTestBase()
-        {
-            TestComplete = new ManualResetEventSlim(false);
-            Config = new TransportConfig()
+            connector.Connected += (sender, args) =>
             {
-                Address = $"127.0.0.1:{FreeTcpPort()}",
+                args.Session.Disconnect();
+            };
+            listener.Connected += (sender, args) =>
+            {
+                args.Session.Disconnected += (o, eventArgs) => TestComplete.Set();
+                
             };
 
+            listener.Start();
+            connector.Connect();
+
+            WaitTestComplete();
         }
 
-        public static int FreeTcpPort()
+        [Test]
+        public void ServerStopsAcceptingAtMaxConnections()
         {
-            TcpListener l = new TcpListener(IPAddress.Loopback, 0);
-            l.Start();
-            int port = ((IPEndPoint)l.LocalEndpoint).Port;
-            l.Stop();
-            return port;
+            var (listener, connector1) = CreateClientServer();
+            var connector2 = CreateClient();
+
+            ServerConfig.MaxConnections = 1;
+
+            connector1.Connected += (sender, args) =>
+            {
+                connector2.Connect();
+            };
+
+            connector2.Connected += (sender, args) =>
+            {
+                args.Session.Disconnected += (o, eventArgs) => TestComplete.Set();
+            };
+
+            listener.Started += (sender, args) => connector1.Connect();
+
+            listener.Start();
+            WaitTestComplete();
         }
 
 
-        protected void WaitTestComplete(int time = 1000000)
+
+        [Test]
+        public void ServerListens()
         {
-            if (!TestComplete.Wait(time))
-                throw new TimeoutException($"Test timed out at {time}ms");
+            var (listener, connector) = CreateClientServer();
 
-            if (LastException != null)
-                throw LastException;
-
+            Assert.False(listener.IsListening);
+            listener.Start();
+            Assert.True(listener.IsListening);
+            listener.Stop();
+            Assert.False(listener.IsListening);
         }
 
+        [Test]
+        public void ServerFiresStoppedEvent()
+        {
+            var (listener, connector) = CreateClientServer();
+            listener.Started += (sender, args) => listener.Stop();
+            listener.Stopped += (sender, args) => TestComplete.Set();
+            listener.Start();
 
+            WaitTestComplete();
+        }
+
+        [Test]
+        public void ServerFiresStartedEvent()
+        {
+            var (listener, connector) = CreateClientServer();
+            listener.Started += (sender, args) => TestComplete.Set();
+            listener.Start();
+
+            WaitTestComplete();
+        }
     }
 }

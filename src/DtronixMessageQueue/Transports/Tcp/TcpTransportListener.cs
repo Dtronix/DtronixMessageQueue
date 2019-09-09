@@ -51,6 +51,9 @@ namespace DtronixMessageQueue.Transports.Tcp
         /// <param name="e">The context object to use when issuing the accept operation on the server's listening socket</param>
         private void StartAccept(SocketAsyncEventArgs e)
         {
+            if (!IsListening)
+                return;
+
             if (e == null)
             {
                 e = new SocketAsyncEventArgs();
@@ -120,6 +123,7 @@ namespace DtronixMessageQueue.Transports.Tcp
             finally
             {
                 _mainSocket.Close();
+                _mainSocket = null;
             }
 
             // Invoke the stopped event.
@@ -132,10 +136,8 @@ namespace DtronixMessageQueue.Transports.Tcp
         /// <param name="e">Event args for this event.</param>
         private void AcceptCompleted(SocketAsyncEventArgs e)
         {
-            if (_mainSocket.IsBound == false)
-            {
+            if (!IsListening)
                 return;
-            }
 
             bool maxSessions = false;
 
@@ -156,15 +158,23 @@ namespace DtronixMessageQueue.Transports.Tcp
 
             e.AcceptSocket.NoDelay = true;
 
-            var session = new TcpTransportSession(e.AcceptSocket, _config, _socketBufferPool);
-
             // If we are at max sessions, close the new connection with a connection refused reason.
             if (maxSessions)
             {
-                session.Disconnect();
+                try
+                {
+                    e.AcceptSocket.Disconnect(false);
+                }
+                catch
+                {
+                    // Ignore
+                }
+                
             }
             else
             {
+                var session = new TcpTransportSession(e.AcceptSocket, _config, _socketBufferPool);
+
                 session.Disconnected += (sender, args) => Disconnected?.Invoke(this, args);
                 session.Connected += (sender, args) => Connected?.Invoke(this, args);
                 session.Connect();

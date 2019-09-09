@@ -15,6 +15,8 @@ namespace DtronixMessageQueue.Transports.Tcp
         public event EventHandler<TransportSessionEventArgs> Connected;
         public event EventHandler ConnectionError;
 
+
+
         public TcpTransportClientConnector(TransportConfig config)
         {
             _config = config;
@@ -23,12 +25,18 @@ namespace DtronixMessageQueue.Transports.Tcp
 
         }
 
+        public bool IsConnected { get; private set; }
+
         public void Connect()
         {
+            if(IsConnected)
+                throw new InvalidOperationException("Can't connect when client is already connected.");
+
+            IsConnected = true;
 
             var mainSocket = new Socket(SocketType.Stream, ProtocolType.Tcp);
 
-            var eventArg = new SocketAsyncEventArgs()
+            var eventArg = new SocketAsyncEventArgs
             {
                 RemoteEndPoint = Utilities.CreateIPEndPoint(_config.Address)
             };
@@ -47,9 +55,18 @@ namespace DtronixMessageQueue.Transports.Tcp
                 {
                     // Stop the timeout timer.
                     connectionTimeoutCancellation.Cancel();
-
                     session = new TcpTransportSession(mainSocket, _config, _socketBufferPool);
+
+                    // Determine if the socket gave an error.
+                    if (args.SocketError != SocketError.Success)
+                    {
+                        session.Disconnect();
+
+                        return;
+                    }
+
                     session.Connected += (sndr, e) => Connected?.Invoke(sndr, e);
+                    session.Disconnected += (o, eventArgs) => IsConnected = false;
 
                     session.Connect();
                 }
@@ -69,7 +86,7 @@ namespace DtronixMessageQueue.Transports.Tcp
                 }
 
                 timedOut = true;
-                session.Disconnect();
+                session?.Disconnect();
                 ConnectionError?.Invoke(this, EventArgs.Empty);
 
             }, connectionTimeoutCancellation.Token);

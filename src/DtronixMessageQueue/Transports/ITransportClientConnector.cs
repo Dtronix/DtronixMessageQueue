@@ -7,6 +7,8 @@ namespace DtronixMessageQueue.Transports
         event EventHandler<TransportSessionEventArgs> Connected;
         event EventHandler ConnectionError;
 
+        bool IsConnected { get; }
+
         void Connect();
     }
 }
