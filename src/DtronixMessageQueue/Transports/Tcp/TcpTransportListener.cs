@@ -165,9 +165,9 @@ namespace DtronixMessageQueue.Transports.Tcp
             }
             else
             {
-                session.Connect();
                 session.Disconnected += (sender, args) => Disconnected?.Invoke(this, args);
                 session.Connected += (sender, args) => Connected?.Invoke(this, args);
+                session.Connect();
             }
 
             // Accept the next connection request

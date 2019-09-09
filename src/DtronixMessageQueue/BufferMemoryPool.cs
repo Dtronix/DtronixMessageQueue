@@ -64,20 +64,19 @@ namespace DtronixMessageQueue
             if (_disposed)
                 throw new ObjectDisposedException(nameof(BufferMemoryPool));
 
-            int index;
-            if (_freeIndexPool.TryPop(out var poolIndex))
-            {
-                index = poolIndex;
-            }
-            else
+            var isPooledBuffer = _freeIndexPool.TryPop(out var index);
+
+            if(!isPooledBuffer)
             {
                 if (_rentalIndex + 1 > _totalRentals)
                     throw new Exception("Pool exhausted.");
 
-                index = Interlocked.Increment(ref _rentalIndex);
+                index = _rentalIndex;
             }
 
             var bmo = new BufferMemoryOwner(this, index);
+
+            Interlocked.Increment(ref _rentalIndex);
 
             _rentedBuffers.TryAdd(index, bmo);
 

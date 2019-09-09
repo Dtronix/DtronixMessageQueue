@@ -63,7 +63,7 @@ namespace DtronixMessageQueue.Transports.Tcp
 
         public void Connect()
         {
-            if (State != TransportState.Closed)
+            if (State != TransportState.Unknown)
                 return;
 
             if (!_socket.ReceiveAsync(_receiveArgs))

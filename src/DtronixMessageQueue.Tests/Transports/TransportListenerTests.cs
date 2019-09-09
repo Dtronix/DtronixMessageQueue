@@ -42,8 +42,6 @@ namespace DtronixMessageQueue.Tests.Transports
             connector.Connect();
 
             WaitTestComplete();
-
-            throw new Exception();
         }
     }
 
@@ -83,7 +81,7 @@ namespace DtronixMessageQueue.Tests.Transports
         }
 
 
-        protected void WaitTestComplete(int time = 100000)
+        protected void WaitTestComplete(int time = 1000000)
         {
             if (!TestComplete.Wait(time))
                 throw new TimeoutException($"Test timed out at {time}ms");
