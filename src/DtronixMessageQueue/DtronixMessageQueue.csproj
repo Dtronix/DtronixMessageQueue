@@ -104,6 +104,7 @@
 
   <ItemGroup>
     <Folder Include="MQ\" />
+    <Folder Include="Sockets\Tls\" />
   </ItemGroup>
 
 </Project>
