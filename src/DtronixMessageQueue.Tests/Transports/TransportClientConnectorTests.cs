@@ -36,8 +36,8 @@ namespace DtronixMessageQueue.Tests.Transports
 
             connector.Connected = session =>
             {
-                    session.Disconnected += (o, eventArgs) => TestComplete.Set();
-                };
+                session.Disconnected += (o, eventArgs) => TestComplete.Set();
+            };
             listener.Connected = session =>
             {
                 session.Disconnect();

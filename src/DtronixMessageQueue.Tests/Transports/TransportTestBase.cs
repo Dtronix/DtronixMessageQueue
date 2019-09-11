@@ -34,18 +34,29 @@ namespace DtronixMessageQueue.Tests.Transports
             TestComplete = new ManualResetEventSlim(false);
         }
 
+        public static int port = 25000;
+
         [SetUp]
         public void Init()
         {
+            Thread.Sleep(10);
+
+            int p = Interlocked.Increment(ref port);
             ServerConfig = new TransportConfig
             {
-                Address = $"127.0.0.1:{FreeTcpPort()}",
+                Address = $"127.0.0.1:{p}",
             };
 
             ClientConfig = new TransportConfig()
             {
                 Address = ServerConfig.Address
             };
+        }
+
+        [TearDown]
+        public void Cleanup()
+        {
+            TestComplete.Reset();
         }
 
 
@@ -64,10 +75,6 @@ namespace DtronixMessageQueue.Tests.Transports
             IListener listener = null;
             IClientConnector connector = CreateClient(type);
 
-            if (type == TransportType.Tcp)
-            {
-                
-            }
 
             if (type == TransportType.Tcp)
             {

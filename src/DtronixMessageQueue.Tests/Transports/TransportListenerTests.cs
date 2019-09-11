@@ -75,16 +75,23 @@ namespace DtronixMessageQueue.Tests.Transports
 
             connector1.Connected = session =>
             {
+                Console.WriteLine("Connector 1 connected.  Connector 2 connection started...");
                 connector2.Connect();
             };
 
             connector2.Connected = session =>
             {
+                Console.WriteLine("Connector 2 connected.  Waiting for disconnect...");
                 session.Disconnected += (o, eventArgs) => TestComplete.Set();
             };
 
-            listener.Started += (sender, args) => connector1.Connect();
+            listener.Started += (sender, args) =>
+            {
+                Console.WriteLine("Listener started.");
+                connector1.Connect();
+            };
 
+            Console.WriteLine("Starting test...");
             listener.Start();
             WaitTestComplete();
         }

@@ -12,6 +12,7 @@ namespace DtronixMessageQueue.Sockets
         public Action<ReadOnlyMemory<byte>> Received { get; set; }
         public Action<ISession> Sent { get; set; }
         public event EventHandler<SessionEventArgs> Disconnected;
+
         public event EventHandler<SessionEventArgs> Connected;
 
         public SessionState State => Session.State;
