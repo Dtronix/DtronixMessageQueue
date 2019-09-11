@@ -12,8 +12,6 @@ namespace DtronixMessageQueue.Transports.Tcp
         private readonly TransportConfig _config;
         private BufferMemoryPool _socketBufferPool;
 
-        public event EventHandler<TransportSessionEventArgs> Connected;
-        public event EventHandler ConnectionError;
 
 
 
@@ -25,14 +23,19 @@ namespace DtronixMessageQueue.Transports.Tcp
 
         }
 
-        public bool IsActive { get; private set; }
+        public Action<ISession> Connected { get; set; }
+        public Action ConnectionError { get; set; }
+
+        public ISession Session { get; private set; }
+
+        private bool _connecting;
 
         public void Connect()
         {
-            if(IsActive)
+            if(_connecting)
                 throw new InvalidOperationException("Can't connect when client is already connected.");
 
-            IsActive = true;
+            _connecting = true;
 
             var mainSocket = new Socket(SocketType.Stream, ProtocolType.Tcp);
 
@@ -57,16 +60,26 @@ namespace DtronixMessageQueue.Transports.Tcp
                     connectionTimeoutCancellation.Cancel();
                     session = new TcpTransportSession(mainSocket, _config, _socketBufferPool);
 
+                    SessionCreated?.Invoke(session);
+
                     // Determine if the socket gave an error.
                     if (args.SocketError != SocketError.Success)
                     {
                         session.Disconnect();
-
                         return;
                     }
 
-                    session.Connected += (sndr, e) => Connected?.Invoke(sndr, e);
-                    session.Disconnected += (o, eventArgs) => IsActive = false;
+                    session.Connected += (sndr, e) =>
+                    {
+                        _connecting = false;
+                        Session = e.Session;
+                        Connected?.Invoke(e.Session);
+                    };
+                    session.Disconnected += (sndr, e) =>
+                    {
+                        _connecting = false;
+                        Session = null;
+                    };
 
                     session.Connect();
                 }
@@ -86,10 +99,13 @@ namespace DtronixMessageQueue.Transports.Tcp
                 }
 
                 timedOut = true;
+                _connecting = false;
                 session?.Disconnect();
-                ConnectionError?.Invoke(this, EventArgs.Empty);
+                ConnectionError?.Invoke();
 
             }, connectionTimeoutCancellation.Token);
         }
+
+        public Action<ISession> SessionCreated { get; set; }
     }
 }

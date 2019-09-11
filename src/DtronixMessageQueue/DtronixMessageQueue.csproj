@@ -35,7 +35,6 @@
     <Compile Remove="Rpc\SerializationCache.cs" />
     <Compile Remove="Rpc\ServiceMethodCache.cs" />
     <Compile Remove="SessionClosedEventArgs.cs" />
-    <Compile Remove="SessionEventArgs.cs" />
     <Compile Remove="TcpSocket\CloseReason.cs" />
     <Compile Remove="TcpSocket\CustomScheduler.cs" />
     <Compile Remove="TcpSocket\ISetupSocketSession.cs" />
@@ -80,7 +79,6 @@
     <None Include="Rpc\SerializationCache.cs" />
     <None Include="Rpc\ServiceMethodCache.cs" />
     <None Include="SessionClosedEventArgs.cs" />
-    <None Include="SessionEventArgs.cs" />
     <None Include="TcpSocket\CloseReason.cs" />
     <None Include="TcpSocket\CustomScheduler.cs" />
     <None Include="TcpSocket\ISetupSocketSession.cs" />

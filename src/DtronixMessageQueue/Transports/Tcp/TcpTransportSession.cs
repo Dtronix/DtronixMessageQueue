@@ -10,12 +10,14 @@ namespace DtronixMessageQueue.Transports.Tcp
     {
         public Action<ReadOnlyMemory<byte>> Received { get; set; }
 
-        public Action<ITransportSession> Sent { get; set; }
+        public Action<ISession> Sent { get; set; }
 
-        public event EventHandler<TransportSessionEventArgs> Disconnected;
-        public event EventHandler<TransportSessionEventArgs> Connected;
+        public event EventHandler<SessionEventArgs> Disconnected;
+        public event EventHandler<SessionEventArgs> Connected;
 
-        public TransportState State { get; private set; } = TransportState.Unknown;
+        public ISession WrapperSession { get; set; }
+
+        public SessionState State { get; private set; } = SessionState.Unknown;
 
         private readonly Socket _socket;
 
@@ -63,7 +65,7 @@ namespace DtronixMessageQueue.Transports.Tcp
 
         public void Connect()
         {
-            if (State != TransportState.Unknown)
+            if (State != SessionState.Unknown)
                 return;
 
             if (!_socket.ReceiveAsync(_receiveArgs))
@@ -71,9 +73,9 @@ namespace DtronixMessageQueue.Transports.Tcp
                 IoCompleted(this, _receiveArgs);
             }
 
-            State = TransportState.Connected;
+            State = SessionState.Connected;
 
-            Connected?.Invoke(this, new TransportSessionEventArgs(this));
+            Connected?.Invoke(this, new SessionEventArgs(this));
         }
 
         /// <summary>
@@ -83,10 +85,10 @@ namespace DtronixMessageQueue.Transports.Tcp
         /// Excess will be buffered until the next write.
         /// </summary>
         /// <param name="buffer">Buffer to copy and send.</param>
-        public bool Send(ReadOnlyMemory<byte> buffer)
+        public void Send(ReadOnlyMemory<byte> buffer)
         {
             if (_socket == null || _socket.Connected == false)
-                return false;
+                return;
 
             if (buffer.Length > _config.SendAndReceiveBufferSize)
             {
@@ -109,20 +111,17 @@ namespace DtronixMessageQueue.Transports.Tcp
                     // Send process occured synchronously
                     SendComplete(_sendArgs);
                 }
-
-                return true;
             }
             catch (ObjectDisposedException)
             {
                 Disconnect();
-                return false;
             }
         }
 
         public void Disconnect()
         {
             // If this session has already been closed, nothing more to do.
-            if (State == TransportState.Closed)
+            if (State == SessionState.Closed)
                 return;
 
             _config.Logger?.Trace($"Connection closed.");
@@ -142,7 +141,7 @@ namespace DtronixMessageQueue.Transports.Tcp
                 _receiveArgs?.Free();
                 _writeSemaphore?.Dispose();
 
-                State = TransportState.Closed;
+                State = SessionState.Closed;
             }
             catch (Exception)
             {
@@ -153,7 +152,7 @@ namespace DtronixMessageQueue.Transports.Tcp
                 _socket.Close(1000);
             }
 
-            Disconnected?.Invoke(this, new TransportSessionEventArgs(this));
+            Disconnected?.Invoke(this, new SessionEventArgs(this));
         }
 
         /// <summary>
@@ -217,7 +216,7 @@ namespace DtronixMessageQueue.Transports.Tcp
         private void ReceiveComplete(SocketAsyncEventArgs e)
         {
             _config.Logger?.Trace($"Received {e.BytesTransferred} bytes.");
-            if (State == TransportState.Closed)
+            if (State == SessionState.Closed)
                 return;
 
             if (e.BytesTransferred == 0)

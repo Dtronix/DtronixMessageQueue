@@ -1,10 +1,6 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Text;
-
-namespace DtronixMessageQueue.Transports
+﻿namespace DtronixMessageQueue
 {
-    public enum TransportState : byte
+    public enum SessionState : byte
     {
         /// <summary>
         /// State has not been set.

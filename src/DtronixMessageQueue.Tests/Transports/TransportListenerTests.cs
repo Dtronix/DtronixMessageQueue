@@ -15,10 +15,11 @@ namespace DtronixMessageQueue.Tests.Transports
     public class TransportListenerTests : TransportTestBase
     {
 
-        [Test]
-        public void ListenerStarts()
+        [TestCase(TransportType.Tcp)]
+        [TestCase(TransportType.SocketTcp)]
+        public void ListenerStarts(TransportType type)
         {
-            var (listener, connector) = CreateClientServer();
+            var (listener, connector) = CreateClientServer(type);
 
             listener.Started += (sender, args) => TestComplete.Set();
 
@@ -27,12 +28,13 @@ namespace DtronixMessageQueue.Tests.Transports
             WaitTestComplete();
         }
 
-        [Test]
-        public void ListenerAcceptsNewConnection()
+        [TestCase(TransportType.Tcp)]
+        [TestCase(TransportType.SocketTcp)]
+        public void ListenerAcceptsNewConnection(TransportType type)
         {
-            var (listener, connector) = CreateClientServer();
+            var (listener, connector) = CreateClientServer(type);
 
-            listener.Connected += (sender, args) => TestComplete.Set();
+            listener.Connected = session => TestComplete.Set();
 
             listener.Start();
             connector.Connect();
@@ -40,18 +42,19 @@ namespace DtronixMessageQueue.Tests.Transports
             WaitTestComplete();
         }
 
-        [Test]
-        public void ServerDisconnects()
+        [TestCase(TransportType.Tcp)]
+        [TestCase(TransportType.SocketTcp)]
+        public void ServerDisconnects(TransportType type)
         {
-            var (listener, connector) = CreateClientServer();
+            var (listener, connector) = CreateClientServer(type);
 
-            connector.Connected += (sender, args) =>
+            connector.Connected = session =>
             {
-                args.Session.Disconnect();
+                session.Disconnect();
             };
-            listener.Connected += (sender, args) =>
+            listener.Connected = session =>
             {
-                args.Session.Disconnected += (o, eventArgs) => TestComplete.Set();
+                session.Disconnected += (o, eventArgs) => TestComplete.Set();
                 
             };
 
@@ -61,22 +64,23 @@ namespace DtronixMessageQueue.Tests.Transports
             WaitTestComplete();
         }
 
-        [Test]
-        public void ServerStopsAcceptingAtMaxConnections()
+        [TestCase(TransportType.Tcp)]
+        [TestCase(TransportType.SocketTcp)]
+        public void ServerStopsAcceptingAtMaxConnections(TransportType type)
         {
-            var (listener, connector1) = CreateClientServer();
-            var connector2 = CreateClient();
+            var (listener, connector1) = CreateClientServer(type);
+            var connector2 = CreateClient(type);
 
             ServerConfig.MaxConnections = 1;
 
-            connector1.Connected += (sender, args) =>
+            connector1.Connected = session =>
             {
                 connector2.Connect();
             };
 
-            connector2.Connected += (sender, args) =>
+            connector2.Connected = session =>
             {
-                args.Session.Disconnected += (o, eventArgs) => TestComplete.Set();
+                session.Disconnected += (o, eventArgs) => TestComplete.Set();
             };
 
             listener.Started += (sender, args) => connector1.Connect();
@@ -85,12 +89,11 @@ namespace DtronixMessageQueue.Tests.Transports
             WaitTestComplete();
         }
 
-
-
-        [Test]
-        public void ServerListens()
+        [TestCase(TransportType.Tcp)]
+        [TestCase(TransportType.SocketTcp)]
+        public void ServerListens(TransportType type)
         {
-            var (listener, connector) = CreateClientServer();
+            var (listener, connector) = CreateClientServer(type);
 
             Assert.False(listener.IsListening);
             listener.Start();
@@ -99,10 +102,11 @@ namespace DtronixMessageQueue.Tests.Transports
             Assert.False(listener.IsListening);
         }
 
-        [Test]
-        public void ServerAcceptsConnectionAfterStop()
+        [TestCase(TransportType.Tcp)]
+        [TestCase(TransportType.SocketTcp)]
+        public void ServerAcceptsConnectionAfterStop(TransportType type)
         {
-            var (listener, connector) = CreateClientServer();
+            var (listener, connector) = CreateClientServer(type);
             var startCount = 0;
 
             void OnListenerOnStarted(object sender, EventArgs args)
@@ -123,17 +127,18 @@ namespace DtronixMessageQueue.Tests.Transports
 
             }
 
-            connector.Connected += (sender, args) => TestComplete.Set();
+            connector.Connected = session => TestComplete.Set();
 
             listener.Started += OnListenerOnStarted;
             listener.Stopped += OnListenerOnStopped;
             listener.Start();
         }
 
-        [Test]
-        public void ServerFiresStoppedEvent()
+        [TestCase(TransportType.Tcp)]
+        [TestCase(TransportType.SocketTcp)]
+        public void ServerFiresStoppedEvent(TransportType type)
         {
-            var (listener, connector) = CreateClientServer();
+            var (listener, connector) = CreateClientServer(type);
             listener.Started += (sender, args) => listener.Stop();
             listener.Stopped += (sender, args) => TestComplete.Set();
             listener.Start();
@@ -141,10 +146,11 @@ namespace DtronixMessageQueue.Tests.Transports
             WaitTestComplete();
         }
 
-        [Test]
-        public void ServerFiresStartedEvent()
+        [TestCase(TransportType.Tcp)]
+        [TestCase(TransportType.SocketTcp)]
+        public void ServerFiresStartedEvent(TransportType type)
         {
-            var (listener, connector) = CreateClientServer();
+            var (listener, connector) = CreateClientServer(type);
             listener.Started += (sender, args) => TestComplete.Set();
             listener.Start();
 

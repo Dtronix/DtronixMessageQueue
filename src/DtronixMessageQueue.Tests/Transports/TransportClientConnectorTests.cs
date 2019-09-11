@@ -14,12 +14,13 @@ namespace DtronixMessageQueue.Tests.Transports
     public class TransportClientConnectorTests : TransportTestBase
     {
 
-        [Test]
-        public void ClientConnects()
+        [TestCase(TransportType.Tcp)]
+        [TestCase(TransportType.SocketTcp)]
+        public void ClientConnects(TransportType type)
         {
-            var (listener, connector) = CreateClientServer();
+            var (listener, connector) = CreateClientServer(type);
 
-            connector.Connected += (sender, args) => TestComplete.Set();
+            connector.Connected = session => TestComplete.Set();
 
             listener.Start();
             connector.Connect();
@@ -27,18 +28,19 @@ namespace DtronixMessageQueue.Tests.Transports
             WaitTestComplete();
         }
 
-        [Test]
-        public void ClientDisconnects()
+        [TestCase(TransportType.Tcp)]
+        [TestCase(TransportType.SocketTcp)]
+        public void ClientDisconnects(TransportType type)
         {
-            var (listener, connector) = CreateClientServer();
+            var (listener, connector) = CreateClientServer(type);
 
-            connector.Connected += (sender, args) =>
-                {
-                    args.Session.Disconnected += (o, eventArgs) => TestComplete.Set();
-                };
-            listener.Connected += (sender, args) =>
+            connector.Connected = session =>
             {
-                args.Session.Disconnect();
+                    session.Disconnected += (o, eventArgs) => TestComplete.Set();
+                };
+            listener.Connected = session =>
+            {
+                session.Disconnect();
             };
 
             listener.Start();
@@ -47,13 +49,14 @@ namespace DtronixMessageQueue.Tests.Transports
             WaitTestComplete();
         }
 
-        [Test]
-        public void ClientConnectionTimesOut()
+        [TestCase(TransportType.Tcp)]
+        [TestCase(TransportType.SocketTcp)]
+        public void ClientConnectionTimesOut(TransportType type)
         {
-            var (listener, connector) = CreateClientServer();
+            var (listener, connector) = CreateClientServer(type);
             ClientConfig.ConnectionTimeout = 100;
 
-            connector.ConnectionError += (sender, args) =>
+            connector.ConnectionError = () =>
             {
                 TestComplete.Set();
             };
@@ -63,13 +66,14 @@ namespace DtronixMessageQueue.Tests.Transports
             WaitTestComplete();
         }
 
-        [Test]
-        public void ClientConnectorConnectsAfterDisconnect()
+        [TestCase(TransportType.Tcp)]
+        [TestCase(TransportType.SocketTcp)]
+        public void ClientConnectorConnectsAfterDisconnect(TransportType type)
         {
-            var (listener, connector) = CreateClientServer();
+            var (listener, connector) = CreateClientServer(type);
             var totalConnections = 0;
 
-            connector.Connected += (sender, args) =>
+            connector.Connected = session =>
             {
                 if (++totalConnections == 2)
                 {
@@ -77,9 +81,9 @@ namespace DtronixMessageQueue.Tests.Transports
                     return;
                 }
 
-                args.Session.Disconnected += (o, eventArgs) => connector.Connect();
+                session.Disconnected += (o, eventArgs) => connector.Connect();
 
-                args.Session.Disconnect();
+                session.Disconnect();
             };
 
             listener.Start();
@@ -88,10 +92,11 @@ namespace DtronixMessageQueue.Tests.Transports
             WaitTestComplete();
         }
 
-        [Test]
-        public void ClientConnectorThrowsOnMultipleSimultaneousConnections()
+        [TestCase(TransportType.Tcp)]
+        [TestCase(TransportType.SocketTcp)]
+        public void ClientConnectorThrowsOnMultipleSimultaneousConnections(TransportType type)
         {
-            var connector = CreateClient();
+            var connector = CreateClient(type);
             connector.Connect();
 
             Assert.Throws<InvalidOperationException>(() => connector.Connect());

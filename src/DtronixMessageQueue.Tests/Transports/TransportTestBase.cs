@@ -3,6 +3,7 @@ using System.Collections.Concurrent;
 using System.Net;
 using System.Net.Sockets;
 using System.Threading;
+using DtronixMessageQueue.Sockets;
 using DtronixMessageQueue.Transports;
 using DtronixMessageQueue.Transports.Tcp;
 using NUnit.Framework;
@@ -57,27 +58,53 @@ namespace DtronixMessageQueue.Tests.Transports
             return port;
         }
 
-        protected (ITransportListener, ITransportClientConnector) 
+        protected (IListener, IClientConnector) 
             CreateClientServer(TransportType type = TransportType.Tcp)
         {
-            ITransportListener listener = null;
-            ITransportClientConnector connector = CreateClient(type);
+            IListener listener = null;
+            IClientConnector connector = CreateClient(type);
+
+            if (type == TransportType.Tcp)
+            {
+                
+            }
 
             if (type == TransportType.Tcp)
             {
                 listener = new TcpTransportListener(ServerConfig);
             }
+            else if (type == TransportType.SocketTcp)
+            {
+                var factory = new TcpTransportFactory(ServerConfig);
+                listener = new SocketListener(factory);
+            }
+            else
+            {
+                throw new ArgumentOutOfRangeException(nameof(type), type, null);
+            }
 
             return (listener, connector);
         }
 
-        protected ITransportClientConnector CreateClient(TransportType type = TransportType.Tcp)
+
+
+        protected IClientConnector CreateClient(TransportType type = TransportType.Tcp)
         {
-            ITransportClientConnector connector = null;
+            IClientConnector connector = null;
+
 
             if (type == TransportType.Tcp)
             {
                 connector = new TcpTransportClientConnector(ClientConfig);
+            }
+            else if (type == TransportType.SocketTcp)
+            {
+                var factory = new TcpTransportFactory(ClientConfig);
+                connector = new SocketClientConnector(factory);
+            }
+            else
+            {
+                throw new ArgumentOutOfRangeException(nameof(type), type, null);
             }
 
             return connector;

@@ -5,19 +5,13 @@ using System.Text;
 
 namespace DtronixMessageQueue.Transports
 {
-    public interface ITransportSession
+    public interface ITransportSession : ISession
     {
-        Action<ReadOnlyMemory<byte>> Received { get; set; }
-        Action<ITransportSession> Sent { get; set; }
-        event EventHandler<TransportSessionEventArgs> Disconnected;
-        event EventHandler<TransportSessionEventArgs> Connected;
-
-        TransportState State { get; }
-
-
         void Connect();
-        void Disconnect();
 
-        bool Send(ReadOnlyMemory<byte> buffer);
+        /// <summary>
+        /// Contains the session which is 
+        /// </summary>
+        ISession WrapperSession { get; set; }
     }
 }

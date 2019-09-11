@@ -8,7 +8,7 @@ namespace DtronixMessageQueue.Transports.Tcp
 {
     public class TcpTransportListener : ITransportListener
     {
-        private readonly TransportConfig _config;
+        protected readonly TransportConfig Config;
 
         /// <summary>
         /// Set to the max number of connections allowed for the server.
@@ -30,18 +30,21 @@ namespace DtronixMessageQueue.Transports.Tcp
         /// </summary>
         public bool IsListening => _mainSocket?.IsBound ?? false;
 
-        public event EventHandler<TransportSessionEventArgs> Connected;
-        public event EventHandler<TransportSessionEventArgs> Disconnected;
+        public Action<ISession> Connected { get; set; }
+        public Action<ISession> Disconnected { get; set; }
+
+        public Action<ISession> SessionCreated { get; set; }
+
         public event EventHandler Stopped;
         public event EventHandler Started;
 
         public TcpTransportListener(TransportConfig config)
         {
-            _config = config;
+            Config = config;
 
-            var maxConnections = _config.MaxConnections + 1;
+            var maxConnections = Config.MaxConnections + 1;
 
-            _socketBufferPool = new BufferMemoryPool(_config.SendAndReceiveBufferSize, 2 * maxConnections);
+            _socketBufferPool = new BufferMemoryPool(Config.SendAndReceiveBufferSize, 2 * maxConnections);
         }
 
 
@@ -92,12 +95,12 @@ namespace DtronixMessageQueue.Transports.Tcp
             //MainSocket.SetSocketOption(SocketOptionLevel.Socket, SocketOptionName.DontLinger, true);
 
             // Reset the remaining connections.
-            _remainingConnections = _config.MaxConnections;
+            _remainingConnections = Config.MaxConnections;
             
-            _mainSocket.Bind(Utilities.CreateIPEndPoint(_config.Address));
+            _mainSocket.Bind(Utilities.CreateIPEndPoint(Config.Address));
 
             // start the server with a listen backlog.
-            _mainSocket.Listen(_config.ListenerBacklog);
+            _mainSocket.Listen(Config.ListenerBacklog);
 
             // post accepts on the listening socket
             StartAccept(null);
@@ -173,10 +176,12 @@ namespace DtronixMessageQueue.Transports.Tcp
             }
             else
             {
-                var session = new TcpTransportSession(e.AcceptSocket, _config, _socketBufferPool);
+                var session = new TcpTransportSession(e.AcceptSocket, Config, _socketBufferPool);
 
-                session.Disconnected += (sender, args) => Disconnected?.Invoke(this, args);
-                session.Connected += (sender, args) => Connected?.Invoke(this, args);
+                SessionCreated?.Invoke(session);
+
+                session.Disconnected += (sender, args) => Disconnected?.Invoke(args.Session);
+                session.Connected += (sender, args) => Connected?.Invoke(args.Session);
                 session.Connect();
             }
 
