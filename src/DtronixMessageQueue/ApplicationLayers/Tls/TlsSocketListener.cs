@@ -1,7 +1,6 @@
-﻿using System;
-using DtronixMessageQueue.Transports;
+﻿using DtronixMessageQueue.Transports;
 
-namespace DtronixMessageQueue.Sockets.Tls
+namespace DtronixMessageQueue.ApplicationLayers.Tls
 {
     public class TlsSocketListener : SocketListener
     {

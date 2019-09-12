@@ -1,6 +1,4 @@
-﻿using System;
-
-namespace DtronixMessageQueue.Sockets.Tls
+﻿namespace DtronixMessageQueue.ApplicationLayers.Tls
 {
     public class TlsSocketSession : SocketSession
     {

@@ -4,7 +4,7 @@ using System.IO;
 using System.Net;
 using System.Net.Sockets;
 using System.Threading;
-using DtronixMessageQueue.Sockets;
+using DtronixMessageQueue.ApplicationLayers;
 using DtronixMessageQueue.Transports;
 using DtronixMessageQueue.Transports.Tcp;
 using NUnit.Framework;

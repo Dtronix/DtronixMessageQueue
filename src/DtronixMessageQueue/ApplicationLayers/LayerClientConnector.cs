@@ -1,9 +1,7 @@
 ﻿using System;
-using System.Collections.Generic;
-using System.Text;
 using DtronixMessageQueue.Transports;
 
-namespace DtronixMessageQueue.Sockets
+namespace DtronixMessageQueue.ApplicationLayers
 {
     public class SocketClientConnector : IClientConnector
     {
