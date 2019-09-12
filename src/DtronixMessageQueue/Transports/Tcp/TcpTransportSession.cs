@@ -1,8 +1,10 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Net.Sockets;
+using System.Runtime.CompilerServices;
 using System.Text;
 using System.Threading;
+using System.Threading.Tasks;
 
 namespace DtronixMessageQueue.Transports.Tcp
 {
@@ -82,15 +84,37 @@ namespace DtronixMessageQueue.Transports.Tcp
 
             State = SessionState.Connected;
 
-            _config.Logger?.Trace($"{Mode} Session Connected event fired." + (Disconnected == null ? " No Listeners" : ""));
+            _config.Logger?.Trace($"{Mode} Session Connected event fired." +
+                                  (Disconnected == null ? " No Listeners" : ""));
             Connected?.Invoke(this, new SessionEventArgs(this));
 
-            // This will sometimes complete synchronously and receive data before the connected
-            // event is fired.  Connected will need to be called before receiving has started.
-            if (!_socket.ReceiveAsync(_receiveArgs))
+            StartReceive();
+        }
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        private void StartReceive()
+        {
+            try
             {
-                _config.Logger?.Trace($"{Mode} Session receive completed synchronously.");
-                IoCompleted(this, _receiveArgs);
+                // This will sometimes complete synchronously and receive data before the connected
+                // event is fired.  Connected will need to be called before receiving has started.
+                _config.Logger?.Trace($"{Mode} Session starts receiving data.");
+                // Re-setup the receive async call.
+                if (!_socket.ReceiveAsync(_receiveArgs))
+                {
+                    _config.Logger?.Trace($"{Mode} Session receive completed synchronously.");
+                    IoCompleted(this, _receiveArgs);
+                }
+            }
+            catch (ObjectDisposedException e)
+            {
+                _config.Logger?.Trace($"{Mode} Session was closed when receiving data. {e.Message}");
+                Disconnect();
+            }
+            catch (Exception e)
+            {
+                _config.Logger?.Error($"{Mode} Session exception occured while receiving. {e.Message}");
+                Disconnect();
             }
         }
 
@@ -268,24 +292,9 @@ namespace DtronixMessageQueue.Transports.Tcp
             }
 
             _config.Logger?.Trace($"{Mode} Session Received method called." + (Received == null ? " No connected method." : ""));
-            // If the session was closed curing the internal receive, don't read any more.
             Received?.Invoke(e.MemoryBuffer.Slice(0, e.BytesTransferred));
 
-            try
-            {
-                _config.Logger?.Trace($"{Mode} Session starts receiving data.");
-                // Re-setup the receive async call.
-                if (!_socket.ReceiveAsync(e))
-                {
-                    _config.Logger?.Trace($"{Mode} Session receive completed synchronously.");
-                    IoCompleted(this, e);
-                }
-            }
-            catch (ObjectDisposedException ex)
-            {
-                _config.Logger?.Trace($"{Mode} Session was closed when receiving data. {ex.Message}");
-                Disconnect();
-            }
+            StartReceive();
 
         }
     }

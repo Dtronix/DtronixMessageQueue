@@ -40,7 +40,7 @@ namespace DtronixMessageQueue.Tests.Transports
         [SetUp]
         public void Init()
         {
-            Thread.Sleep(10);
+            //Thread.Sleep(10);
 
             Logger = new MqLogger
             {
@@ -49,7 +49,7 @@ namespace DtronixMessageQueue.Tests.Transports
 
             Logger.LogEvent += OnLoggerOnLogEvent;
 
-            int p = Interlocked.Increment(ref port);
+            int p = FreeTcpPort();//Interlocked.Increment(ref port);
 
             ServerConfig = new TransportConfig
             {
@@ -73,7 +73,7 @@ namespace DtronixMessageQueue.Tests.Transports
         public void Cleanup()
         {
             Logger.LogEvent -= OnLoggerOnLogEvent;
-
+            LastException = null;
             TestComplete.Reset();
         }
 
