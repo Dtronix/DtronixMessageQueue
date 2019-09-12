@@ -2,10 +2,10 @@
 
 namespace DtronixMessageQueue.ApplicationLayers.Tls
 {
-    public class TlsSocketListener : SocketListener
+    public class TlsLayerListener : SocketListener
     {
         
-        public TlsSocketListener(ITransportFactory factory)
+        public TlsLayerListener(ITransportFactory factory)
         : base(factory)
         {
 

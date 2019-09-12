@@ -2,9 +2,9 @@
 
 namespace DtronixMessageQueue.ApplicationLayers.Tls
 {
-    public class TlsSocketClientConnector : SocketClientConnector
+    public class TlsLayerClientConnector : SocketClientConnector
     {
-        public TlsSocketClientConnector(ITransportFactory factory)
+        public TlsLayerClientConnector(ITransportFactory factory)
          : base(factory)
         {
         }

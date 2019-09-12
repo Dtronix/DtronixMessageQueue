@@ -1,8 +1,8 @@
 ﻿namespace DtronixMessageQueue.ApplicationLayers.Tls
 {
-    public class TlsSocketSession : SocketSession
+    public class TlsLayerSession : SocketSession
     {
-        public TlsSocketSession(ISession session)
+        public TlsLayerSession(ISession session)
         :base(session)
         {
 
