@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections.Concurrent;
+using System.IO;
 using System.Net;
 using System.Net.Sockets;
 using System.Threading;
@@ -16,7 +17,7 @@ namespace DtronixMessageQueue.Tests.Transports
         public ManualResetEventSlim TestComplete { get; set; }
         public TransportConfig ServerConfig { get; set; }
         public TransportConfig ClientConfig { get; set; }
-
+        protected MqLogger Logger;
         public Exception LastException
         {
             get => _lastException;
@@ -41,21 +42,38 @@ namespace DtronixMessageQueue.Tests.Transports
         {
             Thread.Sleep(10);
 
+            Logger = new MqLogger
+            {
+                MinimumLogLevel = LogEventLevel.Trace
+            };
+
+            Logger.LogEvent += OnLoggerOnLogEvent;
+
             int p = Interlocked.Increment(ref port);
+
             ServerConfig = new TransportConfig
             {
                 Address = $"127.0.0.1:{p}",
+                Logger = Logger
             };
 
-            ClientConfig = new TransportConfig()
+            ClientConfig = new TransportConfig
             {
-                Address = ServerConfig.Address
+                Address = ServerConfig.Address,
+                Logger = Logger
             };
+        }
+
+        private void OnLoggerOnLogEvent(object sender, LogEventArgs args)
+        {
+            Console.WriteLine($"[{args.Level}] {args.Message} ({Path.GetFileNameWithoutExtension(args.Filename)}:{args.SourceLineNumber})");
         }
 
         [TearDown]
         public void Cleanup()
         {
+            Logger.LogEvent -= OnLoggerOnLogEvent;
+
             TestComplete.Reset();
         }
 
@@ -118,7 +136,7 @@ namespace DtronixMessageQueue.Tests.Transports
         }
 
 
-        protected void WaitTestComplete(int time = 1000000)
+        protected void WaitTestComplete(int time = 2000)
         {
             if (!TestComplete.Wait(time))
                 throw new TimeoutException($"Test timed out at {time}ms");

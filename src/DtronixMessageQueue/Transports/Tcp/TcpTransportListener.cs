@@ -176,7 +176,7 @@ namespace DtronixMessageQueue.Transports.Tcp
             }
             else
             {
-                var session = new TcpTransportSession(e.AcceptSocket, Config, _socketBufferPool);
+                var session = new TcpTransportSession(e.AcceptSocket, Config, _socketBufferPool, SessionMode.Server);
 
                 SessionCreated?.Invoke(session);
 

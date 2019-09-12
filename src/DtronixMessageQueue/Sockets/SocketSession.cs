@@ -9,6 +9,8 @@ namespace DtronixMessageQueue.Sockets
     {
         protected readonly ISession Session;
 
+        public SessionMode Mode { get; }
+
         public Action<ReadOnlyMemory<byte>> Received { get; set; }
         public Action<ISession> Sent { get; set; }
         public event EventHandler<SessionEventArgs> Disconnected;
@@ -24,6 +26,8 @@ namespace DtronixMessageQueue.Sockets
             Session.Sent = OnSessionSent;
             Session.Disconnected += OnSessionDisconnected;
             Session.Connected += OnSessionConnected;
+
+            Mode = session.Mode;
         }
 
         protected virtual void OnSessionConnected(object sender, SessionEventArgs e)

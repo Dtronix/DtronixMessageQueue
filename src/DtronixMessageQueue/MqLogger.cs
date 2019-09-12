@@ -16,7 +16,7 @@ namespace DtronixMessageQueue
         /// <summary>
         /// Event called when an event is logged.
         /// </summary>
-        public EventHandler<LogEventArgs> LogEvent;
+        public event EventHandler<LogEventArgs> LogEvent;
 
         /// <summary>
         /// Minimum level of logging.  Discards all lower level log events.

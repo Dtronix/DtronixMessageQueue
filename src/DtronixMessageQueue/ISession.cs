@@ -5,6 +5,9 @@ namespace DtronixMessageQueue
 {
     public interface ISession
     {
+
+        SessionMode Mode { get; }
+
         /// <summary>
         /// Invoked when session has received data from the peer.
         /// </summary>

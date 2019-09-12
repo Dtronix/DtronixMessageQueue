@@ -1,9 +1,9 @@
-﻿namespace DtronixMessageQueue.Transports
+﻿namespace DtronixMessageQueue
 {
     /// <summary>
     /// Mode that the current Socket base is in.
     /// </summary>
-    public enum TransportMode
+    public enum SessionMode
     {
         Unset,
 

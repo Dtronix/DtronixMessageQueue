@@ -22,11 +22,6 @@ namespace DtronixMessageQueue
         public string Message { get; set; }
 
         /// <summary>
-        /// Time the log occurred.
-        /// </summary>
-        public DateTime Time { get; set; }
-
-        /// <summary>
         /// Filename of the logged event.
         /// </summary>
         public string Filename { get; set; }
@@ -40,6 +35,8 @@ namespace DtronixMessageQueue
         /// Line number where the event was logged.
         /// </summary>
         public int SourceLineNumber { get; set; }
+
+        public DateTime Time { get; set; }
 
         public LogEventArgs(LogEventLevel level, string message)
         {

@@ -58,7 +58,7 @@ namespace DtronixMessageQueue.Transports.Tcp
                 {
                     // Stop the timeout timer.
                     connectionTimeoutCancellation.Cancel();
-                    session = new TcpTransportSession(mainSocket, _config, _socketBufferPool);
+                    session = new TcpTransportSession(mainSocket, _config, _socketBufferPool, SessionMode.Client);
 
                     SessionCreated?.Invoke(session);
 

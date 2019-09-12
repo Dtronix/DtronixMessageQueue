@@ -17,6 +17,8 @@ namespace DtronixMessageQueue.Transports.Tcp
 
         public ISession WrapperSession { get; set; }
 
+        public SessionMode Mode { get; }
+
         public SessionState State { get; private set; } = SessionState.Unknown;
 
         private readonly Socket _socket;
@@ -38,11 +40,16 @@ namespace DtronixMessageQueue.Transports.Tcp
         /// </summary>
         private readonly SemaphoreSlim _writeSemaphore;
 
-        public TcpTransportSession(Socket socket, TransportConfig config, BufferMemoryPool memoryPool)
+        public TcpTransportSession(
+            Socket socket, 
+            TransportConfig config, 
+            BufferMemoryPool memoryPool, 
+            SessionMode mode)
         {
             _socket = socket;
             _config = config;
             _writeSemaphore = new SemaphoreSlim(1, 1);
+            Mode = mode;
 
             _sendArgs = new TcpTransportAsyncEventArgs(memoryPool);
             _receiveArgs = new TcpTransportAsyncEventArgs(memoryPool);
@@ -66,16 +73,25 @@ namespace DtronixMessageQueue.Transports.Tcp
         public void Connect()
         {
             if (State != SessionState.Unknown)
-                return;
-
-            if (!_socket.ReceiveAsync(_receiveArgs))
             {
-                IoCompleted(this, _receiveArgs);
+                _config.Logger?.Error($"{Mode} Attempt to connect when session is in {State} state.");
+                return;
             }
+
+            _config.Logger?.Trace($"{Mode} Session starts receiving data.");
 
             State = SessionState.Connected;
 
+            _config.Logger?.Trace($"{Mode} Session Connected event fired." + (Disconnected == null ? " No Listeners" : ""));
             Connected?.Invoke(this, new SessionEventArgs(this));
+
+            // This will sometimes complete synchronously and receive data before the connected
+            // event is fired.  Connected will need to be called before receiving has started.
+            if (!_socket.ReceiveAsync(_receiveArgs))
+            {
+                _config.Logger?.Trace($"{Mode} Session receive completed synchronously.");
+                IoCompleted(this, _receiveArgs);
+            }
         }
 
         /// <summary>
@@ -88,7 +104,10 @@ namespace DtronixMessageQueue.Transports.Tcp
         public void Send(ReadOnlyMemory<byte> buffer)
         {
             if (_socket == null || _socket.Connected == false)
+            {
+                _config.Logger?.Error($"{Mode} Session attempted to send buffer when session is not connected.");
                 return;
+            }
 
             if (buffer.Length > _config.SendAndReceiveBufferSize)
             {
@@ -98,34 +117,41 @@ namespace DtronixMessageQueue.Transports.Tcp
                     $"Sending {buffer.Length} bytes exceeds the SendAndReceiveBufferSize[{_config.SendAndReceiveBufferSize}].");
             }
 
+            _config.Logger?.Trace($"{Mode} Acquiring write semaphore...");
             _writeSemaphore.Wait(-1);
+            _config.Logger?.Trace($"{Mode} Acquired write semaphore.");
 
             var remaining = _sendArgs.Write(buffer);
             _sendArgs.PrepareForSend();
 
             try
             {
+                _config.Logger?.Trace($"{Mode} Session starts sending data.");
                 // Set the data to be sent.
                 if (!_socket.SendAsync(_sendArgs))
                 {
+                    _config.Logger?.Trace($"{Mode} Session completed synchronously.");
                     // Send process occured synchronously
                     SendComplete(_sendArgs);
                 }
             }
-            catch (ObjectDisposedException)
+            catch (ObjectDisposedException e)
             {
+                _config.Logger?.Trace($"{Mode} Session was closed when sending data. {e.Message}");
                 Disconnect();
             }
         }
 
         public void Disconnect()
         {
+            _config.Logger?.Trace($"{Mode} Session Disconnect() called.");
+
             // If this session has already been closed, nothing more to do.
-            if (State == SessionState.Closed)
+            if (State != SessionState.Connected)
+            {
+                _config.Logger?.Error($"{Mode} Session attempted to close when not open.");
                 return;
-
-            _config.Logger?.Trace($"Connection closed.");
-
+            }
 
             _sendArgs.Completed -= IoCompleted;
             _receiveArgs.Completed -= IoCompleted;
@@ -133,25 +159,27 @@ namespace DtronixMessageQueue.Transports.Tcp
             // close the socket associated with the client
             try
             {
+                _config.Logger?.Trace($"{Mode} Attempting to close session socket...");
                 _socket.Shutdown(SocketShutdown.Receive);
                 _socket.Disconnect(false);
-
-
+            }
+            catch (Exception e)
+            {
+                // ignored
+                _config.Logger?.Trace($"{Mode} Session closing error {e}");
+            }
+            finally
+            {
                 _sendArgs?.Free();
                 _receiveArgs?.Free();
                 _writeSemaphore?.Dispose();
 
                 State = SessionState.Closed;
-            }
-            catch (Exception)
-            {
-                // ignored
-            }
-            finally
-            {
                 _socket.Close(1000);
+                _config.Logger?.Trace($"{Mode} Session socket closed.");
             }
 
+            _config.Logger?.Trace($"{Mode} Session Disconnected event fired." + (Disconnected == null ? " No Listeners" : ""));
             Disconnected?.Invoke(this, new SessionEventArgs(this));
         }
 
@@ -179,7 +207,8 @@ namespace DtronixMessageQueue.Transports.Tcp
 
                 default:
                     _config.Logger?.Error(
-                        $"The last operation completed on the socket was not a receive, send connect or disconnect. {e.LastOperation}");
+                        $"{Mode} The last operation completed on the socket was not a receive, send connect or disconnect. {e.LastOperation}");
+                    Disconnect();
                     throw new ArgumentException(
                         "The last operation completed on the socket was not a receive, send connect or disconnect.");
             }
@@ -192,18 +221,21 @@ namespace DtronixMessageQueue.Transports.Tcp
         /// <param name="e">Event args of this action.</param>
         private void SendComplete(SocketAsyncEventArgs e)
         {
+            _config.Logger?.Trace($"{Mode} Session sending completed.");
             if (e.SocketError != SocketError.Success)
             {
+                _config.Logger?.Error($"{Mode} Session sending encountered error. Socket Error: {e.SocketError}.");
                 Disconnect();
             }
 
             // Reset the socket args for sending again.
             _sendArgs.ResetSend();
 
-            _config.Logger?.Trace($" Sending {e.BytesTransferred} bytes complete. Releasing Semaphore...");
+            _config.Logger?.Trace($"{Mode} Sending {e.BytesTransferred} bytes complete. Releasing Semaphore...");
             _writeSemaphore.Release(1);
-            _config.Logger?.Trace("Released semaphore.");
+            _config.Logger?.Trace($"{Mode} Released semaphore.");
 
+            _config.Logger?.Trace($"{Mode} Session Sent method called." + (Sent == null ? " No connected method." : ""));
             Sent?.Invoke(this);
         }
 
@@ -215,43 +247,46 @@ namespace DtronixMessageQueue.Transports.Tcp
         /// <param name="e">Event args of this action.</param>
         private void ReceiveComplete(SocketAsyncEventArgs e)
         {
-            _config.Logger?.Trace($"Received {e.BytesTransferred} bytes.");
-            if (State == SessionState.Closed)
+            _config.Logger?.Trace($"{Mode} Received {e.BytesTransferred} bytes.");
+            if (State != SessionState.Connected)
+            {
+                _config.Logger?.Error($"{Mode} Session receive complete when session is not connected. State: {State}.");
                 return;
+            }
+
+            if (e.SocketError != SocketError.Success)
+            {
+                _config.Logger?.Error($"{Mode} Session sending encountered error. Socket Error: {e.SocketError}.");
+                Disconnect();
+            }
 
             if (e.BytesTransferred == 0)
             {
+                _config.Logger?.Trace($"{Mode} Received 0 bytes.  Closing session.");
                 Disconnect();
                 return;
             }
 
-            if (e.BytesTransferred > 0 && e.SocketError == SocketError.Success)
-            {
-                // If the session was closed curing the internal receive, don't read any more.
-                Received?.Invoke(e.MemoryBuffer.Slice(0, e.BytesTransferred));
+            _config.Logger?.Trace($"{Mode} Session Received method called." + (Received == null ? " No connected method." : ""));
+            // If the session was closed curing the internal receive, don't read any more.
+            Received?.Invoke(e.MemoryBuffer.Slice(0, e.BytesTransferred));
 
-                try
+            try
+            {
+                _config.Logger?.Trace($"{Mode} Session starts receiving data.");
+                // Re-setup the receive async call.
+                if (!_socket.ReceiveAsync(e))
                 {
-                    // Re-setup the receive async call.
-                    if (!_socket.ReceiveAsync(e))
-                    {
-                        IoCompleted(this, e);
-                    }
-                }
-                catch (ObjectDisposedException)
-                {
-                    Disconnect();
+                    _config.Logger?.Trace($"{Mode} Session receive completed synchronously.");
+                    IoCompleted(this, e);
                 }
             }
-            else
+            catch (ObjectDisposedException ex)
             {
+                _config.Logger?.Trace($"{Mode} Session was closed when receiving data. {ex.Message}");
                 Disconnect();
             }
-        }
 
-        public void Dispose()
-        {
-            Disconnect();
         }
     }
 }
