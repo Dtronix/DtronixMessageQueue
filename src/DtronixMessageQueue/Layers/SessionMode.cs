@@ -1,4 +1,4 @@
-﻿namespace DtronixMessageQueue
+﻿namespace DtronixMessageQueue.Layers
 {
     /// <summary>
     /// Mode that the current Socket base is in.

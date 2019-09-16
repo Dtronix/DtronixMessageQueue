@@ -1,9 +1,6 @@
 ﻿using System;
-using System.Collections.Generic;
-using System.Text;
-using DtronixMessageQueue.Layers;
 
-namespace DtronixMessageQueue
+namespace DtronixMessageQueue.Layers
 {
     public class SessionEventArgs : EventArgs
     {

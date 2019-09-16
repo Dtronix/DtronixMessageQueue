@@ -1,4 +1,4 @@
-﻿namespace DtronixMessageQueue
+﻿namespace DtronixMessageQueue.Layers
 {
     public enum SessionState : byte
     {

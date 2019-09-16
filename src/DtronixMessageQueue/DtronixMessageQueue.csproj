@@ -45,11 +45,6 @@
     <Compile Remove="TcpSocket\TcpSocketSession.cs" />
     <Compile Remove="TcpSocket\TcpSocketSessionCreateArguments.cs" />
     <Compile Remove="TcpSocket\TlsInnerStream.cs" />
-    <Compile Remove="TlsSocket\TlsSocketConfig.cs" />
-    <Compile Remove="TlsSocket\TlsSocketSession.cs" />
-    <Compile Remove="TlsSocket\TlsSocketSessionClosedEventArgs.cs" />
-    <Compile Remove="TlsSocket\TlsSocketSessionCreateArguments.cs" />
-    <Compile Remove="TlsSocket\TlsSocketSessionEventArgs.cs" />
   </ItemGroup>
 
   <ItemGroup>
@@ -78,7 +73,7 @@
     <None Include="Rpc\RpcSession.cs" />
     <None Include="Rpc\SerializationCache.cs" />
     <None Include="Rpc\ServiceMethodCache.cs" />
-    <None Include="SessionClosedEventArgs.cs" />
+    <None Include="Layers\SessionClosedEventArgs.cs" />
     <None Include="TcpSocket\CloseReason.cs" />
     <None Include="TcpSocket\CustomScheduler.cs" />
     <None Include="TcpSocket\ISetupSocketSession.cs" />
@@ -89,11 +84,6 @@
     <None Include="TcpSocket\TcpSocketSession.cs" />
     <None Include="TcpSocket\TcpSocketSessionCreateArguments.cs" />
     <None Include="TcpSocket\TlsInnerStream.cs" />
-    <None Include="TlsSocket\TlsSocketConfig.cs" />
-    <None Include="TlsSocket\TlsSocketSession.cs" />
-    <None Include="TlsSocket\TlsSocketSessionClosedEventArgs.cs" />
-    <None Include="TlsSocket\TlsSocketSessionCreateArguments.cs" />
-    <None Include="TlsSocket\TlsSocketSessionEventArgs.cs" />
   </ItemGroup>
 
   <ItemGroup>

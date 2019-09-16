@@ -1,16 +1,20 @@
-﻿using DtronixMessageQueue.TcpSocket;
+﻿using System;
 
-namespace DtronixMessageQueue.TlsSocket
+namespace DtronixMessageQueue.Layers
 {
     /// <summary>
     /// Event args used when a session is closed.
     /// </summary>
-    public class TlsSocketSessionClosedEventArgs
+    /// <typeparam name="TSession">Session type for this connection.</typeparam>
+    /// <typeparam name="TConfig">Configuration for this connection.</typeparam>
+    public class SessionClosedEventArgs<TSession, TConfig> : EventArgs
+        where TSession : TcpSocketSession<TSession, TConfig>, new()
+        where TConfig : TcpSocketConfig
     {
         /// <summary>
         /// Closed session.
         /// </summary>
-        public TlsSocketSession Session { get; }
+        public TSession Session { get; }
 
         /// <summary>
         /// Reason the session was closed.
@@ -22,7 +26,7 @@ namespace DtronixMessageQueue.TlsSocket
         /// </summary>
         /// <param name="session">Closed session.</param>
         /// <param name="closeReason">Reason the session was closed.</param>
-        public TlsSocketSessionClosedEventArgs(TlsSocketSession session, CloseReason closeReason)
+        public SessionClosedEventArgs(TSession session, CloseReason closeReason)
         {
             Session = session;
             CloseReason = closeReason;

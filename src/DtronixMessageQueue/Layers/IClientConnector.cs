@@ -1,7 +1,6 @@
 ﻿using System;
-using DtronixMessageQueue.Layers;
 
-namespace DtronixMessageQueue
+namespace DtronixMessageQueue.Layers
 {
     public interface IClientConnector
     {
