@@ -16,7 +16,7 @@ namespace DtronixMessageQueue.Tests.Transports
             var (listener, connector) = CreateClientServer(type);
             var memory = new Memory<byte>(new byte[] { 0, 1, 2, 3, 4, 5, 6, 7, 8, 9 });
 
-            listener.Connected = session => { session.Send(memory); };
+            listener.Connected = session => { session.Send(memory, true); };
             connector.Connected = session =>
             {
                 session.Received = buffer =>
@@ -40,7 +40,7 @@ namespace DtronixMessageQueue.Tests.Transports
             int totalReceived = 0;
             listener.Connected = session =>
             {
-                session.Send(memory); 
+                session.Send(memory, true); 
                 session.Disconnect();
             };
             connector.Connected = session =>
@@ -75,9 +75,9 @@ namespace DtronixMessageQueue.Tests.Transports
             {
                 Task.Run(async () =>
                 {
-                    session.Send(memory.Slice(0, 5));
+                    session.Send(memory.Slice(0, 5), true);
                     await Task.Delay(50);
-                    session.Send(memory.Slice(5, 5));
+                    session.Send(memory.Slice(5, 5), true);
                 });
             };
             int totalReceived = 0;
@@ -109,7 +109,7 @@ namespace DtronixMessageQueue.Tests.Transports
             {
                 try
                 {
-                    session.Send(memory);
+                    session.Send(memory, true);
                     LastException = new Exception("Did not throw on buffer overflow");
                 }
                 catch

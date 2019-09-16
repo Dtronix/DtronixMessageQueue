@@ -122,7 +122,8 @@ namespace DtronixMessageQueue.Layers.Transports.Tcp
         /// Excess will be buffered until the next write.
         /// </summary>
         /// <param name="buffer">Buffer to copy and send.</param>
-        public void Send(ReadOnlyMemory<byte> buffer)
+        /// <param name="flush"></param>
+        public void Send(ReadOnlyMemory<byte> buffer, bool flush)
         {
             if (_socket == null || _socket.Connected == false)
             {

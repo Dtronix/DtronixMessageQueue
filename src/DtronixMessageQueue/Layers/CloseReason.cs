@@ -1,4 +1,4 @@
-﻿namespace DtronixMessageQueue.TcpSocket
+﻿namespace DtronixMessageQueue.Layers
 {
     /// <summary>
     /// CloseReason enum

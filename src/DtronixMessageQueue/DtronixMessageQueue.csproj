@@ -74,7 +74,7 @@
     <None Include="Rpc\SerializationCache.cs" />
     <None Include="Rpc\ServiceMethodCache.cs" />
     <None Include="Layers\SessionClosedEventArgs.cs" />
-    <None Include="TcpSocket\CloseReason.cs" />
+    <None Include="Layers\CloseReason.cs" />
     <None Include="TcpSocket\CustomScheduler.cs" />
     <None Include="TcpSocket\ISetupSocketSession.cs" />
     <None Include="TcpSocket\TcpSocketClient.cs" />

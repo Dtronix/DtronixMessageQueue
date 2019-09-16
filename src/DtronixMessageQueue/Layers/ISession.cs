@@ -31,6 +31,12 @@ namespace DtronixMessageQueue.Layers
 
         void Disconnect();
 
-        void Send(ReadOnlyMemory<byte> buffer);
+        /// <summary>
+        /// Send the passed buffer to the current transport.
+        /// </summary>
+        /// <param name="buffer">Buffer of data to send.</param>
+        /// <param name="flush">Send the all the data across the transport immediately if true;
+        /// Otherwise, data could be buffered until next send.</param>
+        void Send(ReadOnlyMemory<byte> buffer, bool flush);
     }
 }

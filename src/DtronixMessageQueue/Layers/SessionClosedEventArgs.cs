@@ -5,16 +5,12 @@ namespace DtronixMessageQueue.Layers
     /// <summary>
     /// Event args used when a session is closed.
     /// </summary>
-    /// <typeparam name="TSession">Session type for this connection.</typeparam>
-    /// <typeparam name="TConfig">Configuration for this connection.</typeparam>
-    public class SessionClosedEventArgs<TSession, TConfig> : EventArgs
-        where TSession : TcpSocketSession<TSession, TConfig>, new()
-        where TConfig : TcpSocketConfig
+    public class SessionClosedEventArgs : EventArgs
     {
         /// <summary>
         /// Closed session.
         /// </summary>
-        public TSession Session { get; }
+        public ISession Session { get; }
 
         /// <summary>
         /// Reason the session was closed.
@@ -26,7 +22,7 @@ namespace DtronixMessageQueue.Layers
         /// </summary>
         /// <param name="session">Closed session.</param>
         /// <param name="closeReason">Reason the session was closed.</param>
-        public SessionClosedEventArgs(TSession session, CloseReason closeReason)
+        public SessionClosedEventArgs(ISession session, CloseReason closeReason)
         {
             Session = session;
             CloseReason = closeReason;

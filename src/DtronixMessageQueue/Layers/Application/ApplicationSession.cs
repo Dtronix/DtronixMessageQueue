@@ -56,9 +56,9 @@ namespace DtronixMessageQueue.Layers.Application
             Session.Disconnect();
         }
 
-        public virtual void Send(ReadOnlyMemory<byte> buffer)
+        public virtual void Send(ReadOnlyMemory<byte> buffer, bool flush)
         {
-            Session.Send(buffer);
+            Session.Send(buffer, flush);
         }
     }
 }
