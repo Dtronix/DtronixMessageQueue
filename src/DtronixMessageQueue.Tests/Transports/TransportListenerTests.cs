@@ -2,8 +2,6 @@
 using System.Collections.Generic;
 using System.Text;
 using System.Threading.Tasks;
-using DtronixMessageQueue.Transports;
-using DtronixMessageQueue.Transports.Tcp;
 using Microsoft.VisualStudio.TestPlatform.ObjectModel;
 using NUnit.Framework;
 using NUnit.Framework.Internal;

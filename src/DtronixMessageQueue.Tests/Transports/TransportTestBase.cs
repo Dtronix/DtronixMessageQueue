@@ -4,9 +4,10 @@ using System.IO;
 using System.Net;
 using System.Net.Sockets;
 using System.Threading;
-using DtronixMessageQueue.ApplicationLayers;
-using DtronixMessageQueue.Transports;
-using DtronixMessageQueue.Transports.Tcp;
+using DtronixMessageQueue.Layers;
+using DtronixMessageQueue.Layers.Application;
+using DtronixMessageQueue.Layers.Transports;
+using DtronixMessageQueue.Layers.Transports.Tcp;
 using NUnit.Framework;
 
 namespace DtronixMessageQueue.Tests.Transports
@@ -101,7 +102,7 @@ namespace DtronixMessageQueue.Tests.Transports
             else if (type == TransportType.SocketTcp)
             {
                 var factory = new TcpTransportFactory(ServerConfig);
-                listener = new SocketListener(factory);
+                listener = new ApplicationListener(factory);
             }
             else
             {
@@ -125,7 +126,7 @@ namespace DtronixMessageQueue.Tests.Transports
             else if (type == TransportType.SocketTcp)
             {
                 var factory = new TcpTransportFactory(ClientConfig);
-                connector = new SocketClientConnector(factory);
+                connector = new ApplicationClientConnector(factory);
             }
             else
             {

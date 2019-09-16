@@ -3,7 +3,6 @@ using System.Buffers;
 using System.Collections.Generic;
 using System.Text;
 using System.Threading.Tasks;
-using DtronixMessageQueue.Transports.Tcp;
 using NUnit.Framework;
 using NUnit.Framework.Internal;
 

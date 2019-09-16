@@ -1,9 +1,9 @@
 ﻿using System;
-using DtronixMessageQueue.Transports;
+using DtronixMessageQueue.Layers.Transports;
 
-namespace DtronixMessageQueue.ApplicationLayers
+namespace DtronixMessageQueue.Layers.Application
 {
-    public class SocketListener : IListener
+    public class ApplicationListener : IListener
     {
         protected readonly IListener Listener;
 
@@ -15,7 +15,7 @@ namespace DtronixMessageQueue.ApplicationLayers
 
         public bool IsListening => Listener.IsListening;
 
-        public SocketListener(ITransportFactory factory)
+        public ApplicationListener(ITransportFactory factory)
         {
             Listener = factory.CreateListener(OnSessionCreated);
 
@@ -30,7 +30,7 @@ namespace DtronixMessageQueue.ApplicationLayers
             if (session is ITransportSession transportSession)
             {
                 // Set the wrapper session to this new socket session.
-                transportSession.WrapperSession = new SocketSession(transportSession);
+                transportSession.WrapperSession = new ApplicationSession(transportSession);
             }
         }
 

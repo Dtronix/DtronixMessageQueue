@@ -1,7 +1,6 @@
 ﻿using System;
-using DtronixMessageQueue.Transports;
 
-namespace DtronixMessageQueue
+namespace DtronixMessageQueue.Layers
 {
     public interface ISession
     {

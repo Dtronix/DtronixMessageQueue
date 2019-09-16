@@ -1,4 +1,4 @@
-﻿using DtronixMessageQueue.Transports;
+﻿using DtronixMessageQueue.Layers.Transports;
 
 namespace DtronixMessageQueue
 {

@@ -1,8 +1,6 @@
 ﻿using System;
-using System.Collections.Generic;
-using System.Text;
 
-namespace DtronixMessageQueue.Transports.Tcp
+namespace DtronixMessageQueue.Layers.Transports.Tcp
 {
     public class TcpTransportFactory : ITransportFactory
     {

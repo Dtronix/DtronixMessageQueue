@@ -1,4 +1,4 @@
-﻿namespace DtronixMessageQueue.Transports
+﻿namespace DtronixMessageQueue.Layers.Transports
 {
     /// <summary>
     /// Configurations for the server/client.

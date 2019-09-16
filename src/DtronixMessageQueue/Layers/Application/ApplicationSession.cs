@@ -1,8 +1,8 @@
 ﻿using System;
 
-namespace DtronixMessageQueue.ApplicationLayers
+namespace DtronixMessageQueue.Layers.Application
 {
-    public class SocketSession : ISession
+    public class ApplicationSession : ISession
     {
         protected readonly ISession Session;
 
@@ -16,7 +16,7 @@ namespace DtronixMessageQueue.ApplicationLayers
 
         public SessionState State => Session.State;
 
-        public SocketSession(ISession session)
+        public ApplicationSession(ISession session)
         {
             Session = session;
             Session.Received = OnSessionReceive;

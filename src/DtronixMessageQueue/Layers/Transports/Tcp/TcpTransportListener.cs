@@ -1,10 +1,7 @@
 ﻿using System;
-using System.Collections.Generic;
-using System.Net;
 using System.Net.Sockets;
-using System.Text;
 
-namespace DtronixMessageQueue.Transports.Tcp
+namespace DtronixMessageQueue.Layers.Transports.Tcp
 {
     public class TcpTransportListener : ITransportListener
     {

@@ -1,9 +1,4 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Net.Sockets;
-using System.Text;
-
-namespace DtronixMessageQueue.Transports
+﻿namespace DtronixMessageQueue.Layers.Transports
 {
     public interface ITransportSession : ISession
     {

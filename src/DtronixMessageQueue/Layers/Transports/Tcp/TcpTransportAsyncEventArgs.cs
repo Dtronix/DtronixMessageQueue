@@ -2,7 +2,7 @@
 using System.Buffers;
 using System.Net.Sockets;
 
-namespace DtronixMessageQueue.Transports.Tcp
+namespace DtronixMessageQueue.Layers.Transports.Tcp
 {
     public class TcpTransportAsyncEventArgs : SocketAsyncEventArgs
     {
