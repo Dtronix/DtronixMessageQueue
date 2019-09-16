@@ -14,7 +14,8 @@ namespace DtronixMessageQueue.Tests.Transports
     {
 
         [TestCase(TransportType.Tcp)]
-        [TestCase(TransportType.SocketTcp)]
+        [TestCase(TransportType.TcpAppliction)]
+        [TestCase(TransportType.TcpTls)]
         public void ClientConnects(TransportType type)
         {
             var (listener, connector) = CreateClientServer(type);
@@ -28,7 +29,8 @@ namespace DtronixMessageQueue.Tests.Transports
         }
 
         [TestCase(TransportType.Tcp)]
-        [TestCase(TransportType.SocketTcp)]
+        [TestCase(TransportType.TcpAppliction)]
+        [TestCase(TransportType.TcpTls)]
         public void ClientDisconnects(TransportType type)
         {
             var (listener, connector) = CreateClientServer(type);
@@ -49,7 +51,8 @@ namespace DtronixMessageQueue.Tests.Transports
         }
 
         [TestCase(TransportType.Tcp)]
-        [TestCase(TransportType.SocketTcp)]
+        [TestCase(TransportType.TcpAppliction)]
+        [TestCase(TransportType.TcpTls)]
         public void ClientConnectionTimesOut(TransportType type)
         {
             var (listener, connector) = CreateClientServer(type);
@@ -66,7 +69,8 @@ namespace DtronixMessageQueue.Tests.Transports
         }
 
         [TestCase(TransportType.Tcp)]
-        [TestCase(TransportType.SocketTcp)]
+        [TestCase(TransportType.TcpAppliction)]
+        [TestCase(TransportType.TcpTls)]
         public void ClientConnectorConnectsAfterDisconnect(TransportType type)
         {
             var (listener, connector) = CreateClientServer(type);
@@ -92,7 +96,8 @@ namespace DtronixMessageQueue.Tests.Transports
         }
 
         [TestCase(TransportType.Tcp)]
-        [TestCase(TransportType.SocketTcp)]
+        [TestCase(TransportType.TcpAppliction)]
+        [TestCase(TransportType.TcpTls)]
         public void ClientConnectorThrowsOnMultipleSimultaneousConnections(TransportType type)
         {
             var connector = CreateClient(type);

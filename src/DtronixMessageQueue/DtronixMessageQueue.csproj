@@ -94,4 +94,10 @@
     <Folder Include="MQ\" />
   </ItemGroup>
 
+  <ItemGroup>
+    <None Update="Cert.pfx">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </None>
+  </ItemGroup>
+
 </Project>

@@ -39,9 +39,7 @@ namespace DtronixMessageQueue.Layers.Transports.Tcp
         {
             Config = config;
 
-            var maxConnections = Config.MaxConnections + 1;
-
-            _socketBufferPool = new BufferMemoryPool(Config.SendAndReceiveBufferSize, 2 * maxConnections);
+            _socketBufferPool = new BufferMemoryPool(Config.SendAndReceiveBufferSize, 2 * (Config.MaxConnections + 1));
         }
 
 

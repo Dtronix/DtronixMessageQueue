@@ -14,7 +14,7 @@ namespace DtronixMessageQueue.Tests.Transports
     {
 
         [TestCase(TransportType.Tcp)]
-        [TestCase(TransportType.SocketTcp)]
+        [TestCase(TransportType.TcpAppliction)]
         public void ListenerStarts(TransportType type)
         {
             var (listener, connector) = CreateClientServer(type);
@@ -27,7 +27,7 @@ namespace DtronixMessageQueue.Tests.Transports
         }
 
         [TestCase(TransportType.Tcp)]
-        [TestCase(TransportType.SocketTcp)]
+        [TestCase(TransportType.TcpAppliction)]
         public void ListenerAcceptsNewConnection(TransportType type)
         {
             var (listener, connector) = CreateClientServer(type);
@@ -41,7 +41,7 @@ namespace DtronixMessageQueue.Tests.Transports
         }
 
         [TestCase(TransportType.Tcp)]
-        [TestCase(TransportType.SocketTcp)]
+        [TestCase(TransportType.TcpAppliction)]
         public void ServerDisconnects(TransportType type)
         {
             var (listener, connector) = CreateClientServer(type);
@@ -63,7 +63,7 @@ namespace DtronixMessageQueue.Tests.Transports
         }
 
         [TestCase(TransportType.Tcp)]
-        [TestCase(TransportType.SocketTcp)]
+        [TestCase(TransportType.TcpAppliction)]
         public void ServerStopsAcceptingAtMaxConnections(TransportType type)
         {
             var (listener, connector1) = CreateClientServer(type);
@@ -95,7 +95,7 @@ namespace DtronixMessageQueue.Tests.Transports
         }
 
         [TestCase(TransportType.Tcp)]
-        [TestCase(TransportType.SocketTcp)]
+        [TestCase(TransportType.TcpAppliction)]
         public void ServerListens(TransportType type)
         {
             var (listener, connector) = CreateClientServer(type);
@@ -108,7 +108,7 @@ namespace DtronixMessageQueue.Tests.Transports
         }
 
         [TestCase(TransportType.Tcp)]
-        [TestCase(TransportType.SocketTcp)]
+        [TestCase(TransportType.TcpAppliction)]
         public void ServerAcceptsConnectionAfterStop(TransportType type)
         {
             var (listener, connector) = CreateClientServer(type);
@@ -140,7 +140,7 @@ namespace DtronixMessageQueue.Tests.Transports
         }
 
         [TestCase(TransportType.Tcp)]
-        [TestCase(TransportType.SocketTcp)]
+        [TestCase(TransportType.TcpAppliction)]
         public void ServerFiresStoppedEvent(TransportType type)
         {
             var (listener, connector) = CreateClientServer(type);
@@ -152,7 +152,7 @@ namespace DtronixMessageQueue.Tests.Transports
         }
 
         [TestCase(TransportType.Tcp)]
-        [TestCase(TransportType.SocketTcp)]
+        [TestCase(TransportType.TcpAppliction)]
         public void ServerFiresStartedEvent(TransportType type)
         {
             var (listener, connector) = CreateClientServer(type);

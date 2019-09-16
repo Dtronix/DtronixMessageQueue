@@ -3,6 +3,7 @@
     public enum TransportType
     {
         Tcp,
-        SocketTcp
+        TcpAppliction,
+        TcpTls
     }
 }

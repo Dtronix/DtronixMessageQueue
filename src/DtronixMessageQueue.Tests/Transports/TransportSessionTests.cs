@@ -10,7 +10,7 @@ namespace DtronixMessageQueue.Tests.Transports
     {
 
         [TestCase(TransportType.Tcp)]
-        [TestCase(TransportType.SocketTcp)]
+        [TestCase(TransportType.TcpAppliction)]
         public void SessionSendsDataAndPeerReceives(TransportType type)
         {
             var (listener, connector) = CreateClientServer(type);
@@ -32,7 +32,7 @@ namespace DtronixMessageQueue.Tests.Transports
         }
 
         [TestCase(TransportType.Tcp)]
-        [TestCase(TransportType.SocketTcp)]
+        [TestCase(TransportType.TcpAppliction)]
         public void SessionSendsDataAndPeerReceivesBeforeDisconnect(TransportType type)
         {
             var (listener, connector) = CreateClientServer(type);
@@ -65,7 +65,7 @@ namespace DtronixMessageQueue.Tests.Transports
         }
 
         [TestCase(TransportType.Tcp)]
-        [TestCase(TransportType.SocketTcp)]
+        [TestCase(TransportType.TcpAppliction)]
         public void SessionSendsDataAndPeerReceivesFragmented(TransportType type)
         {
             var (listener, connector) = CreateClientServer(type);
@@ -99,7 +99,7 @@ namespace DtronixMessageQueue.Tests.Transports
         }
 
         [TestCase(TransportType.Tcp)]
-        [TestCase(TransportType.SocketTcp)]
+        [TestCase(TransportType.TcpAppliction)]
         public void SessionThrowsOnTooLargeSend(TransportType type)
         {
             var (listener, connector) = CreateClientServer(type);
