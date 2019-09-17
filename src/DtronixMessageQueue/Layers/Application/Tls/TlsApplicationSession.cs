@@ -7,9 +7,9 @@ using DtronixMessageQueue.Layers.Transports;
 
 namespace DtronixMessageQueue.Layers.Application.Tls
 {
-    public class TlsLayerSession : ApplicationSession
+    public class TlsApplicationSession : ApplicationSession
     {
-        private readonly TlsLayerConfig _config;
+        private readonly TlsApplicationConfig _config;
         private TlsAuthScheduler _scheduler;
         private TlsInnerStream _innerStream;
         private SslStream _tlsStream;
@@ -18,7 +18,7 @@ namespace DtronixMessageQueue.Layers.Application.Tls
         private IMemoryOwner<byte> _tlsWriteBuffer;
         private X509Certificate _sessionCertificate;
 
-        public TlsLayerSession(ITransportSession transportSession, TlsLayerConfig config, BufferMemoryPool memoryPool, TlsAuthScheduler scheduler)
+        public TlsApplicationSession(ITransportSession transportSession, TlsApplicationConfig config, BufferMemoryPool memoryPool, TlsAuthScheduler scheduler)
         :base(transportSession)
         {
             _config = config;

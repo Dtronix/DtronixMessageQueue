@@ -7,11 +7,11 @@ using DtronixMessageQueue.Layers.Transports;
 
 namespace DtronixMessageQueue.Layers.Application.Transparent
 {
-    public class TransparentLayerSession : ApplicationSession
+    public class TransparentApplicationSession : ApplicationSession
     {
         private readonly ApplicationConfig _config;
 
-        public TransparentLayerSession(ITransportSession transportSession, ApplicationConfig config)
+        public TransparentApplicationSession(ITransportSession transportSession, ApplicationConfig config)
         :base(transportSession)
         {
             _config = config;

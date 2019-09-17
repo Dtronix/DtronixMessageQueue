@@ -3,7 +3,7 @@ using System.Security.Cryptography.X509Certificates;
 
 namespace DtronixMessageQueue.Layers.Application.Tls
 {
-    public class TlsLayerConfig : ApplicationConfig
+    public class TlsApplicationConfig : ApplicationConfig
     {
         public X509Certificate Certificate { get; set; } 
 

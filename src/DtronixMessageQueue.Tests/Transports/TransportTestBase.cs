@@ -23,8 +23,8 @@ namespace DtronixMessageQueue.Tests.Transports
         public ManualResetEventSlim TestComplete { get; set; }
         public TransportConfig ServerConfig { get; set; }
         public TransportConfig ClientConfig { get; set; }
-        public TlsLayerConfig TlsServerConfig { get; set; }
-        public TlsLayerConfig TlsClientConfig { get; set; }
+        public TlsApplicationConfig TlsServerConfig { get; set; }
+        public TlsApplicationConfig TlsClientConfig { get; set; }
         public ApplicationConfig ApplicationClientConfig { get; set; }
         public ApplicationConfig ApplicationServerConfig { get; set; }
 
@@ -92,7 +92,7 @@ namespace DtronixMessageQueue.Tests.Transports
                 Logger = Logger
             };
 
-            TlsClientConfig = new TlsLayerConfig
+            TlsClientConfig = new TlsApplicationConfig
             {
                 Certificate = TlsCertificate,
                 CertificateValidationCallback = (sender, certificate, chain, errors) 
@@ -100,7 +100,7 @@ namespace DtronixMessageQueue.Tests.Transports
                 Logger = Logger
             };
 
-            TlsServerConfig = new TlsLayerConfig
+            TlsServerConfig = new TlsApplicationConfig
             {
                 Certificate = TlsCertificate,
                 CertificateValidationCallback = (sender, certificate, chain, errors)
@@ -163,12 +163,12 @@ namespace DtronixMessageQueue.Tests.Transports
             else if (type == Protocol.TcpTransparent)
             {
                 var factory = new TcpTransportFactory(ServerConfig);
-                listener = new TransparentLayerListener(factory, ApplicationServerConfig);
+                listener = new TransparentApplicationListener(factory, ApplicationServerConfig);
             }
             else if (type == Protocol.TcpTls)
             {
                 var factory = new TcpTransportFactory(ServerConfig);
-                listener = new TlsLayerListener(factory, TlsServerConfig);
+                listener = new TlsApplicationListener(factory, TlsServerConfig);
             }
             else
             {
@@ -194,12 +194,12 @@ namespace DtronixMessageQueue.Tests.Transports
             else if (type == Protocol.TcpTransparent)
             {
                 var factory = new TcpTransportFactory(ClientConfig);
-                connector = new TransparentLayerClientConnector(factory, ApplicationClientConfig);
+                connector = new TransparentApplicationClientConnector(factory, ApplicationClientConfig);
             }
             else if (type == Protocol.TcpTls)
             {
                 var factory = new TcpTransportFactory(ClientConfig);
-                connector = new TlsLayerClientConnector(factory, TlsClientConfig);
+                connector = new TlsApplicationClientConnector(factory, TlsClientConfig);
             }
             else
             {

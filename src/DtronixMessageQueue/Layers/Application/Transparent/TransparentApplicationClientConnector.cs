@@ -2,20 +2,20 @@
 
 namespace DtronixMessageQueue.Layers.Application.Transparent
 {
-    public class TransparentLayerListener : ApplicationListener
+    public class TransparentApplicationClientConnector : ApplicationClientConnector
     {
         private readonly ApplicationConfig _config;
 
-        public TransparentLayerListener(ITransportFactory factory, ApplicationConfig config)
-            : base(factory)
+        public TransparentApplicationClientConnector(ITransportFactory factory, ApplicationConfig config)
+         : base(factory)
         {
             _config = config;
-        }
 
+        }
 
         protected override ApplicationSession CreateSession(ITransportSession session)
         {
-            return new TransparentLayerSession(session, _config);
+            return new TransparentApplicationSession(session, _config);
         }
     }
 }
