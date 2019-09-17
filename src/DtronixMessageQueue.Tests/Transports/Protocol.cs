@@ -1,6 +1,6 @@
 ﻿namespace DtronixMessageQueue.Tests.Transports
 {
-    public enum TransportType
+    public enum Protocol
     {
         Tcp,
         TcpAppliction,

@@ -9,9 +9,10 @@ namespace DtronixMessageQueue.Tests.Transports
     class TransportSessionTests : TransportTestBase
     {
 
-        [TestCase(TransportType.Tcp)]
-        [TestCase(TransportType.TcpAppliction)]
-        public void SessionSendsDataAndPeerReceives(TransportType type)
+        [TestCase(Protocol.Tcp)]
+        [TestCase(Protocol.TcpAppliction)]
+        [TestCase(Protocol.TcpTls)]
+        public void SessionSendsDataAndPeerReceives(Protocol type)
         {
             var (listener, connector) = CreateClientServer(type);
             var memory = new Memory<byte>(new byte[] { 0, 1, 2, 3, 4, 5, 6, 7, 8, 9 });
@@ -31,9 +32,9 @@ namespace DtronixMessageQueue.Tests.Transports
             WaitTestComplete();
         }
 
-        [TestCase(TransportType.Tcp)]
-        [TestCase(TransportType.TcpAppliction)]
-        public void SessionSendsDataAndPeerReceivesBeforeDisconnect(TransportType type)
+        [TestCase(Protocol.Tcp)]
+        [TestCase(Protocol.TcpAppliction)]
+        public void SessionSendsDataAndPeerReceivesBeforeDisconnect(Protocol type)
         {
             var (listener, connector) = CreateClientServer(type);
             var memory = new Memory<byte>(new byte[] { 0, 1, 2, 3, 4, 5, 6, 7, 8, 9 });
@@ -64,9 +65,9 @@ namespace DtronixMessageQueue.Tests.Transports
             WaitTestComplete();
         }
 
-        [TestCase(TransportType.Tcp)]
-        [TestCase(TransportType.TcpAppliction)]
-        public void SessionSendsDataAndPeerReceivesFragmented(TransportType type)
+        [TestCase(Protocol.Tcp)]
+        [TestCase(Protocol.TcpAppliction)]
+        public void SessionSendsDataAndPeerReceivesFragmented(Protocol type)
         {
             var (listener, connector) = CreateClientServer(type);
             var memory = new Memory<byte>(new byte[] { 0, 1, 2, 3, 4, 5, 6, 7, 8, 9 });
@@ -98,9 +99,9 @@ namespace DtronixMessageQueue.Tests.Transports
             WaitTestComplete(500);
         }
 
-        [TestCase(TransportType.Tcp)]
-        [TestCase(TransportType.TcpAppliction)]
-        public void SessionThrowsOnTooLargeSend(TransportType type)
+        [TestCase(Protocol.Tcp)]
+        [TestCase(Protocol.TcpAppliction)]
+        public void SessionThrowsOnTooLargeSend(Protocol type)
         {
             var (listener, connector) = CreateClientServer(type);
             var memory = new Memory<byte>(new byte[ClientConfig.SendAndReceiveBufferSize + 1]);

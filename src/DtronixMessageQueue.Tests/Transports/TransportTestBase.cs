@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Collections;
 using System.Collections.Concurrent;
 using System.IO;
 using System.Net;
@@ -27,6 +28,9 @@ namespace DtronixMessageQueue.Tests.Transports
         public X509Certificate TlsCertificate { get; set; }
         protected MqLogger Logger;
 
+        private ConcurrentBag<IClientConnector> _clientConnectors = new ConcurrentBag<IClientConnector>();
+        private ConcurrentBag<IListener> _listeners = new ConcurrentBag<IListener>();
+
         public RemoteCertificateValidationCallback RemoteCertificateValidationCallback { get; set; }
 
         public Exception LastException
@@ -53,7 +57,7 @@ namespace DtronixMessageQueue.Tests.Transports
         [SetUp]
         public void Init()
         {
-            //Thread.Sleep(10);
+            Thread.Sleep(10);
 
             Logger = new MqLogger
             {
@@ -104,6 +108,21 @@ namespace DtronixMessageQueue.Tests.Transports
             LastException = null;
             RemoteCertificateValidationCallback = null;
             TestComplete.Reset();
+
+            var listeners = _listeners.ToArray();
+            var clientConnectors = _clientConnectors.ToArray();
+
+            foreach (var listener in listeners)
+            {
+                listener.Stop();
+            }
+            foreach (var connector in clientConnectors)
+            {
+                connector.Session?.Disconnect();
+            }
+
+            _clientConnectors.Clear();
+            _listeners.Clear();
         }
 
 
@@ -117,22 +136,22 @@ namespace DtronixMessageQueue.Tests.Transports
         }
 
         protected (IListener, IClientConnector) 
-            CreateClientServer(TransportType type = TransportType.Tcp)
+            CreateClientServer(Protocol type = Protocol.Tcp)
         {
             IListener listener = null;
             IClientConnector connector = CreateClient(type);
 
 
-            if (type == TransportType.Tcp)
+            if (type == Protocol.Tcp)
             {
                 listener = new TcpTransportListener(ServerConfig);
             }
-            else if (type == TransportType.TcpAppliction)
+            else if (type == Protocol.TcpAppliction)
             {
                 var factory = new TcpTransportFactory(ServerConfig);
                 listener = new ApplicationListener(factory);
             }
-            else if (type == TransportType.TcpTls)
+            else if (type == Protocol.TcpTls)
             {
                 var factory = new TcpTransportFactory(ServerConfig);
                 listener = new TlsLayerListener(factory, TlsServerConfig);
@@ -142,26 +161,28 @@ namespace DtronixMessageQueue.Tests.Transports
                 throw new ArgumentOutOfRangeException(nameof(type), type, null);
             }
 
+            _listeners.Add(listener);
+
             return (listener, connector);
         }
 
 
 
-        protected IClientConnector CreateClient(TransportType type = TransportType.Tcp)
+        protected IClientConnector CreateClient(Protocol type = Protocol.Tcp)
         {
             IClientConnector connector = null;
 
 
-            if (type == TransportType.Tcp)
+            if (type == Protocol.Tcp)
             {
                 connector = new TcpTransportClientConnector(ClientConfig);
             }
-            else if (type == TransportType.TcpAppliction)
+            else if (type == Protocol.TcpAppliction)
             {
                 var factory = new TcpTransportFactory(ClientConfig);
                 connector = new ApplicationClientConnector(factory);
             }
-            else if (type == TransportType.TcpTls)
+            else if (type == Protocol.TcpTls)
             {
                 var factory = new TcpTransportFactory(ClientConfig);
                 connector = new TlsLayerClientConnector(factory, TlsClientConfig);
@@ -170,12 +191,14 @@ namespace DtronixMessageQueue.Tests.Transports
             {
                 throw new ArgumentOutOfRangeException(nameof(type), type, null);
             }
+            
+            _clientConnectors.Add(connector);
 
             return connector;
         }
 
 
-        protected void WaitTestComplete(int time = 2000)
+        protected void WaitTestComplete(int time = 200000)
         {
             if (!TestComplete.Wait(time))
                 throw new TimeoutException($"Test timed out at {time}ms");

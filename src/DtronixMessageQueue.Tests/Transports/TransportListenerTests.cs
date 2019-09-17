@@ -13,9 +13,10 @@ namespace DtronixMessageQueue.Tests.Transports
     public class TransportListenerTests : TransportTestBase
     {
 
-        [TestCase(TransportType.Tcp)]
-        [TestCase(TransportType.TcpAppliction)]
-        public void ListenerStarts(TransportType type)
+        [TestCase(Protocol.Tcp)]
+        [TestCase(Protocol.TcpAppliction)]
+        [TestCase(Protocol.TcpTls)]
+        public void ListenerStarts(Protocol type)
         {
             var (listener, connector) = CreateClientServer(type);
 
@@ -26,9 +27,10 @@ namespace DtronixMessageQueue.Tests.Transports
             WaitTestComplete();
         }
 
-        [TestCase(TransportType.Tcp)]
-        [TestCase(TransportType.TcpAppliction)]
-        public void ListenerAcceptsNewConnection(TransportType type)
+        [TestCase(Protocol.Tcp)]
+        [TestCase(Protocol.TcpAppliction)]
+        [TestCase(Protocol.TcpTls)]
+        public void ListenerAcceptsNewConnection(Protocol type)
         {
             var (listener, connector) = CreateClientServer(type);
 
@@ -40,9 +42,10 @@ namespace DtronixMessageQueue.Tests.Transports
             WaitTestComplete();
         }
 
-        [TestCase(TransportType.Tcp)]
-        [TestCase(TransportType.TcpAppliction)]
-        public void ServerDisconnects(TransportType type)
+        [TestCase(Protocol.Tcp)]
+        [TestCase(Protocol.TcpAppliction)]
+        [TestCase(Protocol.TcpTls)]
+        public void ServerDisconnects(Protocol type)
         {
             var (listener, connector) = CreateClientServer(type);
 
@@ -62,9 +65,10 @@ namespace DtronixMessageQueue.Tests.Transports
             WaitTestComplete();
         }
 
-        [TestCase(TransportType.Tcp)]
-        [TestCase(TransportType.TcpAppliction)]
-        public void ServerStopsAcceptingAtMaxConnections(TransportType type)
+        [TestCase(Protocol.Tcp)]
+        [TestCase(Protocol.TcpAppliction)]
+        [TestCase(Protocol.TcpTls)]
+        public void ServerStopsAcceptingAtMaxConnections(Protocol type)
         {
             var (listener, connector1) = CreateClientServer(type);
             var connector2 = CreateClient(type);
@@ -94,9 +98,10 @@ namespace DtronixMessageQueue.Tests.Transports
             WaitTestComplete();
         }
 
-        [TestCase(TransportType.Tcp)]
-        [TestCase(TransportType.TcpAppliction)]
-        public void ServerListens(TransportType type)
+        [TestCase(Protocol.Tcp)]
+        [TestCase(Protocol.TcpAppliction)]
+        [TestCase(Protocol.TcpTls)]
+        public void ServerListens(Protocol type)
         {
             var (listener, connector) = CreateClientServer(type);
 
@@ -107,9 +112,10 @@ namespace DtronixMessageQueue.Tests.Transports
             Assert.False(listener.IsListening);
         }
 
-        [TestCase(TransportType.Tcp)]
-        [TestCase(TransportType.TcpAppliction)]
-        public void ServerAcceptsConnectionAfterStop(TransportType type)
+        [TestCase(Protocol.Tcp)]
+        [TestCase(Protocol.TcpAppliction)]
+        [TestCase(Protocol.TcpTls)]
+        public void ServerAcceptsConnectionAfterStop(Protocol type)
         {
             var (listener, connector) = CreateClientServer(type);
             var startCount = 0;
@@ -137,11 +143,14 @@ namespace DtronixMessageQueue.Tests.Transports
             listener.Started += OnListenerOnStarted;
             listener.Stopped += OnListenerOnStopped;
             listener.Start();
+
+            WaitTestComplete();
         }
 
-        [TestCase(TransportType.Tcp)]
-        [TestCase(TransportType.TcpAppliction)]
-        public void ServerFiresStoppedEvent(TransportType type)
+        [TestCase(Protocol.Tcp)]
+        [TestCase(Protocol.TcpAppliction)]
+        [TestCase(Protocol.TcpTls)]
+        public void ServerFiresStoppedEvent(Protocol type)
         {
             var (listener, connector) = CreateClientServer(type);
             listener.Started += (sender, args) => listener.Stop();
@@ -151,9 +160,10 @@ namespace DtronixMessageQueue.Tests.Transports
             WaitTestComplete();
         }
 
-        [TestCase(TransportType.Tcp)]
-        [TestCase(TransportType.TcpAppliction)]
-        public void ServerFiresStartedEvent(TransportType type)
+        [TestCase(Protocol.Tcp)]
+        [TestCase(Protocol.TcpAppliction)]
+        [TestCase(Protocol.TcpTls)]
+        public void ServerFiresStartedEvent(Protocol type)
         {
             var (listener, connector) = CreateClientServer(type);
             listener.Started += (sender, args) => TestComplete.Set();

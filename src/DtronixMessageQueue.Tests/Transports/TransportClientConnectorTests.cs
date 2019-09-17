@@ -13,10 +13,10 @@ namespace DtronixMessageQueue.Tests.Transports
     public class TransportClientConnectorTests : TransportTestBase
     {
 
-        [TestCase(TransportType.Tcp)]
-        [TestCase(TransportType.TcpAppliction)]
-        [TestCase(TransportType.TcpTls)]
-        public void ClientConnects(TransportType type)
+        [TestCase(Protocol.Tcp)]
+        [TestCase(Protocol.TcpAppliction)]
+        [TestCase(Protocol.TcpTls)]
+        public void ClientConnects(Protocol type)
         {
             var (listener, connector) = CreateClientServer(type);
 
@@ -28,10 +28,10 @@ namespace DtronixMessageQueue.Tests.Transports
             WaitTestComplete();
         }
 
-        [TestCase(TransportType.Tcp)]
-        [TestCase(TransportType.TcpAppliction)]
-        [TestCase(TransportType.TcpTls)]
-        public void ClientDisconnects(TransportType type)
+        [TestCase(Protocol.Tcp)]
+        [TestCase(Protocol.TcpAppliction)]
+        [TestCase(Protocol.TcpTls)]
+        public void ClientDisconnects(Protocol type)
         {
             var (listener, connector) = CreateClientServer(type);
 
@@ -50,10 +50,10 @@ namespace DtronixMessageQueue.Tests.Transports
             WaitTestComplete();
         }
 
-        [TestCase(TransportType.Tcp)]
-        [TestCase(TransportType.TcpAppliction)]
-        [TestCase(TransportType.TcpTls)]
-        public void ClientConnectionTimesOut(TransportType type)
+        [TestCase(Protocol.Tcp)]
+        [TestCase(Protocol.TcpAppliction)]
+        [TestCase(Protocol.TcpTls)]
+        public void ClientConnectionTimesOut(Protocol type)
         {
             var (listener, connector) = CreateClientServer(type);
             ClientConfig.ConnectionTimeout = 100;
@@ -68,10 +68,10 @@ namespace DtronixMessageQueue.Tests.Transports
             WaitTestComplete();
         }
 
-        [TestCase(TransportType.Tcp)]
-        [TestCase(TransportType.TcpAppliction)]
-        [TestCase(TransportType.TcpTls)]
-        public void ClientConnectorConnectsAfterDisconnect(TransportType type)
+        [TestCase(Protocol.Tcp)]
+        [TestCase(Protocol.TcpAppliction)]
+        [TestCase(Protocol.TcpTls)]
+        public void ClientConnectorConnectsAfterDisconnect(Protocol type)
         {
             var (listener, connector) = CreateClientServer(type);
             var totalConnections = 0;
@@ -95,10 +95,10 @@ namespace DtronixMessageQueue.Tests.Transports
             WaitTestComplete();
         }
 
-        [TestCase(TransportType.Tcp)]
-        [TestCase(TransportType.TcpAppliction)]
-        [TestCase(TransportType.TcpTls)]
-        public void ClientConnectorThrowsOnMultipleSimultaneousConnections(TransportType type)
+        [TestCase(Protocol.Tcp)]
+        [TestCase(Protocol.TcpAppliction)]
+        [TestCase(Protocol.TcpTls)]
+        public void ClientConnectorThrowsOnMultipleSimultaneousConnections(Protocol type)
         {
             var connector = CreateClient(type);
             connector.Connect();
