@@ -14,7 +14,7 @@ namespace DtronixMessageQueue.Tests.Transports
     {
 
         [TestCase(Protocol.Tcp)]
-        [TestCase(Protocol.TcpAppliction)]
+        [TestCase(Protocol.TcpTransparent)]
         [TestCase(Protocol.TcpTls)]
         public void ListenerStarts(Protocol type)
         {
@@ -28,13 +28,13 @@ namespace DtronixMessageQueue.Tests.Transports
         }
 
         [TestCase(Protocol.Tcp)]
-        [TestCase(Protocol.TcpAppliction)]
+        [TestCase(Protocol.TcpTransparent)]
         [TestCase(Protocol.TcpTls)]
         public void ListenerAcceptsNewConnection(Protocol type)
         {
             var (listener, connector) = CreateClientServer(type);
 
-            listener.Connected = session => TestComplete.Set();
+            listener.Connected += (o, e) => TestComplete.Set();
 
             listener.Start();
             connector.Connect();
@@ -43,19 +43,19 @@ namespace DtronixMessageQueue.Tests.Transports
         }
 
         [TestCase(Protocol.Tcp)]
-        [TestCase(Protocol.TcpAppliction)]
+        [TestCase(Protocol.TcpTransparent)]
         [TestCase(Protocol.TcpTls)]
         public void ServerDisconnects(Protocol type)
         {
             var (listener, connector) = CreateClientServer(type);
 
-            connector.Connected = session =>
+            connector.Connected += (o, e) =>
             {
-                session.Disconnect();
+                e.Session.Disconnect();
             };
-            listener.Connected = session =>
+            listener.Connected += (o, e) =>
             {
-                session.Disconnected += (o, eventArgs) => TestComplete.Set();
+                e.Session.Disconnected += (o, eventArgs) => TestComplete.Set();
                 
             };
 
@@ -66,7 +66,7 @@ namespace DtronixMessageQueue.Tests.Transports
         }
 
         [TestCase(Protocol.Tcp)]
-        [TestCase(Protocol.TcpAppliction)]
+        [TestCase(Protocol.TcpTransparent)]
         [TestCase(Protocol.TcpTls)]
         public void ServerStopsAcceptingAtMaxConnections(Protocol type)
         {
@@ -75,16 +75,16 @@ namespace DtronixMessageQueue.Tests.Transports
 
             ServerConfig.MaxConnections = 1;
 
-            connector1.Connected = session =>
+            connector1.Connected += (o, e) =>
             {
                 Console.WriteLine("Connector 1 connected.  Connector 2 connection started...");
                 connector2.Connect();
             };
 
-            connector2.Connected = session =>
+            connector2.Connected += (o, e) =>
             {
                 Console.WriteLine("Connector 2 connected.  Waiting for disconnect...");
-                session.Disconnected += (o, eventArgs) => TestComplete.Set();
+                e.Session.Disconnected += (o, eventArgs) => TestComplete.Set();
             };
 
             listener.Started += (sender, args) =>
@@ -99,7 +99,7 @@ namespace DtronixMessageQueue.Tests.Transports
         }
 
         [TestCase(Protocol.Tcp)]
-        [TestCase(Protocol.TcpAppliction)]
+        [TestCase(Protocol.TcpTransparent)]
         [TestCase(Protocol.TcpTls)]
         public void ServerListens(Protocol type)
         {
@@ -113,7 +113,7 @@ namespace DtronixMessageQueue.Tests.Transports
         }
 
         [TestCase(Protocol.Tcp)]
-        [TestCase(Protocol.TcpAppliction)]
+        [TestCase(Protocol.TcpTransparent)]
         [TestCase(Protocol.TcpTls)]
         public void ServerAcceptsConnectionAfterStop(Protocol type)
         {
@@ -138,7 +138,7 @@ namespace DtronixMessageQueue.Tests.Transports
 
             }
 
-            connector.Connected = session => TestComplete.Set();
+            connector.Connected += (o, e) => TestComplete.Set();
 
             listener.Started += OnListenerOnStarted;
             listener.Stopped += OnListenerOnStopped;
@@ -148,7 +148,7 @@ namespace DtronixMessageQueue.Tests.Transports
         }
 
         [TestCase(Protocol.Tcp)]
-        [TestCase(Protocol.TcpAppliction)]
+        [TestCase(Protocol.TcpTransparent)]
         [TestCase(Protocol.TcpTls)]
         public void ServerFiresStoppedEvent(Protocol type)
         {
@@ -161,7 +161,7 @@ namespace DtronixMessageQueue.Tests.Transports
         }
 
         [TestCase(Protocol.Tcp)]
-        [TestCase(Protocol.TcpAppliction)]
+        [TestCase(Protocol.TcpTransparent)]
         [TestCase(Protocol.TcpTls)]
         public void ServerFiresStartedEvent(Protocol type)
         {

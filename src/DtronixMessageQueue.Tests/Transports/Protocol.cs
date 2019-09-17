@@ -3,7 +3,7 @@
     public enum Protocol
     {
         Tcp,
-        TcpAppliction,
+        TcpTransparent,
         TcpTls
     }
 }

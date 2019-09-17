@@ -13,7 +13,7 @@ namespace DtronixMessageQueue.Layers.Transports.Tcp
 
 
 
-        public IListener CreateListener(Action<ISession> onSessionCreated)
+        public IListener CreateListener(Action<ITransportSession> onSessionCreated)
         {
             return new TcpTransportListener(Config)
             {
@@ -21,7 +21,7 @@ namespace DtronixMessageQueue.Layers.Transports.Tcp
             };
         }
 
-        public IClientConnector CreateConnector(Action<ISession> onSessionCreated)
+        public IClientConnector CreateConnector(Action<ITransportSession> onSessionCreated)
         {
             return new TcpTransportClientConnector(Config)
             {

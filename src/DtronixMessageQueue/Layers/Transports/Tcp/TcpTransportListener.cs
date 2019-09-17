@@ -27,10 +27,9 @@ namespace DtronixMessageQueue.Layers.Transports.Tcp
         /// </summary>
         public bool IsListening => _mainSocket?.IsBound ?? false;
 
-        public Action<ISession> Connected { get; set; }
-        public Action<ISession> Disconnected { get; set; }
+        public Action<ITransportSession> SessionCreated { get; set; }
 
-        public Action<ISession> SessionCreated { get; set; }
+        public event EventHandler<SessionEventArgs> Connected;
 
         public event EventHandler Stopped;
         public event EventHandler Started;
@@ -172,16 +171,18 @@ namespace DtronixMessageQueue.Layers.Transports.Tcp
             else
             {
                 var session = new TcpTransportSession(e.AcceptSocket, Config, _socketBufferPool, SessionMode.Server);
-
                 SessionCreated?.Invoke(session);
-
-                session.Disconnected += (sender, args) => Disconnected?.Invoke(args.Session);
-                session.Connected += (sender, args) => Connected?.Invoke(args.Session);
+                session.Connected += OnConnected;
                 session.Connect();
             }
 
             // Accept the next connection request
             StartAccept(e);
+        }
+
+        private void OnConnected(object sender, SessionEventArgs e)
+        {
+            Connected?.Invoke(this, e);
         }
     }
 }

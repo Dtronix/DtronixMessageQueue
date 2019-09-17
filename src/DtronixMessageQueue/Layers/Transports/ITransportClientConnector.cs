@@ -4,6 +4,6 @@ namespace DtronixMessageQueue.Layers.Transports
 {
     interface ITransportClientConnector : IClientConnector
     {
-        Action<ISession> SessionCreated { get; set; }
+        Action<ITransportSession> SessionCreated { get; set; }
     }
 }

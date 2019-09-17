@@ -14,13 +14,13 @@ namespace DtronixMessageQueue.Tests.Transports
     {
 
         [TestCase(Protocol.Tcp)]
-        [TestCase(Protocol.TcpAppliction)]
+        [TestCase(Protocol.TcpTransparent)]
         [TestCase(Protocol.TcpTls)]
         public void ClientConnects(Protocol type)
         {
             var (listener, connector) = CreateClientServer(type);
 
-            connector.Connected = session => TestComplete.Set();
+            connector.Connected += (o, e) => TestComplete.Set();
 
             listener.Start();
             connector.Connect();
@@ -29,19 +29,19 @@ namespace DtronixMessageQueue.Tests.Transports
         }
 
         [TestCase(Protocol.Tcp)]
-        [TestCase(Protocol.TcpAppliction)]
+        [TestCase(Protocol.TcpTransparent)]
         [TestCase(Protocol.TcpTls)]
         public void ClientDisconnects(Protocol type)
         {
             var (listener, connector) = CreateClientServer(type);
 
-            connector.Connected = session =>
+            connector.Connected += (o, e) =>
             {
-                session.Disconnected += (o, eventArgs) => TestComplete.Set();
+                e.Session.Disconnected += (o, eventArgs) => TestComplete.Set();
             };
-            listener.Connected = session =>
+            listener.Connected += (o, e) =>
             {
-                session.Disconnect();
+                e.Session.Disconnect();
             };
 
             listener.Start();
@@ -51,7 +51,7 @@ namespace DtronixMessageQueue.Tests.Transports
         }
 
         [TestCase(Protocol.Tcp)]
-        [TestCase(Protocol.TcpAppliction)]
+        [TestCase(Protocol.TcpTransparent)]
         [TestCase(Protocol.TcpTls)]
         public void ClientConnectionTimesOut(Protocol type)
         {
@@ -69,14 +69,14 @@ namespace DtronixMessageQueue.Tests.Transports
         }
 
         [TestCase(Protocol.Tcp)]
-        [TestCase(Protocol.TcpAppliction)]
+        [TestCase(Protocol.TcpTransparent)]
         [TestCase(Protocol.TcpTls)]
         public void ClientConnectorConnectsAfterDisconnect(Protocol type)
         {
             var (listener, connector) = CreateClientServer(type);
             var totalConnections = 0;
 
-            connector.Connected = session =>
+            connector.Connected += (o, e) =>
             {
                 if (++totalConnections == 2)
                 {
@@ -84,9 +84,9 @@ namespace DtronixMessageQueue.Tests.Transports
                     return;
                 }
 
-                session.Disconnected += (o, eventArgs) => connector.Connect();
+                e.Session.Disconnected += (o, eventArgs) => connector.Connect();
 
-                session.Disconnect();
+                e.Session.Disconnect();
             };
 
             listener.Start();
@@ -96,7 +96,7 @@ namespace DtronixMessageQueue.Tests.Transports
         }
 
         [TestCase(Protocol.Tcp)]
-        [TestCase(Protocol.TcpAppliction)]
+        [TestCase(Protocol.TcpTransparent)]
         [TestCase(Protocol.TcpTls)]
         public void ClientConnectorThrowsOnMultipleSimultaneousConnections(Protocol type)
         {

@@ -11,6 +11,7 @@ namespace DtronixMessageQueue.Layers.Transports.Tcp
         private BufferMemoryPool _socketBufferPool;
 
 
+        public Action<ITransportSession> SessionCreated { get; set; }
 
 
         public TcpTransportClientConnector(TransportConfig config)
@@ -18,10 +19,10 @@ namespace DtronixMessageQueue.Layers.Transports.Tcp
             _config = config;
 
             _socketBufferPool = new BufferMemoryPool(_config.SendAndReceiveBufferSize, 2);
-
         }
 
-        public Action<ISession> Connected { get; set; }
+        public event EventHandler<SessionEventArgs> Connected;
+
         public Action ConnectionError { get; set; }
 
         public ISession Session { get; private set; }
@@ -30,7 +31,7 @@ namespace DtronixMessageQueue.Layers.Transports.Tcp
 
         public void Connect()
         {
-            if(_connecting)
+            if (_connecting)
                 throw new InvalidOperationException("Can't connect when client is already connected.");
 
             _connecting = true;
@@ -52,6 +53,7 @@ namespace DtronixMessageQueue.Layers.Transports.Tcp
                 {
                     return;
                 }
+
                 if (args.LastOperation == SocketAsyncOperation.Connect)
                 {
                     // Stop the timeout timer.
@@ -71,7 +73,7 @@ namespace DtronixMessageQueue.Layers.Transports.Tcp
                     {
                         _connecting = false;
                         Session = e.Session;
-                        Connected?.Invoke(e.Session);
+                        Connected?.Invoke(this, e);
                     };
                     session.Disconnected += (sndr, e) =>
                     {
@@ -100,10 +102,7 @@ namespace DtronixMessageQueue.Layers.Transports.Tcp
                 _connecting = false;
                 session?.Disconnect();
                 ConnectionError?.Invoke();
-
             }, connectionTimeoutCancellation.Token);
         }
-
-        public Action<ISession> SessionCreated { get; set; }
     }
 }

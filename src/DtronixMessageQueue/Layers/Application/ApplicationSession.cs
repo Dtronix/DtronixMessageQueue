@@ -1,10 +1,11 @@
 ﻿using System;
+using DtronixMessageQueue.Layers.Transports;
 
 namespace DtronixMessageQueue.Layers.Application
 {
-    public class ApplicationSession : ISession
+    public abstract class ApplicationSession : ISession
     {
-        protected readonly ISession Session;
+        public ITransportSession TransportSession { get; }
 
         public SessionMode Mode { get; }
 
@@ -14,25 +15,25 @@ namespace DtronixMessageQueue.Layers.Application
 
         public event EventHandler<SessionEventArgs> Connected;
 
-        public SessionState State => Session.State;
+        public SessionState State => TransportSession.State;
 
-        public ApplicationSession(ISession session)
+        protected ApplicationSession(ITransportSession transportSession)
         {
-            Session = session;
-            Session.Received = OnSessionReceive;
-            Session.Sent = OnSessionSent;
-            Session.Disconnected += OnSessionDisconnected;
-            Session.Connected += OnSessionConnected;
+            TransportSession = transportSession;
+            TransportSession.Received = OnSessionReceive;
+            TransportSession.Sent = OnSessionSent;
+            TransportSession.Disconnected += OnTransportSessionDisconnected;
+            TransportSession.Connected += OnTransportSessionConnected;
 
-            Mode = session.Mode;
+            Mode = transportSession.Mode;
         }
 
-        protected virtual void OnSessionConnected(object sender, SessionEventArgs e)
+        protected virtual void OnTransportSessionConnected(object sender, SessionEventArgs e)
         {
             Connected?.Invoke(this, new SessionEventArgs(this));
         }
 
-        protected virtual void OnSessionDisconnected(object sender, SessionEventArgs e)
+        protected virtual void OnTransportSessionDisconnected(object sender, SessionEventArgs e)
         {
             Disconnected?.Invoke(this, new SessionEventArgs(this));
         }
@@ -50,15 +51,15 @@ namespace DtronixMessageQueue.Layers.Application
 
         public virtual void Disconnect()
         {
-            Session.Received = null;
-            Session.Sent = null;
+            TransportSession.Received = null;
+            TransportSession.Sent = null;
 
-            Session.Disconnect();
+            TransportSession.Disconnect();
         }
 
         public virtual void Send(ReadOnlyMemory<byte> buffer, bool flush)
         {
-            Session.Send(buffer, flush);
+            TransportSession.Send(buffer, flush);
         }
     }
 }

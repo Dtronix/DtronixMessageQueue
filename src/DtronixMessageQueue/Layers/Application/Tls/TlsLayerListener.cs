@@ -17,17 +17,9 @@ namespace DtronixMessageQueue.Layers.Application.Tls
         }
 
 
-        protected override void OnSessionCreated(ISession session)
+        protected override ApplicationSession CreateSession(ITransportSession session)
         {
-            if (session is ITransportSession transportSession)
-            {
-                // Set the wrapper session to this new socket session.
-                transportSession.WrapperSession 
-                    = new TlsLayerSession(transportSession, _config, _memoryPool, _tlsAuthScheduler);
-            }
+            return new TlsLayerSession(session, _config, _memoryPool, _tlsAuthScheduler);
         }
-
-
-
     }
 }

@@ -7,7 +7,7 @@ namespace DtronixMessageQueue.Layers
         /// <summary>
         /// Fired when the client establishes a successful connection to a server.
         /// </summary>
-        Action<ISession> Connected { get; set; }
+        event EventHandler<SessionEventArgs> Connected;
 
         /// <summary>
         /// Fired when the connecting client fails to connect to the server.

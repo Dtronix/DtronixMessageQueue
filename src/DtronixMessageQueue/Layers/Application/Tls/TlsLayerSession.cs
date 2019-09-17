@@ -3,6 +3,7 @@ using System.Buffers;
 using System.Net.Security;
 using System.Security.Cryptography.X509Certificates;
 using System.Threading.Tasks;
+using DtronixMessageQueue.Layers.Transports;
 
 namespace DtronixMessageQueue.Layers.Application.Tls
 {
@@ -17,8 +18,8 @@ namespace DtronixMessageQueue.Layers.Application.Tls
         private IMemoryOwner<byte> _tlsWriteBuffer;
         private X509Certificate _sessionCertificate;
 
-        public TlsLayerSession(ISession session, TlsLayerConfig config, BufferMemoryPool memoryPool, TlsAuthScheduler scheduler)
-        :base(session)
+        public TlsLayerSession(ITransportSession transportSession, TlsLayerConfig config, BufferMemoryPool memoryPool, TlsAuthScheduler scheduler)
+        :base(transportSession)
         {
             _config = config;
             _scheduler = scheduler;
@@ -29,7 +30,7 @@ namespace DtronixMessageQueue.Layers.Application.Tls
 
         }
 
-        protected override void OnSessionConnected(object sender, SessionEventArgs e)
+        protected override void OnTransportSessionConnected(object sender, SessionEventArgs e)
         {
             Task.Factory.StartNew(AuthenticateSession, _scheduler);
             // Do not pass on the session connected event until authentication has occured.
@@ -37,12 +38,12 @@ namespace DtronixMessageQueue.Layers.Application.Tls
 
         private async void AuthenticateSession(object obj)
         {
-            if (Session.Mode == SessionMode.Client)
+            if (TransportSession.Mode == SessionMode.Client)
                 await _tlsStream.AuthenticateAsClientAsync("tlstest"); // TODO: Change!
             else
                 await _tlsStream.AuthenticateAsServerAsync(_config.Certificate);
                     
-            base.OnSessionConnected(this, new SessionEventArgs(this));
+            base.OnTransportSessionConnected(this, new SessionEventArgs(this));
         }
 
         protected override async void OnSessionReceive(ReadOnlyMemory<byte> buffer)

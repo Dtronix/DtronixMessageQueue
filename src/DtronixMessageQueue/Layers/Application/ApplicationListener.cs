@@ -1,38 +1,48 @@
 ﻿using System;
+using System.Diagnostics.CodeAnalysis;
 using DtronixMessageQueue.Layers.Transports;
 
 namespace DtronixMessageQueue.Layers.Application
 {
-    public class ApplicationListener : IListener
+    public abstract class ApplicationListener : IListener
     {
         protected readonly IListener Listener;
 
-        public Action<ISession> Connected { get; set; }
-        public Action<ISession> Disconnected { get; set; }
+        public event EventHandler<SessionEventArgs> Connected;
+        public event EventHandler<SessionEventArgs> Disconnected;
 
         public event EventHandler Stopped;
         public event EventHandler Started;
 
         public bool IsListening => Listener.IsListening;
 
-        public ApplicationListener(ITransportFactory factory)
+        protected ApplicationListener(ITransportFactory factory)
         {
             Listener = factory.CreateListener(OnSessionCreated);
-
-            Listener.Connected = OnConnected;
-            Listener.Disconnected = OnDisconnected;
             Listener.Started += OnListenerStarted;
             Listener.Stopped += OnListenerStopped;
         }
 
-        protected virtual void OnSessionCreated(ISession session)
+        private void OnSessionCreated([NotNull] ITransportSession session)
         {
-            if (session is ITransportSession transportSession)
-            {
-                // Set the wrapper session to this new socket session.
-                transportSession.WrapperSession = new ApplicationSession(transportSession);
-            }
+            var appSession = CreateSession(session);
+
+            appSession.Connected += OnConnected;
+            appSession.Disconnected += OnDisconnected;
         }
+
+        protected virtual void OnDisconnected(object sender, SessionEventArgs e)
+        {
+            Disconnected?.Invoke(this, e);
+        }
+
+        protected virtual void OnConnected(object sender, SessionEventArgs e)
+        {
+            Connected?.Invoke(this, e);
+        }
+
+        protected abstract ApplicationSession CreateSession([NotNull] ITransportSession session);
+
 
         protected  virtual void OnListenerStarted(object sender, EventArgs e)
         {
@@ -44,28 +54,12 @@ namespace DtronixMessageQueue.Layers.Application
             Stopped?.Invoke(this, EventArgs.Empty);
         }
 
-        protected virtual void OnDisconnected(ISession session)
-        {
-            if (session is ITransportSession transportSession)
-            {
-                Disconnected?.Invoke(transportSession.WrapperSession);
-            }
-        }
-
-        protected virtual void OnConnected(ISession session)
-        {
-            if (session is ITransportSession transportSession)
-            {
-                Connected?.Invoke(transportSession.WrapperSession);
-            }
-        }
-
-        public void Start()
+        public virtual void Start()
         {
             Listener.Start();
         }
 
-        public void Stop()
+        public virtual void Stop()
         {
             Listener.Stop();
         }

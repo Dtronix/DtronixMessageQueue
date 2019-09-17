@@ -8,12 +8,7 @@ namespace DtronixMessageQueue.Layers
         /// <summary>
         /// Fired when a new client connects.
         /// </summary>
-        Action<ISession> Connected { get; set; }
-
-        /// <summary>
-        /// Fired when a connected client disconnects.
-        /// </summary>
-        Action<ISession> Disconnected { get; set; }
+        event EventHandler<SessionEventArgs> Connected;
 
         /// <summary>
         /// Event invoked when the server has stopped listening for connections and has shut down.

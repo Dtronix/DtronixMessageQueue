@@ -10,6 +10,7 @@ using System.Threading;
 using DtronixMessageQueue.Layers;
 using DtronixMessageQueue.Layers.Application;
 using DtronixMessageQueue.Layers.Application.Tls;
+using DtronixMessageQueue.Layers.Application.Transparent;
 using DtronixMessageQueue.Layers.Transports;
 using DtronixMessageQueue.Layers.Transports.Tcp;
 using NUnit.Framework;
@@ -24,6 +25,9 @@ namespace DtronixMessageQueue.Tests.Transports
         public TransportConfig ClientConfig { get; set; }
         public TlsLayerConfig TlsServerConfig { get; set; }
         public TlsLayerConfig TlsClientConfig { get; set; }
+        public ApplicationConfig ApplicationClientConfig { get; set; }
+        public ApplicationConfig ApplicationServerConfig { get; set; }
+
 
         public X509Certificate TlsCertificate { get; set; }
         protected MqLogger Logger;
@@ -52,8 +56,6 @@ namespace DtronixMessageQueue.Tests.Transports
             
         }
 
-        public static int port = 25000;
-
         [SetUp]
         public void Init()
         {
@@ -80,18 +82,30 @@ namespace DtronixMessageQueue.Tests.Transports
                 Logger = Logger
             };
 
+            ApplicationServerConfig = new ApplicationConfig
+            {
+                Logger = Logger
+            };
+
+            ApplicationClientConfig = new ApplicationConfig
+            {
+                Logger = Logger
+            };
+
             TlsClientConfig = new TlsLayerConfig
             {
                 Certificate = TlsCertificate,
                 CertificateValidationCallback = (sender, certificate, chain, errors) 
-                    => RemoteCertificateValidationCallback(sender, certificate, chain, errors)
+                    => RemoteCertificateValidationCallback(sender, certificate, chain, errors),
+                Logger = Logger
             };
 
             TlsServerConfig = new TlsLayerConfig
             {
                 Certificate = TlsCertificate,
                 CertificateValidationCallback = (sender, certificate, chain, errors)
-                    => RemoteCertificateValidationCallback(sender, certificate, chain, errors)
+                    => RemoteCertificateValidationCallback(sender, certificate, chain, errors),
+                Logger = Logger
             };
         }
 
@@ -146,10 +160,10 @@ namespace DtronixMessageQueue.Tests.Transports
             {
                 listener = new TcpTransportListener(ServerConfig);
             }
-            else if (type == Protocol.TcpAppliction)
+            else if (type == Protocol.TcpTransparent)
             {
                 var factory = new TcpTransportFactory(ServerConfig);
-                listener = new ApplicationListener(factory);
+                listener = new TransparentLayerListener(factory, ApplicationServerConfig);
             }
             else if (type == Protocol.TcpTls)
             {
@@ -177,10 +191,10 @@ namespace DtronixMessageQueue.Tests.Transports
             {
                 connector = new TcpTransportClientConnector(ClientConfig);
             }
-            else if (type == Protocol.TcpAppliction)
+            else if (type == Protocol.TcpTransparent)
             {
                 var factory = new TcpTransportFactory(ClientConfig);
-                connector = new ApplicationClientConnector(factory);
+                connector = new TransparentLayerClientConnector(factory, ApplicationClientConfig);
             }
             else if (type == Protocol.TcpTls)
             {

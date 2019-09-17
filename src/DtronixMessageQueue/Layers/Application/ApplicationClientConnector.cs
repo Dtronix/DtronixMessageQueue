@@ -1,26 +1,25 @@
 ﻿using System;
+using System.Diagnostics.CodeAnalysis;
 using DtronixMessageQueue.Layers.Transports;
 
 namespace DtronixMessageQueue.Layers.Application
 {
-    public class ApplicationClientConnector : IClientConnector
+    public abstract class ApplicationClientConnector : IClientConnector
     {
         protected IClientConnector Connector;
-        protected TransportConfig Config;
 
-        public Action<ISession> Connected { get; set; }
+        public event EventHandler<SessionEventArgs> Connected;
+
         public Action ConnectionError { get; set; }
 
         public ISession Session { get; private set; }
 
 
 
-        public ApplicationClientConnector(ITransportFactory factory)
+        protected ApplicationClientConnector(ITransportFactory factory)
         {
             Connector = factory.CreateConnector(OnSessionCreated);
-            Config = factory.Config;
 
-            Connector.Connected = OnConnected;
             Connector.ConnectionError = OnConnectorConnectionError;
         }
 
@@ -29,23 +28,19 @@ namespace DtronixMessageQueue.Layers.Application
             ConnectionError?.Invoke();
         }
 
-        protected virtual void OnSessionCreated(ISession session)
+        protected abstract ApplicationSession CreateSession([NotNull] ITransportSession session);
+
+        private void OnSessionCreated([NotNull] ITransportSession session)
         {
-            if (session is ITransportSession transportSession)
-            {
-                // Set the wrapper session to this new socket session.
-                transportSession.WrapperSession = new ApplicationSession(transportSession);
-            }
+            var appSession = CreateSession(session);
+
+            appSession.Connected += OnConnected;
         }
 
-
-        protected virtual void OnConnected(ISession session)
+        protected virtual void OnConnected(object sender, SessionEventArgs e)
         {
-            if (session is ITransportSession transportSession)
-            {
-                Session = transportSession.WrapperSession;
-                Connected?.Invoke(transportSession.WrapperSession);
-            }
+            Session = e.Session;
+            Connected?.Invoke(this, e);
         }
 
 
