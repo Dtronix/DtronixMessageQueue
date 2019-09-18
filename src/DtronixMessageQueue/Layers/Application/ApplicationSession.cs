@@ -14,6 +14,7 @@ namespace DtronixMessageQueue.Layers.Application
         public event EventHandler<SessionEventArgs> Disconnected;
 
         public event EventHandler<SessionEventArgs> Connected;
+        public event EventHandler<SessionEventArgs> Ready;
 
         public SessionState State => TransportSession.State;
 
@@ -24,8 +25,14 @@ namespace DtronixMessageQueue.Layers.Application
             TransportSession.Sent = OnSessionSent;
             TransportSession.Disconnected += OnTransportSessionDisconnected;
             TransportSession.Connected += OnTransportSessionConnected;
+            TransportSession.Ready += OnTransportSessionReady;
 
             Mode = transportSession.Mode;
+        }
+
+        protected virtual void OnTransportSessionReady(object sender, SessionEventArgs e)
+        {
+            Ready?.Invoke(this, new SessionEventArgs(this));
         }
 
         protected virtual void OnTransportSessionConnected(object sender, SessionEventArgs e)

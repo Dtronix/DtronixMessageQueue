@@ -27,6 +27,11 @@ namespace DtronixMessageQueue.Layers
         /// </summary>
         event EventHandler<SessionEventArgs> Connected;
 
+        /// <summary>
+        /// Fired when the session is ready to send/receive data.
+        /// </summary>
+        event EventHandler<SessionEventArgs> Ready;
+
         SessionState State { get; }
 
         void Disconnect();

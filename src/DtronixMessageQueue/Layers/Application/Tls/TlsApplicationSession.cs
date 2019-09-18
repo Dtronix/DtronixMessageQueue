@@ -33,7 +33,14 @@ namespace DtronixMessageQueue.Layers.Application.Tls
         protected override void OnTransportSessionConnected(object sender, SessionEventArgs e)
         {
             Task.Factory.StartNew(AuthenticateSession, _scheduler);
-            // Do not pass on the session connected event until authentication has occured.
+
+            // Alert that we are connected, but not ready.
+            base.OnTransportSessionConnected(this, new SessionEventArgs(this));
+        }
+
+        protected override void OnTransportSessionReady(object sender, SessionEventArgs e)
+        {
+            // Do nothing as at this point, we are not authenticated.
         }
 
         private async void AuthenticateSession(object obj)
@@ -43,7 +50,8 @@ namespace DtronixMessageQueue.Layers.Application.Tls
             else
                 await _tlsStream.AuthenticateAsServerAsync(_config.Certificate);
                     
-            base.OnTransportSessionConnected(this, new SessionEventArgs(this));
+
+            base.OnTransportSessionReady(this, new SessionEventArgs(this));
         }
 
         protected override async void OnSessionReceive(ReadOnlyMemory<byte> buffer)

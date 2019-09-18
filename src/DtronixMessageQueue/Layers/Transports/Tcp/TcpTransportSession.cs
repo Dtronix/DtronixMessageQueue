@@ -13,6 +13,7 @@ namespace DtronixMessageQueue.Layers.Transports.Tcp
 
         public event EventHandler<SessionEventArgs> Disconnected;
         public event EventHandler<SessionEventArgs> Connected;
+        public event EventHandler<SessionEventArgs> Ready;
 
         public ISession WrapperSession { get; set; }
 
@@ -83,7 +84,10 @@ namespace DtronixMessageQueue.Layers.Transports.Tcp
 
             _config.Logger?.Trace($"{Mode} Session Connected event fired." +
                                   (Disconnected == null ? " No Listeners" : ""));
+
+            // Functionally, ready and connected function the same in this TCP transport.
             Connected?.Invoke(this, new SessionEventArgs(this));
+            Ready?.Invoke(this, new SessionEventArgs(this));
 
             StartReceive();
         }

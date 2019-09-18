@@ -2,6 +2,7 @@
 using System.Buffers;
 using System.Collections.Generic;
 using System.Text;
+using System.Threading;
 using System.Threading.Tasks;
 using NUnit.Framework;
 using NUnit.Framework.Internal;
@@ -31,7 +32,7 @@ namespace DtronixMessageQueue.Tests.Transports
         [TestCase(Protocol.Tcp)]
         [TestCase(Protocol.TcpTransparent)]
         [TestCase(Protocol.TcpTls)]
-        public void ClientDisconnects(Protocol type)
+        public void ClientDisconnectsOnListenerDisconnection(Protocol type)
         {
             var (listener, connector) = CreateClientServer(type);
 
@@ -39,6 +40,7 @@ namespace DtronixMessageQueue.Tests.Transports
             {
                 e.Session.Disconnected += (o, eventArgs) => TestComplete.Set();
             };
+
             listener.Connected += (o, e) =>
             {
                 e.Session.Disconnect();
