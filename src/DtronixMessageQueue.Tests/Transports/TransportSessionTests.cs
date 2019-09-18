@@ -138,7 +138,7 @@ namespace DtronixMessageQueue.Tests.Transports
             listener.Start();
             connector.Connect();
 
-            WaitTestComplete(500);
+            WaitTestComplete();
         }
     }
 }
