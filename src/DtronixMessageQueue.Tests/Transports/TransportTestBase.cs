@@ -68,7 +68,7 @@ namespace DtronixMessageQueue.Tests.Transports
 
             Logger.LogEvent += OnLoggerOnLogEvent;
 
-            int p = FreeTcpPort();//Interlocked.Increment(ref port);
+            int p = FreeTcpPort(); //Interlocked.Increment(ref port);
 
             ServerConfig = new TransportConfig
             {
@@ -95,7 +95,7 @@ namespace DtronixMessageQueue.Tests.Transports
             TlsClientConfig = new TlsApplicationConfig
             {
                 Certificate = TlsCertificate,
-                CertificateValidationCallback = (sender, certificate, chain, errors) 
+                CertificateValidationCallback = (sender, certificate, chain, errors)
                     => RemoteCertificateValidationCallback(sender, certificate, chain, errors),
                 Logger = Logger
             };
@@ -107,7 +107,9 @@ namespace DtronixMessageQueue.Tests.Transports
                     => RemoteCertificateValidationCallback(sender, certificate, chain, errors),
                 Logger = Logger
             };
-        }
+
+            RemoteCertificateValidationCallback = (sender, certificate, chain, errors) => true;
+    }
 
 
         private void OnLoggerOnLogEvent(object sender, LogEventArgs args)

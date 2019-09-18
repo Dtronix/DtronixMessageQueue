@@ -60,15 +60,6 @@ namespace DtronixMessageQueue.Layers.Transports.Tcp
                     connectionTimeoutCancellation.Cancel();
                     session = new TcpTransportSession(mainSocket, _config, _socketBufferPool, SessionMode.Client);
 
-                    SessionCreated?.Invoke(session);
-
-                    // Determine if the socket gave an error.
-                    if (args.SocketError != SocketError.Success)
-                    {
-                        session.Disconnect();
-                        return;
-                    }
-
                     session.Connected += (sndr, e) =>
                     {
                         _connecting = false;
@@ -80,6 +71,17 @@ namespace DtronixMessageQueue.Layers.Transports.Tcp
                         _connecting = false;
                         Session = null;
                     };
+
+
+                    SessionCreated?.Invoke(session);
+
+                    // Determine if the socket gave an error.
+                    if (args.SocketError != SocketError.Success)
+                    {
+                        session.Disconnect();
+                        return;
+                    }
+
 
                     session.Connect();
                 }

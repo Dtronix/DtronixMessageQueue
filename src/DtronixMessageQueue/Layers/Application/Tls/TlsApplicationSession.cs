@@ -24,7 +24,7 @@ namespace DtronixMessageQueue.Layers.Application.Tls
             _config = config;
             _scheduler = scheduler;
             _innerStream = new TlsInnerStream(OnTlsStreamWrite);
-            _tlsStream = new SslStream(_innerStream, true);
+            _tlsStream = new SslStream(_innerStream, true, _config.CertificateValidationCallback);
             _tlsWriteBuffer = memoryPool.Rent();
             _tlsReadBuffer = memoryPool.Rent();
 
@@ -49,6 +49,10 @@ namespace DtronixMessageQueue.Layers.Application.Tls
         protected override async void OnSessionReceive(ReadOnlyMemory<byte> buffer)
         {
             _innerStream.Received(buffer);
+
+            // If we are not authenticated, then this data should be relegated to the auth process only.
+            if (!_tlsStream.IsAuthenticated)
+                return;
 
             // This can block...
             var read = await _tlsStream.ReadAsync(_tlsReadBuffer.Memory);
