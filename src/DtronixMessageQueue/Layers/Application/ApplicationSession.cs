@@ -5,6 +5,7 @@ namespace DtronixMessageQueue.Layers.Application
 {
     public abstract class ApplicationSession : ISession
     {
+        private readonly ApplicationConfig _config;
         public ITransportSession TransportSession { get; }
 
         public SessionMode Mode { get; }
@@ -18,8 +19,9 @@ namespace DtronixMessageQueue.Layers.Application
 
         public SessionState State => TransportSession.State;
 
-        protected ApplicationSession(ITransportSession transportSession)
+        protected ApplicationSession(ITransportSession transportSession, ApplicationConfig config)
         {
+            _config = config;
             TransportSession = transportSession;
             TransportSession.Received = OnSessionReceive;
             TransportSession.Sent = OnSessionSent;
@@ -32,16 +34,19 @@ namespace DtronixMessageQueue.Layers.Application
 
         protected virtual void OnTransportSessionReady(object sender, SessionEventArgs e)
         {
+            _config.Logger?.Trace($"{Mode} Application Ready.");
             Ready?.Invoke(this, new SessionEventArgs(this));
         }
 
         protected virtual void OnTransportSessionConnected(object sender, SessionEventArgs e)
         {
+            _config.Logger?.Trace($"{Mode} Application Connected.");
             Connected?.Invoke(this, new SessionEventArgs(this));
         }
 
         protected virtual void OnTransportSessionDisconnected(object sender, SessionEventArgs e)
         {
+            _config.Logger?.Trace($"{Mode} Application Disconnected.");
             Disconnected?.Invoke(this, new SessionEventArgs(this));
         }
 
@@ -66,6 +71,7 @@ namespace DtronixMessageQueue.Layers.Application
 
         public virtual void Send(ReadOnlyMemory<byte> buffer, bool flush)
         {
+            _config.Logger?.Trace($"{Mode} Application sent {buffer.Length} bytes. Flush: {flush}");
             TransportSession.Send(buffer, flush);
         }
     }

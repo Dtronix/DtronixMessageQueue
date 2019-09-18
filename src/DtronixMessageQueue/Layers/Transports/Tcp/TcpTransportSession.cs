@@ -259,9 +259,8 @@ namespace DtronixMessageQueue.Layers.Transports.Tcp
 
             _config.Logger?.Trace($"{Mode} Sending {e.BytesTransferred} bytes complete. Releasing Semaphore...");
             _writeSemaphore.Release(1);
-            _config.Logger?.Trace($"{Mode} Released semaphore.");
+            _config.Logger?.Trace($"{Mode} Released semaphore.  Session Sent method called." + (Sent == null ? " No connected method." : ""));
 
-            _config.Logger?.Trace($"{Mode} Session Sent method called." + (Sent == null ? " No connected method." : ""));
             Sent?.Invoke(this);
         }
 

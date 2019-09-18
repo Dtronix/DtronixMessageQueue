@@ -2,6 +2,7 @@
 using System.Buffers;
 using System.Net.Security;
 using System.Security.Cryptography.X509Certificates;
+using System.Threading;
 using System.Threading.Tasks;
 using DtronixMessageQueue.Layers.Transports;
 
@@ -15,17 +16,17 @@ namespace DtronixMessageQueue.Layers.Application.Tls
         private SslStream _tlsStream;
 
         private IMemoryOwner<byte> _tlsReadBuffer;
-        private IMemoryOwner<byte> _tlsWriteBuffer;
         private X509Certificate _sessionCertificate;
 
+        private SemaphoreSlim _authSemaphore = new SemaphoreSlim(0, 1);
+
         public TlsApplicationSession(ITransportSession transportSession, TlsApplicationConfig config, BufferMemoryPool memoryPool, TlsAuthScheduler scheduler)
-        :base(transportSession)
+        :base(transportSession, config)
         {
             _config = config;
             _scheduler = scheduler;
             _innerStream = new TlsInnerStream(OnTlsStreamWrite);
             _tlsStream = new SslStream(_innerStream, true, _config.CertificateValidationCallback);
-            _tlsWriteBuffer = memoryPool.Rent();
             _tlsReadBuffer = memoryPool.Rent();
 
         }
@@ -49,24 +50,47 @@ namespace DtronixMessageQueue.Layers.Application.Tls
                 await _tlsStream.AuthenticateAsClientAsync("tlstest"); // TODO: Change!
             else
                 await _tlsStream.AuthenticateAsServerAsync(_config.Certificate);
-                    
 
+            // Allow reading of data now that the authentication process has completed.
+            _authSemaphore.Release();
+
+            _config.Logger?.Trace($"{Mode} TlsApplication authentication: {_tlsStream.IsAuthenticated}");
             base.OnTransportSessionReady(this, new SessionEventArgs(this));
         }
 
         protected override async void OnSessionReceive(ReadOnlyMemory<byte> buffer)
         {
+            _config.Logger?.Trace($"{Mode} TlsApplication read {buffer.Length} encrypted bytes.");
+
             _innerStream.Received(buffer);
+
+            // If there is not a wait on the inner stream pending, this will mean that the reads are complete
+            // and the authentication process is in progress.  We need to wait for this process to complete
+            // before we can read data.
+            // TODO: Tests for deadlocks.
+            if (!_tlsStream.IsAuthenticated && !_innerStream.IsReadWaiting)
+            {
+                _config.Logger?.Trace($"{Mode} TlsApplication authentication in process of completing.  Semaphore waiting...");
+                await _authSemaphore.WaitAsync();
+                _authSemaphore.Dispose();
+                _authSemaphore = null;
+                _config.Logger?.Trace($"{Mode} TlsApplication authentication semaphore released.");
+            }
 
             // If we are not authenticated, then this data should be relegated to the auth process only.
             if (!_tlsStream.IsAuthenticated)
+            {
+                _config.Logger?.Trace($"{Mode} TlsApplication not authenticated.");
                 return;
+            }
 
             // This can block...
             var read = await _tlsStream.ReadAsync(_tlsReadBuffer.Memory);
 
-            if(read > 0)
-                base.OnSessionReceive(_tlsReadBuffer.Memory);
+            _config.Logger?.Trace($"{Mode} TlsApplication read {read} clear bytes.");
+
+            if (read > 0)
+                base.OnSessionReceive(_tlsReadBuffer.Memory.Slice(0, read));
         }
 
         public override void Send(ReadOnlyMemory<byte> buffer, bool flush)

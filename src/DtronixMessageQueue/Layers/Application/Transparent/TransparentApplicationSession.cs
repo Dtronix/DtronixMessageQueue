@@ -12,7 +12,7 @@ namespace DtronixMessageQueue.Layers.Application.Transparent
         private readonly ApplicationConfig _config;
 
         public TransparentApplicationSession(ITransportSession transportSession, ApplicationConfig config)
-        :base(transportSession)
+        :base(transportSession, config)
         {
             _config = config;
         }

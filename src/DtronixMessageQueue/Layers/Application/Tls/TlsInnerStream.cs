@@ -16,6 +16,8 @@ namespace DtronixMessageQueue.Layers.Application.Tls
 
         private ReadOnlyMemory<byte> _received;
 
+        public bool IsReadWaiting => _receiveSemaphore.CurrentCount == 0;
+
         private SemaphoreSlim _receiveSemaphore = new SemaphoreSlim(0, 1);
 
         internal TlsInnerStream(Action<ReadOnlyMemory<byte>> onWrite)

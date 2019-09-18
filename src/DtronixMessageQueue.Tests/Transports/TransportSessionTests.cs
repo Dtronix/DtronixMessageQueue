@@ -17,13 +17,17 @@ namespace DtronixMessageQueue.Tests.Transports
             var (listener, connector) = CreateClientServer(type);
             var memory = new Memory<byte>(new byte[] { 0, 1, 2, 3, 4, 5, 6, 7, 8, 9 });
 
-            listener.Connected += (o, e) => { e.Session.Send(memory, true); };
+            listener.Connected += (o, e) =>
+            {
+                e.Session.Ready += (sender, args) => e.Session.Send(memory, true);
+            };
             connector.Connected += (o, e) =>
             {
                 e.Session.Received = buffer =>
                 {
                     TestComplete.Set();
                 };
+                e.Session.Ready += (sender, args) => { };
             };
 
             listener.Start();
@@ -34,6 +38,7 @@ namespace DtronixMessageQueue.Tests.Transports
 
         [TestCase(Protocol.Tcp)]
         [TestCase(Protocol.TcpTransparent)]
+        [TestCase(Protocol.TcpTls)]
         public void SessionSendsDataAndPeerReceivesBeforeDisconnect(Protocol type)
         {
             var (listener, connector) = CreateClientServer(type);
@@ -67,6 +72,7 @@ namespace DtronixMessageQueue.Tests.Transports
 
         [TestCase(Protocol.Tcp)]
         [TestCase(Protocol.TcpTransparent)]
+        [TestCase(Protocol.TcpTls)]
         public void SessionSendsDataAndPeerReceivesFragmented(Protocol type)
         {
             var (listener, connector) = CreateClientServer(type);
