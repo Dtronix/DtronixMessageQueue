@@ -46,8 +46,11 @@ namespace DtronixMessageQueue.Tests.Transports
             int totalReceived = 0;
             listener.Connected += (o, e) =>
             {
-                e.Session.Send(memory, true); 
-                e.Session.Disconnect();
+                e.Session.Ready += (sender, args) =>
+                {
+                    e.Session.Send(memory, true);
+                    e.Session.Disconnect();
+                };
             };
             connector.Connected += (o, e) =>
             {
@@ -80,12 +83,15 @@ namespace DtronixMessageQueue.Tests.Transports
 
             listener.Connected += (o, e) =>
             {
-                Task.Run(async () =>
+                e.Session.Ready += (sender, args) =>
                 {
-                    e.Session.Send(memory.Slice(0, 5), true);
-                    await Task.Delay(50);
-                    e.Session.Send(memory.Slice(5, 5), true);
-                });
+                    Task.Run(async () =>
+                    {
+                        e.Session.Send(memory.Slice(0, 5), true);
+                        await Task.Delay(50);
+                        e.Session.Send(memory.Slice(5, 5), true);
+                    });
+                };
             };
             int totalReceived = 0;
             connector.Connected += (o, e) =>
@@ -102,11 +108,12 @@ namespace DtronixMessageQueue.Tests.Transports
             listener.Start();
             connector.Connect();
 
-            WaitTestComplete(500);
+            WaitTestComplete();
         }
 
         [TestCase(Protocol.Tcp)]
         [TestCase(Protocol.TcpTransparent)]
+        [TestCase(Protocol.TcpTls)]
         public void SessionThrowsOnTooLargeSend(Protocol type)
         {
             var (listener, connector) = CreateClientServer(type);
@@ -114,15 +121,18 @@ namespace DtronixMessageQueue.Tests.Transports
 
             listener.Connected += (o, e) =>
             {
-                try
+                e.Session.Ready += (sender, args) =>
                 {
-                    e.Session.Send(memory, true);
-                    LastException = new Exception("Did not throw on buffer overflow");
-                }
-                catch
-                {
-                    TestComplete.Set();
-                }
+                    try
+                    {
+                        e.Session.Send(memory, true);
+                        LastException = new Exception("Did not throw on buffer overflow");
+                    }
+                    catch
+                    {
+                        TestComplete.Set();
+                    }
+                };
             };
 
             listener.Start();

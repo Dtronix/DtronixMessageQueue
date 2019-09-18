@@ -109,7 +109,14 @@ namespace DtronixMessageQueue.Tests.Transports
             };
 
             RemoteCertificateValidationCallback = (sender, certificate, chain, errors) => true;
-    }
+
+            AppDomain.CurrentDomain.UnhandledException +=
+                (sender, args) =>
+                {
+                    LastException = args.ExceptionObject as Exception;
+                    Console.WriteLine(LastException?.StackTrace);
+                };
+        }
 
 
         private void OnLoggerOnLogEvent(object sender, LogEventArgs args)
