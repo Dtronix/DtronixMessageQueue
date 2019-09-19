@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Collections;
 using System.Collections.Concurrent;
+using System.Diagnostics;
 using System.IO;
 using System.Net;
 using System.Net.Security;
@@ -48,12 +49,19 @@ namespace DtronixMessageQueue.Tests.Transports
         }
 
         public static ConcurrentQueue<int> FreePorts = new ConcurrentQueue<int>();
+        private Stopwatch _stopwatch;
 
         public TransportTestBase()
         {
             TestComplete = new ManualResetEventSlim(false);
             TlsCertificate = X509Certificate.CreateFromCertFile("Cert.pfx");
-            
+            _stopwatch = new Stopwatch();
+
+            AppDomain.CurrentDomain.UnhandledException += (sender, args) =>
+            {
+                LastException = args.ExceptionObject as Exception;
+                Console.WriteLine(LastException?.StackTrace);
+            };
         }
 
         [SetUp]
@@ -110,18 +118,13 @@ namespace DtronixMessageQueue.Tests.Transports
 
             RemoteCertificateValidationCallback = (sender, certificate, chain, errors) => true;
 
-            AppDomain.CurrentDomain.UnhandledException +=
-                (sender, args) =>
-                {
-                    LastException = args.ExceptionObject as Exception;
-                    Console.WriteLine(LastException?.StackTrace);
-                };
+            _stopwatch.Restart();
         }
 
 
         private void OnLoggerOnLogEvent(object sender, LogEventArgs args)
         {
-            Console.WriteLine($"[{args.Level}] {args.Message} ({Path.GetFileNameWithoutExtension(args.Filename)}:{args.SourceLineNumber})");
+            Console.WriteLine($"[{(_stopwatch.ElapsedMilliseconds/1000d):00.000}][{args.Level}] {args.Message} ({Path.GetFileNameWithoutExtension(args.Filename)}:{args.SourceLineNumber})");
         }
 
         [TearDown]
