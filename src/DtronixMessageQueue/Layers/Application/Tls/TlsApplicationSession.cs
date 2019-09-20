@@ -39,6 +39,7 @@ namespace DtronixMessageQueue.Layers.Application.Tls
             base.OnTransportSessionConnected(this, new SessionEventArgs(this));
         }
 
+
         protected override void OnTransportSessionReady(object sender, SessionEventArgs e)
         {
             // Do nothing as at this point, we are not authenticated.
@@ -46,21 +47,41 @@ namespace DtronixMessageQueue.Layers.Application.Tls
 
         private async void AuthenticateSession(object obj)
         {
-            if (TransportSession.Mode == SessionMode.Client)
-                await _tlsStream.AuthenticateAsClientAsync("tlstest"); // TODO: Change!
-            else
-                await _tlsStream.AuthenticateAsServerAsync(_config.Certificate);
+            try
+            {
+                if (TransportSession.Mode == SessionMode.Client)
+                    await _tlsStream.AuthenticateAsClientAsync("tlstest"); // TODO: Change!
+                else
+                    await _tlsStream.AuthenticateAsServerAsync(_config.Certificate);
+            }
+            catch (Exception e)
+            {
+               _config.Logger.Warn($"{Mode} TlsApplication authentication failure. {e}");
+            }
 
             // Allow reading of data now that the authentication process has completed.
             _authSemaphore.Release();
 
             _config.Logger?.Trace($"{Mode} TlsApplication authentication: {_tlsStream.IsAuthenticated}");
-            base.OnTransportSessionReady(this, new SessionEventArgs(this));
+            
+            // Only pass on the ready status if the authentication is successful.
+            if(_tlsStream.IsAuthenticated)
+                base.OnTransportSessionReady(this, new SessionEventArgs(this));
         }
 
         protected override async void OnSessionReceive(ReadOnlyMemory<byte> buffer)
         {
             _config.Logger?.Trace($"{Mode} TlsApplication read {buffer.Length} encrypted bytes.");
+
+            // If the buffer is zero and the auth semaphore has not been released,
+            // The authentication has not completed.
+            if (buffer.Length == 0 && _authSemaphore != null)
+            {
+                _config.Logger?.Trace($"{Mode} TlsApplication waiting on authentication completion.");
+                await _authSemaphore.WaitAsync();
+                _config.Logger?.Trace($"{Mode} TlsApplication authentication completed.");
+                return;
+            }
 
             _innerStream.Received(buffer);
 

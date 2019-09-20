@@ -285,15 +285,15 @@ namespace DtronixMessageQueue.Layers.Transports.Tcp
                 Disconnect();
             }
 
+            _config.Logger?.Trace($"{Mode} Session Received method called." + (Received == null ? " No connected method." : ""));
+            Received?.Invoke(e.MemoryBuffer.Slice(0, e.BytesTransferred));
+
             if (e.BytesTransferred == 0)
             {
                 _config.Logger?.Trace($"{Mode} Received 0 bytes.  Closing session.");
                 Disconnect();
                 return;
             }
-
-            _config.Logger?.Trace($"{Mode} Session Received method called." + (Received == null ? " No connected method." : ""));
-            Received?.Invoke(e.MemoryBuffer.Slice(0, e.BytesTransferred));
 
             StartReceive();
 

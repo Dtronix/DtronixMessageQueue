@@ -47,6 +47,10 @@ namespace DtronixMessageQueue.Layers.Application
         protected virtual void OnTransportSessionDisconnected(object sender, SessionEventArgs e)
         {
             _config.Logger?.Trace($"{Mode} Application Disconnected.");
+
+            TransportSession.Received = null;
+            TransportSession.Sent = null;
+
             Disconnected?.Invoke(this, new SessionEventArgs(this));
         }
 
@@ -60,12 +64,8 @@ namespace DtronixMessageQueue.Layers.Application
             Sent?.Invoke(this);
         }
 
-
         public virtual void Disconnect()
         {
-            TransportSession.Received = null;
-            TransportSession.Sent = null;
-
             TransportSession.Disconnect();
         }
 
