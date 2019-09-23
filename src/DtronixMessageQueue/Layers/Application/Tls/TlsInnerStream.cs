@@ -18,14 +18,16 @@ namespace DtronixMessageQueue.Layers.Application.Tls
 
         public bool IsReadWaiting => _receiveSemaphore.CurrentCount == 0;
 
-        private SemaphoreSlim _receiveSemaphore = new SemaphoreSlim(0, 1);
+        private Mutex _receiveMutex = new Mutex();
+        private SemaphoreSlim _readSemaphore = new SemaphoreSlim(0, 1);
+        private SemaphoreSlim _receiveSemaphore = new SemaphoreSlim(1, 1);
 
-        internal TlsInnerStream(Action<ReadOnlyMemory<byte>> onWrite)
+        public TlsInnerStream(Action<ReadOnlyMemory<byte>> onWrite)
         {
             //_receiveOwner = receiveOwner;
             //ReceiveBuffer = receiveOwner.Memory;
             _onWrite = onWrite;
-
+            
         }
         
         public override bool CanRead => true;
@@ -52,11 +54,13 @@ namespace DtronixMessageQueue.Layers.Application.Tls
 
 
 
-        public void Received(ReadOnlyMemory<byte> buffer)
+        public void Received(ReadOnlyMemory<byte> buffer, CancellationToken cancellationToken)
         {
             _received = buffer;
             _receivePosition = 0;
-            _receiveSemaphore.Release(1);
+
+            _readSemaphore.Release(1);
+            _receiveSemaphore.Wait(cancellationToken);
         }
 
         public override long Seek(long offset, SeekOrigin origin)
@@ -72,8 +76,14 @@ namespace DtronixMessageQueue.Layers.Application.Tls
         private int _receivePosition = 0;
         public override async ValueTask<int> ReadAsync(Memory<byte> buffer, CancellationToken cancellationToken = new CancellationToken())
         {
-            if(_receivePosition == 0)
-                await _receiveSemaphore.WaitAsync(cancellationToken);
+            if (_receivePosition == 0)
+            {
+                if(_receiveSemaphore.CurrentCount == 0)
+                    _receiveSemaphore.Release();
+
+                await _readSemaphore.WaitAsync(cancellationToken);
+                
+            }
 
             if (buffer.Length >= _received.Length)
             {

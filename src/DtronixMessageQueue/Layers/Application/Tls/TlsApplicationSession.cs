@@ -19,6 +19,7 @@ namespace DtronixMessageQueue.Layers.Application.Tls
         private X509Certificate _sessionCertificate;
 
         private SemaphoreSlim _authSemaphore = new SemaphoreSlim(0, 1);
+        private CancellationTokenSource _authSemaphoreCancellationTokenSource;
 
         public TlsApplicationSession(ITransportSession transportSession, TlsApplicationConfig config, BufferMemoryPool memoryPool, TlsAuthScheduler scheduler)
         :base(transportSession, config)
@@ -47,6 +48,7 @@ namespace DtronixMessageQueue.Layers.Application.Tls
 
         private async void AuthenticateSession(object obj)
         {
+            _authSemaphoreCancellationTokenSource = new CancellationTokenSource(_config.AuthTimeout);
             try
             {
                 if (TransportSession.Mode == SessionMode.Client)
@@ -69,30 +71,38 @@ namespace DtronixMessageQueue.Layers.Application.Tls
                 base.OnTransportSessionReady(this, new SessionEventArgs(this));
         }
 
+        protected override void OnTransportSessionDisconnected(object sender, SessionEventArgs e)
+        {
+            _authSemaphore?.Release();
+            base.OnTransportSessionDisconnected(sender, e);
+        }
+
         protected override async void OnSessionReceive(ReadOnlyMemory<byte> buffer)
         {
             _config.Logger?.Trace($"{Mode} TlsApplication read {buffer.Length} encrypted bytes.");
 
-            // If the buffer is zero and the auth semaphore has not been released,
-            // The authentication has not completed.
-            if (buffer.Length == 0 && _authSemaphore != null)
-            {
-                _config.Logger?.Trace($"{Mode} TlsApplication waiting on authentication completion.");
-                await _authSemaphore.WaitAsync();
-                _config.Logger?.Trace($"{Mode} TlsApplication authentication completed.");
-                return;
-            }
-
-            _innerStream.Received(buffer);
+            _innerStream.Received(buffer, _authSemaphoreCancellationTokenSource.Token);
 
             // If there is not a wait on the inner stream pending, this will mean that the reads are complete
             // and the authentication process is in progress.  We need to wait for this process to complete
             // before we can read data.
             // TODO: Tests for deadlocks.
-            if (!_tlsStream.IsAuthenticated && !_innerStream.IsReadWaiting)
+            if (_authSemaphore != null 
+                && !_tlsStream.IsAuthenticated 
+                && !_innerStream.IsReadWaiting)
             {
                 _config.Logger?.Trace($"{Mode} TlsApplication authentication in process of completing.  Semaphore waiting...");
-                await _authSemaphore.WaitAsync();
+                try
+                {
+                    _authSemaphore.Wait(_authSemaphoreCancellationTokenSource.Token);
+                }
+                catch (OperationCanceledException)
+                {
+                    
+                    _config.Logger?.Trace($"{Mode} TlsApplication authentication timed out.");
+                    Disconnect();
+                }
+
                 _authSemaphore.Dispose();
                 _authSemaphore = null;
                 _config.Logger?.Trace($"{Mode} TlsApplication authentication semaphore released.");

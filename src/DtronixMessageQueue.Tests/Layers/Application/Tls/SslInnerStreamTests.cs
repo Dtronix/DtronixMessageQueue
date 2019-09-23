@@ -49,7 +49,7 @@ namespace DtronixMessageQueue.Tests.Layers.Application.Tls
                     await _innerStream.ReadAsync(buffer, _cancellationTokenSource.Token),
                 _cancellationTokenSource.Token);
 
-            _innerStream.Received(_data);
+            _innerStream.Received(_data, _cancellationTokenSource.Token);
 
             task.Wait();
 
@@ -57,5 +57,44 @@ namespace DtronixMessageQueue.Tests.Layers.Application.Tls
 
             Assert.IsTrue(buffer.Span.Slice(0, len).SequenceEqual(_data.Span));
         }
+
+        [Test]
+        public void AsyncReadsWithSmallBuffer()
+        {
+            var buffer = new Memory<byte>(new byte[1]);
+
+            var task = Task.Run(async () =>
+            {
+                for (int i = 0; i < 10; i++)
+                {
+                    var len = await _innerStream.ReadAsync(buffer, _cancellationTokenSource.Token);
+                    Assert.AreEqual(_data.Span[i], buffer.Span[0]);
+                }
+            },_cancellationTokenSource.Token);
+            _innerStream.Received(_data, _cancellationTokenSource.Token);
+            task.Wait();
+        }
+
+        [Test]
+        public void AsyncReadsWithSmallReceivedData()
+        {
+            var buffer = new Memory<byte>(new byte[20]);
+            var task = Task.Run(async () =>
+            {
+                for (int i = 0; i < 10; i++)
+                {
+                    var len = await _innerStream.ReadAsync(buffer, _cancellationTokenSource.Token);
+                    Assert.AreEqual(_data.Span[i], buffer.Span[0]);
+                }
+            }, _cancellationTokenSource.Token);
+
+            for (int i = 0; i < 10; i++)
+            {
+                _innerStream.Received(_data.Slice(i, 1), _cancellationTokenSource.Token);
+            }
+            
+            task.Wait();
+        }
+
     }
 }
