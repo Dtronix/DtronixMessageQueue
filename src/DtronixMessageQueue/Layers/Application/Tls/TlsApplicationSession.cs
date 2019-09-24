@@ -81,7 +81,7 @@ namespace DtronixMessageQueue.Layers.Application.Tls
         {
             _config.Logger?.Trace($"{Mode} TlsApplication read {buffer.Length} encrypted bytes.");
 
-            _innerStream.Received(buffer, _authSemaphoreCancellationTokenSource.Token);
+            _innerStream.AsyncReadReceived(buffer, _authSemaphoreCancellationTokenSource.Token);
 
             // If there is not a wait on the inner stream pending, this will mean that the reads are complete
             // and the authentication process is in progress.  We need to wait for this process to complete

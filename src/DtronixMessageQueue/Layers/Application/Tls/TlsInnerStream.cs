@@ -9,26 +9,28 @@ namespace DtronixMessageQueue.Layers.Application.Tls
     {
         private readonly Action<ReadOnlyMemory<byte>> _onWrite;
 
-        private bool _closed = false;
         //private IMemoryOwner<byte> _receiveOwner;
 
         //public Memory<byte> ReceiveBuffer { get; }
 
-        private ReadOnlyMemory<byte> _received;
+        private ReadOnlyMemory<byte> _received = ReadOnlyMemory<byte>.Empty;
 
         public bool IsReadWaiting => _receiveSemaphore.CurrentCount == 0;
 
         private Mutex _receiveMutex = new Mutex();
-        private SemaphoreSlim _readSemaphore = new SemaphoreSlim(0, 1);
-        private SemaphoreSlim _receiveSemaphore = new SemaphoreSlim(0, 1);
+        private readonly SemaphoreSlim _readSemaphore = new SemaphoreSlim(0, 1);
+        private readonly SemaphoreSlim _receiveSemaphore = new SemaphoreSlim(0, 1);
+
+        private int _receivePosition = 0;
 
         public TlsInnerStream(Action<ReadOnlyMemory<byte>> onWrite)
         {
             //_receiveOwner = receiveOwner;
             //ReceiveBuffer = receiveOwner.Memory;
             _onWrite = onWrite;
-            
         }
+
+        public bool AsyncMode { get; set; } = true;
         
         public override bool CanRead => true;
 
@@ -36,14 +38,6 @@ namespace DtronixMessageQueue.Layers.Application.Tls
 
         public override bool CanWrite => true;
 
-        public override void Close()
-        {
-
-        }
-
-        public override void Flush()
-        {
-        }
 
         public override long Length => throw new NotImplementedException();
 
@@ -54,8 +48,16 @@ namespace DtronixMessageQueue.Layers.Application.Tls
 
 
 
-        public void Received(ReadOnlyMemory<byte> buffer, CancellationToken cancellationToken)
+        /// <summary>
+        /// Method to provide buffer data to 
+        /// </summary>
+        /// <param name="buffer"></param>
+        /// <param name="cancellationToken"></param>
+        public void AsyncReadReceived(ReadOnlyMemory<byte> buffer, CancellationToken cancellationToken)
         {
+            if(!AsyncMode)
+                throw new InvalidOperationException("Stream in synchronous mode.  Can not use async methods.");
+
             _receiveSemaphore.Wait(cancellationToken);
 
             _received = buffer;
@@ -66,6 +68,77 @@ namespace DtronixMessageQueue.Layers.Application.Tls
             
         }
 
+
+        public override async ValueTask<int> ReadAsync(Memory<byte> buffer, CancellationToken cancellationToken = new CancellationToken())
+        {
+            if (!AsyncMode)
+                throw new InvalidOperationException("Stream in synchronous mode.  Can not use async methods.");
+
+            if (_received.IsEmpty)
+            {
+                if (_receiveSemaphore.CurrentCount == 0)
+                    _receiveSemaphore.Release();
+
+                await _readSemaphore.WaitAsync(cancellationToken);
+            }
+
+            return CopyDataToBuffer(buffer.Span);
+        }
+
+        public override int Read(Span<byte> buffer)
+        {
+            if (AsyncMode)
+                throw new InvalidOperationException("Stream in async mode.  Can not use sync methods.");
+
+
+            if (_received.IsEmpty)
+            {
+                if (_receiveSemaphore.CurrentCount == 0)
+                    _receiveSemaphore.Release();
+
+                _readSemaphore.Wait();
+            }
+
+            return CopyDataToBuffer(buffer);
+        }
+
+
+        private int CopyDataToBuffer(Span<byte> buffer)
+        {
+            int readLength = 0;
+            if (buffer.Length >= _received.Length)
+            {
+                _received.Span.CopyTo(buffer);
+                _receivePosition = 0;
+                readLength = _received.Length;
+                _received = ReadOnlyMemory<byte>.Empty;
+            }
+            else
+            {
+                readLength = Math.Min(buffer.Length, _received.Length - _receivePosition);
+
+                _received.Slice(_receivePosition, readLength).Span.CopyTo(buffer);
+
+                _receivePosition += readLength;
+
+                if (_receivePosition == _received.Length)
+                {
+                    _receivePosition = 0;
+                    _received = ReadOnlyMemory<byte>.Empty;
+                }
+            }
+
+            return readLength;
+        }
+
+        public override void Close()
+        {
+
+        }
+
+        public override void Flush()
+        {
+        }
         public override long Seek(long offset, SeekOrigin origin)
         {
             throw new NotImplementedException();
@@ -75,42 +148,6 @@ namespace DtronixMessageQueue.Layers.Application.Tls
         {
             throw new NotImplementedException();
         }
-
-        private int _receivePosition = 0;
-        public override async ValueTask<int> ReadAsync(Memory<byte> buffer, CancellationToken cancellationToken = new CancellationToken())
-        {
-            if (_receivePosition == 0)
-            {
-                if(_receiveSemaphore.CurrentCount == 0)
-                    _receiveSemaphore.Release();
-
-                await _readSemaphore.WaitAsync(cancellationToken);
-                
-            }
-
-            if (buffer.Length >= _received.Length)
-            {
-                _received.CopyTo(buffer);
-                _receivePosition = 0;
-                return _received.Length;
-            }
-
-            var maxReadLength = Math.Min(buffer.Length, _received.Length - _receivePosition);
-
-            _received.Slice(_receivePosition, maxReadLength).CopyTo(buffer);
-
-
-            _receivePosition += maxReadLength;
-
-            if (_receivePosition == _received.Length)
-            {
-                _receivePosition = 0;
-            }
-
-            return maxReadLength;
-        }
-
-
 
 
         public override int Read(byte[] buffer, int offset, int count)
