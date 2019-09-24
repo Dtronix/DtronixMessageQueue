@@ -20,7 +20,7 @@ namespace DtronixMessageQueue.Layers.Application.Tls
 
         private Mutex _receiveMutex = new Mutex();
         private SemaphoreSlim _readSemaphore = new SemaphoreSlim(0, 1);
-        private SemaphoreSlim _receiveSemaphore = new SemaphoreSlim(1, 1);
+        private SemaphoreSlim _receiveSemaphore = new SemaphoreSlim(0, 1);
 
         public TlsInnerStream(Action<ReadOnlyMemory<byte>> onWrite)
         {
@@ -56,11 +56,14 @@ namespace DtronixMessageQueue.Layers.Application.Tls
 
         public void Received(ReadOnlyMemory<byte> buffer, CancellationToken cancellationToken)
         {
+            _receiveSemaphore.Wait(cancellationToken);
+
             _received = buffer;
             _receivePosition = 0;
 
-            _readSemaphore.Release(1);
-            _receiveSemaphore.Wait(cancellationToken);
+            if (_readSemaphore.CurrentCount == 0)
+                _readSemaphore.Release();
+            
         }
 
         public override long Seek(long offset, SeekOrigin origin)

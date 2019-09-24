@@ -24,7 +24,7 @@ namespace DtronixMessageQueue.Tests.Layers.Application.Tls
         [SetUp]
         public void Setup()
         {
-            _cancellationTokenSource = new CancellationTokenSource(1000);
+            _cancellationTokenSource = new CancellationTokenSource(100000);
             _innerStream = new TlsInnerStream(memory => _onWrite(memory));
         }
 
