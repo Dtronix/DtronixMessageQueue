@@ -92,12 +92,14 @@ namespace DtronixMessageQueue.Tests.Transports
 
             ApplicationServerConfig = new ApplicationConfig
             {
-                Logger = Logger
+                Logger = Logger,
+                TransportConfig = ServerConfig
             };
 
             ApplicationClientConfig = new ApplicationConfig
             {
-                Logger = Logger
+                Logger = Logger,
+                TransportConfig = ClientConfig
             };
 
             TlsClientConfig = new TlsApplicationConfig
@@ -105,7 +107,8 @@ namespace DtronixMessageQueue.Tests.Transports
                 Certificate = TlsCertificate,
                 CertificateValidationCallback = (sender, certificate, chain, errors)
                     => RemoteCertificateValidationCallback(sender, certificate, chain, errors),
-                Logger = Logger
+                Logger = Logger,
+                TransportConfig = ClientConfig
             };
 
             TlsServerConfig = new TlsApplicationConfig
@@ -113,7 +116,8 @@ namespace DtronixMessageQueue.Tests.Transports
                 Certificate = TlsCertificate,
                 CertificateValidationCallback = (sender, certificate, chain, errors)
                     => RemoteCertificateValidationCallback(sender, certificate, chain, errors),
-                Logger = Logger
+                Logger = Logger,
+                TransportConfig = ServerConfig
             };
 
             RemoteCertificateValidationCallback = (sender, certificate, chain, errors) => true;

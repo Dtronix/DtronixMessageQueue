@@ -10,5 +10,7 @@ namespace DtronixMessageQueue.Layers.Application.Tls
         public int AuthTimeout { get; set; } = 5000;
 
         public RemoteCertificateValidationCallback CertificateValidationCallback { get; set; }
+
+        public int TlsSchedulerThreads { get; set; } = -1;
     }
 }

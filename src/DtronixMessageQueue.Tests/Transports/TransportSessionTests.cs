@@ -88,7 +88,7 @@ namespace DtronixMessageQueue.Tests.Transports
                     Task.Run(async () =>
                     {
                         e.Session.Send(memory.Slice(0, 5), true);
-                        await Task.Delay(50);
+                        //await Task.Delay(50);
                         e.Session.Send(memory.Slice(5, 5), true);
                     });
                 };

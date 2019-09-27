@@ -38,7 +38,7 @@ namespace DtronixMessageQueue.Layers.Transports.Tcp
         /// <summary>
         /// Reset event used to ensure only one MqWorker can write to the socket at a time.
         /// </summary>
-        private readonly SemaphoreSlim _writeSemaphore;
+        private readonly SemaphoreSlim _sendSemaphore;
 
         public TcpTransportSession(
             Socket socket, 
@@ -48,7 +48,7 @@ namespace DtronixMessageQueue.Layers.Transports.Tcp
         {
             _socket = socket;
             _config = config;
-            _writeSemaphore = new SemaphoreSlim(1, 1);
+            _sendSemaphore = new SemaphoreSlim(1, 1);
             Mode = mode;
 
             _sendArgs = new TcpTransportAsyncEventArgs(memoryPool);
@@ -144,7 +144,7 @@ namespace DtronixMessageQueue.Layers.Transports.Tcp
             }
 
             _config.Logger?.Trace($"{Mode} Acquiring write semaphore...");
-            _writeSemaphore.Wait(-1);
+            _sendSemaphore.Wait(-1);
             _config.Logger?.Trace($"{Mode} Acquired write semaphore.");
 
             var remaining = _sendArgs.Write(buffer);
@@ -198,7 +198,7 @@ namespace DtronixMessageQueue.Layers.Transports.Tcp
             {
                 _sendArgs?.Free();
                 _receiveArgs?.Free();
-                _writeSemaphore?.Dispose();
+                _sendSemaphore?.Dispose();
 
                 State = SessionState.Closed;
                 _socket.Close(1000);
@@ -258,7 +258,7 @@ namespace DtronixMessageQueue.Layers.Transports.Tcp
             _sendArgs.ResetSend();
 
             _config.Logger?.Trace($"{Mode} Sending {e.BytesTransferred} bytes complete. Releasing Semaphore...");
-            _writeSemaphore.Release(1);
+            _sendSemaphore.Release(1);
             _config.Logger?.Trace($"{Mode} Released semaphore.  Session Sent method called." + (Sent == null ? " No connected method." : ""));
 
             Sent?.Invoke(this);

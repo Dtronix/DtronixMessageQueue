@@ -53,12 +53,12 @@ namespace DtronixMessageQueue.Layers.Application.Tls
         /// </summary>
         /// <param name="buffer"></param>
         /// <param name="cancellationToken"></param>
-        public void AsyncReadReceived(ReadOnlyMemory<byte> buffer, CancellationToken cancellationToken)
+        public async Task AsyncReadReceived(ReadOnlyMemory<byte> buffer, CancellationToken cancellationToken)
         {
             if(!AsyncMode)
                 throw new InvalidOperationException("Stream in synchronous mode.  Can not use async methods.");
 
-            _receiveSemaphore.Wait(cancellationToken);
+            await _receiveSemaphore.WaitAsync(cancellationToken);
 
             _received = buffer;
             _receivePosition = 0;

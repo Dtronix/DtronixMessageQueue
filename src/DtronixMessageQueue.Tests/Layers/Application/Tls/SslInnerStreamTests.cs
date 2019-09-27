@@ -49,7 +49,7 @@ namespace DtronixMessageQueue.Tests.Layers.Application.Tls
                     await _innerStream.ReadAsync(buffer, _cancellationTokenSource.Token),
                 _cancellationTokenSource.Token);
 
-            _innerStream.AsyncReadReceived(_data, _cancellationTokenSource.Token);
+            _innerStream.AsyncReadReceived(_data, _cancellationTokenSource.Token).Wait();
 
             task.Wait();
 
@@ -71,7 +71,7 @@ namespace DtronixMessageQueue.Tests.Layers.Application.Tls
                     Assert.AreEqual(_data.Span[i], buffer.Span[0]);
                 }
             },_cancellationTokenSource.Token);
-            _innerStream.AsyncReadReceived(_data, _cancellationTokenSource.Token);
+            _innerStream.AsyncReadReceived(_data, _cancellationTokenSource.Token).Wait();
             task.Wait();
         }
 
@@ -90,23 +90,10 @@ namespace DtronixMessageQueue.Tests.Layers.Application.Tls
 
             for (int i = 0; i < 10; i++)
             {
-                _innerStream.AsyncReadReceived(_data.Slice(i, 1), _cancellationTokenSource.Token);
+                _innerStream.AsyncReadReceived(_data.Slice(i, 1), _cancellationTokenSource.Token).Wait();
             }
             
             task.Wait();
         }
-
-        [Test]
-        public void AsyncReadTransitionsToSyncRead()
-        {
-            var buffer = new Memory<byte>(new byte[20]);
-
-            AsyncReadsWithSmallReceivedData();
-
-            _innerStream.AsyncMode = false;
-
-
-        }
-
     }
 }

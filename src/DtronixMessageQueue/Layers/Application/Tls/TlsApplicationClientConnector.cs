@@ -6,19 +6,19 @@ namespace DtronixMessageQueue.Layers.Application.Tls
     {
         private readonly TlsApplicationConfig _config;
         private readonly BufferMemoryPool _memoryPool;
-        private readonly TlsAuthScheduler _tlsAuthScheduler;
+        private readonly TlsTaskScheduler _tlsTaskScheduler;
 
         public TlsApplicationClientConnector(ITransportFactory factory, TlsApplicationConfig config)
          : base(factory)
         {
             _config = config;
             _memoryPool = new BufferMemoryPool(factory.Config.SendAndReceiveBufferSize, 2 * factory.Config.MaxConnections);
-            _tlsAuthScheduler = new TlsAuthScheduler();
+            _tlsTaskScheduler = new TlsTaskScheduler(config);
         }
 
         protected override ApplicationSession CreateSession(ITransportSession session)
         {
-            return new TlsApplicationSession(session, _config, _memoryPool, _tlsAuthScheduler);
+            return new TlsApplicationSession(session, _config, _memoryPool, _tlsTaskScheduler);
         }
     }
 }

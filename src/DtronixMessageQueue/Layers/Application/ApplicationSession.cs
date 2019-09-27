@@ -19,6 +19,10 @@ namespace DtronixMessageQueue.Layers.Application
 
         public SessionState State => TransportSession.State;
 
+        protected Exception LastSendException;
+
+        private int _bufferSize;
+
         protected ApplicationSession(ITransportSession transportSession, ApplicationConfig config)
         {
             _config = config;
@@ -30,6 +34,8 @@ namespace DtronixMessageQueue.Layers.Application
             TransportSession.Ready += OnTransportSessionReady;
 
             Mode = transportSession.Mode;
+
+            _bufferSize = _config.TransportConfig.SendAndReceiveBufferSize;
         }
 
         protected virtual void OnTransportSessionReady(object sender, SessionEventArgs e)
@@ -71,8 +77,26 @@ namespace DtronixMessageQueue.Layers.Application
 
         public virtual void Send(ReadOnlyMemory<byte> buffer, bool flush)
         {
+            if (buffer.Length > _bufferSize)
+            {
+
+                _config.Logger?.Error(
+                    $"{Mode} TlsApplication Sending {buffer.Length} bytes exceeds the SendAndReceiveBufferSize[{_bufferSize}].");
+                throw new Exception(
+                    $"{Mode} TlsApplication Sending {buffer.Length} bytes exceeds the SendAndReceiveBufferSize[{_bufferSize}].");
+
+            }
+
             _config.Logger?.Trace($"{Mode} Application sent {buffer.Length} bytes. Flush: {flush}");
-            TransportSession.Send(buffer, flush);
+            try
+            {
+                TransportSession.Send(buffer, flush);
+            }
+            catch (Exception e)
+            {
+                LastSendException = e;
+            }
+            
         }
     }
 }

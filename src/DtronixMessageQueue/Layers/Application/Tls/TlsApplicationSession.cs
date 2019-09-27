@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Buffers;
+using System.Data;
 using System.Net.Security;
 using System.Security.Cryptography.X509Certificates;
 using System.Threading;
@@ -11,30 +12,33 @@ namespace DtronixMessageQueue.Layers.Application.Tls
     public class TlsApplicationSession : ApplicationSession
     {
         private readonly TlsApplicationConfig _config;
-        private TlsAuthScheduler _scheduler;
+        private TlsTaskScheduler _taskScheduler;
         private TlsInnerStream _innerStream;
         private SslStream _tlsStream;
 
         private IMemoryOwner<byte> _tlsReadBuffer;
         private X509Certificate _sessionCertificate;
 
-        private SemaphoreSlim _authSemaphore = new SemaphoreSlim(0, 1);
-        private CancellationTokenSource _authSemaphoreCancellationTokenSource;
+        //private SemaphoreSlim _authSemaphore = new SemaphoreSlim(0, 1);
+        private CancellationTokenSource _cancellationTokenSource;
+        private readonly int _bufferSize;
 
-        public TlsApplicationSession(ITransportSession transportSession, TlsApplicationConfig config, BufferMemoryPool memoryPool, TlsAuthScheduler scheduler)
+        public TlsApplicationSession(ITransportSession transportSession, TlsApplicationConfig config, BufferMemoryPool memoryPool, TlsTaskScheduler taskScheduler)
         :base(transportSession, config)
         {
             _config = config;
-            _scheduler = scheduler;
+            _taskScheduler = taskScheduler;
             _innerStream = new TlsInnerStream(OnTlsStreamWrite);
             _tlsStream = new SslStream(_innerStream, true, _config.CertificateValidationCallback);
             _tlsReadBuffer = memoryPool.Rent();
+            _bufferSize = _tlsReadBuffer.Memory.Length;
+            _cancellationTokenSource = new CancellationTokenSource(_config.AuthTimeout);
 
         }
 
         protected override void OnTransportSessionConnected(object sender, SessionEventArgs e)
         {
-            Task.Factory.StartNew(AuthenticateSession, _scheduler);
+            Task.Factory.StartNew(StartSession, _taskScheduler);
 
             // Alert that we are connected, but not ready.
             base.OnTransportSessionConnected(this, new SessionEventArgs(this));
@@ -46,90 +50,111 @@ namespace DtronixMessageQueue.Layers.Application.Tls
             // Do nothing as at this point, we are not authenticated.
         }
 
-        private async void AuthenticateSession(object obj)
+        private async void StartSession(object obj)
         {
-            _authSemaphoreCancellationTokenSource = new CancellationTokenSource(_config.AuthTimeout);
             try
             {
                 if (TransportSession.Mode == SessionMode.Client)
-                    await _tlsStream.AuthenticateAsClientAsync("tlstest"); // TODO: Change!
+                {
+                    await _tlsStream.AuthenticateAsClientAsync(new SslClientAuthenticationOptions
+                        {
+                            TargetHost = "tlstest" // TODO: Change!
+                        },
+                        _cancellationTokenSource.Token);
+                }
                 else
-                    await _tlsStream.AuthenticateAsServerAsync(_config.Certificate);
+                {
+                    await _tlsStream.AuthenticateAsServerAsync(new SslServerAuthenticationOptions()
+                    {
+                        ServerCertificate = _config.Certificate
+                    }, _cancellationTokenSource.Token);
+                }
             }
             catch (Exception e)
             {
                _config.Logger.Warn($"{Mode} TlsApplication authentication failure. {e}");
             }
 
-            // Allow reading of data now that the authentication process has completed.
-            _authSemaphore.Release();
+            if (!_tlsStream.IsAuthenticated)
+            {
+                Disconnect();
+                return;
+            }
 
             _config.Logger?.Trace($"{Mode} TlsApplication authentication: {_tlsStream.IsAuthenticated}");
             
             // Only pass on the ready status if the authentication is successful.
             if(_tlsStream.IsAuthenticated)
                 base.OnTransportSessionReady(this, new SessionEventArgs(this));
+
+            try
+            {
+                var len = 0;
+                while ((len = await _tlsStream.ReadAsync(_tlsReadBuffer.Memory, _cancellationTokenSource.Token)) != 0)
+                {
+                    base.OnSessionReceive(_tlsReadBuffer.Memory.Slice(0, len));
+                }
+            }
+            catch (OperationCanceledException)
+            {
+                // Ignored
+            }
+            catch (Exception e)
+            {
+                _config.Logger?.Error($"{Mode} TlsApplication read exception: {e}");
+            }
+
+
         }
 
         protected override void OnTransportSessionDisconnected(object sender, SessionEventArgs e)
         {
-            _authSemaphore?.Release();
+            _cancellationTokenSource.Cancel();
             base.OnTransportSessionDisconnected(sender, e);
         }
 
-        protected override async void OnSessionReceive(ReadOnlyMemory<byte> buffer)
+        protected override void OnSessionReceive(ReadOnlyMemory<byte> buffer)
         {
             _config.Logger?.Trace($"{Mode} TlsApplication read {buffer.Length} encrypted bytes.");
+            var read = _innerStream.AsyncReadReceived(buffer, _cancellationTokenSource.Token);
 
-            _innerStream.AsyncReadReceived(buffer, _authSemaphoreCancellationTokenSource.Token);
-
-            // If there is not a wait on the inner stream pending, this will mean that the reads are complete
-            // and the authentication process is in progress.  We need to wait for this process to complete
-            // before we can read data.
-            // TODO: Tests for deadlocks.
-            if (_authSemaphore != null 
-                && !_tlsStream.IsAuthenticated 
-                && !_innerStream.IsReadWaiting)
+            try
             {
-                _config.Logger?.Trace($"{Mode} TlsApplication authentication in process of completing.  Semaphore waiting...");
-                try
-                {
-                    _authSemaphore.Wait(_authSemaphoreCancellationTokenSource.Token);
-                }
-                catch (OperationCanceledException)
-                {
-                    
-                    _config.Logger?.Trace($"{Mode} TlsApplication authentication timed out.");
-                    Disconnect();
-                }
-
-                _authSemaphore.Dispose();
-                _authSemaphore = null;
-                _config.Logger?.Trace($"{Mode} TlsApplication authentication semaphore released.");
+                // Block further reads until the entire buffer has been read.
+                read.Wait(_cancellationTokenSource.Token);
+            }
+            catch (OperationCanceledException)
+            {
+                // Ignored
+            }
+            catch (Exception e)
+            {
+                _config.Logger?.Trace($"{Mode} TlsApplication exception occured while receiving. {e}");
+                throw;
             }
 
-            // If we are not authenticated, then this data should be relegated to the auth process only.
-            if (!_tlsStream.IsAuthenticated)
-            {
-                _config.Logger?.Trace($"{Mode} TlsApplication not authenticated.");
-                return;
-            }
-
-            // This can block...
-            var read = await _tlsStream.ReadAsync(_tlsReadBuffer.Memory);
-
-            _config.Logger?.Trace($"{Mode} TlsApplication read {read} clear bytes.");
-
-            if (read > 0)
-                base.OnSessionReceive(_tlsReadBuffer.Memory.Slice(0, read));
         }
 
         public override void Send(ReadOnlyMemory<byte> buffer, bool flush)
         {
+            if (buffer.Length > _bufferSize)
+            {
+
+                _config.Logger?.Error(
+                    $"{Mode} TlsApplication Sending {buffer.Length} bytes exceeds the SendAndReceiveBufferSize[{_bufferSize}].");
+                throw new Exception(
+                    $"{Mode} TlsApplication Sending {buffer.Length} bytes exceeds the SendAndReceiveBufferSize[{_bufferSize}].");
+
+            }
+
             _tlsStream.Write(buffer.Span);
 
             if(flush)
                 _tlsStream.Flush();
+
+            if (LastSendException != null)
+                throw LastSendException;
+
         }
 
 
