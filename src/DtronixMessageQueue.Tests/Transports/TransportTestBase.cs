@@ -228,7 +228,7 @@ namespace DtronixMessageQueue.Tests.Transports
         }
 
 
-        protected void WaitTestComplete(int time = 200000)
+        protected void WaitTestComplete(int time = 2000)
         {
             if (!TestComplete.Wait(time))
                 throw new TimeoutException($"Test timed out at {time}ms");

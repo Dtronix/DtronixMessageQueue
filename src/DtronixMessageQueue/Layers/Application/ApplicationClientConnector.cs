@@ -9,8 +9,8 @@ namespace DtronixMessageQueue.Layers.Application
         protected IClientConnector Connector;
 
         public event EventHandler<SessionEventArgs> Connected;
+        public event EventHandler ConnectionError;
 
-        public Action ConnectionError { get; set; }
 
         public ISession Session { get; private set; }
 
@@ -20,12 +20,12 @@ namespace DtronixMessageQueue.Layers.Application
         {
             Connector = factory.CreateConnector(OnSessionCreated);
 
-            Connector.ConnectionError = OnConnectorConnectionError;
+            Connector.ConnectionError += OnConnectorConnectionError;
         }
 
-        private void OnConnectorConnectionError()
+        private void OnConnectorConnectionError(object sender, EventArgs e)
         {
-            ConnectionError?.Invoke();
+            ConnectionError?.Invoke(this, EventArgs.Empty);
         }
 
         protected abstract ApplicationSession CreateSession([NotNull] ITransportSession session);

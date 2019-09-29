@@ -160,6 +160,7 @@ namespace DtronixMessageQueue.Layers.Transports.Tcp
             {
                 try
                 {
+                    Config.Logger.Info($"Listener rejected connection due to being at max allowed sessions: {Config.MaxConnections}.");
                     e.AcceptSocket.Disconnect(false);
                 }
                 catch

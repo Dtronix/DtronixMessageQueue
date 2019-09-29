@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Text;
+using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.VisualStudio.TestPlatform.ObjectModel;
 using NUnit.Framework;
@@ -167,6 +168,58 @@ namespace DtronixMessageQueue.Tests.Transports
         {
             var (listener, connector) = CreateClientServer(type);
             listener.Started += (sender, args) => TestComplete.Set();
+            listener.Start();
+
+            WaitTestComplete();
+        }
+
+        [TestCase(Protocol.Tcp)]
+        [TestCase(Protocol.TcpTransparent)]
+        [TestCase(Protocol.TcpTls)]
+        public void ServerAcceptsMultipleConnections(Protocol type)
+        {
+            var (listener, connector) = CreateClientServer(type);
+            var connector2 = CreateClient(type);
+            var totalConnections = 0;
+
+            listener.Started += (sender, args) =>
+            {
+                connector.Connect();
+                connector2.Connect();
+            };
+
+            listener.Connected += (sender, args) =>
+            {
+                var currentTotal = Interlocked.Increment(ref totalConnections);
+                if(currentTotal == 2)
+                    TestComplete.Set();
+            };
+            listener.Start();
+
+            WaitTestComplete();
+        }
+
+        [TestCase(Protocol.Tcp)]
+        [TestCase(Protocol.TcpTransparent)]
+        [TestCase(Protocol.TcpTls)]
+        public void ServerLimitsMultipleConnections(Protocol type)
+        {
+            ServerConfig.MaxConnections = 1;
+
+            var (listener, connector) = CreateClientServer(type);
+            var connector2 = CreateClient(type);
+
+            listener.Started += (sender, args) =>
+            {
+                connector.Connect();
+            };
+
+            connector.Connected += (sender, args) => { connector2.Connect(); };
+            connector2.Connected += (sender, args) =>
+            {
+                args.Session.Disconnected += (o, eventArgs) => TestComplete.Set();
+            };
+
             listener.Start();
 
             WaitTestComplete();

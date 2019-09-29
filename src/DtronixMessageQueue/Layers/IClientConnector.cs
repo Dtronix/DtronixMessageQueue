@@ -12,7 +12,7 @@ namespace DtronixMessageQueue.Layers
         /// <summary>
         /// Fired when the connecting client fails to connect to the server.
         /// </summary>
-        Action ConnectionError { get; set; }
+        event EventHandler ConnectionError;
         
         ISession Session { get; }
 

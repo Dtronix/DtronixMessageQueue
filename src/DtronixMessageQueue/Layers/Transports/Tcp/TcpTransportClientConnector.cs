@@ -22,8 +22,8 @@ namespace DtronixMessageQueue.Layers.Transports.Tcp
         }
 
         public event EventHandler<SessionEventArgs> Connected;
+        public event EventHandler ConnectionError;
 
-        public Action ConnectionError { get; set; }
 
         public ISession Session { get; private set; }
 
@@ -103,7 +103,7 @@ namespace DtronixMessageQueue.Layers.Transports.Tcp
                 timedOut = true;
                 _connecting = false;
                 session?.Disconnect();
-                ConnectionError?.Invoke();
+                ConnectionError?.Invoke(this, EventArgs.Empty);
             }, connectionTimeoutCancellation.Token);
         }
     }

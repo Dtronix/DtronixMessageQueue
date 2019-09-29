@@ -58,7 +58,7 @@ namespace DtronixMessageQueue.Layers.Application.Tls
                 {
                     await _tlsStream.AuthenticateAsClientAsync(new SslClientAuthenticationOptions
                         {
-                            TargetHost = "tlstest" // TODO: Change!
+                            TargetHost = "tlstest2" // TODO: Change!
                         },
                         _cancellationTokenSource.Token);
                 }

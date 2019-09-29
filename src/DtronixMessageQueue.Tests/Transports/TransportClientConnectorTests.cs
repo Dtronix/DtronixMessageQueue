@@ -60,7 +60,7 @@ namespace DtronixMessageQueue.Tests.Transports
             var (listener, connector) = CreateClientServer(type);
             ClientConfig.ConnectionTimeout = 100;
 
-            connector.ConnectionError = () =>
+            connector.ConnectionError += (sender, args) => 
             {
                 TestComplete.Set();
             };
