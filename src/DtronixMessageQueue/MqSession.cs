@@ -62,7 +62,7 @@ namespace DtronixMessageQueue
         /// <param name="buffer">Buffer of bytes to read. Does not copy the bytes to the buffer.</param>
         protected override void HandleIncomingBytes(byte[] buffer)
         {
-            if (CurrentState != State.Connected)
+            if (CurrentSocketSessionState != SocketSessionState.Connected)
             {
                 return;
             }
@@ -110,7 +110,7 @@ namespace DtronixMessageQueue
 
             while (_outbox.TryDequeue(out message))
             {
-                if(CurrentState != State.Closed)
+                if(CurrentSocketSessionState != SocketSessionState.Closed)
                     _sendingSemaphore.Release();
 
                 message.PrepareSend();
@@ -158,7 +158,7 @@ namespace DtronixMessageQueue
             while (_inboxBytes.TryDequeue(out buffer))
             {
 
-                if (CurrentState != State.Connected)
+                if (CurrentSocketSessionState != SocketSessionState.Connected)
                     return;
 
                 _receivingSemaphore.Release();
@@ -186,7 +186,7 @@ namespace DtronixMessageQueue
 
                 for (var i = 0; i < frameCount; i++)
                 {
-                    if (CurrentState != State.Connected)
+                    if (CurrentSocketSessionState != SocketSessionState.Connected)
                         return;
 
                     var frame = _frameBuilder.Frames.Dequeue();
@@ -254,7 +254,7 @@ namespace DtronixMessageQueue
         /// <param name="reason">Reason for closing this session.</param>
         public override void Close(CloseReason reason)
         {
-            if (CurrentState == State.Closed && reason != CloseReason.ConnectionRefused)
+            if (CurrentSocketSessionState == SocketSessionState.Closed && reason != CloseReason.ConnectionRefused)
                 return;
 
             /*
@@ -318,7 +318,7 @@ namespace DtronixMessageQueue
             {
                 return;
             }
-            if (CurrentState != State.Connected)
+            if (CurrentSocketSessionState != SocketSessionState.Connected)
             {
                 return;
             }

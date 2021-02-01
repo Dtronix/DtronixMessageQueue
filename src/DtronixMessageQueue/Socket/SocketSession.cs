@@ -1,7 +1,10 @@
 ﻿using System;
+using System.Buffers;
 using System.Net.Sockets;
 using System.Security.Cryptography;
 using System.Threading;
+using System.Threading.Tasks;
+using DtronixMessageQueue.Logging;
 
 namespace DtronixMessageQueue.Socket
 {
@@ -14,37 +17,6 @@ namespace DtronixMessageQueue.Socket
         where TSession : SocketSession<TSession, TConfig>, new()
         where TConfig : SocketConfig
     {
-        /// <summary>
-        /// Current state of the socket.
-        /// </summary>
-        public enum State : byte
-        {
-            /// <summary>
-            /// State has not been set.
-            /// </summary>
-            Unknown,
-
-            /// <summary>
-            /// Session is in the process of securing the communication channel.
-            /// </summary>
-            Securing,
-
-            /// <summary>
-            /// Session has connected to remote session.
-            /// </summary>
-            Connected,
-
-            /// <summary>
-            /// Session has been closed and no longer can be used.
-            /// </summary>
-            Closed,
-
-            /// <summary>
-            /// Socket is in an error state.
-            /// </summary>
-            Error,
-        }
-
         public const byte ProtocolVersion = 1;
 
         private TConfig _config;
@@ -62,7 +34,7 @@ namespace DtronixMessageQueue.Socket
         /// <summary>
         /// State that this socket is in.  Can only perform most operations when the socket is in a Connected state.
         /// </summary>
-        public State CurrentState { get; protected set; }
+        public SocketSessionState CurrentSocketSessionState { get; protected set; }
 
         /// <summary>
         /// The last time that this session received a message.
@@ -89,17 +61,6 @@ namespace DtronixMessageQueue.Socket
         /// </summary>
         public byte OtherProtocolVersion { get; private set; }
 
-        /// <summary>
-        /// Processor to handle all inbound messages.
-        /// </summary>
-        protected ActionProcessor<Guid> InboxProcessor;
-
-        /// <summary>
-        /// Processor to handle all outbound messages.
-        /// </summary>
-        protected ActionProcessor<Guid> OutboxProcessor;
-
-
         private System.Net.Sockets.Socket _socket;
 
         /// <summary>
@@ -108,30 +69,9 @@ namespace DtronixMessageQueue.Socket
         public System.Net.Sockets.Socket Socket => _socket;
 
         /// <summary>
-        /// Async args used to send data to the wire.
-        /// </summary>
-        private SocketAsyncEventArgs _sendArgs;
-
-        /// <summary>
-        /// Async args used to receive data off the wire.
-        /// </summary>
-        private SocketAsyncEventArgs _receiveArgs;
-
-        /// <summary>
-        /// Pool used by all the sessions on this SessionHandler.
-        /// </summary>
-        private SocketAsyncEventArgsManager _argsPool;
-
-        /// <summary>
         /// Reset event used to ensure only one MqWorker can write to the socket at a time.
         /// </summary>
         private SemaphoreSlim _writeSemaphore;
-
-
-        /// <summary>
-        /// Cache for commonly called methods used throughout the session.
-        /// </summary>
-        public ServiceMethodCache ServiceMethodCache;
 
         /// <summary>
         /// This event fires when a connection has been established.
@@ -142,11 +82,6 @@ namespace DtronixMessageQueue.Socket
         /// This event fires when a connection has been shutdown.
         /// </summary>
         public event EventHandler<SessionClosedEventArgs<TSession, TConfig>> Closed;
-
-        /// <summary>
-        /// Stream to handle the receiving and buffering of data during the secure negotiation stage.
-        /// </summary>
-        private MemoryQueueStream _negotiationStream;
 
         /// <summary>
         /// Send partial buffer used to contain the data sent which exceeds the 16 bit alignment.
@@ -174,47 +109,13 @@ namespace DtronixMessageQueue.Socket
         private ArraySegment<byte> _receiveTransformedBuffer;
 
         /// <summary>
-        /// Manager for the _receiveTransformedBuffer buffer segment.
-        /// Segment to be released upon session closure to free up for next session.
-        /// </summary>
-        private BufferManager _receiveTransformedBufferManager;
-
-        /// <summary>
-        /// Contains the other connection's ecdh public key.
-        /// Null if it has not been received yet or been consumed.
-        /// </summary>
-        private byte[] _otherDhPublicKey;
-
-        /// <summary>
-        /// Contains the encryption and description methods.
-        /// </summary>
-        private Aes _aes;
-        
-        /// <summary>
-        /// Contains the current decryptor for inbound data.
-        /// </summary>
-        private ICryptoTransform _decryptor;
-
-        /// <summary>
-        /// Contains the current encryptor used for outbound data.
-        /// </summary>
-        private ICryptoTransform _encryptor;
-
-        /// <summary>
         /// Contains state information about the current receiving header.
         /// </summary>
         private readonly Header _receivingHeader = new Header();
         
-        /// <summary>
-        /// Buffer containing bytes for padding end of packets for 16 bit alignment.
-        /// </summary>
-        // ReSharper disable once StaticMemberInGenericType
-        private static byte[][] _paddingBuffer;
+        private IMemoryOwner<byte> _readMemoryOwner;
 
-        /// <summary>
-        /// Current elliptical curve algorithm used to generate a private key for this session.
-        /// </summary>
-        private ECDiffieHellmanCng _ecdh;
+        private Memory<byte> _readMemoryBuffer;
 
         /// <summary>
         /// Creates a new socket session with a new Id.
@@ -222,58 +123,23 @@ namespace DtronixMessageQueue.Socket
         protected SocketSession()
         {
             Id = Guid.NewGuid();
-            CurrentState = State.Closed;
-            _negotiationStream = new MemoryQueueStream();
-
-            _ecdh = new ECDiffieHellmanCng
-            {
-                KeyDerivationFunction = ECDiffieHellmanKeyDerivationFunction.Hash,
-                HashAlgorithm = CngAlgorithm.Sha384
-            };
-
-            // Create dummy transformations for the use of the TransformDataBuffer method.
-            _decryptor = new BlockCopyCryptoTransform();
-            _encryptor = new BlockCopyCryptoTransform();
-
-            // Create an array of padding bytes to be used for copying.
-            var paddingBufferList = new byte[15][];
-            if (_paddingBuffer == null)
-            {
-                for (var i = 0; i < 15; i++)
-                {
-                    paddingBufferList[i] = new byte[i + 1];
-                    for (int j = 0; j < i + 1; j++)
-                        paddingBufferList[i][j] = (byte) Header.Type.Padding;
-                }
-                _paddingBuffer = paddingBufferList;
-            }
+            CurrentSocketSessionState = SocketSessionState.Unknown;
         }
 
         /// <summary>
         /// Sets up this socket with the specified configurations.
         /// </summary>
         /// <param name="args">Args to initialize the socket with.</param>
-        public static TSession Create(TlsSocketSessionCreateArguments<TSession, TConfig> args)
+        public static TSession Create(SocketSessionCreateArguments<TSession, TConfig> args)
         {
             var session = new TSession
             {
                 _config = args.SessionConfig,
-                _argsPool = args.SocketArgsManager,
                 _socket = args.SessionSocket,
                 _writeSemaphore = new SemaphoreSlim(1, 1),
-                SocketHandler = args.TlsSocketHandler,
-                _sendArgs = args.SocketArgsManager.Create(),
-                _receiveArgs = args.SocketArgsManager.Create(),
-                InboxProcessor = args.InboxProcessor,
-                OutboxProcessor = args.OutboxProcessor,
-                ServiceMethodCache = args.ServiceMethodCache,
-                _receiveTransformedBufferManager = args.ReceiveBufferManager,
-                _receiveTransformedBuffer = args.ReceiveBufferManager.GetBuffer()
+                SocketHandler = args.SocketHandler,
             };
-
-            session._sendArgs.Completed += session.IoCompleted;
-            session._receiveArgs.Completed += session.IoCompleted;
-
+            
             if (session._config.SendTimeout > 0)
                 session._socket.SendTimeout = session._config.SendTimeout;
 
@@ -283,7 +149,18 @@ namespace DtronixMessageQueue.Socket
             if (session._config.SendAndReceiveBufferSize > 0)
                 session._socket.SendBufferSize = session._config.SendAndReceiveBufferSize;
 
-            session._socket.NoDelay = true;
+            try
+            {
+                session._socket.NoDelay = true;
+            }
+            catch
+            {
+                // Some sockets can't change this value.
+            }
+
+            session._readMemoryOwner = args.BufferMemoryPool.Rent();
+            session._readMemoryBuffer = session._readMemoryOwner.Memory;
+
             session._socket.SetSocketOption(SocketOptionLevel.Socket, SocketOptionName.DontLinger, true);
 
             session.OnSetup();
@@ -296,112 +173,33 @@ namespace DtronixMessageQueue.Socket
         /// </summary>
         void ISetupSocketSession.StartSession()
         {
-            if (CurrentState != State.Closed)
+            if (CurrentSocketSessionState != SocketSessionState.Closed)
                 return;
 
             // Change into a securing state for the 
-            CurrentState = State.Securing;
+            CurrentSocketSessionState = SocketSessionState.Securing;
             ConnectedTime = DateTime.UtcNow;
 
-            // Start receiving data for the secured channel.
-            _socket.ReceiveAsync(_receiveArgs);
+            Task.Factory.StartNew(ReceiveLoop);
 
             // Send the protocol version number along with the public key to the connected client.
             if (SocketHandler.Mode == SocketMode.Client)
             {
-                var key = _ecdh.PublicKey.ToByteArray();
-                SendWithHeader(Header.Type.EncryptChannel, null, 0, 0, key, 0, (ushort)key.Length, true);
+
             }
-            
         }
 
-        private bool SecureConnectionReceive(byte[] buffer)
+        private async Task ReceiveLoop()
         {
-            if (CurrentState == State.Closed)
-                return false;
-
-            if (CurrentState != State.Securing)
+            while (true)
             {
-                Close(CloseReason.ProtocolError);
-                return false;
-            }
-
-            _negotiationStream.Write(buffer);
-
-            // Set the connection version number.
-
-            if (_aes == null
-                && _negotiationStream.Length >= 140)
-            {
-                _config.Logger?.Trace($"{SocketHandler.Mode}: Received enough bytes for ECDH key.");
-                _otherDhPublicKey = new byte[140];
-                _negotiationStream.Read(_otherDhPublicKey, 0, 140);
-
-                var otherPublicKey =
-                    ECDiffieHellmanCngPublicKey.FromByteArray(_otherDhPublicKey, CngKeyBlobFormat.EccPublicBlob);
-                _otherDhPublicKey = null;
-
-                var generatedKey = _ecdh.DeriveKeyMaterial(otherPublicKey);
-
-                var iv = new byte[16];
-                var key = new byte[32];
-                // Copy the arrays into the a structure to be read by the server.
-                Buffer.BlockCopy(generatedKey, 0, iv, 0, 16);
-                Buffer.BlockCopy(generatedKey, 16, key, 0, 32);
-
-                // Setup the 256 AES encryption
-                _aes = new AesCryptoServiceProvider
+                var read = await _socket.ReceiveAsync(_readMemoryBuffer, SocketFlags.None);
+                if (read == 0)
                 {
-                    KeySize = 256,
-                    Mode = CipherMode.CBC,
-                    Padding = PaddingMode.None,
-                    Key = key,
-                    IV = iv
-                };
-
-                if (SocketHandler.Mode == SocketMode.Server)
-                {
-                    _config.Logger?.Trace($"{SocketHandler.Mode}: Sending client public ECDH key.");
-                    var pKey = _ecdh.PublicKey.ToByteArray();
-                    SendWithHeader(Header.Type.EncryptChannel, null, 0, 0, pKey, 0, (ushort)pKey.Length, true);
+                    _config.Logger.ConditionalTrace("Socket received 0 bytes. Exiting receive loop.");
+                    break;
                 }
-
-
-                SecureConnectionComplete();
-                return true;
             }
-
-            return false;
-        }
-
-
-
-        private void SecureConnectionComplete()
-        {
-            // Set the encryptor and decryptor.
-            _decryptor = _aes.CreateDecryptor();
-            _encryptor = _aes.CreateEncryptor();
-
-            _ecdh.Dispose();
-            _ecdh = null;
-
-            // If the stream has any extra data sent, pass it along to the reader.
-            if (_negotiationStream.Length > 0)
-            {
-                byte[] partialBuffer = new byte[_negotiationStream.Length];
-                _negotiationStream.Read(partialBuffer, 0, partialBuffer.Length);
-
-                ReceiveCompleteInternal(partialBuffer, 0, partialBuffer.Length);
-            }
-
-            _negotiationStream.Close();
-            _negotiationStream = null;
-
-            // Set the state to connected.
-            CurrentState = State.Connected;
-
-            _config.Logger?.Trace($"{SocketHandler.Mode}: Securing complete.");
-            OnConnected();
         }
 
         /// <summary>
@@ -431,144 +229,38 @@ namespace DtronixMessageQueue.Socket
         /// Overridden to parse incoming bytes from the wire.
         /// </summary>
         /// <param name="buffer">Buffer of bytes to parse.</param>
-        protected abstract void HandleIncomingBytes(byte[] buffer);
-
+        protected abstract Task<byte> HandleIncomingBytes(byte[] buffer);
+        
         /// <summary>
-        /// This method is called whenever a receive or send operation is completed on a socket 
-        /// </summary>
-        /// <param name="sender"></param>
-        /// <param name="e">SocketAsyncEventArg associated with the completed receive operation</param>
-        protected virtual void IoCompleted(object sender, SocketAsyncEventArgs e)
-        {
-            
-            // determine which type of operation just completed and call the associated handler
-            switch (e.LastOperation)
-            {
-                case SocketAsyncOperation.Disconnect:
-                    Close(CloseReason.Closing);
-                    break;
-
-                case SocketAsyncOperation.Receive:
-                    RecieveComplete(e);
-                    break;
-
-                case SocketAsyncOperation.Send:
-                    SendComplete(e);
-                    break;
-
-                default:
-                    _config.Logger?.Error($"{SocketHandler.Mode}: The last operation completed on the socket was not a receive, send connect or disconnect. {e.LastOperation}");
-                    throw new ArgumentException(
-                        "The last operation completed on the socket was not a receive, send connect or disconnect.");
-            }
-        }
-
-
-        /// <summary>
-        /// Transforms passed buffer to another buffer based upon the transformer passed.
-        /// Works in blocks of 16 bytes.
-        /// </summary>
-        /// <param name="bufferSource">Source buffer to transform.</param>
-        /// <param name="offsetSource">Offset in the source buffer to read.</param>
-        /// <param name="countSource">Total bytes to read in the buffer.</param>
-        /// <param name="bufferDest">Destination buffer to put the transformed data into.</param>
-        /// <param name="offsetDest">Offset in the destination buffer to write to.</param>
-        /// <param name="transformBuffer">Buffer used to contain excess data outside the 16 byte blocks.</param>
-        /// <param name="transformBufferLength">Reference to integer containing the total number of bytes in the transformBuffer.</param>
-        /// <param name="transformer">Transformer to apply to the data.</param>
-        /// <returns>Number of bytes transformed.  Will always be in increments of 16.</returns>
-        private int TransformDataBuffer(
-            byte[] bufferSource, 
-            int offsetSource, 
-            int countSource, 
-            byte[] bufferDest, 
-            int offsetDest, 
-            byte[] transformBuffer, 
-            ref int transformBufferLength, 
-            ICryptoTransform transformer)
-        {
-            int transformLength = 0;
-
-            // If there is data in the transformBuffer, fill it with the first portion of the source data
-            // to maintain data continuity.
-            if (transformBufferLength > 0)
-            {
-                // Determine how much can be read from the source buffer.
-                int bufferTaken = Math.Min(countSource, 16 - transformBufferLength);
-                Buffer.BlockCopy(bufferSource, offsetSource, transformBuffer, transformBufferLength, bufferTaken);
-
-                // Add the length of the source data added to the transform buffer.
-                transformBufferLength += bufferTaken;
-
-                // Offset the source to bypass the transferred data into the transform buffer.
-                offsetSource += bufferTaken;
-                countSource -= bufferTaken;
-            }
-
-            if (transformBufferLength == 16)
-            {
-                // If the transformBuffer is full, apply the transformation to the data and add it to the destination buffer.
-                transformLength +=
-                    transformer.TransformBlock(transformBuffer, 0, transformBufferLength, bufferDest, offsetDest);
-            }
-            else if (countSource == 0)
-            {
-                // If we have reached the end of the data in the source before we have filled the transform buffer,
-                // return 0 as nothing more can be done.
-                return 0;
-            }
-
-            // Get the size of the block in chucks of 16 bytes.
-            int blockTransformLength = countSource / 16 * 16;
-            int transformRemain = countSource - blockTransformLength;
-
-            // Only transform if we have a block large enough.
-            if(blockTransformLength > 0)
-                transformLength += transformer.TransformBlock(bufferSource, offsetSource, blockTransformLength, bufferDest,
-                    offsetDest + transformBufferLength);
-
-            // If the buffer was used this round, reset it to zero.
-            if (transformBufferLength == 16)
-                transformBufferLength = 0;
-
-            // If excess remains at the end of the bufferSouce, copy it to the transformBuffer.
-            if (transformRemain > 0)
-            {
-                Buffer.BlockCopy(bufferSource, offsetSource + blockTransformLength, transformBuffer, 0, transformRemain);
-                transformBufferLength = transformRemain;
-            }
-
-            return transformLength;
-        }
-
-        /// <summary>
-        /// Sends raw bytes to the socket.  Blocks until data is sent to the underlying system to send.
-        /// Before transport encryption has been established, any buffer size will be sent.
-        /// After transport encryption has been established, only buffers in increments of 16.
-        /// Excess will be buffered until the next write.
+        /// Asynchronously send raw bytes to the socket and waits until data is sent to the underlying system to send.
         /// </summary>
         /// <param name="buffer">Buffer bytes to send.</param>
-        /// <param name="offset">Offset in the buffer.</param>
-        /// <param name="count">Total bytes to send.</param>
-        /// <param name="pad">
-        /// Set to true to pad the data in the to the next 16 byte alignment to allow for instant sending.
-        /// Set to false to prevent padding.
-        /// </param>
-        protected virtual void Send(byte[] buffer, int offset, ushort count, bool pad)
+        protected async Task Send(ReadOnlyMemory<byte> buffer, CancellationToken cancellationToken = default)
         {
             if (Socket == null || Socket.Connected == false)
                 return;
 
-            _config.Logger?.Trace($"{SocketHandler.Mode}: Sending {count} decrypted bytes.");
+            if (buffer.Length == 0)
+                throw new ArgumentException("Buffer can not be empty.", nameof(buffer));
 
-            var lengthBytes = BitConverter.GetBytes(count);
-            byte[] bodyLengthBytes = {
-                lengthBytes[0],
-                lengthBytes[1]
-            };
-            
-            // Send with FullMessage header.
-            SendWithHeader(Header.Type.BodyPayload, bodyLengthBytes, 0, 2, buffer, offset, count, pad);
+            var bufferLength = buffer.Length;
+            var totalSent = 0;
+            try
+            {
+                ReadOnlyMemory<byte> sendBuffer = ReadOnlyMemory<byte>.Empty;
+                while (totalSent != bufferLength)
+                {
+                    sendBuffer = totalSent == 0 ? buffer : sendBuffer.Slice(totalSent);
+                    totalSent += await Socket.SendAsync(sendBuffer, SocketFlags.None, cancellationToken);
+                    _config.Logger?.Trace($"{SocketHandler.Mode}: Sending {sendBuffer} of {bufferLength} bytes.");
+                }
+
+            }
+            catch (ObjectDisposedException)
+            {
+                _config.Logger?.Error($"{SocketHandler.Mode}: System can not send data asynchronously.");
+                Close(CloseReason.SocketError);
+            }
         }
 
         /// <summary>
@@ -689,20 +381,6 @@ namespace DtronixMessageQueue.Socket
 
             // Set the buffer.
             _sendArgs.SetBuffer(_sendArgs.Offset, sendLength);
-
-            try
-            {
-                // Set the data to be sent.
-                if (!Socket.SendAsync(_sendArgs))
-                {
-                    _config.Logger?.Error($"{SocketHandler.Mode}: System can not send data asynchronously.");
-                    throw new Exception("System can not send data asynchronously.");
-                }
-            }
-            catch (ObjectDisposedException)
-            {
-                Close(CloseReason.SocketError);
-            }
         }
 
         /// <summary>
@@ -782,7 +460,7 @@ namespace DtronixMessageQueue.Socket
         protected void RecieveComplete(SocketAsyncEventArgs e)
         {
             _config.Logger?.Trace($"{SocketHandler.Mode}: Received {e.BytesTransferred} encrypted bytes.");
-            if (CurrentState == State.Closed)
+            if (CurrentSocketSessionState == SocketSessionState.Closed)
                 return;
 
             if (e.BytesTransferred == 0)
@@ -842,7 +520,7 @@ namespace DtronixMessageQueue.Socket
                     switch (_receivingHeader.HeaderType)
                     {
                         case Header.Type.BodyPayload:
-                            if (CurrentState != State.Connected)
+                            if (CurrentSocketSessionState != SocketSessionState.Connected)
                             {
                                 Close(CloseReason.ProtocolError);
                                 return false;
@@ -855,7 +533,7 @@ namespace DtronixMessageQueue.Socket
                             break;
 
                         case Header.Type.EncryptChannel:
-                            if (CurrentState != State.Securing)
+                            if (CurrentSocketSessionState != SocketSessionState.Securing)
                             {
                                 Close(CloseReason.ProtocolError);
                                 return false;
@@ -897,9 +575,6 @@ namespace DtronixMessageQueue.Socket
                     var encryptionKeyBuffer = new byte[readLength];
                     Buffer.BlockCopy(receiveBuffer, receiveOffset + position, encryptionKeyBuffer, 0,
                         readLength);
-
-                    if (SecureConnectionReceive(encryptionKeyBuffer))
-                        _receivingHeader.Reset();
 
                     position += readLength;
                 }
@@ -986,12 +661,12 @@ namespace DtronixMessageQueue.Socket
         public virtual void Close(CloseReason reason)
         {
             // If this session has already been closed, nothing more to do.
-            if (CurrentState == State.Closed && reason != CloseReason.ConnectionRefused)
+            if (CurrentSocketSessionState == SocketSessionState.Closed && reason != CloseReason.ConnectionRefused)
                 return;
 
             _config.Logger?.Trace($"{SocketHandler.Mode}: Connection closed. Reason: {reason}.");
 
-            CurrentState = State.Closed;
+            CurrentSocketSessionState = SocketSessionState.Closed;
 
             // close the socket associated with the client
             try
@@ -1027,7 +702,7 @@ namespace DtronixMessageQueue.Socket
             InboxProcessor.Deregister(Id);
             OutboxProcessor.Deregister(Id);
 
-            CurrentState = State.Closed;
+            CurrentSocketSessionState = SocketSessionState.Closed;
 
             // Notify the session has been closed.
             OnDisconnected(reason);
@@ -1047,7 +722,7 @@ namespace DtronixMessageQueue.Socket
         /// </summary>
         public void Dispose()
         {
-            if (CurrentState == State.Connected)
+            if (CurrentSocketSessionState == SocketSessionState.Connected)
                 Close(CloseReason.Closing);
 
         }

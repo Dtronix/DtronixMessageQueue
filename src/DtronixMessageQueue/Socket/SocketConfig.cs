@@ -1,4 +1,6 @@
-﻿namespace DtronixMessageQueue.Socket
+﻿using DtronixMessageQueue.Logging;
+
+namespace DtronixMessageQueue.Socket
 {
     /// <summary>
     /// Configurations for the server/client.
@@ -54,6 +56,6 @@
         /// (Server/Client)
         /// Logger used by the system for debugging purposes.
         /// </summary>
-        public MqLogger Logger { get; set; }
+        public ILogger Logger { get; set; }
     }
 }

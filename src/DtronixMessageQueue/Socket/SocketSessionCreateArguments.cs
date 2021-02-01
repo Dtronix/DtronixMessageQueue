@@ -1,4 +1,5 @@
 ﻿using System;
+using DtronixMessageQueue.Logging;
 
 namespace DtronixMessageQueue.Socket
 {
@@ -8,7 +9,7 @@ namespace DtronixMessageQueue.Socket
     /// </summary>
     /// <typeparam name="TSession"></typeparam>
     /// <typeparam name="TConfig"></typeparam>
-    public class TlsSocketSessionCreateArguments<TSession, TConfig>
+    public class SocketSessionCreateArguments<TSession, TConfig>
         where TSession : SocketSession<TSession, TConfig>, new()
         where TConfig : SocketConfig
     {
@@ -18,11 +19,6 @@ namespace DtronixMessageQueue.Socket
         public System.Net.Sockets.Socket SessionSocket;
 
         /// <summary>
-        /// Argument pool for this session to use.  Pulls two asyncevents for reading and writing and returns them at the end of this socket's life.
-        /// </summary>
-        public SocketAsyncEventArgsManager SocketArgsManager;
-
-        /// <summary>
         /// Socket configurations this session is to use.
         /// </summary>
         public TConfig SessionConfig;
@@ -30,26 +26,11 @@ namespace DtronixMessageQueue.Socket
         /// <summary>
         /// Handler base which is handling this session.
         /// </summary>
-        public SocketHandler<TSession, TConfig> TlsSocketHandler;
+        public SocketHandler<TSession, TConfig> SocketHandler;
 
         /// <summary>
-        /// Processor which handles all inbox data.
+        /// Memory pool for receiving and sending of data.
         /// </summary>
-        public ActionProcessor<Guid> InboxProcessor;
-
-        /// <summary>
-        /// Processor which handles all outbox data.
-        /// </summary>
-        public ActionProcessor<Guid> OutboxProcessor;
-
-        /// <summary>
-        /// Cache for commonly called methods used throughout the session.
-        /// </summary>
-        public ServiceMethodCache ServiceMethodCache;
-
-        /// <summary>
-        /// Receive buffer manager used to encryption trasformations on received data.
-        /// </summary>
-        public BufferManager ReceiveBufferManager;
+        public BufferMemoryPool BufferMemoryPool;
     }
 }

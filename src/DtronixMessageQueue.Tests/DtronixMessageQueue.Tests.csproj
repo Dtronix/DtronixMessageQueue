@@ -58,7 +58,6 @@
     <Otherwise />
   </Choose>
   <ItemGroup>
-    <Compile Include="ActionProcessorTests.cs" />
     <Compile Include="MemoryQueueStreamTests.cs" />
     <Compile Include="Mq\MqFrameBuilderTests.cs" />
     <Compile Include="Mq\MqFrameTests.cs" />
