@@ -1,11 +1,9 @@
 ﻿using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
-using System.Security.Cryptography;
 using System.Threading;
-using DtronixMessageQueue.Rpc;
 
-namespace DtronixMessageQueue.TcpSocket
+namespace DtronixMessageQueue.Socket
 {
     /// <summary>
     /// Base socket for all server and client sockets.

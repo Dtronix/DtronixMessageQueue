@@ -1,14 +1,9 @@
 ﻿using System;
-using System.Collections.Generic;
-using System.Diagnostics.CodeAnalysis;
-using System.Linq;
 using System.Net.Sockets;
 using System.Security.Cryptography;
-using System.Text;
 using System.Threading;
-using DtronixMessageQueue.Rpc;
 
-namespace DtronixMessageQueue.TcpSocket
+namespace DtronixMessageQueue.Socket
 {
     /// <summary>
     /// Base socket session to be sub-classes by the implementer.
@@ -105,12 +100,12 @@ namespace DtronixMessageQueue.TcpSocket
         protected ActionProcessor<Guid> OutboxProcessor;
 
 
-        private Socket _socket;
+        private System.Net.Sockets.Socket _socket;
 
         /// <summary>
         /// Raw socket for this session.
         /// </summary>
-        public Socket Socket => _socket;
+        public System.Net.Sockets.Socket Socket => _socket;
 
         /// <summary>
         /// Async args used to send data to the wire.

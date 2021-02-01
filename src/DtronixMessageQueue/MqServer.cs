@@ -1,5 +1,5 @@
 ﻿using System;
-using DtronixMessageQueue.TcpSocket;
+using DtronixMessageQueue.Socket;
 
 namespace DtronixMessageQueue
 {

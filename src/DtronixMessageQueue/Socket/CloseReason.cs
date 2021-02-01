@@ -1,4 +1,4 @@
-﻿namespace DtronixMessageQueue.TcpSocket
+﻿namespace DtronixMessageQueue.Socket
 {
     /// <summary>
     /// CloseReason enum

@@ -1,6 +1,6 @@
 ﻿using System;
 using System.Threading;
-using DtronixMessageQueue.TcpSocket;
+using DtronixMessageQueue.Socket;
 
 
 namespace DtronixMessageQueue

@@ -1,8 +1,7 @@
 ﻿using System;
-using System.Net;
 using System.Net.Sockets;
 
-namespace DtronixMessageQueue.TcpSocket
+namespace DtronixMessageQueue.Socket
 {
     /// <summary>
     /// Base functionality for handling connection requests.

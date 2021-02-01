@@ -4,7 +4,7 @@ using System.Net.Sockets;
 using System.Threading;
 using System.Threading.Tasks;
 
-namespace DtronixMessageQueue.TcpSocket
+namespace DtronixMessageQueue.Socket
 {
     /// <summary>
     /// Base functionality for all client connections to a remote server.

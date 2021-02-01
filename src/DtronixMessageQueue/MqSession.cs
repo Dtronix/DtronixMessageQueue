@@ -3,7 +3,7 @@ using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.IO;
 using System.Threading;
-using DtronixMessageQueue.TcpSocket;
+using DtronixMessageQueue.Socket;
 
 namespace DtronixMessageQueue
 {

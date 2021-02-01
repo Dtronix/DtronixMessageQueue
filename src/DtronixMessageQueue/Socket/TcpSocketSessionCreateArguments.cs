@@ -1,8 +1,6 @@
 ﻿using System;
-using System.Net.Sockets;
-using DtronixMessageQueue.Rpc;
 
-namespace DtronixMessageQueue.TcpSocket
+namespace DtronixMessageQueue.Socket
 {
 
     /// <summary>
@@ -17,7 +15,7 @@ namespace DtronixMessageQueue.TcpSocket
         /// <summary>
         /// Socket this session is to use.
         /// </summary>
-        public Socket SessionSocket;
+        public System.Net.Sockets.Socket SessionSocket;
 
         /// <summary>
         /// Argument pool for this session to use.  Pulls two asyncevents for reading and writing and returns them at the end of this socket's life.

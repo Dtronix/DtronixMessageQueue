@@ -1,6 +1,4 @@
-﻿using System.Security.Cryptography;
-
-namespace DtronixMessageQueue.TcpSocket
+﻿namespace DtronixMessageQueue.Socket
 {
     /// <summary>
     /// Class to implement on classes which have setup events.

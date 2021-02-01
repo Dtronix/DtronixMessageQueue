@@ -1,4 +1,4 @@
-﻿namespace DtronixMessageQueue.TcpSocket
+﻿namespace DtronixMessageQueue.Socket
 {
     /// <summary>
     /// Configurations for the server/client.

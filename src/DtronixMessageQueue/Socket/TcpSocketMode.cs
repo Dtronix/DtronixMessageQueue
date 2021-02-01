@@ -1,4 +1,4 @@
-﻿namespace DtronixMessageQueue.TcpSocket
+﻿namespace DtronixMessageQueue.Socket
 {
     /// <summary>
     /// Mode that the current Socket base is in.
