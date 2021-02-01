@@ -10,14 +10,14 @@ namespace DtronixMessageQueue.Socket
     /// </summary>
     /// <typeparam name="TSession">Session type for this connection.</typeparam>
     /// <typeparam name="TConfig">Configuration for this connection.</typeparam>
-    public abstract class TcpSocketHandler<TSession, TConfig>
-        where TSession : TcpSocketSession<TSession, TConfig>, new()
-        where TConfig : TcpSocketConfig
+    public abstract class SocketHandler<TSession, TConfig>
+        where TSession : SocketSession<TSession, TConfig>, new()
+        where TConfig : SocketConfig
     {
         /// <summary>
         /// Mode that this socket is running as.
         /// </summary>
-        public TcpSocketMode Mode { get; }
+        public SocketMode Mode { get; }
 
         /// <summary>
         /// True if the socket is connected/listening.
@@ -95,7 +95,7 @@ namespace DtronixMessageQueue.Socket
         /// </summary>
         /// <param name="config">Configurations for this socket.</param>
         /// <param name="mode">Mode of that this socket is running in.</param>
-        protected TcpSocketHandler(TConfig config, TcpSocketMode mode)
+        protected SocketHandler(TConfig config, SocketMode mode)
         {
             TimeoutTimer = new Timer(TimeoutCallback);
             ServiceMethodCache = new ServiceMethodCache();
@@ -103,7 +103,7 @@ namespace DtronixMessageQueue.Socket
             Config = config;
             var modeLower = mode.ToString().ToLower();
 
-            if (mode == TcpSocketMode.Client)
+            if (mode == SocketMode.Client)
             {
                 _outboxProcessor = new ActionProcessor<Guid>(new ActionProcessor<Guid>.Config
                 {
@@ -220,7 +220,7 @@ namespace DtronixMessageQueue.Socket
         /// <returns>New session instance.</returns>
         protected virtual TSession CreateSession(System.Net.Sockets.Socket socket)
         {
-            var session = TcpSocketSession<TSession, TConfig>.Create(
+            var session = SocketSession<TSession, TConfig>.Create(
                 new TlsSocketSessionCreateArguments<TSession, TConfig>
                 {
                     SessionSocket = socket,

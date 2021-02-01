@@ -2,7 +2,7 @@
 
 namespace DtronixMessageQueue
 {
-    public class MqConfig : TcpSocketConfig
+    public class MqConfig : SocketConfig
     {
         /// <summary>
         /// Max size of the frame.  Needs to be equal or smaller than SendAndReceiveBufferSize.

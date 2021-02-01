@@ -3,7 +3,7 @@
     /// <summary>
     /// Configurations for the server/client.
     /// </summary>
-    public class TcpSocketConfig
+    public class SocketConfig
     {
         /// <summary>
         /// Maximum number of connections allowed.  Only used by the server.

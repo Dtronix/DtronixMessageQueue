@@ -8,9 +8,9 @@ namespace DtronixMessageQueue.Socket
     /// </summary>
     /// <typeparam name="TSession">Session type for this connection.</typeparam>
     /// <typeparam name="TConfig">Configuration for this connection.</typeparam>
-    public class TcpSocketServer<TSession, TConfig> : TcpSocketHandler<TSession, TConfig>
-        where TSession : TcpSocketSession<TSession, TConfig>, new()
-        where TConfig : TcpSocketConfig
+    public class SocketServer<TSession, TConfig> : SocketHandler<TSession, TConfig>
+        where TSession : SocketSession<TSession, TConfig>, new()
+        where TConfig : SocketConfig
     {
         /// <summary>
         /// Set to the max number of connections allowed for the server.
@@ -47,7 +47,7 @@ namespace DtronixMessageQueue.Socket
         /// Creates a socket server with the specified configurations.
         /// </summary>
         /// <param name="config">Configurations for this socket.</param>
-        public TcpSocketServer(TConfig config) : base(config, TcpSocketMode.Server)
+        public SocketServer(TConfig config) : base(config, SocketMode.Server)
         {
         }
 

@@ -9,8 +9,8 @@ namespace DtronixMessageQueue.Socket
     /// <typeparam name="TSession"></typeparam>
     /// <typeparam name="TConfig"></typeparam>
     public class TlsSocketSessionCreateArguments<TSession, TConfig>
-        where TSession : TcpSocketSession<TSession, TConfig>, new()
-        where TConfig : TcpSocketConfig
+        where TSession : SocketSession<TSession, TConfig>, new()
+        where TConfig : SocketConfig
     {
         /// <summary>
         /// Socket this session is to use.
@@ -30,7 +30,7 @@ namespace DtronixMessageQueue.Socket
         /// <summary>
         /// Handler base which is handling this session.
         /// </summary>
-        public TcpSocketHandler<TSession, TConfig> TlsSocketHandler;
+        public SocketHandler<TSession, TConfig> TlsSocketHandler;
 
         /// <summary>
         /// Processor which handles all inbox data.

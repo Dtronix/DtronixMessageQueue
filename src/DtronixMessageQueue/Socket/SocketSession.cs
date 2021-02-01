@@ -10,9 +10,9 @@ namespace DtronixMessageQueue.Socket
     /// </summary>
     /// <typeparam name="TConfig">Configuration for this connection.</typeparam>
     /// <typeparam name="TSession">Session for this connection.</typeparam>
-    public abstract class TcpSocketSession<TSession, TConfig> : IDisposable, ISetupSocketSession
-        where TSession : TcpSocketSession<TSession, TConfig>, new()
-        where TConfig : TcpSocketConfig
+    public abstract class SocketSession<TSession, TConfig> : IDisposable, ISetupSocketSession
+        where TSession : SocketSession<TSession, TConfig>, new()
+        where TConfig : SocketConfig
     {
         /// <summary>
         /// Current state of the socket.
@@ -82,7 +82,7 @@ namespace DtronixMessageQueue.Socket
         /// <summary>
         /// Base socket for this session.
         /// </summary>
-        public TcpSocketHandler<TSession, TConfig> SocketHandler { get; private set; }
+        public SocketHandler<TSession, TConfig> SocketHandler { get; private set; }
 
         /// <summary>
         /// Contains the version number of the protocol used by the other end of the connection.
@@ -219,7 +219,7 @@ namespace DtronixMessageQueue.Socket
         /// <summary>
         /// Creates a new socket session with a new Id.
         /// </summary>
-        protected TcpSocketSession()
+        protected SocketSession()
         {
             Id = Guid.NewGuid();
             CurrentState = State.Closed;
@@ -307,7 +307,7 @@ namespace DtronixMessageQueue.Socket
             _socket.ReceiveAsync(_receiveArgs);
 
             // Send the protocol version number along with the public key to the connected client.
-            if (SocketHandler.Mode == TcpSocketMode.Client)
+            if (SocketHandler.Mode == SocketMode.Client)
             {
                 var key = _ecdh.PublicKey.ToByteArray();
                 SendWithHeader(Header.Type.EncryptChannel, null, 0, 0, key, 0, (ushort)key.Length, true);
@@ -359,7 +359,7 @@ namespace DtronixMessageQueue.Socket
                     IV = iv
                 };
 
-                if (SocketHandler.Mode == TcpSocketMode.Server)
+                if (SocketHandler.Mode == SocketMode.Server)
                 {
                     _config.Logger?.Trace($"{SocketHandler.Mode}: Sending client public ECDH key.");
                     var pKey = _ecdh.PublicKey.ToByteArray();

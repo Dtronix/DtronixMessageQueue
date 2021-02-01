@@ -11,9 +11,9 @@ namespace DtronixMessageQueue.Socket
     /// </summary>
     /// <typeparam name="TSession">Session type for this connection.</typeparam>
     /// <typeparam name="TConfig">Configuration for this connection.</typeparam>
-    public class TcpSocketClient<TSession, TConfig> : TcpSocketHandler<TSession, TConfig>
-        where TSession : TcpSocketSession<TSession, TConfig>, new()
-        where TConfig : TcpSocketConfig
+    public class SocketClient<TSession, TConfig> : SocketHandler<TSession, TConfig>
+        where TSession : SocketSession<TSession, TConfig>, new()
+        where TConfig : SocketConfig
     {
         /// <summary>
         /// True if the client is connected to a server.
@@ -35,7 +35,7 @@ namespace DtronixMessageQueue.Socket
         /// Creates a socket client with the specified configurations.
         /// </summary>
         /// <param name="config">Configurations to use.</param>
-        public TcpSocketClient(TConfig config) : base(config, TcpSocketMode.Client)
+        public SocketClient(TConfig config) : base(config, SocketMode.Client)
         {
             // Override the number of processors to one for each sending queue and receiving queue.
             config.ProcessorThreads = 1;
@@ -56,7 +56,7 @@ namespace DtronixMessageQueue.Socket
         /// <param name="endPoint">Endpoint to connect to.</param>
         public void Connect(IPEndPoint endPoint)
         {
-            if (MainSocket != null && Session?.CurrentState != TcpSocketSession<TSession, TConfig>.State.Closed)
+            if (MainSocket != null && Session?.CurrentState != SocketSession<TSession, TConfig>.State.Closed)
             {
                 throw new InvalidOperationException("Client is in the process of connecting.");
             }

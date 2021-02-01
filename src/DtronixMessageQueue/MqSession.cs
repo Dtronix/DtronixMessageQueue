@@ -12,7 +12,7 @@ namespace DtronixMessageQueue
     /// </summary>
     /// <typeparam name="TSession">Session type for this connection.</typeparam>
     /// <typeparam name="TConfig">Configuration for this connection.</typeparam>
-    public abstract class MqSession<TSession, TConfig> : TcpSocketSession<TSession, TConfig>
+    public abstract class MqSession<TSession, TConfig> : SocketSession<TSession, TConfig>
         where TSession : MqSession<TSession, TConfig>, new()
         where TConfig : MqConfig
     {
@@ -194,7 +194,7 @@ namespace DtronixMessageQueue
                     // Do nothing if this is a ping frame.
                     if (frame.FrameType == MqFrameType.Ping)
                     {
-                        if (SocketHandler.Mode == TcpSocketMode.Server)
+                        if (SocketHandler.Mode == SocketMode.Server)
                         {
                             // Re-send ping frame back to the client to refresh client connection timeout timer.
                             Send(CreateFrame(null, MqFrameType.Ping));
