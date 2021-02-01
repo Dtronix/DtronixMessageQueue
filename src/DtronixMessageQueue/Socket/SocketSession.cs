@@ -112,7 +112,7 @@ namespace DtronixMessageQueue.Socket
         /// Contains state information about the current receiving header.
         /// </summary>
         private readonly Header _receivingHeader = new Header();
-        
+
         private IMemoryOwner<byte> _readMemoryOwner;
 
         private Memory<byte> _readMemoryBuffer;
@@ -139,7 +139,7 @@ namespace DtronixMessageQueue.Socket
                 _writeSemaphore = new SemaphoreSlim(1, 1),
                 SocketHandler = args.SocketHandler,
             };
-            
+
             if (session._config.SendTimeout > 0)
                 session._socket.SendTimeout = session._config.SendTimeout;
 
@@ -185,20 +185,28 @@ namespace DtronixMessageQueue.Socket
             // Send the protocol version number along with the public key to the connected client.
             if (SocketHandler.Mode == SocketMode.Client)
             {
-
             }
         }
 
         private async Task ReceiveLoop()
         {
-            while (true)
+            try
             {
-                var read = await _socket.ReceiveAsync(_readMemoryBuffer, SocketFlags.None);
-                if (read == 0)
+                while (true)
                 {
-                    _config.Logger.ConditionalTrace("Socket received 0 bytes. Exiting receive loop.");
-                    break;
+                    var read = await _socket.ReceiveAsync(_readMemoryBuffer, SocketFlags.None);
+                    if (read == 0)
+                    {
+                        _config.Logger.ConditionalTrace("Socket received 0 bytes. Exiting receive loop.");
+                        break;
+                    }
+
+                    await HandleIncomingBytes(_readMemoryBuffer.Slice(0, read));
                 }
+            }
+            catch
+            {
+                await Close(CloseReason.SocketError);
             }
         }
 
@@ -213,7 +221,7 @@ namespace DtronixMessageQueue.Socket
         protected virtual void OnConnected()
         {
             //logger.Info("Session {0}: Connected", Id);
-            Connected?.Invoke(this, new SessionEventArgs<TSession, TConfig>((TSession)this));
+            Connected?.Invoke(this, new SessionEventArgs<TSession, TConfig>((TSession) this));
         }
 
         /// <summary>
@@ -222,15 +230,15 @@ namespace DtronixMessageQueue.Socket
         /// <param name="reason">Reason this socket is disconnecting</param>
         protected virtual void OnDisconnected(CloseReason reason)
         {
-            Closed?.Invoke(this, new SessionClosedEventArgs<TSession, TConfig>((TSession)this, reason));
+            Closed?.Invoke(this, new SessionClosedEventArgs<TSession, TConfig>((TSession) this, reason));
         }
 
         /// <summary>
         /// Overridden to parse incoming bytes from the wire.
         /// </summary>
         /// <param name="buffer">Buffer of bytes to parse.</param>
-        protected abstract Task<byte> HandleIncomingBytes(byte[] buffer);
-        
+        protected abstract Task<byte> HandleIncomingBytes(Memory<byte> buffer);
+
         /// <summary>
         /// Asynchronously send raw bytes to the socket and waits until data is sent to the underlying system to send.
         /// </summary>
@@ -244,163 +252,44 @@ namespace DtronixMessageQueue.Socket
                 throw new ArgumentException("Buffer can not be empty.", nameof(buffer));
 
             var bufferLength = buffer.Length;
+
+            if (bufferLength > _config.SendAndReceiveBufferSize)
+            {
+                _config.Logger?.Error(
+                    $"{SocketHandler.Mode}: Sending {bufferLength} bytes exceeds the SendAndReceiveBufferSize[{_config.SendAndReceiveBufferSize}].");
+                throw new Exception(
+                    $"Sending {bufferLength} bytes exceeds the SendAndReceiveBufferSize[{_config.SendAndReceiveBufferSize}].");
+            }
+
+            _config.Logger?.Trace($"{SocketHandler.Mode}: Waiting for writing semaphore.");
+
+            // Ensure sending occurs sequentially.
+            await _writeSemaphore.WaitAsync(-1, cancellationToken);
+
+            _config.Logger?.Trace($"{SocketHandler.Mode}: Passed writing semaphore.");
+
             var totalSent = 0;
             try
             {
-                ReadOnlyMemory<byte> sendBuffer = ReadOnlyMemory<byte>.Empty;
+                var sendBuffer = ReadOnlyMemory<byte>.Empty;
                 while (totalSent != bufferLength)
                 {
                     sendBuffer = totalSent == 0 ? buffer : sendBuffer.Slice(totalSent);
                     totalSent += await Socket.SendAsync(sendBuffer, SocketFlags.None, cancellationToken);
-                    _config.Logger?.Trace($"{SocketHandler.Mode}: Sending {sendBuffer} of {bufferLength} bytes.");
+                    _config.Logger?.Trace($"{SocketHandler.Mode}: Sent {sendBuffer} of {bufferLength} bytes.");
                 }
-
             }
             catch (ObjectDisposedException)
             {
                 _config.Logger?.Error($"{SocketHandler.Mode}: System can not send data asynchronously.");
                 Close(CloseReason.SocketError);
             }
+            finally
+            {
+                _writeSemaphore.Release();
+                _config.Logger?.Trace($"{SocketHandler.Mode}: Released writing semaphore.");
+            }
         }
-
-        /// <summary>
-        /// Sends raw bytes to the socket.  Blocks until data is sent to the underlying system to send.
-        /// </summary>
-        /// <remarks>
-        /// Only buffers in increments of 16 will be sent.  This includes the header type (byte), headerBuffer &  bodyBuffer.
-        /// Excess will be buffered until the next write.
-        /// </remarks>
-        /// <param name="headerType">The type of header to send.</param>
-        /// <param name="headerBuffer">Buffer to send after the header type.  Can be null.</param>
-        /// <param name="headerOffset">Offset in the header buffer to read.</param>
-        /// <param name="headerCount">Number of bytes to read in the header buffer.</param>
-        /// <param name="bodyBuffer">Buffer bytes to send.  Can be null.</param>
-        /// <param name="bodyOffset">Offset in the buffer.</param>
-        /// <param name="bodyCount">Number of bytes to send from the body buffer.</param>
-        /// <param name="pad">True to pad the data until it reaches 16 bytes.</param>
-        private void SendWithHeader(
-            Header.Type headerType,
-            byte[] headerBuffer,
-            int headerOffset,
-            int headerCount,
-            byte[] bodyBuffer,
-            int bodyOffset,
-            ushort bodyCount,
-            bool pad)
-        {
-            if (Socket == null || Socket.Connected == false)
-                return;
-
-            // type (byte) + header
-            if (1 + headerCount > 16)
-            {
-                _config.Logger?.Error($"{SocketHandler.Mode}: Header can not exceed 15 bytes in length.");
-                throw new ArgumentException("Header can not exceed 15 bytes in length.");
-            }
-
-            // body
-            if (bodyCount > Config.SendAndReceiveBufferSize)
-            {
-                _config.Logger?.Error($"{SocketHandler.Mode}: Attempted to send buffer larger than SendAndReceiveBufferSize.");
-                throw new ArgumentException("Attempted to send buffer larger than SendAndReceiveBufferSize.");
-            }
-
-            _config.Logger?.Trace($"{SocketHandler.Mode}: Waiting for semaphore.");
-
-            // Ensure sending occurs sequentially.
-            _writeSemaphore.Wait(-1);
-
-            _config.Logger?.Trace($"{SocketHandler.Mode}: Passed for semaphore.");
-
-            // Add the header type to the buffer.
-            var sendLength = TransformDataBuffer(
-                new[] {(byte) headerType},
-                0,
-                1,
-                _sendArgs.Buffer,
-                _sendArgs.Offset,
-                _sendPartialBuffer,
-                ref _sendPartialBufferLength,
-                _encryptor);
-
-            // Send if there is a header.
-            if (headerBuffer != null)
-                sendLength += TransformDataBuffer(
-                    headerBuffer,
-                    headerOffset,
-                    headerCount,
-                    _sendArgs.Buffer,
-                    _sendArgs.Offset + sendLength,
-                    _sendPartialBuffer,
-                    ref _sendPartialBufferLength,
-                    _encryptor);
-
-            // Send if there is a body.
-            if (bodyBuffer != null)
-                sendLength += TransformDataBuffer(
-                    bodyBuffer,
-                    bodyOffset,
-                    bodyCount,
-                    _sendArgs.Buffer,
-                    _sendArgs.Offset + sendLength,
-                    _sendPartialBuffer,
-                    ref _sendPartialBufferLength,
-                    _encryptor);
-
-            // If this is the last frame in a packet, pad the ending.
-            // 1 is for the header type byte.
-            if (pad && _sendPartialBufferLength > 0) //bodyCount + headerCount + 1 != sendLength)
-            {
-                // Determine how much to pad the buffer.
-                var paddingLength = 16 - _sendPartialBufferLength;
-                sendLength += TransformDataBuffer(
-                    _paddingBuffer[paddingLength - 1],
-                    0,
-                    paddingLength,
-                    _sendArgs.Buffer,
-                    _sendArgs.Offset + sendLength,
-                    _sendPartialBuffer,
-                    ref _sendPartialBufferLength, _encryptor);
-            }
-
-            // Zero if everything added is still in the _sendPartialBuffer.
-            if (sendLength == 0)
-            {
-                // Release the semaphore to allow writing since padding was not selected.
-                _writeSemaphore.Release(1);
-                return;
-            }
-
-            if (sendLength > _config.SendAndReceiveBufferSize)
-            {
-                _config.Logger?.Error($"{SocketHandler.Mode}: Sending {sendLength} bytes exceeds the SendAndReceiveBufferSize[{_config.SendAndReceiveBufferSize}].");
-                throw new Exception($"Sending {sendLength} bytes exceeds the SendAndReceiveBufferSize[{_config.SendAndReceiveBufferSize}].");
-            }
-
-            _config.Logger?.Trace($"{SocketHandler.Mode}: Sending {sendLength} encrypted bytes.");
-
-            // Set the buffer.
-            _sendArgs.SetBuffer(_sendArgs.Offset, sendLength);
-        }
-
-        /// <summary>
-        /// This method is invoked when an asynchronous send operation completes.  
-        /// The method issues another receive on the socket to read any additional data sent from the client
-        /// </summary>
-        /// <param name="e">Event args of this action.</param>
-        private void SendComplete(SocketAsyncEventArgs e)
-        {
-            if (e.SocketError != SocketError.Success)
-            {
-                Close(CloseReason.SocketError);
-            }
-
-            _config.Logger?.Trace($"{SocketHandler.Mode}: Sending {e.BytesTransferred} bytes complete. Releasing Semaphore...");
-            _writeSemaphore.Release(1);
-            _config.Logger?.Trace($"{SocketHandler.Mode}: Released semaphore.");
-        }
-
-
 
         private class Header
         {
@@ -451,49 +340,7 @@ namespace DtronixMessageQueue.Socket
                 BodyLengthBufferLength = 0;
             }
         }
-
-        /// <summary>
-        /// This method is invoked when an asynchronous receive operation completes. 
-        /// If the remote host closed the connection, then the socket is closed.
-        /// </summary>
-        /// <param name="e">Event args of this action.</param>
-        protected void RecieveComplete(SocketAsyncEventArgs e)
-        {
-            _config.Logger?.Trace($"{SocketHandler.Mode}: Received {e.BytesTransferred} encrypted bytes.");
-            if (CurrentSocketSessionState == SocketSessionState.Closed)
-                return;
-
-            if (e.BytesTransferred == 0)
-            {
-                HandleIncomingBytes(null);
-                return;
-            }
-
-            if (e.BytesTransferred > 0 && e.SocketError == SocketError.Success)
-            {
-                // If the session was closed curing the internal receive, don't read any more.
-                if (!ReceiveCompleteInternal(e.Buffer, e.Offset, e.BytesTransferred))
-                    return;
-
-                try
-                {
-                    // Re-setup the receive async call.
-                    if (Socket.ReceiveAsync(e) == false)
-                    {
-                        IoCompleted(this, e);
-                    }
-                }
-                catch (ObjectDisposedException)
-                {
-                    Close(CloseReason.SocketError);
-                }
-            }
-            else
-            {
-                Close(CloseReason.SocketError);
-            }
-        }
-
+        
         private bool ReceiveCompleteInternal(byte[] buffer, int offset, int count)
         {
             // Update the last time this session was active to prevent timeout.
@@ -502,9 +349,6 @@ namespace DtronixMessageQueue.Socket
             var receiveBuffer = _receiveTransformedBuffer.Array;
             var receiveOffset = _receiveTransformedBuffer.Offset;
 
-            int receiveLength = TransformDataBuffer(buffer, offset, count,
-                receiveBuffer, receiveOffset, _receivePartialBuffer,
-                ref _receivePartialBufferLength, _decryptor);
 
             while (position < receiveLength)
             {
@@ -525,6 +369,7 @@ namespace DtronixMessageQueue.Socket
                                 Close(CloseReason.ProtocolError);
                                 return false;
                             }
+
                             _receivingHeader.HeaderReceiveState = Header.State.ReadingBodyLength;
                             break;
 
@@ -538,6 +383,7 @@ namespace DtronixMessageQueue.Socket
                                 Close(CloseReason.ProtocolError);
                                 return false;
                             }
+
                             _receivingHeader.HeaderReceiveState = Header.State.ReadingEncryptionKey;
                             break;
 
@@ -560,7 +406,7 @@ namespace DtronixMessageQueue.Socket
                     && position < receiveLength)
                 {
                     var reason =
-                        (CloseReason)receiveBuffer[receiveOffset + position];
+                        (CloseReason) receiveBuffer[receiveOffset + position];
 
                     // Close the session.
                     Close(reason);
@@ -571,7 +417,7 @@ namespace DtronixMessageQueue.Socket
                 if (_receivingHeader.HeaderReceiveState == Header.State.ReadingEncryptionKey
                     && position < receiveLength)
                 {
-                    var readLength = Math.Min(140 - (int)_negotiationStream.Length, receiveLength - position);
+                    var readLength = Math.Min(140 - (int) _negotiationStream.Length, receiveLength - position);
                     var encryptionKeyBuffer = new byte[readLength];
                     Buffer.BlockCopy(receiveBuffer, receiveOffset + position, encryptionKeyBuffer, 0,
                         readLength);
@@ -658,11 +504,11 @@ namespace DtronixMessageQueue.Socket
         /// Called when this session is desired or requested to be closed.
         /// </summary>
         /// <param name="reason">Reason this socket is closing.</param>
-        public virtual void Close(CloseReason reason)
+        public virtual Task Close(CloseReason reason)
         {
             // If this session has already been closed, nothing more to do.
             if (CurrentSocketSessionState == SocketSessionState.Closed && reason != CloseReason.ConnectionRefused)
-                return;
+                return Task.CompletedTask;
 
             _config.Logger?.Trace($"{SocketHandler.Mode}: Connection closed. Reason: {reason}.");
 
@@ -673,9 +519,6 @@ namespace DtronixMessageQueue.Socket
             {
                 if (Socket.Connected)
                 {
-                    // Alert the other end of the connection that the session has been closed.
-                    SendWithHeader(Header.Type.ConnectionClose, new[] {(byte) reason}, 0, 1, null, 0, 0, true);
-
                     Socket.Shutdown(SocketShutdown.Receive);
                     Socket.Disconnect(false);
                 }
@@ -689,18 +532,9 @@ namespace DtronixMessageQueue.Socket
                 Socket.Close(1000);
             }
 
-            _sendArgs.Completed -= IoCompleted;
-            _receiveArgs.Completed -= IoCompleted;
-
-            // Free the SocketAsyncEventArg so they can be reused by another client.
-            _argsPool.Free(_sendArgs);
-            _argsPool.Free(_receiveArgs);
-
-            // Free the transformed buffer.
-            _receiveTransformedBufferManager.FreeBuffer(_receiveTransformedBuffer);
-
-            InboxProcessor.Deregister(Id);
-            OutboxProcessor.Deregister(Id);
+            _readMemoryOwner.Dispose();
+            _readMemoryOwner = null;
+            _readMemoryBuffer = null;
 
             CurrentSocketSessionState = SocketSessionState.Closed;
 
@@ -724,7 +558,6 @@ namespace DtronixMessageQueue.Socket
         {
             if (CurrentSocketSessionState == SocketSessionState.Connected)
                 Close(CloseReason.Closing);
-
         }
     }
 }
